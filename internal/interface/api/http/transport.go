@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"regexp"
+	"net"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/google/uuid"
+	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/internal/abstract"
@@ -31,149 +30,199 @@ type TransportOptions struct {
 type HTTPTransport struct {
 	addr   string
 	logger Logger
-	server *http.Server
-	mux    *http.ServeMux
+	server *fasthttp.Server
+	routes []routeEntry
+}
+
+type routeEntry struct {
+	method  string
+	prefix  string
+	handler abstract.Handler
 }
 
 func NewTransport(opts TransportOptions) *HTTPTransport {
 	return &HTTPTransport{
 		addr:   opts.Addr,
 		logger: opts.Logger,
-		mux:    http.NewServeMux(),
 	}
 }
 
 func (t *HTTPTransport) Handle(pattern string, handler abstract.Handler) {
-	t.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-
-		cookies := make(map[string]string, len(r.Cookies()))
-		for _, c := range r.Cookies() {
-			cookies[c.Name] = c.Value
-		}
-
-		req := abstract.Request{
-			Operation:  pattern,
-			Body:       body,
-			PathParams: extractPathParams(r),
-			Query:      r.URL.Query(),
-			Headers:    r.Header,
-			Cookies:    cookies,
-			ClientIP:   clientIP(r),
-			UserAgent:  r.UserAgent(),
-			RequestID:  r.Header.Get("X-Request-ID"),
-		}
-		resp, err := handler(r.Context(), req)
-		if err != nil {
-			t.writeError(w, r, err)
-			return
-		}
-		t.writeSuccess(w, r, resp)
-	})
+	method, path := splitPattern(pattern)
+	t.routes = append(t.routes, routeEntry{method: method, prefix: path, handler: handler})
 }
 
 func (t *HTTPTransport) Start() error {
-	handler := corsMiddleware(
-		correlationIDMiddleware(t.mux),
-	)
-	t.server = &http.Server{
-		Addr:    t.addr,
-		Handler: handler,
+	t.server = &fasthttp.Server{
+		Handler: t.serveHTTP,
 	}
-	if err := t.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
+	return t.server.ListenAndServe(t.addr)
 }
 
 func (t *HTTPTransport) Shutdown(ctx context.Context) error {
 	if t.server == nil {
 		return nil
 	}
-	return t.server.Shutdown(ctx)
+	return t.server.Shutdown()
+}
+
+func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
+	cors(ctx)
+	if string(ctx.Method()) == "OPTIONS" {
+		ctx.SetStatusCode(fasthttp.StatusNoContent)
+		return
+	}
+
+	correlationID(ctx)
+
+	method := string(ctx.Method())
+	path := string(ctx.Path())
+
+	for _, route := range t.routes {
+		if route.method != "" && route.method != method {
+			continue
+		}
+		params := extractPathParams(route.prefix, path)
+		if params == nil && route.prefix != path {
+			continue
+		}
+
+		cookies := make(map[string]string)
+		ctx.Request.Header.VisitAllCookie(func(k, v []byte) {
+			cookies[string(k)] = string(v)
+		})
+
+		req := abstract.Request{
+			Operation:  route.method + " " + route.prefix,
+			Body:       ctx.Request.Body(),
+			PathParams: params,
+			Query:      queryArgsToMap(ctx.QueryArgs()),
+			Headers:    headersToMap(&ctx.Request.Header),
+			Cookies:    cookies,
+			ClientIP:   clientIP(ctx),
+			UserAgent:  string(ctx.UserAgent()),
+			RequestID:  string(ctx.Request.Header.Peek("X-Request-ID")),
+		}
+		resp, err := route.handler(ctx, req)
+		if err != nil {
+			t.writeError(ctx, err)
+			return
+		}
+		t.writeSuccess(ctx, resp)
+		return
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusNotFound)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(map[string]any{
+		"error": map[string]any{"code": "NOT_FOUND", "message": "no matching route"},
+	})
+}
+
+func cors(ctx *fasthttp.RequestCtx) {
+	origin := ctx.Request.Header.Peek("Origin")
+	if len(origin) == 0 {
+		origin = []byte("*")
+	}
+	ctx.Response.Header.Set("Access-Control-Allow-Origin", string(origin))
+	ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+	ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, x-api-key")
+	ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
+	ctx.Response.Header.Set("Vary", "Origin")
+}
+
+func correlationID(ctx *fasthttp.RequestCtx) {
+	id := ctx.Request.Header.Peek("X-Request-ID")
+	if len(id) == 0 {
+		id = ctx.Request.Header.Peek("X-Correlation-ID")
+	}
+	if len(id) == 0 {
+		id = []byte(randomID())
+	}
+	ctx.Response.Header.Set("X-Request-ID", string(id))
+	ctx.Request.Header.Set("X-Request-ID", string(id))
 }
 
 // ── Response writing ───────────────────────────────────────────────────────
 
-func (t *HTTPTransport) writeSuccess(w http.ResponseWriter, r *http.Request, resp abstract.Response) {
+func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Response) {
 	if resp.Status == 0 {
-		resp.Status = http.StatusOK
+		resp.Status = fasthttp.StatusOK
 	}
 
 	for _, c := range resp.Cookies {
-		http.SetCookie(w, &http.Cookie{
-			Name:     c.Name,
-			Value:    c.Value,
-			Path:     c.Path,
-			Domain:   c.Domain,
-			MaxAge:   c.MaxAge,
-			Secure:   c.Secure,
-			HttpOnly: c.HTTPOnly,
-			SameSite: c.SameSite,
-		})
+		fc := fasthttp.Cookie{}
+		fc.SetKey(c.Name)
+		fc.SetValue(c.Value)
+		fc.SetPath(c.Path)
+		fc.SetDomain(c.Domain)
+		fc.SetMaxAge(c.MaxAge)
+		fc.SetSecure(c.Secure)
+		fc.SetHTTPOnly(c.HTTPOnly)
+		fc.SetSameSite(mapSameSite(c.SameSite))
+		ctx.Response.Header.SetCookie(&fc)
 	}
 
 	for k, vals := range resp.Headers {
 		for _, v := range vals {
-			w.Header().Add(k, v)
+			ctx.Response.Header.Add(k, v)
 		}
 	}
 
 	if raw, ok := resp.Body.([]byte); ok {
-		if w.Header().Get("Content-Type") == "" {
-			w.Header().Set("Content-Type", "application/octet-stream")
+		if len(ctx.Response.Header.ContentType()) == 0 {
+			ctx.SetContentType("application/octet-stream")
 		}
-		w.WriteHeader(resp.Status)
-		_, _ = w.Write(raw)
+		ctx.SetStatusCode(resp.Status)
+		ctx.Write(raw)
 		return
 	}
 
 	if stream, ok := resp.Body.(abstract.StreamBody); ok {
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-		w.WriteHeader(resp.Status)
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			return
-		}
-		flusher.Flush()
-		for data := range stream {
-			jsonBytes, err := json.Marshal(map[string]any{"data": data})
-			if err != nil {
-				continue
+		ctx.SetContentType("text/event-stream")
+		ctx.Response.Header.Set("Cache-Control", "no-cache")
+		ctx.Response.Header.Set("Connection", "keep-alive")
+		ctx.SetStatusCode(resp.Status)
+		ctx.Hijack(func(c net.Conn) {
+			defer c.Close()
+			// flush headers by writing an initial newline
+			fmt.Fprintf(c, "\n")
+			for data := range stream {
+				jsonBytes, err := json.Marshal(map[string]any{"data": data})
+				if err != nil {
+					continue
+				}
+				fmt.Fprintf(c, "data: %s\n\n", jsonBytes)
 			}
-			fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
-			flusher.Flush()
-		}
+		})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.Status)
+	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(resp.Status)
 
-	if resp.Status == http.StatusNoContent {
+	if resp.Status == fasthttp.StatusNoContent {
 		return
 	}
 
 	meta := map[string]any{
 		"timestamp": time.Now().Format(time.RFC3339),
-		"request":   r.Header.Get("X-Request-ID"),
+		"request":   ctx.Request.Header.Peek("X-Request-ID"),
 	}
 	if resp.Page != nil {
 		meta["page"] = resp.Page
 	}
 
-	json.NewEncoder(w).Encode(map[string]any{
+	json.NewEncoder(ctx).Encode(map[string]any{
 		"data":     resp.Body,
 		"metadata": meta,
 	})
 }
 
-func (t *HTTPTransport) writeError(w http.ResponseWriter, r *http.Request, err error) {
-	w.Header().Set("Content-Type", "application/json")
+func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error) {
+	ctx.SetContentType("application/json")
 
-	status := http.StatusInternalServerError
+	status := fasthttp.StatusInternalServerError
 	var sysErr *common.SystemError
 
 	if errors.As(err, &sysErr) {
@@ -184,8 +233,8 @@ func (t *HTTPTransport) writeError(w http.ResponseWriter, r *http.Request, err e
 
 	issue := sysErr.ToIssue()
 
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{
+	ctx.SetStatusCode(status)
+	json.NewEncoder(ctx).Encode(map[string]any{
 		"error": map[string]any{
 			"code":    issue.Code,
 			"message": issue.Message,
@@ -193,71 +242,93 @@ func (t *HTTPTransport) writeError(w http.ResponseWriter, r *http.Request, err e
 		},
 		"metadata": map[string]any{
 			"timestamp": time.Now().Format(time.RFC3339),
-			"request":   r.Header.Get("X-Request-ID"),
+			"request":   ctx.Request.Header.Peek("X-Request-ID"),
 		},
 	})
 }
 
-// ── helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-var pathParamRe = regexp.MustCompile(`\{(\w+)\}`)
-
-func extractPathParams(r *http.Request) map[string]string {
-	m := make(map[string]string)
-	for _, match := range pathParamRe.FindAllStringSubmatch(r.Pattern, -1) {
-		key := match[1]
-		if v := r.PathValue(key); v != "" {
-			m[key] = v
+func splitPattern(pattern string) (string, string) {
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == ' ' {
+			return pattern[:i], pattern[i+1:]
 		}
 	}
+	return "", pattern
+}
+
+func extractPathParams(pattern, path string) map[string]string {
+	var patternParts, pathParts []string
+	start := 0
+	for i := 0; i <= len(pattern); i++ {
+		if i == len(pattern) || pattern[i] == '/' {
+			if i > start {
+				patternParts = append(patternParts, pattern[start:i])
+			}
+			start = i + 1
+		}
+	}
+	start = 0
+	for i := 0; i <= len(path); i++ {
+		if i == len(path) || path[i] == '/' {
+			if i > start {
+				pathParts = append(pathParts, path[start:i])
+			}
+			start = i + 1
+		}
+	}
+	if len(patternParts) != len(pathParts) {
+		return nil
+	}
+	params := make(map[string]string)
+	for i, pp := range patternParts {
+		if len(pp) > 2 && pp[0] == '{' && pp[len(pp)-1] == '}' {
+			params[pp[1:len(pp)-1]] = pathParts[i]
+		} else if pp != pathParts[i] {
+			return nil
+		}
+	}
+	return params
+}
+
+func clientIP(ctx *fasthttp.RequestCtx) string {
+	if fwd := ctx.Request.Header.Peek("X-Forwarded-For"); len(fwd) > 0 {
+		return string(fwd)
+	}
+	if realIP := ctx.Request.Header.Peek("X-Real-IP"); len(realIP) > 0 {
+		return string(realIP)
+	}
+	return ctx.RemoteAddr().String()
+}
+
+func queryArgsToMap(qa *fasthttp.Args) map[string][]string {
+	m := make(map[string][]string)
+	qa.VisitAll(func(k, v []byte) {
+		key := string(k)
+		m[key] = append(m[key], string(v))
+	})
 	return m
 }
 
-func clientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		return fwd
-	}
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
-		return realIP
-	}
-	return r.RemoteAddr
+func headersToMap(h *fasthttp.RequestHeader) map[string][]string {
+	m := make(map[string][]string)
+	h.VisitAll(func(k, v []byte) {
+		key := string(k)
+		m[key] = append(m[key], string(v))
+	})
+	return m
 }
 
-// ── Middleware ──────────────────────────────────────────────────────────────
-
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
-		}
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, x-api-key")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Vary", "Origin")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func correlationIDMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get("X-Request-ID")
-		if id == "" {
-			id = r.Header.Get("X-Correlation-ID")
-		}
-		if id == "" {
-			id = randomID()
-		}
-		w.Header().Set("X-Request-ID", id)
-		r.Header.Set("X-Request-ID", id)
-		next.ServeHTTP(w, r)
-	})
+func mapSameSite(s abstract.SameSite) fasthttp.CookieSameSite {
+	switch s {
+	case abstract.SameSiteLaxMode:
+		return fasthttp.CookieSameSiteLaxMode
+	case abstract.SameSiteNoneMode:
+		return fasthttp.CookieSameSiteNoneMode
+	default:
+		return fasthttp.CookieSameSiteStrictMode
+	}
 }
 
 func randomID() string {
@@ -265,35 +336,35 @@ func randomID() string {
 }
 
 var codeToStatus = map[string]int{
-	"ERR_ACCESS_DENIED":     403,
-	"NOT_FOUND":             404,
-	"ALREADY_EXISTS":        409,
-	"VALIDATION_ERROR":      400,
-	"INVALID_REQUEST":       400,
-	"UNAUTHORIZED":          401,
-	"INVALID_CREDENTIALS":   401,
-	"EMAIL_EXISTS":          409,
-	"USER_DELETED":          410,
-	"FORBIDDEN":             403,
-	"MISSING_PARAM":         400,
-	"INVALID_QDSL":          400,
-	"DOCUMENT_REQUIRED":     400,
-	"PARSE_DOCUMENT":        400,
-	"SCHEMA_REQUIRED":       400,
-	"SCHEMA_MISSING_NAME":   400,
-	"COLLECTION_EXISTS":     409,
-	"RESERVED_NAME":         409,
-	"AUTH_REQUIRED":         401,
-	"DOCUMENT_NOT_FOUND":    404,
-	"NOT_IMPLEMENTED":       501,
-	"SERVICE_UNAVAILABLE":   503,
+	"ERR_ACCESS_DENIED":    fasthttp.StatusForbidden,
+	"NOT_FOUND":            fasthttp.StatusNotFound,
+	"ALREADY_EXISTS":       fasthttp.StatusConflict,
+	"VALIDATION_ERROR":     fasthttp.StatusBadRequest,
+	"INVALID_REQUEST":      fasthttp.StatusBadRequest,
+	"UNAUTHORIZED":         fasthttp.StatusUnauthorized,
+	"INVALID_CREDENTIALS":  fasthttp.StatusUnauthorized,
+	"EMAIL_EXISTS":         fasthttp.StatusConflict,
+	"USER_DELETED":         fasthttp.StatusGone,
+	"FORBIDDEN":            fasthttp.StatusForbidden,
+	"MISSING_PARAM":        fasthttp.StatusBadRequest,
+	"INVALID_QDSL":         fasthttp.StatusBadRequest,
+	"DOCUMENT_REQUIRED":    fasthttp.StatusBadRequest,
+	"PARSE_DOCUMENT":       fasthttp.StatusBadRequest,
+	"SCHEMA_REQUIRED":      fasthttp.StatusBadRequest,
+	"SCHEMA_MISSING_NAME":  fasthttp.StatusBadRequest,
+	"COLLECTION_EXISTS":    fasthttp.StatusConflict,
+	"RESERVED_NAME":        fasthttp.StatusConflict,
+	"AUTH_REQUIRED":        fasthttp.StatusUnauthorized,
+	"DOCUMENT_NOT_FOUND":   fasthttp.StatusNotFound,
+	"NOT_IMPLEMENTED":      fasthttp.StatusNotImplemented,
+	"SERVICE_UNAVAILABLE":  fasthttp.StatusServiceUnavailable,
 }
 
 func codeToStatusFn(code string) int {
 	if s, ok := codeToStatus[code]; ok {
 		return s
 	}
-	return 500
+	return fasthttp.StatusInternalServerError
 }
 
 func systemErrorToStatus(err *common.SystemError) int {

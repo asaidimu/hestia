@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/asaidimu/hestia/internal/app"
+	"github.com/asaidimu/hestia/internal/abstract"
 	"github.com/asaidimu/hestia/internal/core"
 	"github.com/asaidimu/hestia/internal/interface/api"
 
@@ -43,7 +43,7 @@ func main() {
 			Domain:       "",
 			Secure:       false,
 			HTTPOnly:     true,
-			SameSite:     http.SameSiteStrictMode,
+			SameSite:     abstract.SameSiteStrictMode,
 			AccessName:   "access_token",
 			AccessPath:   "/",
 			RefreshName:  "refresh_token",

@@ -4,7 +4,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
@@ -12,6 +11,14 @@ import (
 	"github.com/asaidimu/hestia/internal/core"
 	"github.com/asaidimu/hestia/internal/core/registration"
 	"github.com/asaidimu/hestia/internal/abstract"
+)
+
+const (
+	statusOK         = 200
+	statusCreated    = 201
+	statusNoContent  = 204
+	statusNotFound   = 404
+	statusTooMany    = 429
 )
 const (
 	msgSessionCreate = "system:auth:session:create"
@@ -130,9 +137,9 @@ func buildDoc(ctx context.Context, req Request, input core.Input) *data.Document
 
 func serializeResponse(result *registration.Result, output *definition.Schema, intent registration.Verb, httpPath string) Response {
 	if result == nil {
-		status := http.StatusOK
+		status := statusOK
 		if intent == registration.Delete {
-			status = http.StatusNoContent
+			status = statusNoContent
 		}
 		return Response{Status: status}
 	}
@@ -147,7 +154,7 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 					streamCh <- sane.ToMap()
 				}
 			}()
-			return Response{Status: http.StatusOK, Body: StreamBody(streamCh)}
+			return Response{Status: statusOK, Body: StreamBody(streamCh)}
 		}
 		if result.BlobChannel != nil {
 			streamCh := make(chan any, 64)
@@ -157,13 +164,13 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 					streamCh <- map[string]any{"data": b.Data, "content_type": b.ContentType}
 				}
 			}()
-			return Response{Status: http.StatusOK, Body: StreamBody(streamCh)}
+			return Response{Status: statusOK, Body: StreamBody(streamCh)}
 		}
 	}
 
 	if result.Blob.Data != nil {
 		return Response{
-			Status:  http.StatusOK,
+			Status:  statusOK,
 			Body:    result.Blob.Data,
 			Headers: map[string][]string{"Content-Type": {result.Blob.ContentType}},
 		}
@@ -178,20 +185,20 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 		if docs == nil {
 			docs = []any{}
 		}
-		return Response{Status: http.StatusOK, Body: map[string]any{"items": docs}}
+		return Response{Status: statusOK, Body: map[string]any{"items": docs}}
 	}
 
 	if result.BlobChannel != nil {
-		return Response{Status: http.StatusOK}
+		return Response{Status: statusOK}
 	}
 
 	if output == nil || len(output.Fields) == 0 {
-		status := http.StatusOK
+		status := statusOK
 		if intent == registration.Create {
-			status = http.StatusCreated
+			status = statusCreated
 		}
 		if intent == registration.Delete {
-			status = http.StatusNoContent
+			status = statusNoContent
 		}
 		return Response{Status: status}
 	}
@@ -200,9 +207,9 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 		switch fieldName {
 		case "document":
 			if result.Document != nil {
-				status := http.StatusOK
+				status := statusOK
 				if intent == registration.Create {
-					status = http.StatusCreated
+					status = statusCreated
 				}
 				sane, _ := result.Document.Sanitize()
 				resp := Response{Status: status, Body: sane}
@@ -222,7 +229,7 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 					sane, _ := d.Sanitize()
 					items = append(items, sane.ToMap())
 				}
-				return Response{Status: http.StatusOK, Body: items}
+				return Response{Status: statusOK, Body: items}
 			}
 		case "page":
 			if result.Page != nil {
@@ -232,7 +239,7 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 					items = append(items, sane.ToMap())
 				}
 				return Response{
-					Status: http.StatusOK,
+					Status: statusOK,
 					Body:   items,
 					Page:   result.Page.Pagination,
 				}
@@ -240,12 +247,12 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 		}
 	}
 
-	status := http.StatusOK
+	status := statusOK
 	if intent == registration.Create {
-		status = http.StatusCreated
+		status = statusCreated
 	}
 	if intent == registration.Delete {
-		status = http.StatusNoContent
+		status = statusNoContent
 	}
 	return Response{Status: status}
 }

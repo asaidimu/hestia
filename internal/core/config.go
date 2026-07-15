@@ -1,12 +1,12 @@
 package core
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
+	"github.com/asaidimu/hestia/internal/abstract"
 	"go.uber.org/zap"
 )
 
@@ -69,8 +69,8 @@ type CookieConfig struct {
 	Secure bool
 	// HTTPOnly prevents JavaScript access (default true).
 	HTTPOnly bool
-	// SameSite controls CSRF protection (default http.SameSiteStrictMode).
-	SameSite http.SameSite
+	// SameSite controls CSRF protection (default abstract.SameSiteStrictMode).
+	SameSite abstract.SameSite
 
 	// AccessName is the access token cookie name (default "access_token").
 	AccessName string

@@ -2,7 +2,6 @@ package abstract
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/asaidimu/go-anansi/v8/core/query"
 )
@@ -19,6 +18,14 @@ type Request struct {
 	RequestID  string
 }
 
+type SameSite int
+
+const (
+	SameSiteStrictMode SameSite = iota + 1
+	SameSiteLaxMode
+	SameSiteNoneMode
+)
+
 type Cookie struct {
 	Name     string
 	Value    string
@@ -27,7 +34,7 @@ type Cookie struct {
 	MaxAge   int
 	Secure   bool
 	HTTPOnly bool
-	SameSite http.SameSite
+	SameSite SameSite
 }
 
 type StreamBody <-chan any

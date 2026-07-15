@@ -2,13 +2,13 @@ package boot
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/asaidimu/hestia/internal/abstract"
 	"github.com/asaidimu/hestia/internal/core"
 )
 
@@ -28,16 +28,14 @@ func envOrBool(key string, defaultVal bool) bool {
 	return defaultVal
 }
 
-func parseSameSite(s string) http.SameSite {
+func parseSameSite(s string) abstract.SameSite {
 	switch strings.ToLower(s) {
-	case "strict":
-		return http.SameSiteStrictMode
 	case "lax":
-		return http.SameSiteLaxMode
+		return abstract.SameSiteLaxMode
 	case "none":
-		return http.SameSiteNoneMode
+		return abstract.SameSiteNoneMode
 	default:
-		return http.SameSiteStrictMode
+		return abstract.SameSiteStrictMode
 	}
 }
 
