@@ -1,0 +1,24 @@
+{
+  "name": "_seed_",
+  "version": "1.0.0",
+  "fields": {
+    "019f32aa-ba89-7b6e-98f3-7e2f4867b0f2": {
+      "name": "key",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba89-7151-994b-fed14dc4b1ac": {
+      "name": "value",
+      "type": "string"
+    }
+  },
+  "indexes": {
+    "019f32aa-ba8a-733c-80be-12f048d896cd": {
+      "name": "idx_key",
+      "fields": [
+        "key"
+      ],
+      "type": "unique"
+    }
+  }
+}

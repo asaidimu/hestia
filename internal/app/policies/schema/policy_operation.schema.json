@@ -1,0 +1,28 @@
+{
+  "name": "_policy_operation_",
+  "version": "1.0.0",
+  "fields": {
+    "019f32aa-ba8b-797a-bc32-17574381a3b4": {
+      "name": "name",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
+      "name": "ruleKey",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
+      "name": "description",
+      "type": "string"
+    },
+    "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
+      "name": "intentType",
+      "type": "string"
+    },
+    "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
+      "name": "protected",
+      "type": "bool"
+    }
+  }
+}

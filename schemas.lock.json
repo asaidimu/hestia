@@ -1,0 +1,401 @@
+{
+  "version": "1",
+  "schemas": {
+    "_access_log_": {
+      "path": "internal/app/feature/audit/schema/access_log.schema.json",
+      "hash": "sha256:d391daf2778f9729bd48a9884ca2611b9c9075935ab0c0de290697f16e35c8f2",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_access_log_",
+        "fields": {
+          "019f32aa-ba8a-735c-85af-feac4956ae12": {
+            "name": "message_name",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-73c4-9711-047a4fb3b9ad": {
+            "name": "credential",
+            "type": "string"
+          },
+          "019f32aa-ba8a-7519-873e-c51e4619b4d1": {
+            "name": "status",
+            "type": "string"
+          },
+          "019f32aa-ba8a-7789-b8ae-5e67490ea6db": {
+            "name": "latency_ms",
+            "type": "integer"
+          },
+          "019f32aa-ba8a-7a77-980b-379d4d9099f1": {
+            "name": "transport",
+            "type": "record"
+          },
+          "019f32aa-ba8a-7a91-8521-8d0a4abda16e": {
+            "name": "request_id",
+            "type": "string"
+          },
+          "019f32aa-ba8a-7aba-bcee-0c734aaa846d": {
+            "name": "timestamp",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7b67-b241-2f424c6ea04c": {
+            "name": "user_id",
+            "type": "string"
+          },
+          "019f32aa-ba8a-7f0a-99ba-546948c78a64": {
+            "name": "error",
+            "type": "string"
+          },
+          "019f56ff-10d9-7c0d-bfb7-3d132c66c805": {
+            "name": "message_id",
+            "type": "string"
+          }
+        },
+        "indexes": {
+          "019f32aa-ba8a-7830-bb04-906a46328400": {
+            "name": "idx_timestamp",
+            "fields": [
+              "timestamp"
+            ],
+            "type": "normal"
+          },
+          "019f32aa-ba8a-78c2-abc5-454d4ebf9756": {
+            "name": "idx_user_id",
+            "fields": [
+              "user_id"
+            ],
+            "type": "normal"
+          },
+          "019f32aa-ba8a-792a-8b3d-485a47188c4a": {
+            "name": "idx_request_id",
+            "fields": [
+              "request_id"
+            ],
+            "type": "normal"
+          },
+          "019f32aa-ba8a-7ace-9d7d-088b44709d11": {
+            "name": "idx_message",
+            "fields": [
+              "message_name"
+            ],
+            "type": "normal"
+          },
+          "019f32aa-ba8a-7d4f-8953-ad5c4d1ab8af": {
+            "name": "idx_status",
+            "fields": [
+              "status"
+            ],
+            "type": "normal"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-72f7-bf13-9a98e3831764__access_log__major.go"
+    },
+    "_api_key_": {
+      "path": "internal/app/feature/apikeys/schema/api_key.schema.json",
+      "hash": "sha256:2d09872d1b7fa0596ce97914dd948f59d3d6c0b511cccee6e63728fd58de6207",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_api_key_",
+        "fields": {
+          "019f32aa-ba8a-7137-a802-606e4d06a033": {
+            "name": "prefix",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7418-a2f0-8a84464d9e7c": {
+            "name": "environment",
+            "type": "string"
+          },
+          "019f32aa-ba8a-75c8-9aa9-cb904e77891f": {
+            "name": "hash",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-76db-922d-d3534a208904": {
+            "name": "usage",
+            "type": "integer"
+          },
+          "019f32aa-ba8a-77a7-8a35-cc7048d887bf": {
+            "name": "expiry",
+            "type": "string"
+          },
+          "019f32aa-ba8a-797f-9766-755f4bfa93fc": {
+            "name": "status",
+            "type": "string"
+          },
+          "019f32aa-ba8a-7acb-adf9-a94f426a9c1e": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7c52-a286-d4de4ee69c69": {
+            "name": "limits",
+            "type": "object",
+            "schema": {
+              "id": "019f32aa-ba8b-7397-a13f-ce3d4d539f39"
+            }
+          },
+          "019f32aa-ba8a-7ce2-9ec2-dd6f4d2f8a15": {
+            "name": "scopes",
+            "type": "array",
+            "schema": {
+              "id": "019f32aa-ba8a-7226-9382-2607406fb689"
+            }
+          },
+          "019f32aa-ba8a-7e37-add0-cf5d489ea2b4": {
+            "name": "userId",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7fc6-b756-ec714d9a8c4a": {
+            "name": "last_used",
+            "type": "string"
+          },
+          "019f32aa-ba8b-78df-9ed2-d5f246c3a93a": {
+            "name": "ip",
+            "type": "object",
+            "schema": {
+              "id": "019f32aa-ba8b-7d31-9e87-a7e34d2da347"
+            }
+          }
+        },
+        "schemas": {
+          "019f32aa-ba8a-7226-9382-2607406fb689": {
+            "name": "Scope",
+            "type": "string"
+          },
+          "019f32aa-ba8b-7397-a13f-ce3d4d539f39": {
+            "name": "Limits",
+            "fields": {
+              "019f32aa-ba8b-7072-99db-4cb04c7d9562": {
+                "name": "rph",
+                "type": "integer"
+              },
+              "019f32aa-ba8b-742c-8c32-882547698cff": {
+                "name": "rpm",
+                "type": "integer"
+              }
+            }
+          },
+          "019f32aa-ba8b-77a9-b368-358446c283ae": {
+            "name": "IPCIDR",
+            "type": "string"
+          },
+          "019f32aa-ba8b-7d31-9e87-a7e34d2da347": {
+            "name": "IPConfig",
+            "fields": {
+              "019f32aa-ba8b-75ad-b09b-21584dd3a317": {
+                "name": "whitelist",
+                "type": "array",
+                "schema": {
+                  "id": "019f32aa-ba8b-77a9-b368-358446c283ae"
+                }
+              }
+            }
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-71b3-b94b-8e909b11a8ff__api_key__major.go"
+    },
+    "_policy_operation_": {
+      "path": "internal/app/feature/policies/schema/policy_operation.schema.json",
+      "hash": "sha256:444d186da5980e85047eb5f849f0e6867c2ecc6f346e3c399e2557478d0f91b9",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_policy_operation_",
+        "fields": {
+          "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
+            "name": "description",
+            "type": "string"
+          },
+          "019f32aa-ba8b-797a-bc32-17574381a3b4": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
+            "name": "protected",
+            "type": "unknown"
+          },
+          "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
+            "name": "ruleKey",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
+            "name": "intentType",
+            "type": "string"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-74b3-b1f1-c98bad00dbbd__policy_operation__major.go"
+    },
+    "_policy_rule_": {
+      "path": "internal/app/feature/policies/schema/policy_rule.schema.json",
+      "hash": "sha256:f487d3aff69a830100c720aaabbe4e85e73d0f442dfa752b1d31a058f18e01f7",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.1.0",
+        "name": "_policy_rule_",
+        "fields": {
+          "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
+            "name": "ruleType",
+            "type": "string"
+          },
+          "019f32aa-ba8b-743d-86a5-28354af49391": {
+            "name": "syntax",
+            "type": "string"
+          },
+          "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
+            "name": "protected",
+            "type": "unknown"
+          },
+          "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
+            "name": "rules",
+            "type": "string"
+          },
+          "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
+            "name": "expression",
+            "type": "string"
+          },
+          "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
+            "name": "description",
+            "type": "string"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-7555-8355-7ce436acf5e8__policy_rule__major.go"
+    },
+    "_seed_": {
+      "path": "internal/app/feature/operations/schema/seed.schema.json",
+      "hash": "sha256:609b8a25b8118f61727c5819875e2dc52e8f9cefe74246147c55a2735b55d7e0",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_seed_",
+        "fields": {
+          "019f32aa-ba89-7151-994b-fed14dc4b1ac": {
+            "name": "value",
+            "type": "string"
+          },
+          "019f32aa-ba89-7b6e-98f3-7e2f4867b0f2": {
+            "name": "key",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "indexes": {
+          "019f32aa-ba8a-733c-80be-12f048d896cd": {
+            "name": "idx_key",
+            "fields": [
+              "key"
+            ],
+            "type": "unique"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-7422-9fbe-e671d38e62d7__seed__major.go"
+    },
+    "_token_blocklist_": {
+      "path": "internal/app/feature/auth/schema/token_blocklist.schema.json",
+      "hash": "sha256:93217df99995831306aa2b46b4eb94d3e8368cf4712a562dde2ac15d1c105e2e",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_token_blocklist_",
+        "fields": {
+          "019f32aa-ba8a-78f8-a3db-999944a4873c": {
+            "name": "jti",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7c35-979b-876047e881ef": {
+            "name": "user_id",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8a-7d09-b85a-30804b64b594": {
+            "name": "exp",
+            "required": true,
+            "type": "integer"
+          }
+        },
+        "indexes": {
+          "019f32aa-ba8a-7ba1-9ceb-3de9492ab2b2": {
+            "name": "idx_jti",
+            "fields": [
+              "jti"
+            ],
+            "type": "unique"
+          },
+          "019f32aa-ba8a-7cef-992c-d4754160bb20": {
+            "name": "idx_exp",
+            "fields": [
+              "exp"
+            ],
+            "type": "normal"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-739e-b796-5a3f84ec2a82__token_blocklist__major.go"
+    },
+    "_user_": {
+      "path": "internal/app/feature/users/schema/user.schema.json",
+      "hash": "sha256:a3940fb61cbb0612f0ebac1efad5cf08ce3670862c0709b3ccfafc8c0d3eba09",
+      "version": "1.0.0",
+      "schema": {
+        "version": "1.0.0",
+        "name": "_user_",
+        "fields": {
+          "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8c-7602-84a7-00db460db25b": {
+            "name": "deleted_at",
+            "type": "string"
+          },
+          "019f32aa-ba8c-7679-957f-588144ddbb2b": {
+            "name": "email",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
+            "name": "scopes",
+            "type": "array",
+            "schema": {
+              "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
+            }
+          },
+          "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
+            "name": "password",
+            "required": true,
+            "type": "string"
+          },
+          "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
+            "name": "verified",
+            "type": "boolean"
+          }
+        },
+        "schemas": {
+          "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
+            "name": "Scope",
+            "type": "string"
+          }
+        }
+      },
+      "migration_file": "019f60e4-eaf4-75dd-99dd-3d97c4a71d9c__user__major.go"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "_policy_rule_",
+  "version": "1.1.0",
+  "fields": {
+    "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
+      "name": "name",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
+      "name": "ruleType",
+      "type": "string"
+    },
+    "019f32aa-ba8b-743d-86a5-28354af49391": {
+      "name": "syntax",
+      "type": "string"
+    },
+    "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
+      "name": "expression",
+      "type": "string"
+    },
+    "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
+      "name": "rules",
+      "type": "string"
+    },
+    "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
+      "name": "description",
+      "type": "string"
+    },
+    "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
+      "name": "protected",
+      "type": "bool"
+    }
+  }
+}

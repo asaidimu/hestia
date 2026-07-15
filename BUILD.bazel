@@ -1,0 +1,23 @@
+# ./server/BUILD.bazel
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+# Split the binary from the library
+go_library(
+    name = "server_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/asaidimu/hestia",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//ui",
+        "@com_github_pocketbase_pocketbase//:pocketbase",
+        "@com_github_joho_godotenv//:godotenv",
+        "@com_github_pocketbase_pocketbase//core",
+    ],
+)
+
+go_binary(
+    name = "server",
+    out = "out/server",
+    embed = [":server_lib"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,37 @@
+{
+  "name": "_token_blocklist_",
+  "version": "1.0.0",
+  "fields": {
+    "019f32aa-ba8a-78f8-a3db-999944a4873c": {
+      "name": "jti",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8a-7d09-b85a-30804b64b594": {
+      "name": "exp",
+      "type": "integer",
+      "required": true
+    },
+    "019f32aa-ba8a-7c35-979b-876047e881ef": {
+      "name": "user_id",
+      "type": "string",
+      "required": true
+    }
+  },
+  "indexes": {
+    "019f32aa-ba8a-7ba1-9ceb-3de9492ab2b2": {
+      "name": "idx_jti",
+      "fields": [
+        "jti"
+      ],
+      "type": "unique"
+    },
+    "019f32aa-ba8a-7cef-992c-d4754160bb20": {
+      "name": "idx_exp",
+      "fields": [
+        "exp"
+      ],
+      "type": "normal"
+    }
+  }
+}

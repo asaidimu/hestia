@@ -1,0 +1,43 @@
+{
+  "name": "_user_",
+  "version": "1.0.0",
+  "fields": {
+    "019f32aa-ba8c-7679-957f-588144ddbb2b": {
+      "name": "email",
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
+      "name": "password",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
+      "name": "name",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
+      "name": "verified",
+      "type": "boolean"
+    },
+    "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
+      "name": "scopes",
+      "type": "array",
+      "schema": {
+        "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
+      }
+    },
+    "019f32aa-ba8c-7602-84a7-00db460db25b": {
+      "name": "deleted_at",
+      "type": "string"
+    }
+  },
+  "schemas": {
+    "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
+      "name": "Scope",
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "name": "_access_log_",
+  "version": "1.0.0",
+  "fields": {
+    "019f32aa-ba8a-7aba-bcee-0c734aaa846d": {
+      "name": "timestamp",
+      "type": "string",
+      "required": true
+    },
+    "019f32aa-ba8a-7a91-8521-8d0a4abda16e": {
+      "name": "request_id",
+      "type": "string"
+    },
+    "019f32aa-ba8a-7b67-b241-2f424c6ea04c": {
+      "name": "user_id",
+      "type": "string"
+    },
+    "019f32aa-ba8a-73c4-9711-047a4fb3b9ad": {
+      "name": "credential",
+      "type": "string"
+    },
+    "019f32aa-ba8a-735c-85af-feac4956ae12": {
+      "name": "message_name",
+      "type": "string",
+      "required": true
+    },
+    "019f56ff-10d9-7c0d-bfb7-3d132c66c805": {
+      "name": "message_id",
+      "type": "string"
+    },
+    "019f32aa-ba8a-7519-873e-c51e4619b4d1": {
+      "name": "status",
+      "type": "string"
+    },
+    "019f32aa-ba8a-7f0a-99ba-546948c78a64": {
+      "name": "error",
+      "type": "string"
+    },
+    "019f32aa-ba8a-7789-b8ae-5e67490ea6db": {
+      "name": "latency_ms",
+      "type": "integer"
+    },
+    "019f32aa-ba8a-7a77-980b-379d4d9099f1": {
+      "name": "transport",
+      "type": "record"
+    }
+  },
+  "indexes": {
+    "019f32aa-ba8a-7830-bb04-906a46328400": {
+      "name": "idx_timestamp",
+      "fields": [
+        "timestamp"
+      ]
+    },
+    "019f32aa-ba8a-78c2-abc5-454d4ebf9756": {
+      "name": "idx_user_id",
+      "fields": [
+        "user_id"
+      ]
+    },
+    "019f32aa-ba8a-792a-8b3d-485a47188c4a": {
+      "name": "idx_request_id",
+      "fields": [
+        "request_id"
+      ]
+    },
+    "019f32aa-ba8a-7ace-9d7d-088b44709d11": {
+      "name": "idx_message",
+      "fields": [
+        "message_name"
+      ]
+    },
+    "019f32aa-ba8a-7d4f-8953-ad5c4d1ab8af": {
+      "name": "idx_status",
+      "fields": [
+        "status"
+      ]
+    }
+  }
+}
