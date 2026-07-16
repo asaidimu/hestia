@@ -15,7 +15,7 @@ test-server: cmd/test-server/main.go
 	go build -o test-server ./cmd/test-server
 
 test-client: test-server
-	cd client && bunx vitest run
+	cd client && bunx vitest --run
 
 version:
 	@echo $(VERSION)
