@@ -137,3 +137,6 @@ test/
 .project
 .session.vim
 
+./client/node_modules
+test-server
+.env

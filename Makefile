@@ -1,4 +1,4 @@
-.PHONY: all test version
+.PHONY: all test test-client test-server version
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 RELEASE ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
@@ -9,7 +9,13 @@ build:
 	go build -v -ldflags "-X main.Version=$(VERSION) -X main.Release=$(RELEASE)" ./cmd/anansi
 
 test:
-	ANANSI_ENV=development go clean -testcache && ANANSI_ENV=development go test -v ./...
+	go clean -testcache && go test -v ./...
+
+test-server: cmd/test-server/main.go
+	go build -o test-server ./cmd/test-server
+
+test-client: test-server
+	cd client && bunx vitest run
 
 version:
 	@echo $(VERSION)
