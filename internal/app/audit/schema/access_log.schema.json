@@ -1,80 +1,218 @@
 {
-  "name": "_access_log_",
+  "name": "_audit_log_",
   "version": "1.0.0",
+  "description": "Audit trail of security-relevant actions: who did what, to what, when, from where, and with what outcome.",
   "fields": {
-    "019f32aa-ba8a-7aba-bcee-0c734aaa846d": {
-      "name": "timestamp",
+    "019f65b3-d3e4-7c7c-b357-eecfdf5cef15": {
+      "name": "event_id",
       "type": "string",
-      "required": true
+      "required": true,
+      "unique": true,
+      "description": "Unique identifier for this audit record itself (UUIDv7)."
     },
-    "019f32aa-ba8a-7a91-8521-8d0a4abda16e": {
+    "019f65b3-d3e4-73bd-9199-06ce692d9093": {
+      "name": "occurred_at",
+      "type": "string",
+      "required": true,
+      "description": "ISO-8601 timestamp of when the audited action actually took place."
+    },
+    "019f65b3-d3e4-7021-aa73-19c16c747eb6": {
+      "name": "recorded_at",
+      "type": "string",
+      "required": true,
+      "description": "ISO-8601 timestamp of when this record was written. Compare with occurred_at to detect ingestion lag or clock skew."
+    },
+    "019f65b3-d3e4-70b1-b9a7-66665c4d3983": {
+      "name": "trace_id",
+      "type": "string",
+      "description": "Distributed trace/correlation ID linking this event to related events across services."
+    },
+    "019f65b3-d3e4-7e39-8446-8c8b037a9a38": {
       "name": "request_id",
-      "type": "string"
-    },
-    "019f32aa-ba8a-7b67-b241-2f424c6ea04c": {
-      "name": "user_id",
-      "type": "string"
-    },
-    "019f32aa-ba8a-73c4-9711-047a4fb3b9ad": {
-      "name": "credential",
-      "type": "string"
-    },
-    "019f32aa-ba8a-735c-85af-feac4956ae12": {
-      "name": "message_name",
       "type": "string",
-      "required": true
+      "description": "Identifier of the originating request, if applicable."
     },
-    "019f56ff-10d9-7c0d-bfb7-3d132c66c805": {
-      "name": "message_id",
-      "type": "string"
+    "019f65b3-d3e4-7b19-82b7-51fefc6ee322": {
+      "name": "actor_id",
+      "type": "string",
+      "required": true,
+      "description": "Identifier of who or what performed the action. Use \"system\" for automated/internal actors."
     },
-    "019f32aa-ba8a-7519-873e-c51e4619b4d1": {
+    "019f65b3-d3e4-78e5-9ca9-fa9caf58b685": {
+      "name": "actor_type",
+      "type": "enum",
+      "required": true,
+      "schema": { "id": "019f65b3-d3e4-7acc-9b9d-9789d2049126" }
+    },
+    "019f65b3-d3e4-7a91-adde-07a5cf26c8c2": {
+      "name": "on_behalf_of_id",
+      "type": "string",
+      "description": "Set when actor_id is acting on behalf of another identity (delegation/impersonation), e.g. an admin or service acting for a user."
+    },
+    "019f65b3-d3e4-7637-931b-27558af15fdd": {
+      "name": "auth_method",
+      "type": "enum",
+      "schema": { "id": "019f65b3-d3e4-7ed1-82f7-4fd86ab0e4ea" }
+    },
+    "019f65b3-d3e4-70f2-954e-c078a0d74b4e": {
+      "name": "session_id",
+      "type": "string",
+      "description": "Non-secret session/token identifier. Never store raw credentials, tokens, or secrets here."
+    },
+    "019f65b3-d3e4-7dc8-bcf4-6f3e2cfa624b": {
+      "name": "operation",
+      "type": "enum",
+      "required": true,
+      "schema": { "id": "019f65b3-d3e4-7487-b43c-ef6e36017358" },
+      "description": "Coarse-grained action category, for consistent filtering across all producers."
+    },
+    "019f65b3-d3e4-7c89-9c6a-2df577c21fbf": {
+      "name": "resource_type",
+      "type": "string",
+      "required": true,
+      "description": "The kind of resource acted upon, e.g. \"invoice\", \"user_account\", \"api_key\"."
+    },
+    "019f65b3-d3e4-7171-aa1c-2e37e433345b": {
+      "name": "resource_id",
+      "type": "string",
+      "description": "Identifier of the specific resource instance acted upon."
+    },
+    "019f65b3-d3e4-7545-b93f-dfce85a54bbe": {
+      "name": "event_name",
+      "type": "string",
+      "required": true,
+      "description": "Fine-grained, human-readable event taxonomy, e.g. \"user.login.failed\" or \"invoice.updated\". Complements operation/resource_type with producer-specific detail."
+    },
+    "019f65b3-d3e4-78da-bddf-2ed076a26a21": {
       "name": "status",
-      "type": "string"
+      "type": "enum",
+      "required": true,
+      "schema": { "id": "019f65b3-d3e4-7bb9-bf4e-6f62ae863543" }
     },
-    "019f32aa-ba8a-7f0a-99ba-546948c78a64": {
-      "name": "error",
-      "type": "string"
+    "019f65b3-d3e4-7f7e-8c12-84b4b29161cb": {
+      "name": "severity",
+      "type": "enum",
+      "schema": { "id": "019f65b3-d3e4-79a2-9e6e-b436917314ed" }
     },
-    "019f32aa-ba8a-7789-b8ae-5e67490ea6db": {
+    "019f65b3-d3e4-7c4f-9751-3bc4dd183df5": {
+      "name": "error_code",
+      "type": "string",
+      "description": "Machine-readable error/denial code, present when status is failure, denied, or error."
+    },
+    "019f65b3-d3e4-7d9d-a2f3-da8ac99d8d14": {
+      "name": "error_message",
+      "type": "string",
+      "description": "Human-readable error detail. Avoid embedding secrets or PII beyond what's already logged elsewhere."
+    },
+    "019f65b3-d3e4-757d-8cd3-5207c6d7d958": {
       "name": "latency_ms",
-      "type": "integer"
+      "type": "integer",
+      "description": "Duration of the underlying operation, in milliseconds."
     },
-    "019f32aa-ba8a-7a77-980b-379d4d9099f1": {
-      "name": "transport",
-      "type": "record"
+    "019f65b3-d3e4-790a-96c2-69f2d5931eea": {
+      "name": "source_ip",
+      "type": "string",
+      "description": "Originating IP address of the actor."
+    },
+    "019f65b3-d3e4-7681-9846-340535e27ccb": {
+      "name": "user_agent",
+      "type": "string"
+    },
+    "019f65b3-d3e4-77f7-b01f-4853f19f2651": {
+      "name": "service_name",
+      "type": "string",
+      "required": true,
+      "description": "The service/component that emitted this audit record."
+    },
+    "019f65b3-d3e4-70d4-9dcb-b08d10798318": {
+      "name": "region",
+      "type": "string",
+      "description": "Deployment region or data center of the emitting service."
+    },
+    "019f65b3-d3e4-74d1-9c20-a6d199cf1b70": {
+      "name": "metadata",
+      "type": "record",
+      "description": "Additional producer-specific context that doesn't warrant a first-class field."
+    },
+    "019f65b3-d3e4-7bd3-b702-5dcb79b1e58a": {
+      "name": "integrity_hash",
+      "type": "string",
+      "description": "Hash of this record chained with the previous record's hash, for tamper-evidence. Populated by the log writer, never by the emitting service."
+    }
+  },
+  "schemas": {
+    "019f65b3-d3e4-7acc-9b9d-9789d2049126": {
+      "name": "ActorType",
+      "type": "string",
+      "values": ["user", "service", "system", "anonymous"]
+    },
+    "019f65b3-d3e4-7ed1-82f7-4fd86ab0e4ea": {
+      "name": "AuthMethod",
+      "type": "string",
+      "values": ["password", "oauth", "api_key", "mtls", "sso", "service_account", "none"]
+    },
+    "019f65b3-d3e4-7487-b43c-ef6e36017358": {
+      "name": "Operation",
+      "type": "string",
+      "values": ["create", "read", "update", "delete", "login", "logout", "grant", "revoke", "execute", "other"]
+    },
+    "019f65b3-d3e4-7bb9-bf4e-6f62ae863543": {
+      "name": "Status",
+      "type": "string",
+      "values": ["success", "failure", "denied", "error"]
+    },
+    "019f65b3-d3e4-79a2-9e6e-b436917314ed": {
+      "name": "Severity",
+      "type": "string",
+      "values": ["info", "warning", "critical"]
     }
   },
   "indexes": {
-    "019f32aa-ba8a-7830-bb04-906a46328400": {
-      "name": "idx_timestamp",
-      "fields": [
-        "timestamp"
-      ]
+    "019f65b3-d3e4-7a60-b1c0-7bcb6e024155": {
+      "name": "idx_event_id",
+      "type": "unique",
+      "fields": ["event_id"]
     },
-    "019f32aa-ba8a-78c2-abc5-454d4ebf9756": {
-      "name": "idx_user_id",
-      "fields": [
-        "user_id"
-      ]
+    "019f65b3-d3e4-70aa-a5ca-a39c18823c81": {
+      "name": "idx_occurred_at",
+      "type": "normal",
+      "fields": ["occurred_at"],
+      "order": "desc"
     },
-    "019f32aa-ba8a-792a-8b3d-485a47188c4a": {
-      "name": "idx_request_id",
-      "fields": [
-        "request_id"
-      ]
+    "019f65b3-d3e4-791c-87e6-1a24e489a53f": {
+      "name": "idx_actor_id",
+      "type": "normal",
+      "fields": ["actor_id"]
     },
-    "019f32aa-ba8a-7ace-9d7d-088b44709d11": {
-      "name": "idx_message",
-      "fields": [
-        "message_name"
-      ]
+    "019f65b3-d3e4-7941-8dde-35faa7eac266": {
+      "name": "idx_resource",
+      "type": "normal",
+      "fields": ["resource_type", "resource_id"]
     },
-    "019f32aa-ba8a-7d4f-8953-ad5c4d1ab8af": {
+    "019f65b3-d3e4-7a51-9b57-1ed43107b048": {
+      "name": "idx_operation",
+      "type": "normal",
+      "fields": ["operation"]
+    },
+    "019f65b3-d3e4-74be-a3a3-7a15bfb48367": {
       "name": "idx_status",
-      "fields": [
-        "status"
-      ]
+      "type": "normal",
+      "fields": ["status"]
+    },
+    "019f65b3-d3e4-7ce0-b413-5d2cc9f4b76f": {
+      "name": "idx_trace_id",
+      "type": "normal",
+      "fields": ["trace_id"]
+    },
+    "019f65b3-d3e4-7395-9c1b-d852a9c19587": {
+      "name": "idx_request_id",
+      "type": "normal",
+      "fields": ["request_id"]
+    },
+    "019f65b3-d3e4-7764-bb2d-ca2fef76040d": {
+      "name": "idx_severity",
+      "type": "normal",
+      "fields": ["severity"]
     }
   }
 }

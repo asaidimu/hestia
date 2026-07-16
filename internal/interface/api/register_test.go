@@ -10,9 +10,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 func TestMain(m *testing.M) {
@@ -200,7 +200,7 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 		},
 	}
 
-	orch := &Orchestrator{
+	orch := &Interface{
 		trans:        mt,
 		disp:         &mockDispatcher{},
 		regs:         []abstract.MessageRegistration{reg},
@@ -226,7 +226,7 @@ func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 		Intent: registration.Query,
 	}
 
-	orch := &Orchestrator{
+	orch := &Interface{
 		trans:        mt,
 		disp:         &mockDispatcher{},
 		regs:         []abstract.MessageRegistration{reg},

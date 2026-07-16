@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 type Database struct {

@@ -21,10 +21,10 @@ import (
 	"github.com/asaidimu/hestia/internal/app/operations"
 	"github.com/asaidimu/hestia/internal/app/policies"
 	"github.com/asaidimu/hestia/internal/app/users"
-	blobutil "github.com/asaidimu/hestia/internal/core/blobstore"
-	"github.com/asaidimu/hestia/internal/core"
+	blobutil "github.com/asaidimu/hestia/app/core/blobstore"
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/interface/api"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 
@@ -41,7 +41,7 @@ type SystemModule struct {
 	apiKeyModel    *apikeys.APIKeyModel
 	policyModel    *policies.PolicyModel
 	seedModel      *operations.SeedModel
-	accessLogModel *audit.AccessLogModel
+	auditModel *audit.AuditModel
 	blocklistSvc   *auth.TokenBlocklistService
 	permMgr        *policies.DBPermissionManager
 	ac             iam.AccessController
@@ -135,14 +135,22 @@ func (m *SystemModule) initModels(persist base.Persistence) {
 	m.apiKeyModel = apikeys.NewAPIKeyModel(persist)
 	m.policyModel = policies.NewPolicyModel(persist)
 	m.seedModel = operations.NewSeedModel(persist)
-	m.accessLogModel = audit.NewAccessLogModel(persist)
+	m.auditModel = audit.NewAuditModel(persist)
 }
 
 func (m *SystemModule) seedData(ctx context.Context) error {
+	adminEmail := m.opts.AdminEmail
+	if adminEmail == "" {
+		adminEmail = m.cfg.AdminEmail
+	}
+	adminPassword := m.opts.AdminPassword
+	if adminPassword == "" {
+		adminPassword = m.cfg.AdminPassword
+	}
 	adminID, adminEmail, bootstrapped, err := auth.SeedAdmin(ctx, m.userModel, m.seedModel, m.opts.Logger,
 		auth.SeedAdminOptions{
-			Email:            m.opts.AdminEmail,
-			Password:         m.opts.AdminPassword,
+			Email:            adminEmail,
+			Password:         adminPassword,
 			ForceBootstrapped: m.opts.ForceBootstrapped,
 		})
 	if err != nil {
@@ -207,7 +215,7 @@ func (m *SystemModule) SecureDispatcher(next core.Dispatcher) core.Dispatcher {
 func (m *SystemModule) DispatcherChain(next core.Dispatcher) core.Dispatcher {
 	var disp core.Dispatcher = core.NewSecureDispatcher(next, m.permMgr, m.ac)
 	disp = blobutil.NewDispatcher(m.blobSvc, disp)
-	disp = core.NewAccessLogDispatcher(disp, m.accessLogModel)
+	disp = core.NewAuditDispatcher(disp, m.auditModel)
 	for _, hook := range m.opts.DispatcherHooks {
 		disp = hook(disp)
 	}

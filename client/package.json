@@ -1,0 +1,43 @@
+{
+  "name": "@asaidimu/hestia",
+  "version": "1.0.0",
+  "description": "TypeScript client SDK for the Hestia platform — auth, collections, API keys, policies, audit logs, blobs, and capabilities",
+  "type": "module",
+  "module": "index.ts",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "vitest --browser --run"
+  },
+  "files": [
+    "*.ts",
+    "*/**/*.ts",
+    "!*.test.ts",
+    "!*/**/*.test.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asaidimu/hestia.git"
+  },
+  "license": "MIT",
+  "author": "Asaidimu <dev@asaidimu.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@asaidimu/network-client": "^2.0.0",
+    "@asaidimu/utils-artifacts": "^8.2.25",
+    "@asaidimu/utils-error": "^1.1.10",
+    "@asaidimu/utils-store": "^10.2.18",
+    "uuid": "^14.0.1"
+  }
+}

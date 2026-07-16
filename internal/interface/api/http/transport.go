@@ -13,7 +13,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 type Logger interface {
@@ -105,7 +105,7 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 		}
 		resp, err := route.handler(ctx, req)
 		if err != nil {
-			t.writeError(ctx, err)
+			t.writeError(ctx, err, resp.Cookies)
 			return
 		}
 		t.writeSuccess(ctx, resp)
@@ -219,8 +219,21 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 	})
 }
 
-func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error) {
+func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies []abstract.Cookie) {
 	ctx.SetContentType("application/json")
+
+	for _, c := range cookies {
+		fc := fasthttp.Cookie{}
+		fc.SetKey(c.Name)
+		fc.SetValue(c.Value)
+		fc.SetPath(c.Path)
+		fc.SetDomain(c.Domain)
+		fc.SetMaxAge(c.MaxAge)
+		fc.SetSecure(c.Secure)
+		fc.SetHTTPOnly(c.HTTPOnly)
+		fc.SetSameSite(mapSameSite(c.SameSite))
+		ctx.Response.Header.SetCookie(&fc)
+	}
 
 	status := fasthttp.StatusInternalServerError
 	var sysErr *common.SystemError

@@ -6,7 +6,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 type JWTService struct {

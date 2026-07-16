@@ -4,9 +4,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-iam/v2/iam"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 type Dependencies struct {

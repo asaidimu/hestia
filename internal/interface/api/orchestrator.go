@@ -7,9 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/interface"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/abstract"
 	httpserver "github.com/asaidimu/hestia/internal/interface/api/http"
 )
 
@@ -24,7 +23,7 @@ type Options struct {
 	RefreshTokenTTL   time.Duration
 }
 
-type Orchestrator struct {
+type Interface struct {
 	opts            Options
 	trans           Transport
 	disp            core.Dispatcher
@@ -36,7 +35,7 @@ type Orchestrator struct {
 	refreshTokenTTL time.Duration
 }
 
-func New(opts Options) *Orchestrator {
+func New(opts Options) *Interface {
 	cfg := opts.CookieConfig
 	if cfg.AccessName == "" {
 		cfg.AccessName = "access_token"
@@ -58,7 +57,7 @@ func New(opts Options) *Orchestrator {
 	if refreshTTL <= 0 {
 		refreshTTL = core.DefaultRefreshTokenTTL
 	}
-	o := &Orchestrator{
+	o := &Interface{
 		opts:            opts,
 		disp:            opts.Dispatcher,
 		internalDisp:    opts.InternalDispatcher,
@@ -94,7 +93,7 @@ func pathFromOp(op string) string {
 	return op
 }
 
-func (o *Orchestrator) Start(bootstrapped bool) {
+func (o *Interface) Start(bootstrapped bool) {
 	o.bootstrapped = bootstrapped
 	o.registerRoutes()
 	go func() {
@@ -104,7 +103,7 @@ func (o *Orchestrator) Start(bootstrapped bool) {
 	}()
 }
 
-func (o *Orchestrator) Restart(bootstrapped bool) {
+func (o *Interface) Restart(bootstrapped bool) {
 	_ = o.trans.Shutdown(context.Background())
 	o.bootstrapped = bootstrapped
 	o.trans = newHTTPTransport(o.opts)
@@ -116,16 +115,16 @@ func (o *Orchestrator) Restart(bootstrapped bool) {
 	}()
 }
 
-func (o *Orchestrator) Shutdown(ctx context.Context) error {
+func (o *Interface) Shutdown(ctx context.Context) error {
 	return o.trans.Shutdown(ctx)
 }
 
-// ── orchestrator.Orchestrator compliance ───────────────────────────────────
-var _ orchestrator.Orchestrator = (*Orchestrator)(nil)
+// ── core.Interface compliance ───────────────────────────────────────────
+var _ core.Interface = (*Interface)(nil)
 
 // ── Route registration ─────────────────────────────────────────────────────
 
-func (o *Orchestrator) registerRoutes() {
+func (o *Interface) registerRoutes() {
 	if o.bootstrapped {
 		o.installDispatcherRegistrations()
 	} else {
@@ -137,11 +136,26 @@ func (o *Orchestrator) registerRoutes() {
 
 type handlerFunc func(ctx context.Context, req Request) (Response, error)
 
-func (o *Orchestrator) wrap(fn handlerFunc) Handler {
+func (o *Interface) wrap(fn handlerFunc) Handler {
 	return func(ctx context.Context, req Request) (resp Response, err error) {
-		ctx = core.ContextWithTransportMetadata(ctx, req.ClientIP, req.UserAgent,
-			methodFromOp(req.Operation), pathFromOp(req.Operation), req.RequestID)
+		ctx = core.ContextWithAuditTransport(ctx, req.ClientIP, req.UserAgent, req.RequestID)
+		ctx = core.ContextWithTraceID(ctx, req.RequestID)
 		resp, err = o.authMiddleware(ctx, req, fn)
+		if v, _ := ctx.Value(clearAccessCookieKey).(bool); v {
+			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.AccessName, o.cookieCfg.AccessPath))
+		}
+		if v, _ := ctx.Value(clearRefreshCookieKey).(bool); v {
+			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.RefreshName, o.cookieCfg.RefreshPath))
+		}
 		return
+	}
+}
+
+func clearCookie(name, path string) Cookie {
+	return Cookie{
+		Name:   name,
+		Value:  "",
+		Path:   path,
+		MaxAge: -1,
 	}
 }

@@ -13,9 +13,10 @@ func main() {
 		Use:   "hestia",
 		Short: "Hestia Platform CLI — code generation and scaffolding",
 	}
+	root.AddCommand(cmd.InitCmd)
 	root.AddCommand(cmd.GenerateCmd)
-	root.AddCommand(cmd.ModuleCmd)
-	root.AddCommand(cmd.ScaffoldCmd)
+	root.AddCommand(cmd.AddCmd)
+	root.AddCommand(cmd.RemoveCmd)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

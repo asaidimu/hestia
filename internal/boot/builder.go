@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/app"
 	"github.com/asaidimu/hestia/internal/interface/api"
 	"github.com/asaidimu/hestia/internal/interface/cli"
@@ -34,7 +34,7 @@ func BuildApp(cfg *core.Config, opts app.Options) (*Application, *app.SystemModu
 	return application, mod, nil
 }
 
-func BuildOrchestrators(a *Application, mod *app.SystemModule, version string) (*api.Orchestrator, *cli.Orchestrator) {
+func BuildInterfaces(a *Application, mod *app.SystemModule, version string) (*api.Interface, *cli.Interface) {
 	chain := mod.DispatcherChain(a.Dispatcher())
 
 	rpcOrch := api.New(api.Options{

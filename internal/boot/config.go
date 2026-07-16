@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asaidimu/hestia/internal/abstract"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 func envOrString(key, defaultVal string) string {
@@ -27,6 +27,10 @@ func envOrBool(key string, defaultVal bool) bool {
 	}
 	return defaultVal
 }
+
+// ProjectName is the default data-directory leaf name and DB file basename.
+// Override at build time: go build -ldflags '-X github.com/asaidimu/hestia/internal/boot.ProjectName=myapp'
+var ProjectName = "hestia"
 
 func parseSameSite(s string) abstract.SameSite {
 	switch strings.ToLower(s) {
@@ -63,6 +67,8 @@ func NewConfig() (*core.Config, error) {
 		port = ":8090"
 	}
 
+	projectName := ProjectName
+
 	dataDir := os.Getenv("APP_DATA_DIR")
 	if dataDir == "" {
 		dataDir = os.Getenv("XDG_DATA_HOME")
@@ -74,7 +80,7 @@ func NewConfig() (*core.Config, error) {
 				dataDir = "./data"
 			}
 		}
-		dataDir = filepath.Join(dataDir, "anansi")
+		dataDir = filepath.Join(dataDir, projectName)
 	}
 	_ = os.MkdirAll(dataDir, 0700)
 
@@ -94,7 +100,7 @@ func NewConfig() (*core.Config, error) {
 	return &core.Config{
 		Port:            port,
 		DataDir:         dataDir,
-		DBPath:          filepath.Join(dataDir, "anansi.db"),
+		DBPath:          filepath.Join(dataDir, projectName+".db"),
 		JWTSecret:       jwtSecret,
 		BcryptCost:      envInt("BCRYPT_COST", core.DefaultBcryptCost),
 		AccessTokenTTL:  envDuration("JWT_ACCESS_TTL", core.DefaultAccessTokenTTL),

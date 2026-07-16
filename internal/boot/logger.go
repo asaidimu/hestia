@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 // UserOutput prints plain-text informational messages to the user on stdout.

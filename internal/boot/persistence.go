@@ -8,16 +8,40 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
+	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-anansi/v8/utils"
 	events "github.com/asaidimu/go-events/v2"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 type PersistenceManager struct {
 	Anansi base.Persistence
 	closer func()
+}
+
+func traceIDMetadataProvider() data.MetadataProviderConfig {
+	return data.MetadataProviderConfig{
+		Name: "trace_id_provider",
+		Schema: &definition.NestedSchema{
+			BaseSchema: definition.BaseSchema{
+				Name: "trace_id_meta",
+				Fields: map[definition.FieldId]definition.Field{
+					"019f7a00-0001-7000-8000-000000000001": {
+						Name:             "trace_id",
+						FieldProperties: definition.FieldProperties{Type: definition.FieldTypeString},
+					},
+				},
+			},
+		},
+		Provider: func(ctx context.Context, doc *data.Document) (map[string]any, error) {
+			if traceID := core.GetTraceID(ctx); traceID != "" {
+				return map[string]any{"trace_id": traceID}, nil
+			}
+			return nil, nil
+		},
+	}
 }
 
 func NewPersistenceManager(cfg *core.Config, logger *zap.Logger) (*PersistenceManager, error) {
@@ -28,6 +52,7 @@ func NewPersistenceManager(cfg *core.Config, logger *zap.Logger) (*PersistenceMa
 		setupCfg := anansi.SetupConfig{
 			Logger: logger,
 			DocumentFactoryConfig: data.DocumentFactoryConfig{
+				Providers: []data.MetadataProviderConfig{traceIDMetadataProvider()},
 				GlobalSanitizer: &data.FieldMaskConfig{
 					DefaultPolicy: data.MaskPreserve,
 					Fields: map[string]data.MaskedFieldPolicy{
@@ -85,6 +110,7 @@ func NewPersistenceManager(cfg *core.Config, logger *zap.Logger) (*PersistenceMa
 			Logger:     logger,
 			EventBus:   bus,
 			DocumentFactoryConfig: data.DocumentFactoryConfig{
+				Providers: []data.MetadataProviderConfig{traceIDMetadataProvider()},
 				GlobalSanitizer: &data.FieldMaskConfig{
 					DefaultPolicy: data.MaskPreserve,
 					Fields: map[string]data.MaskedFieldPolicy{

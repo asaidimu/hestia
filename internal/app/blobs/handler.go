@@ -12,8 +12,8 @@ import (
 
 	bserrors "github.com/asaidimu/blobs/errors"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
 )
 
 func NewListNamespacesHandler(svc core.BlobStore) core.MessageHandler {
@@ -200,6 +200,33 @@ func NewDownloadBlobHandler(svc core.BlobStore) core.MessageHandler {
 	}
 }
 
+func NewUpdateBlobHandler(svc core.BlobStore) core.MessageHandler {
+	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
+		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
+		key, _ := msg.Input().GetOr("arguments.key", "").(string)
+
+		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
+		contentType, _ := body["content_type"].(string)
+
+		var custom map[string]string
+		if raw, ok := body["custom"].(map[string]any); ok {
+			custom = make(map[string]string, len(raw))
+			for k, v := range raw {
+				custom[k] = fmt.Sprint(v)
+			}
+		}
+
+		meta, err := svc.Namespace(nsID).UpdateMetadata(ctx, key, contentType, custom)
+		if err != nil {
+			return nil, mapBlobError(err)
+		}
+
+		return &registration.Result{
+			Document: mustDoc(blobMetaToMap(meta), ctx),
+		}, nil
+	}
+}
+
 func NewDeleteBlobHandler(svc core.BlobStore) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
@@ -211,6 +238,21 @@ func NewDeleteBlobHandler(svc core.BlobStore) core.MessageHandler {
 
 		return &registration.Result{}, nil
 	}
+}
+
+func blobMetaToMap(m *core.BlobMeta) map[string]any {
+	out := map[string]any{
+		"key":          m.Key,
+		"namespace_id": m.NamespaceID,
+		"content_type": m.ContentType,
+		"size":         m.Size,
+		"created_at":   m.CreatedAt,
+		"updated_at":   m.UpdatedAt,
+	}
+	if len(m.Custom) > 0 {
+		out["custom"] = m.Custom
+	}
+	return out
 }
 
 func mapBlobError(err error) error {

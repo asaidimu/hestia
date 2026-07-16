@@ -23,13 +23,13 @@ type Migration struct {
 
 // Plain holds all plain (non-squashed) migrations sorted by UUID.
 var Plain = []Migration{
-	{UUID: "019f60e4-eaf4-71b3-b94b-8e909b11a8ff", Collection: "_api_key_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-71b3-b94b-8e909b11a8ff__api_key__major.go", Plan: _api_key__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-72f7-bf13-9a98e3831764", Collection: "_access_log_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-72f7-bf13-9a98e3831764__access_log__major.go", Plan: _access_log__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-739e-b796-5a3f84ec2a82", Collection: "_token_blocklist_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-739e-b796-5a3f84ec2a82__token_blocklist__major.go", Plan: _token_blocklist__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-7422-9fbe-e671d38e62d7", Collection: "_seed_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-7422-9fbe-e671d38e62d7__seed__major.go", Plan: _seed__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-74b3-b1f1-c98bad00dbbd", Collection: "_policy_operation_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-74b3-b1f1-c98bad00dbbd__policy_operation__major.go", Plan: _policy_operation__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-7555-8355-7ce436acf5e8", Collection: "_policy_rule_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-7555-8355-7ce436acf5e8__policy_rule__major.go", Plan: _policy_rule__0_0_0_to_1_0_0},
-	{UUID: "019f60e4-eaf4-75dd-99dd-3d97c4a71d9c", Collection: "_user_", From: "0.0.0", To: "1.0.0", File: "019f60e4-eaf4-75dd-99dd-3d97c4a71d9c__user__major.go", Plan: _user__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f99-7a42-8e86-6e24c5d93d8a", Collection: "_api_key_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f99-7a42-8e86-6e24c5d93d8a__api_key__major.go", Plan: _api_key__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f99-7f1f-992b-00fc578a2ce1", Collection: "_token_blocklist_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f99-7f1f-992b-00fc578a2ce1__token_blocklist__major.go", Plan: _token_blocklist__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f9a-7077-abea-89dd860a22f7", Collection: "_seed_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f9a-7077-abea-89dd860a22f7__seed__major.go", Plan: _seed__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f9a-7150-b266-6e2102f78cc4", Collection: "_policy_operation_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f9a-7150-b266-6e2102f78cc4__policy_operation__major.go", Plan: _policy_operation__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f9a-71fd-bb58-29c411898033", Collection: "_policy_rule_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f9a-71fd-bb58-29c411898033__policy_rule__major.go", Plan: _policy_rule__0_0_0_to_1_0_0},
+	{UUID: "019f6640-8f9a-7293-b918-56460fc3c92b", Collection: "_user_", From: "0.0.0", To: "1.0.0", File: "019f6640-8f9a-7293-b918-56460fc3c92b__user__major.go", Plan: _user__0_0_0_to_1_0_0},
+	{UUID: "019f6642-12d1-7a61-832f-bac77b80eea5", Collection: "_audit_log_", From: "0.0.0", To: "1.0.0", File: "019f6642-12d1-7a61-832f-bac77b80eea5__audit_log__major.go", Plan: _audit_log__0_0_0_to_1_0_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.

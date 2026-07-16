@@ -1,6 +1,6 @@
 {
   "schema": {
-    "glob": "**/feature/*/schema/*.schema.json",
+    "glob": "internal/app/**/schema/*.schema.json",
     "lockfile": "schemas.lock.json",
     "migrations_dir": "migrations/"
   }

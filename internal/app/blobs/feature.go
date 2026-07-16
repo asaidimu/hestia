@@ -3,9 +3,9 @@ package blobs
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 type Dependencies struct {
@@ -22,5 +22,6 @@ func Registrations(deps Dependencies) []abstract.MessageRegistration {
 		{Name: "system:blobs:blob:upload", Handler: NewUploadBlobHandler(deps.BlobStore), Description: "Upload a blob", Enabled: true, Intent: registration.Create, Input: core.Input{Schema: blobKeyInputSchema(), Arguments: map[string]definition.FieldType{"ns": definition.FieldTypeString, "key": definition.FieldTypeString}, Payload: definition.FieldTypeBytes}, Output: blobMetaOutputSchema()},
 		{Name: "system:blobs:blob:download", Handler: NewDownloadBlobHandler(deps.BlobStore), Description: "Download a blob", Enabled: true, Intent: registration.Read, Input: core.Input{Schema: blobKeyInputSchema(), Arguments: map[string]definition.FieldType{"ns": definition.FieldTypeString, "key": definition.FieldTypeString}}},
 		{Name: "system:blobs:blob:delete", Handler: NewDeleteBlobHandler(deps.BlobStore), Description: "Delete a blob", Enabled: true, Intent: registration.Delete, Input: core.Input{Schema: blobKeyInputSchema(), Arguments: map[string]definition.FieldType{"ns": definition.FieldTypeString, "key": definition.FieldTypeString}}},
+		{Name: "system:blobs:blob:update", Handler: NewUpdateBlobHandler(deps.BlobStore), Description: "Update blob metadata", Enabled: true, Intent: registration.Update, Input: core.Input{Schema: blobUpdateInputSchema(), Arguments: map[string]definition.FieldType{"ns": definition.FieldTypeString, "key": definition.FieldTypeString}, Payload: definition.FieldTypeObject}, Output: blobMetaOutputSchema()},
 	}
 }

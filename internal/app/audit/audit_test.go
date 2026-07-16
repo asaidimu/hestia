@@ -8,9 +8,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app/audit"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/utility/persistest"
 )
 
@@ -50,17 +50,20 @@ func TestDefaultOperations(t *testing.T) {
 	}
 }
 
-func TestAccessLogInsert(t *testing.T) {
+func TestAuditInsert(t *testing.T) {
 	ctx := context.Background()
 	p := persistest.NewPersistence(t)
-	model := audit.NewAccessLogModel(p)
+	model := audit.NewAuditModel(p)
 
-	entry := core.AccessLogEntry{
-		MessageName: "test:msg",
-		UserID:      "user-1",
-		Credential:  "cred-1",
-		Status:      core.AccessStatusOK,
-		LatencyMs:   100,
+	entry := core.AuditEntry{
+		EventName:    "test:msg",
+		ActorID:      "user-1",
+		ActorType:    core.ActorTypeUser,
+		Operation:    core.OperationExecute,
+		ResourceType: "test",
+		Status:       core.AuditStatusSuccess,
+		LatencyMs:    100,
+		ServiceName:  "hestia",
 	}
 
 	if err := model.Insert(ctx, entry); err != nil {
@@ -85,29 +88,29 @@ func TestAccessLogInsert(t *testing.T) {
 	}
 
 	doc := result.Page.Documents[0]
-	name, _ := doc.Get("message_name")
+	name, _ := doc.Get("event_name")
 	if name != "test:msg" {
-		t.Errorf("message_name = %v, want test:msg", name)
+		t.Errorf("event_name = %v, want test:msg", name)
 	}
-	uid, _ := doc.Get("user_id")
+	uid, _ := doc.Get("actor_id")
 	if uid != "user-1" {
-		t.Errorf("user_id = %v, want user-1", uid)
+		t.Errorf("actor_id = %v, want user-1", uid)
 	}
 	status, _ := doc.Get("status")
-	if status != "ok" {
-		t.Errorf("status = %v, want ok", status)
+	if status != "success" {
+		t.Errorf("status = %v, want success", status)
 	}
 }
 
-func TestLogQueryHandler(t *testing.T) {
+func TestAuditQueryHandler(t *testing.T) {
 	ctx := context.Background()
 	p := persistest.NewPersistence(t)
-	model := audit.NewAccessLogModel(p)
+	model := audit.NewAuditModel(p)
 
-	entries := []core.AccessLogEntry{
-		{MessageName: "msg:1", UserID: "user-a", Status: core.AccessStatusOK, LatencyMs: 10},
-		{MessageName: "msg:2", UserID: "user-b", Status: core.AccessStatusDenied, LatencyMs: 20},
-		{MessageName: "msg:3", UserID: "user-a", Status: core.AccessStatusOK, LatencyMs: 30},
+	entries := []core.AuditEntry{
+		{EventName: "msg:1", ActorID: "user-a", ActorType: core.ActorTypeUser, Operation: core.OperationExecute, ResourceType: "test", Status: core.AuditStatusSuccess, LatencyMs: 10, ServiceName: "hestia"},
+		{EventName: "msg:2", ActorID: "user-b", ActorType: core.ActorTypeUser, Operation: core.OperationExecute, ResourceType: "test", Status: core.AuditStatusDenied, LatencyMs: 20, ServiceName: "hestia"},
+		{EventName: "msg:3", ActorID: "user-a", ActorType: core.ActorTypeUser, Operation: core.OperationExecute, ResourceType: "test", Status: core.AuditStatusSuccess, LatencyMs: 30, ServiceName: "hestia"},
 	}
 	for _, e := range entries {
 		if err := model.Insert(ctx, e); err != nil {
@@ -133,17 +136,21 @@ func TestLogQueryHandler(t *testing.T) {
 	}
 }
 
-func TestLogQueryHandlerWithLimit(t *testing.T) {
+func TestAuditQueryHandlerWithLimit(t *testing.T) {
 	ctx := context.Background()
 	p := persistest.NewPersistence(t)
-	model := audit.NewAccessLogModel(p)
+	model := audit.NewAuditModel(p)
 
 	for i := 0; i < 10; i++ {
-		entry := core.AccessLogEntry{
-			MessageName: "test:msg",
-			UserID:      "user-1",
-			Status:      core.AccessStatusOK,
-			LatencyMs:   int64(i),
+		entry := core.AuditEntry{
+			EventName:    "test:msg",
+			ActorID:      "user-1",
+			ActorType:    core.ActorTypeUser,
+			Operation:    core.OperationExecute,
+			ResourceType: "test",
+			Status:       core.AuditStatusSuccess,
+			LatencyMs:    int64(i),
+			ServiceName:  "hestia",
 		}
 		if err := model.Insert(ctx, entry); err != nil {
 			t.Fatalf("Insert failed: %v", err)

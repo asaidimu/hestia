@@ -2,7 +2,7 @@ package collections
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/internal/core/schema"
+	"github.com/asaidimu/hestia/app/core/schema"
 )
 
 var (

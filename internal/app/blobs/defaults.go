@@ -12,5 +12,6 @@ func DefaultOperations() []policies.PolicyOperation {
 		{Name: "system:blobs:blob:upload", RuleKey: "administrator", Description: "Upload a blob"},
 		{Name: "system:blobs:blob:download", RuleKey: "blob", Description: "Download a blob"},
 		{Name: "system:blobs:blob:delete", RuleKey: "administrator", Description: "Delete a blob"},
+		{Name: "system:blobs:blob:update", RuleKey: "blob", Description: "Update blob metadata"},
 	}
 }

@@ -6,7 +6,7 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/internal/core/registration"
+	"github.com/asaidimu/hestia/app/core/registration"
 )
 
 func DeriveRoute(name string, arguments map[string]definition.FieldType) string {

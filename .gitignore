@@ -140,3 +140,5 @@ test/
 ./client/node_modules
 test-server
 .env
+node_modules
+docs/.vitepress

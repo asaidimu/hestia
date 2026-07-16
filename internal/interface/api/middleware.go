@@ -4,22 +4,27 @@ import (
 	"context"
 	"strings"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/identity"
+	"github.com/asaidimu/go-iam/v2/iam"
+
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/identity"
 )
 
-func (o *Orchestrator) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
+type contextKey string
+
+const clearAccessCookieKey contextKey = "clear_access_cookie"
+const clearRefreshCookieKey contextKey = "clear_refresh_cookie"
+
+func (o *Interface) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
 	// 1. Try Bearer token
 	token := extractBearer(req)
 	if token != "" {
 		claims, err := o.validateBearer(ctx, req, token)
 		if err == nil {
 			ctx = identity.ContextWithClaims(ctx, claims)
-			ctx = addAccessLogIdentity(ctx, claims)
+			ctx = addAuditContext(ctx, claims)
 			return next(ctx, req)
 		}
-		// Invalid token — fall through to anonymous.
-		// SecureDispatcher will return 403 if access is denied.
 	}
 
 	// 2. Try access token cookie (for browser-based requests like <img>, <link>, etc.)
@@ -28,9 +33,10 @@ func (o *Orchestrator) authMiddleware(ctx context.Context, req Request, next han
 			claims, err := o.validateBearer(ctx, req, at)
 			if err == nil {
 				ctx = identity.ContextWithClaims(ctx, claims)
-				ctx = addAccessLogIdentity(ctx, claims)
+				ctx = addAuditContext(ctx, claims)
 				return next(ctx, req)
 			}
+			ctx = context.WithValue(ctx, clearAccessCookieKey, true)
 		}
 	}
 
@@ -43,25 +49,53 @@ func (o *Orchestrator) authMiddleware(ctx context.Context, req Request, next han
 		claims, err := o.authenticateAPIKey(ctx, req, apiKey[0])
 		if err == nil {
 			ctx = identity.ContextWithClaims(ctx, claims)
-			ctx = addAccessLogIdentity(ctx, claims)
+			ctx = addAuditContext(ctx, claims)
 			return next(ctx, req)
 		}
-		// fall through to anonymous
 	}
 
-	// Default to anonymous identity — SecureDispatcher will enforce rules.
+	// Default to anonymous identity
 	claims := &identity.Claims{}
 	ctx = identity.ContextWithClaims(ctx, claims)
-	ctx = addAccessLogIdentity(ctx, claims)
+	ctx = addAuditContext(ctx, claims)
 	return next(ctx, req)
 }
 
-func addAccessLogIdentity(ctx context.Context, claims *identity.Claims) context.Context {
-	credential := ""
-	if claims.TokenID != "" {
-		credential = claims.TokenType + ":" + claims.TokenID
+func addAuditContext(ctx context.Context, claims *identity.Claims) context.Context {
+	actorID := claims.UserID
+	if actorID == "" {
+		actorID = "anonymous"
 	}
-	return core.ContextWithAccessLogIdentity(ctx, claims.UserID, credential)
+
+	actorType := core.ActorTypeUser
+	authMethod := core.AuthMethodPassword
+
+	switch claims.TokenType {
+	case "session":
+		authMethod = core.AuthMethodOAuth
+	case "api_key":
+		actorType = core.ActorTypeService
+		authMethod = core.AuthMethodAPIKey
+	case "bearer":
+		authMethod = core.AuthMethodOAuth
+	case "":
+		ident, ok := iam.GetIdentity(ctx)
+		if ok {
+			props, _ := ident.Properties.(map[string]any)
+			if v, _ := props["system"].(string); v == "http" {
+				actorType = core.ActorTypeSystem
+				authMethod = core.AuthMethodServiceAccount
+			} else if actorID == "anonymous" {
+				actorType = core.ActorTypeAnonymous
+				authMethod = core.AuthMethodNone
+			}
+		} else {
+			actorType = core.ActorTypeAnonymous
+			authMethod = core.AuthMethodNone
+		}
+	}
+
+	return core.ContextWithAuditIdentity(ctx, actorID, actorType, authMethod)
 }
 
 func extractBearer(req Request) string {

@@ -9,7 +9,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/valyala/fasthttp"
 
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 func newCtx(method, path string) *fasthttp.RequestCtx {
@@ -155,7 +155,7 @@ func TestWriteError(t *testing.T) {
 		transport := NewTransport(TransportOptions{Addr: ":0"})
 		ctx := newCtx("GET", "/")
 		sysErr := common.NewSystemError("NOT_FOUND", "test not found")
-		transport.writeError(ctx, sysErr)
+		transport.writeError(ctx, sysErr, nil)
 
 		if ctx.Response.StatusCode() != 404 {
 			t.Errorf("status = %d, want 404", ctx.Response.StatusCode())
@@ -165,7 +165,7 @@ func TestWriteError(t *testing.T) {
 	t.Run("plain error maps to 500", func(t *testing.T) {
 		transport := NewTransport(TransportOptions{Addr: ":0"})
 		ctx := newCtx("GET", "/")
-		transport.writeError(ctx, errors.New("something broke"))
+		transport.writeError(ctx, errors.New("something broke"), nil)
 
 		if ctx.Response.StatusCode() != 500 {
 			t.Errorf("status = %d, want 500", ctx.Response.StatusCode())

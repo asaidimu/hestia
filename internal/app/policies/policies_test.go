@@ -6,9 +6,9 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app/policies"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/utility/persistest"
 )
 

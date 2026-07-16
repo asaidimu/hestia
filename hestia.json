@@ -1,6 +1,0 @@
-{
-  "module": "github.com/asaidimu/hestia",
-  "module_sources": ["module"],
-  "module_target": "module",
-  "cmds": ["server"]
-}

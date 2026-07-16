@@ -5,7 +5,7 @@ import (
 
 	"github.com/asaidimu/hestia/internal/app/apikeys"
 	"github.com/asaidimu/hestia/internal/app/users"
-	"github.com/asaidimu/hestia/internal/core/identity"
+	"github.com/asaidimu/hestia/app/core/identity"
 )
 
 type APIKeyAuthenticator struct {

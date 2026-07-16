@@ -2,7 +2,7 @@ package audit
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/internal/core/schema"
+	"github.com/asaidimu/hestia/app/core/schema"
 )
 
 var (
@@ -57,9 +57,12 @@ var logQueryInputJSON = []byte(`{
 		"log_query_payload": {
 			"name": "LogQueryPayload",
 			"fields": {
-				"handler": { "name": "handler", "description": "Filter by handler name", "type": "string" },
-				"user": { "name": "user", "description": "Filter by username", "type": "string" },
-				"intent": { "name": "intent", "description": "Filter by intent type", "type": "string" },
+				"actor_id": { "name": "actor_id", "description": "Filter by actor ID", "type": "string" },
+				"actor_type": { "name": "actor_type", "description": "Filter by actor type", "type": "string" },
+				"operation": { "name": "operation", "description": "Filter by operation", "type": "string" },
+				"status": { "name": "status", "description": "Filter by status", "type": "string" },
+				"resource_type": { "name": "resource_type", "description": "Filter by resource type", "type": "string" },
+				"trace_id": { "name": "trace_id", "description": "Filter by trace ID", "type": "string" },
 				"start": { "name": "start", "description": "Start time filter (RFC3339)", "type": "string" },
 				"end": { "name": "end", "description": "End time filter (RFC3339)", "type": "string" }
 			}
@@ -108,15 +111,29 @@ var logQueryOutputJSON = []byte(`{
 		"log_entry": {
 			"name": "LogEntry",
 			"fields": {
-				"id": { "name": "id", "description": "Log entry ID", "type": "string" },
-				"handler": { "name": "handler", "description": "Handler that processed the request", "type": "string" },
-				"user": { "name": "user", "description": "Username who made the request", "type": "string" },
-				"intent": { "name": "intent", "description": "Intent type (command/query)", "type": "string" },
-				"input": { "name": "input", "description": "Serialized request input", "type": "record" },
-				"output": { "name": "output", "description": "Serialized response output", "type": "record" },
-				"timestamp": { "name": "timestamp", "description": "When the request occurred (RFC3339)", "type": "string" },
-				"duration": { "name": "duration", "description": "Request duration in milliseconds", "type": "integer" },
-				"success": { "name": "success", "description": "Whether the request succeeded", "type": "boolean" }
+				"event_id": { "name": "event_id", "description": "Unique event identifier", "type": "string" },
+				"occurred_at": { "name": "occurred_at", "description": "When the event occurred (RFC3339)", "type": "string" },
+				"recorded_at": { "name": "recorded_at", "description": "When the record was written (RFC3339)", "type": "string" },
+				"trace_id": { "name": "trace_id", "description": "Distributed trace ID", "type": "string" },
+				"request_id": { "name": "request_id", "description": "Originating request ID", "type": "string" },
+				"actor_id": { "name": "actor_id", "description": "Who performed the action", "type": "string" },
+				"actor_type": { "name": "actor_type", "description": "Type of actor", "type": "string" },
+				"on_behalf_of_id": { "name": "on_behalf_of_id", "description": "Delegated/impersonated identity", "type": "string" },
+				"auth_method": { "name": "auth_method", "description": "Authentication method used", "type": "string" },
+				"session_id": { "name": "session_id", "description": "Session identifier", "type": "string" },
+				"operation": { "name": "operation", "description": "Action category", "type": "string" },
+				"resource_type": { "name": "resource_type", "description": "Kind of resource acted upon", "type": "string" },
+				"resource_id": { "name": "resource_id", "description": "Resource instance identifier", "type": "string" },
+				"event_name": { "name": "event_name", "description": "Fine-grained event taxonomy", "type": "string" },
+				"status": { "name": "status", "description": "Outcome of the action", "type": "string" },
+				"severity": { "name": "severity", "description": "Event severity level", "type": "string" },
+				"error_code": { "name": "error_code", "description": "Machine-readable error code", "type": "string" },
+				"error_message": { "name": "error_message", "description": "Human-readable error detail", "type": "string" },
+				"latency_ms": { "name": "latency_ms", "description": "Duration in milliseconds", "type": "integer" },
+				"source_ip": { "name": "source_ip", "description": "Originating IP address", "type": "string" },
+				"user_agent": { "name": "user_agent", "description": "User agent string", "type": "string" },
+				"service_name": { "name": "service_name", "description": "Emitting service", "type": "string" },
+				"region": { "name": "region", "description": "Deployment region", "type": "string" }
 			}
 		}
 	}
@@ -144,9 +161,10 @@ var logStreamInputJSON = []byte(`{
 		"log_stream_arguments": {
 			"name": "LogStreamArguments",
 			"fields": {
-				"handler": { "name": "handler", "description": "Filter by handler name", "type": "string" },
-				"user": { "name": "user", "description": "Filter by username", "type": "string" },
-				"intent": { "name": "intent", "description": "Filter by intent type", "type": "string" }
+				"actor_id": { "name": "actor_id", "description": "Filter by actor ID", "type": "string" },
+				"actor_type": { "name": "actor_type", "description": "Filter by actor type", "type": "string" },
+				"operation": { "name": "operation", "description": "Filter by operation", "type": "string" },
+				"status": { "name": "status", "description": "Filter by status", "type": "string" }
 			}
 		},
 		"log_stream_modifiers": {
@@ -172,15 +190,29 @@ var logStreamOutputJSON = []byte(`{
 		"log_entry": {
 			"name": "LogEntry",
 			"fields": {
-				"id": { "name": "id", "description": "Log entry ID", "type": "string" },
-				"handler": { "name": "handler", "description": "Handler that processed the request", "type": "string" },
-				"user": { "name": "user", "description": "Username who made the request", "type": "string" },
-				"intent": { "name": "intent", "description": "Intent type (command/query)", "type": "string" },
-				"input": { "name": "input", "description": "Serialized request input", "type": "record" },
-				"output": { "name": "output", "description": "Serialized response output", "type": "record" },
-				"timestamp": { "name": "timestamp", "description": "When the request occurred (RFC3339)", "type": "string" },
-				"duration": { "name": "duration", "description": "Request duration in milliseconds", "type": "integer" },
-				"success": { "name": "success", "description": "Whether the request succeeded", "type": "boolean" }
+				"event_id": { "name": "event_id", "description": "Unique event identifier", "type": "string" },
+				"occurred_at": { "name": "occurred_at", "description": "When the event occurred (RFC3339)", "type": "string" },
+				"recorded_at": { "name": "recorded_at", "description": "When the record was written (RFC3339)", "type": "string" },
+				"trace_id": { "name": "trace_id", "description": "Distributed trace ID", "type": "string" },
+				"request_id": { "name": "request_id", "description": "Originating request ID", "type": "string" },
+				"actor_id": { "name": "actor_id", "description": "Who performed the action", "type": "string" },
+				"actor_type": { "name": "actor_type", "description": "Type of actor", "type": "string" },
+				"on_behalf_of_id": { "name": "on_behalf_of_id", "description": "Delegated/impersonated identity", "type": "string" },
+				"auth_method": { "name": "auth_method", "description": "Authentication method used", "type": "string" },
+				"session_id": { "name": "session_id", "description": "Session identifier", "type": "string" },
+				"operation": { "name": "operation", "description": "Action category", "type": "string" },
+				"resource_type": { "name": "resource_type", "description": "Kind of resource acted upon", "type": "string" },
+				"resource_id": { "name": "resource_id", "description": "Resource instance identifier", "type": "string" },
+				"event_name": { "name": "event_name", "description": "Fine-grained event taxonomy", "type": "string" },
+				"status": { "name": "status", "description": "Outcome of the action", "type": "string" },
+				"severity": { "name": "severity", "description": "Event severity level", "type": "string" },
+				"error_code": { "name": "error_code", "description": "Machine-readable error code", "type": "string" },
+				"error_message": { "name": "error_message", "description": "Human-readable error detail", "type": "string" },
+				"latency_ms": { "name": "latency_ms", "description": "Duration in milliseconds", "type": "integer" },
+				"source_ip": { "name": "source_ip", "description": "Originating IP address", "type": "string" },
+				"user_agent": { "name": "user_agent", "description": "User agent string", "type": "string" },
+				"service_name": { "name": "service_name", "description": "Emitting service", "type": "string" },
+				"region": { "name": "region", "description": "Deployment region", "type": "string" }
 			}
 		}
 	}

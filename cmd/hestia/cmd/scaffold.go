@@ -4,26 +4,33 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-var ScaffoldCmd = &cobra.Command{
-	Use:   "scaffold",
-	Short: "Scaffold new project components",
+var AddCmd = &cobra.Command{
+	Use:     "add",
+	Aliases: []string{"scaffold"},
+	Short:   "Add new project components (scaffold)",
 }
 
 func init() {
-	ScaffoldCmd.AddCommand(scaffoldCmdCmd)
+	AddCmd.AddCommand(addCmdCmd)
 }
 
-var scaffoldCmdCmd = &cobra.Command{
+var addCmdCmd = &cobra.Command{
 	Use:   "cmd <name>",
-	Short: "Scaffold a new command entry point",
+	Short: "Add a new command entry point",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 		requireRoot()
+
+		if isHestiaModule(rootDir) {
+			fmt.Println("Skipping: 'add cmd' is for downstream projects, not for the hestia library repo itself")
+			return
+		}
 
 		cfg := readConfig(rootDir)
 		if cfg.Module == "" {
@@ -55,6 +62,10 @@ var scaffoldCmdCmd = &cobra.Command{
 		}
 		os.MkdirAll(cmdDir, 0755)
 
+		modName := modulePath
+		if idx := strings.LastIndex(modName, "/"); idx >= 0 {
+			modName = modName[idx+1:]
+		}
 		mainContent := fmt.Sprintf(`package main
 
 import (
@@ -70,19 +81,20 @@ var version = "dev"
 func main() {
 	if err := hestia.Run(hestia.SetupConfig{
 		Version:      version,
+		ProjectName:  %q,
 		Modules: autogen.Modules(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Server error: %%v\n", err)
 		os.Exit(1)
 	}
 }
-`, modulePath+"/internal/autogen")
+`, modulePath+"/internal/autogen", modName)
 
 		mainPath := filepath.Join(cmdDir, "main.go")
 		if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", mainPath, err)
 			os.Exit(1)
 		}
-		fmt.Printf("Scaffolded command %q at %s\n", name, cmdDir)
+		fmt.Printf("Added command %q at %s\n", name, cmdDir)
 	},
 }

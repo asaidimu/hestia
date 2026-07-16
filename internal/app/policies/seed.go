@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []PolicyOperation) error {

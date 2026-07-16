@@ -9,7 +9,7 @@ import (
 	"github.com/asaidimu/hestia/internal/app/auth"
 	"github.com/asaidimu/hestia/internal/app/operations"
 	"github.com/asaidimu/hestia/internal/app/users"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/utility/persistest"
 	"go.uber.org/zap"
 )
@@ -296,20 +296,21 @@ func TestSeedModelSetAndGet(t *testing.T) {
 	}
 }
 
-func TestAccessLogModelInsert(t *testing.T) {
+func TestAuditModelInsert(t *testing.T) {
 	ctx := context.Background()
 	p := persistest.NewPersistence(t)
-	model := audit.NewAccessLogModel(p)
+	model := audit.NewAuditModel(p)
 
-	entry := core.AccessLogEntry{
-		Timestamp:   "2025-01-01T00:00:00Z",
-		RequestID:   "req-001",
-		UserID:      "user-1",
-		Credential:  "session",
-		MessageName: "test.message",
-		MessageID:   "msg-001",
-		Status:      core.AccessStatusOK,
+	entry := core.AuditEntry{
+		EventName:    "test.message",
+		ActorID:      "user-1",
+		ActorType:    core.ActorTypeUser,
+		AuthMethod:   core.AuthMethodPassword,
+		Operation:    core.OperationExecute,
+		ResourceType: "test",
+		Status:       core.AuditStatusSuccess,
 		LatencyMs:   42,
+		ServiceName:  "hestia",
 	}
 
 	err := model.Insert(ctx, entry)

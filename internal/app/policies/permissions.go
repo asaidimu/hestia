@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/core"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 )

@@ -2,7 +2,7 @@ package blobs
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/internal/core/schema"
+	"github.com/asaidimu/hestia/app/core/schema"
 )
 
 var (
@@ -14,12 +14,14 @@ var (
 	_nsOutput         = schema.MustFromJSON(nsOutputJSON)
 	_blobListOutput   = schema.MustFromJSON(blobListOutputJSON)
 	_blobMetaOutput   = schema.MustFromJSON(blobMetaOutputJSON)
+	_blobUpdateInput  = schema.MustFromJSON(blobUpdateInputJSON)
 )
 
 func nsInputSchema() *definition.Schema           { return _nsInput }
 func nsCreateInputSchema() *definition.Schema     { return _nsCreateInput }
 func blobKeyInputSchema() *definition.Schema      { return _blobKeyInput }
 func blobListInputSchema() *definition.Schema      { return _blobListInput }
+func blobUpdateInputSchema() *definition.Schema    { return _blobUpdateInput }
 func nsListOutputSchema() *definition.Schema       { return _nsListOutput }
 func nsOutputSchema() *definition.Schema           { return _nsOutput }
 func blobListOutputSchema() *definition.Schema     { return _blobListOutput }
@@ -213,7 +215,9 @@ var blobListOutputJSON = []byte(`{
 				"namespace_id": { "name": "namespace_id", "description": "Namespace ID", "type": "string" },
 				"content_type": { "name": "content_type", "description": "MIME content type", "type": "string" },
 				"size": { "name": "size", "description": "Size in bytes", "type": "integer" },
-				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" }
+				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" },
+				"updated_at": { "name": "updated_at", "description": "Last modification timestamp", "type": "string" },
+				"custom": { "name": "custom", "description": "Arbitrary metadata", "type": "object" }
 			}
 		}
 	}
@@ -239,7 +243,43 @@ var blobMetaOutputJSON = []byte(`{
 				"namespace_id": { "name": "namespace_id", "description": "Namespace ID", "type": "string" },
 				"content_type": { "name": "content_type", "description": "MIME content type", "type": "string" },
 				"size": { "name": "size", "description": "Size in bytes", "type": "integer" },
-				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" }
+				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" },
+				"updated_at": { "name": "updated_at", "description": "Last modification timestamp", "type": "string" },
+				"custom": { "name": "custom", "description": "Arbitrary metadata", "type": "object" }
+			}
+		}
+	}
+}`)
+
+var blobUpdateInputJSON = []byte(`{
+	"name": "blob_update_input",
+	"description": "Update blob metadata",
+	"version": "1.0.0",
+	"fields": {
+		"arguments": {
+			"name": "arguments",
+			"type": "object",
+			"schema": { "id": "blob_update_input_args" }
+		},
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "blob_update_payload" }
+		}
+	},
+	"schemas": {
+		"blob_update_input_args": {
+			"name": "BlobUpdateInputArgs",
+			"fields": {
+				"ns": { "name": "ns", "description": "Namespace ID", "type": "string" },
+				"key": { "name": "key", "description": "Blob key", "type": "string" }
+			}
+		},
+		"blob_update_payload": {
+			"name": "BlobUpdatePayload",
+			"fields": {
+				"content_type": { "name": "content_type", "description": "New MIME content type", "type": "string" },
+				"custom": { "name": "custom", "description": "Arbitrary metadata to set", "type": "object" }
 			}
 		}
 	}

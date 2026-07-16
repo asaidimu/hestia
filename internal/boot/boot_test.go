@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asaidimu/hestia/internal/abstract"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 func TestNewConfigDefaults(t *testing.T) {
@@ -24,8 +24,8 @@ func TestNewConfigDefaults(t *testing.T) {
 	if cfg.DataDir != "/tmp/hestia-test-defaults" {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "/tmp/hestia-test-defaults")
 	}
-	if cfg.DBPath != "/tmp/hestia-test-defaults/anansi.db" {
-		t.Errorf("DBPath = %q, want %q", cfg.DBPath, "/tmp/hestia-test-defaults/anansi.db")
+	if cfg.DBPath != "/tmp/hestia-test-defaults/hestia.db" {
+		t.Errorf("DBPath = %q, want %q", cfg.DBPath, "/tmp/hestia-test-defaults/hestia.db")
 	}
 	if cfg.LogPath != "/tmp/hestia-test-defaults/server.log" {
 		t.Errorf("LogPath = %q, want %q", cfg.LogPath, "/tmp/hestia-test-defaults/server.log")
@@ -101,8 +101,8 @@ func TestNewConfigCustom(t *testing.T) {
 	if cfg.DataDir != "/tmp/hestia-custom/data" {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "/tmp/hestia-custom/data")
 	}
-	if cfg.DBPath != "/tmp/hestia-custom/data/anansi.db" {
-		t.Errorf("DBPath = %q, want %q", cfg.DBPath, "/tmp/hestia-custom/data/anansi.db")
+	if cfg.DBPath != "/tmp/hestia-custom/data/hestia.db" {
+		t.Errorf("DBPath = %q, want %q", cfg.DBPath, "/tmp/hestia-custom/data/hestia.db")
 	}
 	if cfg.LogPath != "/tmp/hestia-custom/data/server.log" {
 		t.Errorf("LogPath = %q, want %q", cfg.LogPath, "/tmp/hestia-custom/data/server.log")

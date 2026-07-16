@@ -6,10 +6,10 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/internal/app/audit"
-	"github.com/asaidimu/hestia/internal/core/registration"
+	"github.com/asaidimu/hestia/app/core/registration"
 	"github.com/asaidimu/hestia/internal/interface/api"
-	corepkg "github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/abstract"
+	corepkg "github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 func NewSystemStatusHandler(bootstrapped func() bool) corepkg.MessageHandler {
@@ -57,9 +57,9 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration) core
 	}
 }
 
-func NewLogAccessHandler(model *audit.AccessLogModel) corepkg.MessageHandler {
+func NewLogAccessHandler(model *audit.AuditModel) corepkg.MessageHandler {
 	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
-		entry := extractAccessLogEntry(msg.Input())
+		entry := extractAuditEntry(msg.Input())
 		if err := model.Insert(ctx, entry); err != nil {
 			return nil, err
 		}
@@ -85,22 +85,32 @@ func NewResetHandler(onReset func()) corepkg.MessageHandler {
 	}
 }
 
-func extractAccessLogEntry(doc *data.Document) corepkg.AccessLogEntry {
-	e := corepkg.AccessLogEntry{
-		Timestamp:   getStr(doc, "timestamp"),
-		RequestID:   getStr(doc, "request_id"),
-		UserID:      getStr(doc, "user_id"),
-		Credential:  getStr(doc, "credential"),
-		MessageName: getStr(doc, "message_name"),
-		MessageID:   getStr(doc, "message_id"),
-		Status:      corepkg.AccessStatus(getStr(doc, "status")),
-		Error:       getStr(doc, "error"),
-		LatencyMs:   getInt64(doc, "latency_ms"),
+func extractAuditEntry(doc *data.Document) corepkg.AuditEntry {
+	return corepkg.AuditEntry{
+		EventID:      getStr(doc, "event_id"),
+		OccurredAt:   getStr(doc, "occurred_at"),
+		RecordedAt:   getStr(doc, "recorded_at"),
+		TraceID:      getStr(doc, "trace_id"),
+		RequestID:    getStr(doc, "request_id"),
+		ActorID:      getStr(doc, "actor_id"),
+		ActorType:    corepkg.ActorType(getStr(doc, "actor_type")),
+		OnBehalfOfID: getStr(doc, "on_behalf_of_id"),
+		AuthMethod:   corepkg.AuthMethod(getStr(doc, "auth_method")),
+		SessionID:    getStr(doc, "session_id"),
+		Operation:    corepkg.Operation(getStr(doc, "operation")),
+		ResourceType: getStr(doc, "resource_type"),
+		ResourceID:   getStr(doc, "resource_id"),
+		EventName:    getStr(doc, "event_name"),
+		Status:       corepkg.AuditStatus(getStr(doc, "status")),
+		Severity:     corepkg.Severity(getStr(doc, "severity")),
+		ErrorCode:    getStr(doc, "error_code"),
+		ErrorMessage: getStr(doc, "error_message"),
+		LatencyMs:    getInt64(doc, "latency_ms"),
+		SourceIP:     getStr(doc, "source_ip"),
+		UserAgent:    getStr(doc, "user_agent"),
+		ServiceName:  getStr(doc, "service_name"),
+		Region:       getStr(doc, "region"),
 	}
-	if v := doc.GetOr("transport", nil); v != nil {
-		e.TransportMetadata = v
-	}
-	return e
 }
 
 func getStr(doc *data.Document, key string) string {

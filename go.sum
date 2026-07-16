@@ -10,8 +10,8 @@ github.com/andybalholm/brotli v1.2.1 h1:R+f5xP285VArJDRgowrfb9DqL18yVK0gKAW/F+eT
 github.com/andybalholm/brotli v1.2.1/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=
 github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
-github.com/asaidimu/blobs v1.0.1 h1:RkjgFYMeaWMMD9lPPj7Wlf+T3wRzkcUjNiCUzGtfa9I=
-github.com/asaidimu/blobs v1.0.1/go.mod h1:gqKgZnx9DmCXoFLJTIG2mEmiW95YHCf5Wgkki8um+wc=
+github.com/asaidimu/blobs v1.0.2 h1:PumWnLbVBxlJ4Fqwak76LxusDv/c8fvgiiSly0zfBIc=
+github.com/asaidimu/blobs v1.0.2/go.mod h1:gqKgZnx9DmCXoFLJTIG2mEmiW95YHCf5Wgkki8um+wc=
 github.com/asaidimu/go-anansi/v8 v8.0.3 h1:HRsWgxKINs1NHb9nTfpyBGynPZNyh38JkjU/29lWK3k=
 github.com/asaidimu/go-anansi/v8 v8.0.3/go.mod h1:G7byVTypnBS7wXVmw8THptOotefNwqV2+spliI8FNs0=
 github.com/asaidimu/go-events v1.1.0 h1:uT2NT6EyMGMR34Pjfu2XzkDRm/0BowvAX2pdXCpflmI=

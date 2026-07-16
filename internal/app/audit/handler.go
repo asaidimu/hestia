@@ -10,8 +10,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 
-	corepkg "github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
+	corepkg "github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
 )
 
 func logQueryHandler(persist base.Persistence, defaultLimit int) corepkg.MessageHandler {
@@ -40,7 +40,7 @@ func logQueryHandler(persist base.Persistence, defaultLimit int) corepkg.Message
 				Limit:        defaultLimit,
 				IncludeTotal: &includeTotal,
 				Order: []query.SortConfiguration{
-					{Field: "timestamp", Direction: query.SortDirectionDesc},
+					{Field: "occurred_at", Direction: query.SortDirectionDesc},
 				},
 			}
 		} else {
@@ -50,12 +50,12 @@ func logQueryHandler(persist base.Persistence, defaultLimit int) corepkg.Message
 			}
 			if len(q.Pagination.Order) == 0 {
 				q.Pagination.Order = []query.SortConfiguration{
-					{Field: "timestamp", Direction: query.SortDirectionDesc},
+					{Field: "occurred_at", Direction: query.SortDirectionDesc},
 				}
 			}
 		}
 
-		col, err := persist.Collection(ctx, "_access_log_")
+		col, err := persist.Collection(ctx, auditCollectionName)
 		if err != nil {
 			return nil, err
 		}
@@ -80,9 +80,9 @@ func logStreamHandler(persist base.Persistence) corepkg.MessageHandler {
 	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
 		docCh := make(chan *data.Document, 64)
 
-		col, err := persist.Collection(ctx, "_access_log_")
+		col, err := persist.Collection(ctx, auditCollectionName)
 		if err != nil {
-			return nil, fmt.Errorf("get access_log collection: %w", err)
+			return nil, fmt.Errorf("get audit_log collection: %w", err)
 		}
 
 		go func() {

@@ -18,7 +18,7 @@ import (
 	"github.com/asaidimu/hestia/migrations"
 )
 
-func buildOrchestrator(a *boot.Application, mod *app.SystemModule) *api.Orchestrator {
+func buildInterface(a *boot.Application, mod *app.SystemModule) *api.Interface {
 	secureDisp := mod.SecureDispatcher(a.Dispatcher())
 	return api.New(api.Options{
 		Dispatcher:         secureDisp,
@@ -73,8 +73,8 @@ func main() {
 		fmt.Printf("Ephemeral key: %s\n", ephemeralKey)
 	}
 
-	orch := buildOrchestrator(application, systemMod)
-	application.AddOrchestrator(orch)
+	iface := buildInterface(application, systemMod)
+	application.AddInterface(iface)
 	application.Start(bootstrapped)
 
 	if bootstrapped {

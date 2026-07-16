@@ -11,11 +11,11 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app"
-	"github.com/asaidimu/hestia/internal/abstract"
 	"github.com/asaidimu/hestia/internal/boot"
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/schema"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/schema"
 	"github.com/asaidimu/hestia/internal/interface/api"
 	"github.com/asaidimu/hestia/internal/interface/cli"
 )
@@ -58,6 +58,11 @@ type SetupConfig struct {
 	Modules []Module
 	Options app.Options
 
+	// ProjectName sets the data-directory leaf name and DB filename.
+	// If empty, falls back to the build-time ProjectName var (default "hestia").
+	// Override at build time: go build -ldflags '-X github.com/asaidimu/hestia/internal/boot.ProjectName=myapp'
+	ProjectName string
+
 	// Migrate applies user-defined migrations after hestia's built-in migrations.
 	// Called with the initialized persistence layer before any module is set up.
 	// Use to create your own collections and schemas.
@@ -68,6 +73,16 @@ type SetupConfig struct {
 	// Each hook receives and returns a Dispatcher.
 	// Example: rate limiting, custom audit, request validation middleware.
 	DispatcherHooks []func(abstract.Dispatcher) abstract.Dispatcher
+
+	// DisableRPC disables the default HTTP/RPC interface.
+	DisableRPC bool
+	// DisableCLI disables the default CLI flag parser.
+	DisableCLI bool
+	// Interfaces constructs transport interfaces beyond the built-in RPC and CLI.
+	// Each factory receives the system's Dispatcher so it can dispatch
+	// messages to registered handlers. Use to add WebSocket, gRPC,
+	// custom admin panels, or any custom transport.
+	Interfaces []func(core.Dispatcher) core.Interface
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +91,9 @@ type SetupConfig struct {
 
 func Setup(cfg SetupConfig) (*boot.Application, *app.SystemModule, error) {
 	if cfg.Config == nil {
+		if cfg.ProjectName != "" {
+			boot.ProjectName = cfg.ProjectName
+		}
 		var err error
 		cfg.Config, err = boot.NewConfig()
 		if err != nil {
@@ -104,7 +122,7 @@ func Setup(cfg SetupConfig) (*boot.Application, *app.SystemModule, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Run — Setup + orchestration + signal lifecycle (blocking)
+// Run — Setup + signal lifecycle (blocking)
 // ---------------------------------------------------------------------------
 
 func Run(cfg SetupConfig) error {
@@ -124,9 +142,18 @@ func Run(cfg SetupConfig) error {
 	}
 	defer application.Close()
 
-	orch := BuildOrchestrators(application, systemMod, cfg.Version)
-	application.AddOrchestrator(orch.RPC)
-	application.AddOrchestrator(orch.CLI)
+	if !cfg.DisableRPC || !cfg.DisableCLI {
+		ifaces := BuildInterfaces(application, systemMod, cfg.Version)
+		if !cfg.DisableRPC {
+			application.AddInterface(ifaces.RPC)
+		}
+		if !cfg.DisableCLI {
+			application.AddInterface(ifaces.CLI)
+		}
+	}
+	for _, fn := range cfg.Interfaces {
+		application.AddInterface(fn(application.Dispatcher()))
+	}
 
 	PrintBootstrapStatus(application, systemMod)
 
@@ -149,17 +176,17 @@ func wrapCallback(user, fallback func()) func() {
 }
 
 // ---------------------------------------------------------------------------
-// Orchestrators
+// Interfaces
 // ---------------------------------------------------------------------------
 
-type Orchestrators struct {
-	RPC *api.Orchestrator
-	CLI *cli.Orchestrator
+type Interfaces struct {
+	RPC *api.Interface
+	CLI *cli.Interface
 }
 
-func BuildOrchestrators(a *boot.Application, mod *app.SystemModule, version string) Orchestrators {
-	rpc, cli := boot.BuildOrchestrators(a, mod, version)
-	return Orchestrators{RPC: rpc, CLI: cli}
+func BuildInterfaces(a *boot.Application, mod *app.SystemModule, version string) Interfaces {
+	rpc, cli := boot.BuildInterfaces(a, mod, version)
+	return Interfaces{RPC: rpc, CLI: cli}
 }
 
 // ---------------------------------------------------------------------------

@@ -7,12 +7,12 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/abstract"
-	"github.com/asaidimu/hestia/internal/core/identity"
+	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/app/core/identity"
 )
 
 // TODO: use constants for message names
-func (o *Orchestrator) validateBearer(ctx context.Context, req Request, token string) (*identity.Claims, error) {
+func (o *Interface) validateBearer(ctx context.Context, req Request, token string) (*identity.Claims, error) {
 	sysCtx := identity.SystemContext(ctx)
 
 	validateMsg := abstract.NewMessage("system:auth:token:validate", sysCtx, data.MustNewDocument(map[string]any{
@@ -63,7 +63,7 @@ func extractClaims(doc *data.Document) *identity.Claims {
 	}
 }
 
-func (o *Orchestrator) authenticateAPIKey(ctx context.Context, req Request, key string) (*identity.Claims, error) {
+func (o *Interface) authenticateAPIKey(ctx context.Context, req Request, key string) (*identity.Claims, error) {
 	sysCtx := identity.SystemContext(ctx)
 	apiKeyMsg := abstract.NewMessage("system:auth:apikey:validate", sysCtx, data.MustNewDocument(map[string]any{
 		"api_key": key,

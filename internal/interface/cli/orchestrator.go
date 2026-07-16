@@ -13,8 +13,8 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/abstract"
-	"github.com/asaidimu/hestia/internal/core"
+	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/app/core"
 )
 
 var systemIdentity = iam.Identity{
@@ -32,15 +32,15 @@ type Options struct {
 	Stdout      io.Writer
 }
 
-type Orchestrator struct {
+type Interface struct {
 	opts Options
 }
 
-func New(opts Options) *Orchestrator {
-	return &Orchestrator{opts: opts}
+func New(opts Options) *Interface {
+	return &Interface{opts: opts}
 }
 
-func (o *Orchestrator) Start(bootstrapped bool) {
+func (o *Interface) Start(bootstrapped bool) {
 	if len(os.Args) < 2 {
 		return
 	}
@@ -71,15 +71,15 @@ func (o *Orchestrator) Start(bootstrapped bool) {
 	}
 }
 
-func (o *Orchestrator) Restart(bootstrapped bool) {}
+func (o *Interface) Restart(bootstrapped bool) {}
 
-func (o *Orchestrator) Shutdown(ctx context.Context) error { return nil }
+func (o *Interface) Shutdown(ctx context.Context) error { return nil }
 
-func (o *Orchestrator) printVersion() {
+func (o *Interface) printVersion() {
 	fmt.Fprintln(o.opts.Stdout, "Hestia ERP Template Server", o.opts.Version)
 }
 
-func (o *Orchestrator) printHelp(fs *flag.FlagSet) {
+func (o *Interface) printHelp(fs *flag.FlagSet) {
 	fmt.Fprintln(o.opts.Stdout, "Hestia ERP Template Server")
 	fmt.Fprintln(o.opts.Stdout)
 	fmt.Fprintln(o.opts.Stdout, "Usage:")
@@ -91,7 +91,7 @@ func (o *Orchestrator) printHelp(fs *flag.FlagSet) {
 	fmt.Fprintln(o.opts.Stdout, "Without flags, the server starts in HTTP mode.")
 }
 
-func (o *Orchestrator) runBootstrap() {
+func (o *Interface) runBootstrap() {
 	ctx := iam.WithIdentity(context.Background(), systemIdentity)
 
 	statusMsg := abstract.NewMessage("system:core:health:check", ctx, data.MustNewDocument(nil, ctx))

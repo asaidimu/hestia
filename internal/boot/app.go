@@ -10,10 +10,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app"
-	"github.com/asaidimu/hestia/internal/interface"
 	"github.com/asaidimu/hestia/migrations"
 )
 
@@ -30,7 +29,7 @@ type Application struct {
 	Loggers            *Loggers
 	PersistenceManager *PersistenceManager
 	Disp               *core.LocalDispatcher
-	Orchestrators      []orchestrator.Orchestrator
+	Interfaces      []core.Interface
 	Registrations      []abstract.MessageRegistration
 }
 
@@ -93,25 +92,25 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	return nil
 }
 
-func (a *Application) AddOrchestrator(o orchestrator.Orchestrator) {
-	a.Orchestrators = append(a.Orchestrators, o)
+func (a *Application) AddInterface(o core.Interface) {
+	a.Interfaces = append(a.Interfaces, o)
 }
 
 func (a *Application) Start(bootstrapped bool) {
-	for _, o := range a.Orchestrators {
+	for _, o := range a.Interfaces {
 		o.Start(bootstrapped)
 	}
 }
 
 func (a *Application) RestartAll(bootstrapped bool) {
-	for _, o := range a.Orchestrators {
+	for _, o := range a.Interfaces {
 		o.Restart(bootstrapped)
 	}
 }
 
 func (a *Application) Shutdown(ctx context.Context) error {
 	var lastErr error
-	for _, o := range a.Orchestrators {
+	for _, o := range a.Interfaces {
 		if err := o.Shutdown(ctx); err != nil {
 			lastErr = err
 		}
@@ -160,10 +159,10 @@ func (a *Application) Reset(cfg *core.Config, version string) {
 	})
 	a.RegisterModules(mod)
 
-	cliOrch, rpcOrch := BuildOrchestrators(a, mod, version)
-	a.Orchestrators = nil
-	a.AddOrchestrator(cliOrch)
-	a.AddOrchestrator(rpcOrch)
+	rpcIface, cliIface := BuildInterfaces(a, mod, version)
+	a.Interfaces = nil
+	a.AddInterface(rpcIface)
+	a.AddInterface(cliIface)
 
 	a.Loggers.File.Info("Reset: restarting…")
 	a.RestartAll(mod.Bootstrapped())

@@ -1,0 +1,14 @@
+{
+  "name": "hestia-docs",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "gen:api": "bun run scripts/generate-docs.ts"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}

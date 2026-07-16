@@ -9,21 +9,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ModuleCmd = &cobra.Command{
-	Use:   "module",
-	Short: "Manage external modules",
-}
-
 func init() {
-	ModuleCmd.AddCommand(scaffoldCmd)
+	AddCmd.AddCommand(scaffoldModuleCmd)
 }
 
-var scaffoldCmd = &cobra.Command{
-	Use:   "scaffold <module-name> [feature-name]",
-	Short: "Scaffold a new external module",
+var scaffoldModuleCmd = &cobra.Command{
+	Use:   "module <module-name> [feature-name]",
+	Short: "Add a new external module",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		requireRoot()
+		if isHestiaModule(rootDir) {
+			fmt.Println("Skipping: 'add module' is for downstream projects, not for the hestia library repo itself")
+			return
+		}
 		modName := args[0]
 		featureName := modName
 		if len(args) >= 2 {
@@ -47,6 +46,7 @@ var scaffoldCmd = &cobra.Command{
 		writeFile(filepath.Join(featureDir, "defaults.go"), scaffoldDefaults(featureName))
 
 		fmt.Printf("Scaffolded module %q at %s\n", modName, modDir)
+		genModuleRegistry()
 	},
 }
 

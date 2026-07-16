@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 type Request = abstract.Request

@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/asaidimu/hestia/internal/app"
-	"github.com/asaidimu/hestia/internal/abstract"
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/interface/api"
 
+	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia"
+
+	_ "github.com/asaidimu/hestia/internal/boot"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 			Domain:       "",
 			Secure:       false,
 			HTTPOnly:     true,
-			SameSite:     abstract.SameSiteStrictMode,
+			SameSite:     1,
 			AccessName:   "access_token",
 			AccessPath:   "/",
 			RefreshName:  "refresh_token",
@@ -62,18 +62,8 @@ func main() {
 	}
 	defer application.Close()
 
-	chain := systemMod.DispatcherChain(application.Dispatcher())
-	rpcOrch := api.New(api.Options{
-		Dispatcher:         chain,
-		InternalDispatcher: application.Dispatcher(),
-		Logger:             application.Loggers.File,
-		Addr:               cfg.Port,
-		Registrations:      application.Registrations,
-		CookieConfig:       cfg.CookieConfig,
-		AccessTokenTTL:     cfg.AccessTokenTTL,
-		RefreshTokenTTL:    cfg.RefreshTokenTTL,
-	})
-	application.AddOrchestrator(rpcOrch)
+	ifaces := hestia.BuildInterfaces(application, systemMod, "")
+	application.AddInterface(ifaces.RPC)
 
 	application.Start(systemMod.Bootstrapped())
 

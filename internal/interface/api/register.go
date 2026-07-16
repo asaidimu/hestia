@@ -8,9 +8,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/internal/core"
-	"github.com/asaidimu/hestia/internal/core/registration"
-	"github.com/asaidimu/hestia/internal/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/registration"
+	"github.com/asaidimu/hestia/app/abstract"
 )
 
 const (
@@ -42,15 +42,15 @@ func (m *transportMessage) Input() *data.Document               { return m.input
 func (m *transportMessage) InputChannel() <-chan *data.Document   { return m.inputCh }
 func (m *transportMessage) BlobInputChannel() <-chan registration.Blob { return m.blobCh }
 
-func (o *Orchestrator) installDispatcherRegistrations() {
+func (o *Interface) installDispatcherRegistrations() {
 	o.installRegistrations(o.regs, false)
 }
 
-func (o *Orchestrator) installBootstrapSafeRegistrations() {
+func (o *Interface) installBootstrapSafeRegistrations() {
 	o.installRegistrations(o.regs, true)
 }
 
-func (o *Orchestrator) installRegistrations(regs []abstract.MessageRegistration, bootstrapOnly bool) {
+func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bootstrapOnly bool) {
 	for _, reg := range regs {
 		if bootstrapOnly && !reg.BootstrapSafe {
 			continue
@@ -82,7 +82,9 @@ func (o *Orchestrator) installRegistrations(regs []abstract.MessageRegistration,
 
 			result, err := o.disp.Send(msg)
 			if err != nil {
-				return Response{}, err
+				resp := Response{}
+				resp = o.attachCookieClearingResponse(resp, reg.Name)
+				return resp, err
 			}
 
 			if reg.Intent == registration.Stream {
@@ -260,7 +262,7 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 // injectCookieRefreshToken reads the refresh token from the cookie and
 // injects it into the request body for refresh and logout endpoints,
 // so the handler can find it as a regular payload field.
-func (o *Orchestrator) injectCookieRefreshToken(req Request, name string) Request {
+func (o *Interface) injectCookieRefreshToken(req Request, name string) Request {
 	if o.cookieCfg.RefreshName == "" {
 		return req
 	}
@@ -287,7 +289,7 @@ func (o *Orchestrator) injectCookieRefreshToken(req Request, name string) Reques
 
 // attachCookieToResponse sets or clears both access and refresh token cookies
 // based on the auth operation.
-func (o *Orchestrator) attachCookieToResponse(resp Response, result *registration.Result, name string) Response {
+func (o *Interface) attachCookieToResponse(resp Response, result *registration.Result, name string) Response {
 	switch name {
 	case msgSessionCreate, msgSessionRefresh:
 		at := extractAccessToken(result)
@@ -343,6 +345,33 @@ func (o *Orchestrator) attachCookieToResponse(resp Response, result *registratio
 				HTTPOnly: o.cookieCfg.HTTPOnly,
 				SameSite: o.cookieCfg.SameSite,
 				MaxAge:   -1,
+			})
+		}
+	}
+	return resp
+}
+
+// attachCookieClearingResponse clears both cookies for auth operations when
+// the handler returns an error (e.g. expired/revoked token).
+func (o *Interface) attachCookieClearingResponse(resp Response, name string) Response {
+	switch name {
+	case msgSessionCreate, msgSessionRefresh, msgSessionDelete:
+		if o.cookieCfg.AccessName != "" {
+			resp.Cookies = append(resp.Cookies, Cookie{
+				Name:   o.cookieCfg.AccessName,
+				Value:  "",
+				Path:   o.cookieCfg.AccessPath,
+				Domain: o.cookieCfg.Domain,
+				MaxAge: -1,
+			})
+		}
+		if o.cookieCfg.RefreshName != "" {
+			resp.Cookies = append(resp.Cookies, Cookie{
+				Name:   o.cookieCfg.RefreshName,
+				Value:  "",
+				Path:   o.cookieCfg.RefreshPath,
+				Domain: o.cookieCfg.Domain,
+				MaxAge: -1,
 			})
 		}
 	}

@@ -12,6 +12,7 @@ type Config struct {
 	ModuleSources []string `json:"module_sources,omitempty"`
 	ModuleTarget  string   `json:"module_target,omitempty"`
 	Cmds          []string `json:"cmds,omitempty"`
+	AutogenTarget string   `json:"autogen_target,omitempty"`
 }
 
 func readConfig(root string) Config {
