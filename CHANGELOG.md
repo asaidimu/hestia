@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/asaidimu/hestia/compare/v1.0.2...v1.0.3) (2026-07-18)
+
+
+### Bug Fixes
+
+* fix policies ([cabef5a](https://github.com/asaidimu/hestia/commit/cabef5af5778ed79f04a60c9761728fb19ce2b91))
+
 ## [1.0.2](https://github.com/asaidimu/hestia/compare/v1.0.1...v1.0.2) (2026-07-18)
 
 
