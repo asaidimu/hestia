@@ -3,19 +3,21 @@
   "version": "1.0.1",
   "description": "TypeScript client SDK for the Hestia platform — auth, collections, API keys, policies, audit logs, blobs, and capabilities",
   "type": "module",
-  "module": "index.ts",
-  "main": "index.ts",
-  "types": "index.ts",
+  "main": ".dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "test": "vitest run",
+    "ci": "bun install",
+    "build": "tsdown",
+    "test": "vitest --run",
+    "test:ci": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "vitest --browser --run"
+    "test:browser": "vitest --browser --run",
+    "clean": "[ -e ./dist ] && rm -rf ./dist || echo No dist",
+    "prebuild": "bun clean && bun run .sync-package.ts",
+    "postbuild": "cp README.md LICENSE.md ./dist && mv ./out.package.json ./dist/package.json"
   },
   "files": [
-    "*.ts",
-    "*/**/*.ts",
-    "!*.test.ts",
-    "!*/**/*.test.ts"
+    "dist"
   ],
   "repository": {
     "type": "git",
@@ -27,8 +29,10 @@
     "access": "public"
   },
   "devDependencies": {
+    "@asaidimu/utils-persistence": "^6.1.22",
     "@faker-js/faker": "^10.5.0",
     "@types/bun": "latest",
+    "tsdown": "^0.22.9",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

@@ -12,14 +12,14 @@
     [
       "@semantic-release/npm",
       {
-        "pkgRoot": "client",
+        "pkgRoot": "client/dist",
         "npmPublishArgs": ["--provenance"]
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["CHANGELOG.md", "client/package.json"],
+        "assets": ["CHANGELOG.md", "client/dist.package.json"],
         "message": "chore(release): Release v${nextRelease.version}\n\n${nextRelease.notes}"
       }
     ],

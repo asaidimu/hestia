@@ -20,6 +20,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Build client
+        run: cd client && bun install && bun run build
+
       - name: version
         uses: cycjimmy/semantic-release-action@v6
         env:
