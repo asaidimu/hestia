@@ -6,6 +6,8 @@ export interface APIKey {
   status: string
   expiry?: string | null
   environment?: string
+  usage?: number
+  last_used?: string | null
   _metadata_: Record<string, unknown>
 }
 

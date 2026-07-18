@@ -21,8 +21,8 @@
     "type": "git",
     "url": "git+https://github.com/asaidimu/hestia.git"
   },
+  "author": "Saidimu <47994458+asaidimu@users.noreply.github.com>",
   "license": "MIT",
-  "author": "Asaidimu <dev@asaidimu.com>",
   "publishConfig": {
     "access": "public"
   },
