@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/asaidimu/hestia/compare/v1.0.1...v1.0.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* fix client bundling ([58bde5d](https://github.com/asaidimu/hestia/commit/58bde5d366ac6f90aa8c929c88abb9e51195d65f))
+
 ## [1.0.1](https://github.com/asaidimu/hestia/compare/v1.0.0...v1.0.1) (2026-07-18)
 
 
