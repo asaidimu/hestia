@@ -1,15 +1,38 @@
 package policies
 
-func DefaultOperations() []OperationPolicy {
-	return []OperationPolicy{
-		{Name: "system:policies:operation:get", RuleKey: "administrator", Description: "Get a policy operation by name"},
-		{Name: "system:policies:operation:upsert", RuleKey: "administrator", Description: "Create or update a policy operation"},
-		{Name: "system:policies:operation:delete", RuleKey: "administrator", Description: "Delete a policy operation"},
-		{Name: "system:policies:rule:get", RuleKey: "administrator", Description: "Get a policy rule by name"},
-		{Name: "system:policies:rule:upsert", RuleKey: "administrator", Description: "Create or update a policy rule"},
-		{Name: "system:policies:rule:delete", RuleKey: "administrator", Description: "Delete a policy rule"},
-		{Name: "system:policies:rule:validate", RuleKey: "administrator", Description: "Validate a CEL rule expression"},
-		{Name: "system:policies:rule:reload", RuleKey: "administrator", Description: "Reload policies from database"},
+func DefaultOperations() []Operation {
+	return []Operation{
+		{Name: "system:policies:operation:get", Description: "Get a policy operation by name"},
+		{Name: "system:policies:rule:get", Description: "Get a policy rule by name"},
+		{Name: "system:policies:rule:validate", Description: "Validate a CEL rule expression"},
+		{Name: "system:policies:operation:list", Description: "List policy operations"},
+		{Name: "system:policies:rule:list", Description: "List policy rules"},
+		{Name: "system:policies:policy:list", Description: "List policy bindings"},
+		{Name: "system:policies:policy:create", Description: "Create a policy binding"},
+		{Name: "system:policies:policy:update-rule", Description: "Change the rule bound to an operation"},
+		{Name: "system:policies:policy:set-enabled", Description: "Enable or disable a policy"},
+		{Name: "system:policies:rule:create", Description: "Create a policy rule"},
+		{Name: "system:policies:rule:update", Description: "Update a policy rule"},
+		{Name: "system:policies:rule:delete", Description: "Delete a policy rule"},
+		{Name: "system:policies:rule:reload", Description: "Reload policies from database"},
+	}
+}
+
+func DefaultPolicyBindings() []Policy {
+	return []Policy{
+		{OperationName: "system:policies:operation:get", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:get", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:validate", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:operation:list", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:list", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:policy:list", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:policy:create", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:policy:update-rule", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:policy:set-enabled", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:create", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:update", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:delete", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:rule:reload", RuleName: "administrator", Enabled: true, Protected: true},
 	}
 }
 

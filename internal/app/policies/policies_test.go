@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
 	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app/policies"
@@ -26,6 +27,27 @@ func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 
 var _ core.Message = testMessage{}
 
+func openCollections(t *testing.T, p base.Persistence) (base.Collection, base.Collection) {
+	t.Helper()
+	ctx := context.Background()
+	opColl, err := p.Collection(ctx, "_operation_policy_")
+	if err != nil {
+		t.Fatalf("open _operation_policy_ collection: %v", err)
+	}
+	ruleColl, err := p.Collection(ctx, "_iam_rule_")
+	if err != nil {
+		t.Fatalf("open _iam_rule_ collection: %v", err)
+	}
+	return opColl, ruleColl
+}
+
+func newTestModel(t *testing.T) *policies.PolicyModel {
+	t.Helper()
+	p := persistest.NewPersistence(t)
+	opColl, ruleColl := openCollections(t, p)
+	return policies.NewPolicyModel(opColl, ruleColl, nil)
+}
+
 func TestDefaultOperations(t *testing.T) {
 	ops := policies.DefaultOperations()
 	if len(ops) == 0 {
@@ -38,71 +60,58 @@ func TestDefaultOperations(t *testing.T) {
 	}
 }
 
-func TestPolicyModelUpsertAndListOperations(t *testing.T) {
+func TestPolicyModelCreateAndListPolicies(t *testing.T) {
 	ctx := context.Background()
-	p := persistest.NewPersistence(t)
-	model := policies.NewPolicyModel(p)
+	model := newTestModel(t)
 
-	op := policies.OperationPolicy{
-		Name:        "test:operation",
-		RuleKey:     "administrator",
-		Description: "test operation",
+	pol := policies.Policy{
+		OperationName: "test:operation",
+		RuleName:      "administrator",
+		Enabled:       true,
 	}
-	if err := model.UpsertOperation(ctx, op); err != nil {
-		t.Fatalf("UpsertOperation failed: %v", err)
-	}
-
-	ops, err := model.ListOperations(ctx)
+	created, err := model.CreatePolicy(ctx, pol)
 	if err != nil {
-		t.Fatalf("ListOperations failed: %v", err)
+		t.Fatalf("CreatePolicy failed: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("CreatePolicy did not assign an ID")
+	}
+	if created.OperationName != "test:operation" {
+		t.Errorf("expected OperationName %q, got %q", "test:operation", created.OperationName)
 	}
 
+	policies, err := model.ListPolicies(ctx)
+	if err != nil {
+		t.Fatalf("ListPolicies failed: %v", err)
+	}
 	var found bool
-	for _, o := range ops {
-		if o.Name == "test:operation" {
+	for _, pol := range policies {
+		if pol.OperationName == "test:operation" {
 			found = true
-			if o.RuleKey != "administrator" {
-				t.Errorf("expected RuleKey %q, got %q", "administrator", o.RuleKey)
+			if pol.RuleName != "administrator" {
+				t.Errorf("expected RuleName %q, got %q", "administrator", pol.RuleName)
 			}
 			break
 		}
 	}
 	if !found {
-		t.Fatal("ListOperations does not include the upserted operation")
+		t.Fatal("ListPolicies does not include the created policy")
 	}
 }
 
-func TestPolicyModelDeleteOperation(t *testing.T) {
+func TestPolicyModelDeletePolicyErrors(t *testing.T) {
 	ctx := context.Background()
-	p := persistest.NewPersistence(t)
-	model := policies.NewPolicyModel(p)
+	model := newTestModel(t)
 
-	op := policies.OperationPolicy{
-		Name:    "test:delete-me",
-		RuleKey: "public",
-	}
-	if err := model.UpsertOperation(ctx, op); err != nil {
-		t.Fatalf("UpsertOperation failed: %v", err)
-	}
-	if err := model.DeleteOperation(ctx, "test:delete-me"); err != nil {
-		t.Fatalf("DeleteOperation failed: %v", err)
-	}
-
-	ops, err := model.ListOperations(ctx)
-	if err != nil {
-		t.Fatalf("ListOperations failed: %v", err)
-	}
-	for _, o := range ops {
-		if o.Name == "test:delete-me" {
-			t.Fatal("DeleteOperation did not remove the operation")
-		}
+	err := model.DeletePolicy(ctx, "test:delete-me")
+	if err == nil {
+		t.Fatal("DeletePolicy should return an error")
 	}
 }
 
-func TestPolicyModelUpsertAndGetRule(t *testing.T) {
+func TestPolicyModelCreateAndGetRule(t *testing.T) {
 	ctx := context.Background()
-	p := persistest.NewPersistence(t)
-	model := policies.NewPolicyModel(p)
+	model := newTestModel(t)
 
 	rule := policies.PolicyRule{
 		Name:        "allow",
@@ -111,8 +120,12 @@ func TestPolicyModelUpsertAndGetRule(t *testing.T) {
 		Expression:  "true",
 		Description: "allow rule",
 	}
-	if err := model.UpsertRule(ctx, rule); err != nil {
-		t.Fatalf("UpsertRule failed: %v", err)
+	created, err := model.CreateRule(ctx, rule)
+	if err != nil {
+		t.Fatalf("CreateRule failed: %v", err)
+	}
+	if created.ID == "" {
+		t.Fatal("CreateRule did not assign an ID")
 	}
 
 	got, err := model.GetRule(ctx, "allow")
@@ -124,6 +137,35 @@ func TestPolicyModelUpsertAndGetRule(t *testing.T) {
 	}
 	if got.Expression != "true" {
 		t.Errorf("expected expression %q, got %q", "true", got.Expression)
+	}
+}
+
+func TestPolicyModelDeleteRuleBlockedByPolicy(t *testing.T) {
+	ctx := context.Background()
+	model := newTestModel(t)
+
+	created, err := model.CreateRule(ctx, policies.PolicyRule{
+		Name:       "admin",
+		RuleType:   "simple",
+		Expression: "true",
+	})
+	if err != nil {
+		t.Fatalf("CreateRule failed: %v", err)
+	}
+	_ = created
+
+	_, err = model.CreatePolicy(ctx, policies.Policy{
+		OperationName: "test:operation",
+		RuleName:      "admin",
+		Enabled:       true,
+	})
+	if err != nil {
+		t.Fatalf("CreatePolicy failed: %v", err)
+	}
+
+	err = model.DeleteRule(ctx, "admin")
+	if err == nil {
+		t.Fatal("DeleteRule should fail when rule is referenced by a policy")
 	}
 }
 

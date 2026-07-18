@@ -2,8 +2,8 @@ package collections
 
 import "github.com/asaidimu/hestia/internal/app/policies"
 
-func DefaultOperations() []policies.OperationPolicy {
-	return []policies.OperationPolicy{
+func DefaultOperations() []policies.Operation {
+	return []policies.Operation{
 		{Name: "system:collections:collection:list", RuleKey: "administrator", Description: "List all dynamic collections"},
 		{Name: "system:collections:collection:get", RuleKey: "administrator", Description: "Get a dynamic collection by name"},
 		{Name: "system:collections:collection:create", RuleKey: "administrator", Description: "Create a new dynamic collection"},

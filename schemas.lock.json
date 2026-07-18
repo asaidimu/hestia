@@ -505,8 +505,8 @@
     },
     "_iam_rule_": {
       "path": "internal/app/policies/schema/iam_rule.schema.json",
-      "hash": "sha256:b547dcfc6a74d51b4277079dae6c46bd11a99a3e87a4864269f8b484b2c302b6",
-      "version": "1.0.1",
+      "hash": "sha256:c4d907f6a6afc1a648e91c3f0cc3d89dbc67dcc0655afc292c69865c8d1e989d",
+      "version": "2.0.0",
       "schema": {
         "version": "1.1.0",
         "name": "_iam_rule_",
@@ -526,7 +526,7 @@
           },
           "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
             "name": "protected",
-            "type": "unknown"
+            "type": "boolean"
           },
           "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
             "name": "rules",
@@ -542,7 +542,7 @@
           }
         }
       },
-      "migration_file": "019f6b69-2f4c-7a45-a1d1-e2941533f5c5__iam_rule__patch.go",
+      "migration_file": "019f75c8-408b-7c11-abf4-1825265b90df__iam_rule__major.go",
       "history": [
         {
           "version": "1.0.0",
@@ -582,13 +582,52 @@
             }
           },
           "migration_file": "019f6640-8f9a-71fd-bb58-29c411898033__iam_rule__major.go"
+        },
+        {
+          "version": "1.0.1",
+          "schema": {
+            "version": "1.1.0",
+            "name": "_iam_rule_",
+            "fields": {
+              "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
+                "name": "name",
+                "required": true,
+                "type": "string"
+              },
+              "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
+                "name": "ruleType",
+                "type": "string"
+              },
+              "019f32aa-ba8b-743d-86a5-28354af49391": {
+                "name": "syntax",
+                "type": "string"
+              },
+              "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
+                "name": "protected",
+                "type": "unknown"
+              },
+              "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
+                "name": "rules",
+                "type": "string"
+              },
+              "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
+                "name": "expression",
+                "type": "string"
+              },
+              "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
+                "name": "description",
+                "type": "string"
+              }
+            }
+          },
+          "migration_file": "019f6b69-2f4c-7a45-a1d1-e2941533f5c5__iam_rule__patch.go"
         }
       ]
     },
     "_operation_policy_": {
       "path": "internal/app/policies/schema/operation_policy.schema.json",
-      "hash": "sha256:648e94b21ec86690ebbe4f94cdedd001dd6699f694f4690e128a68448540fd1b",
-      "version": "1.0.1",
+      "hash": "sha256:ca9893a77c209c9f735d6ab6d4443619ab7cada49479642a5da679b6187f8be4",
+      "version": "3.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_operation_policy_",
@@ -598,26 +637,30 @@
             "type": "string"
           },
           "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-            "name": "name",
+            "name": "operation",
             "required": true,
             "type": "string"
           },
           "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
             "name": "protected",
-            "type": "unknown"
+            "type": "boolean"
           },
           "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-            "name": "ruleKey",
+            "name": "rule",
             "required": true,
             "type": "string"
           },
           "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
             "name": "intentType",
             "type": "string"
+          },
+          "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
+            "name": "enabled",
+            "type": "boolean"
           }
         }
       },
-      "migration_file": "019f6b69-2f4c-7b13-b255-97a0cfc6d30e__operation_policy__patch.go",
+      "migration_file": "019f75c8-408b-7e6a-b578-d84da72a0d9a__operation_policy__major.go",
       "history": [
         {
           "version": "1.0.0",
@@ -650,6 +693,74 @@
             }
           },
           "migration_file": "019f6640-8f9a-7150-b266-6e2102f78cc4__operation_policy__major.go"
+        },
+        {
+          "version": "1.0.1",
+          "schema": {
+            "version": "1.0.0",
+            "name": "_operation_policy_",
+            "fields": {
+              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
+                "name": "description",
+                "type": "string"
+              },
+              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
+                "name": "name",
+                "required": true,
+                "type": "string"
+              },
+              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
+                "name": "protected",
+                "type": "unknown"
+              },
+              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
+                "name": "ruleKey",
+                "required": true,
+                "type": "string"
+              },
+              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
+                "name": "intentType",
+                "type": "string"
+              }
+            }
+          },
+          "migration_file": "019f6b69-2f4c-7b13-b255-97a0cfc6d30e__operation_policy__patch.go"
+        },
+        {
+          "version": "2.0.0",
+          "schema": {
+            "version": "1.0.0",
+            "name": "_operation_policy_",
+            "fields": {
+              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
+                "name": "description",
+                "type": "string"
+              },
+              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
+                "name": "operation",
+                "required": true,
+                "type": "string"
+              },
+              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
+                "name": "protected",
+                "type": "unknown"
+              },
+              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
+                "name": "rule",
+                "required": true,
+                "type": "string"
+              },
+              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
+                "name": "intentType",
+                "type": "string"
+              },
+              "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
+                "name": "enabled",
+                "type": "unknown"
+              }
+            }
+          },
+          "migration_file": "019f75c6-e69d-7208-8842-5dce61ad774a__operation_policy__major.go"
         }
       ]
     },

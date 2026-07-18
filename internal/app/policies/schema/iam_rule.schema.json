@@ -29,7 +29,7 @@
     },
     "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
       "name": "protected",
-      "type": "bool"
+      "type": "boolean"
     }
   }
 }

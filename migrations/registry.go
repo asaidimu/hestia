@@ -34,6 +34,9 @@ var Plain = []Migration{
 	{UUID: "019f6b69-2f4c-7a45-a1d1-e2941533f5c5", Collection: "_iam_rule_", From: "1.0.0", To: "1.0.1", File: "019f6b69-2f4c-7a45-a1d1-e2941533f5c5__iam_rule__patch.go", Plan: _iam_rule__1_0_0_to_1_0_1},
 	{UUID: "019f6b69-2f4c-7b13-b255-97a0cfc6d30e", Collection: "_operation_policy_", From: "1.0.0", To: "1.0.1", File: "019f6b69-2f4c-7b13-b255-97a0cfc6d30e__operation_policy__patch.go", Plan: _operation_policy__1_0_0_to_1_0_1},
 	{UUID: "019f7451-a4f4-72be-aefa-0a7e14b9670b", Collection: "_user_", From: "1.0.0", To: "2.0.0", File: "019f7451-a4f4-72be-aefa-0a7e14b9670b__user__major.go", Plan: _user__1_0_0_to_2_0_0},
+	{UUID: "019f75c6-e69d-7208-8842-5dce61ad774a", Collection: "_operation_policy_", From: "1.0.1", To: "2.0.0", File: "019f75c6-e69d-7208-8842-5dce61ad774a__operation_policy__major.go", Plan: _operation_policy__1_0_1_to_2_0_0},
+	{UUID: "019f75c8-408b-7c11-abf4-1825265b90df", Collection: "_iam_rule_", From: "1.0.1", To: "2.0.0", File: "019f75c8-408b-7c11-abf4-1825265b90df__iam_rule__major.go", Plan: _iam_rule__1_0_1_to_2_0_0},
+	{UUID: "019f75c8-408b-7e6a-b578-d84da72a0d9a", Collection: "_operation_policy_", From: "2.0.0", To: "3.0.0", File: "019f75c8-408b-7e6a-b578-d84da72a0d9a__operation_policy__major.go", Plan: _operation_policy__2_0_0_to_3_0_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.

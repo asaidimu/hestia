@@ -2,15 +2,16 @@ package policies
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
-	"github.com/asaidimu/hestia/app/core"
 
-	"github.com/asaidimu/go-anansi/v8/core/common"
+	"github.com/asaidimu/hestia/app/core"
 )
 
+// DBPermissionManager resolves operation names to rule keys using an in-memory
+// map populated at startup via RegisterScope.  Used as a fallback when the
+// LiveCollection-backed permission manager cannot be initialised.
 type DBPermissionManager struct {
 	mu     sync.RWMutex
 	scopes map[string]string
@@ -32,9 +33,7 @@ func (m *DBPermissionManager) Resolve(msg core.Message) (string, error) {
 	defer m.mu.RUnlock()
 	scope, ok := m.scopes[msg.Name()]
 	if !ok {
-		return "", core.ErrPermissionNotRegistered.WithOperation(msg.Name()).WithIssue(common.Issue{
-			Path: msg.Name(),
-		})
+		return "", core.ErrOperationLacksPolicy.WithOperation(msg.Name())
 	}
 	return scope, nil
 }
@@ -61,9 +60,9 @@ func (m *DBPermissionManager) RegisterScope(name, scope, description string) {
 }
 
 func (m *DBPermissionManager) Reload(ctx context.Context) error {
-	ops, err := m.policyModel.ListOperations(ctx)
+	policies, err := m.policyModel.ListPolicies(ctx)
 	if err != nil {
-		return fmt.Errorf("reload policies: %w", err)
+		return err
 	}
 
 	m.mu.Lock()
@@ -72,76 +71,80 @@ func (m *DBPermissionManager) Reload(ctx context.Context) error {
 	clear(m.scopes)
 	clear(m.capabs)
 
-	for _, op := range ops {
-		m.scopes[op.Name] = op.RuleKey
-		m.capabs[op.Name] = core.CapabilityMetadata{
-			Name:        op.Name,
-			Scope:       op.RuleKey,
-			Description: op.Description,
+	for _, p := range policies {
+		if !p.Enabled {
+			continue
+		}
+		m.scopes[p.OperationName] = p.RuleName
+		m.capabs[p.OperationName] = core.CapabilityMetadata{
+			Name:        p.OperationName,
+			Scope:       p.RuleName,
+			Description: p.OperationName,
 		}
 	}
 
 	return nil
 }
 
-var _ core.PermissionManager = (*DBPermissionManager)(nil)
+var _ core.ReloadablePermissionManager = (*DBPermissionManager)(nil)
 
 // LivePermissionManager implements PermissionManager backed by a
-// LiveCollection of OperationPolicy documents.  Operations are loaded
-// on demand via read-through cache; writes (seeding, EnsureOperation,
-// DeleteOperation) update the LiveCollection which writes through to
-// the database and refreshes the cache atomically.
+// LiveCollection of Policy documents.  Policies are loaded on demand via
+// read-through cache; writes update the LiveCollection which writes through
+// to the database and refreshes the cache atomically.
 type LivePermissionManager struct {
-	liveOps collection.LiveCollection[*OperationPolicy]
-	onEmpty []OperationPolicy // fallback if liveOps is empty
+	livePolicies collection.LiveCollection[*Policy]
+	onEmpty      []Policy // fallback if livePolicies is empty
 }
 
-func NewLivePermissionManager(liveOps collection.LiveCollection[*OperationPolicy], onEmpty []OperationPolicy) *LivePermissionManager {
-	return &LivePermissionManager{liveOps: liveOps, onEmpty: onEmpty}
+func NewLivePermissionManager(livePolicies collection.LiveCollection[*Policy], onEmpty []Policy) *LivePermissionManager {
+	return &LivePermissionManager{livePolicies: livePolicies, onEmpty: onEmpty}
 }
 
 func (m *LivePermissionManager) Resolve(msg core.Message) (string, error) {
-	// LiveCollection does a read-through on cache miss, so if the
-	// operation exists in the database it is served from the cache.
-	op, ok := m.liveOps.Get(msg.Name())
-	if ok && op != nil {
-		return op.RuleKey, nil
+	policy, ok := m.livePolicies.Get(msg.Name())
+	if ok && policy != nil {
+		if !policy.Enabled {
+			return "", core.ErrOperationLacksPolicy.WithOperation(msg.Name())
+		}
+		return policy.RuleName, nil
 	}
-	// Fall back to default operations that may not have been seeded yet.
 	for _, d := range m.onEmpty {
-		if d.Name == msg.Name() {
-			return d.RuleKey, nil
+		if d.OperationName == msg.Name() {
+			if !d.Enabled {
+				return "", core.ErrOperationLacksPolicy.WithOperation(msg.Name())
+			}
+			return d.RuleName, nil
 		}
 	}
-	return "", core.ErrPermissionNotRegistered.WithOperation(msg.Name())
+	return "", core.ErrOperationLacksPolicy.WithOperation(msg.Name())
 }
 
 func (m *LivePermissionManager) ListCapabilities() []core.CapabilityMetadata {
 	seen := make(map[string]bool, len(m.onEmpty))
-	for _, op := range m.onEmpty {
-		seen[op.Name] = true
+	for _, policy := range m.onEmpty {
+		seen[policy.OperationName] = true
 	}
 	result := make([]core.CapabilityMetadata, 0, len(m.onEmpty))
-	for _, op := range m.onEmpty {
+	for _, policy := range m.onEmpty {
 		result = append(result, core.CapabilityMetadata{
-			Name:        op.Name,
-			Scope:       op.RuleKey,
-			Description: op.Description,
+			Name:        policy.OperationName,
+			Scope:       policy.RuleName,
+			Description: policy.OperationName,
 		})
 	}
-	// Merge in any cached operations not already covered by defaults.
-	for _, k := range m.liveOps.Keys() {
+	for _, k := range m.livePolicies.Keys() {
 		if seen[k] {
 			continue
 		}
-		op, ok := m.liveOps.Get(k)
-		if !ok || op == nil {
+		policy, ok := m.livePolicies.Get(k)
+		if !ok || policy == nil {
 			continue
 		}
 		result = append(result, core.CapabilityMetadata{
-			Name:        op.Name,
-			Scope:       op.RuleKey,
-			Description: op.Description,
+			Name:        policy.OperationName,
+			Scope:       policy.RuleName,
+			Description: policy.OperationName,
 		})
 	}
 	return result

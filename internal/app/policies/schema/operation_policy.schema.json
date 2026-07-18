@@ -1,16 +1,16 @@
 {
-  "name": "_operation_policy_",
   "version": "1.0.0",
+  "name": "_operation_policy_",
   "fields": {
     "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-      "name": "name",
-      "type": "string",
-      "required": true
+      "name": "operation",
+      "required": true,
+      "type": "string"
     },
     "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-      "name": "ruleKey",
-      "type": "string",
-      "required": true
+      "name": "rule",
+      "required": true,
+      "type": "string"
     },
     "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
       "name": "description",
@@ -22,7 +22,12 @@
     },
     "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
       "name": "protected",
-      "type": "bool"
+      "type": "boolean"
+    },
+    "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
+      "name": "enabled",
+      "type": "boolean"
     }
   }
 }
+

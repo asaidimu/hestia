@@ -17,9 +17,17 @@ export * from "./system/identity/types"
 export * from "./system/api-keys/store"
 export * from "./system/api-keys/types"
 
+// System: operations
+export * from "./system/operations/store"
+export * from "./system/operations/types"
+
 // System: policies
 export * from "./system/policies/store"
 export * from "./system/policies/types"
+
+// System: rules
+export * from "./system/rules/store"
+export * from "./system/rules/types"
 
 // System: logs
 export * from "./system/logs/store"

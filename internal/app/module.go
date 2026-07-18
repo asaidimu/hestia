@@ -46,7 +46,7 @@ type SystemModule struct {
 	ac             iam.AccessController
 	policyBridge   *policies.PolicyStoreAdapter
 	liveRules      collection.LiveCollection[iam.FunctionRule]
-	liveOps        collection.LiveCollection[*policies.OperationPolicy]
+	livePolicies   collection.LiveCollection[*policies.Policy]
 
 	blobSvc *blobutil.Service
 
@@ -85,7 +85,9 @@ func (m *SystemModule) Name() string { return "system" }
 func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) error {
 	m.persist = persist
 	m.blocklistSvc = auth.NewTokenBlocklistService(persist)
-	m.initModels(persist)
+	if err := m.initModels(ctx, persist); err != nil {
+		return err
+	}
 
 	jwtSvc := auth.NewJWTService(m.cfg.JWTSecret, m.cfg.AccessTokenTTL, m.cfg.RefreshTokenTTL, m.cfg.ResetTokenTTL)
 	m.credProv = auth.NewCredentialsProvider(jwtSvc, m.blocklistSvc, m.userModel)
@@ -106,7 +108,7 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 		return fmt.Errorf("init access controller: %w", err)
 	}
 
-	m.policyBridge = policies.NewPolicyStoreAdapter(m.policyModel, m.permMgr, m.liveOps, m.liveRules)
+	m.policyBridge = policies.NewPolicyStoreAdapter(m.policyModel, m.permMgr, m.liveRules)
 
 	apiKeyAuth := auth.NewAPIKeyAuthenticator(m.apiKeyModel, m.userModel, m.ephemeralKey, m.adminUserID, m.adminEmail)
 
@@ -114,6 +116,7 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 		return fmt.Errorf("register document handlers: %w", err)
 	}
 	m.messages = collectFeatureRegistrations(m, apiKeyAuth)
+	m.policyModel.SetKnownOps(collectAllKnownOperations())
 
 	go m.purgeBlocklistLoop()
 
@@ -129,12 +132,22 @@ func (m *SystemModule) Capabilities() []abstract.Capability {
 	}
 }
 
-func (m *SystemModule) initModels(persist base.Persistence) {
+func (m *SystemModule) initModels(ctx context.Context, persist base.Persistence) error {
+	opColl, err := persist.Collection(ctx, "_operation_policy_")
+	if err != nil {
+		return fmt.Errorf("open policy collection: %w", err)
+	}
+	ruleColl, err := persist.Collection(ctx, "_iam_rule_")
+	if err != nil {
+		return fmt.Errorf("open rule collection: %w", err)
+	}
+
+	m.policyModel = policies.NewPolicyModel(opColl, ruleColl, nil)
 	m.userModel = users.NewUserModel(persist)
 	m.apiKeyModel = apikeys.NewAPIKeyModel(persist)
-	m.policyModel = policies.NewPolicyModel(persist)
 	m.seedModel = operations.NewSeedModel(persist)
 	m.auditModel = audit.NewAuditModel(persist)
+	return nil
 }
 
 func (m *SystemModule) seedData(ctx context.Context) error {
@@ -170,7 +183,7 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 	// the LiveCollection-backed caches and static defaults handle everything;
 	// call SeedPolicies explicitly after a code update to pick up new defaults.
 	if !m.bootstrapped {
-		if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultOperations); err != nil {
+		if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultPolicyBindings); err != nil {
 			return fmt.Errorf("seed policies: %w", err)
 		}
 	}
@@ -181,23 +194,26 @@ func (m *SystemModule) initPermissions(ctx context.Context) error {
 	opColl, err := m.persist.Collection(ctx, "_operation_policy_")
 	if err != nil {
 		m.opts.Logger.Warn("Failed to open _operation_policy_ collection, using static defaults", zap.Error(err))
-		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultOperations)
+		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultPolicyBindings)
 		return nil
 	}
 
-	liveOps, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*policies.OperationPolicy]{
+	livePolicies, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*policies.Policy]{
 		Collection: opColl,
-		Processor:  &policies.OperationDocProcessor{},
-		QueryKey:   "name",
+		Processor:  &policies.PolicyDocProcessor{},
+		QueryKey:   "operation",
 		Active:     false,
 	})
 	if err != nil {
-		m.opts.Logger.Warn("Failed to create live operation repository, using static defaults", zap.Error(err))
-		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultOperations)
+		m.opts.Logger.Warn("Failed to create live policy repository, using static defaults", zap.Error(err))
+		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultPolicyBindings)
 		return nil
 	}
-	m.liveOps = liveOps
-	m.permMgr = policies.NewLivePermissionManager(liveOps, allDefaultOperations)
+	m.livePolicies = livePolicies
+	if liveColl, ok := livePolicies.(base.Collection); ok {
+		m.policyModel.SetPolicyColl(liveColl)
+	}
+	m.permMgr = policies.NewLivePermissionManager(livePolicies, allDefaultPolicyBindings)
 	return nil
 }
 
@@ -217,6 +233,10 @@ func (m *SystemModule) initAccessController(ctx context.Context) error {
 		return fmt.Errorf("create live rule repository: %w", err)
 	}
 	m.liveRules = live
+
+	if liveColl, ok := live.(base.Collection); ok {
+		m.policyModel.SetRuleColl(liveColl)
+	}
 
 	// Seed Go default rules (no CEL bugs) — these are always present and
 	// take precedence over any DB rule with the same name.
@@ -272,7 +292,7 @@ func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider { retu
 // that adds new default operations or rules).  Idempotent — new defaults are
 // inserted, existing ones are left unchanged.
 func (m *SystemModule) SeedPolicies(ctx context.Context) error {
-	if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultOperations); err != nil {
+	if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultPolicyBindings); err != nil {
 		return fmt.Errorf("seed policies: %w", err)
 	}
 

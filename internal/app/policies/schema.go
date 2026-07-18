@@ -6,47 +6,51 @@ import (
 )
 
 var (
-	_policyNameInput                = schema.MustFromJSON(policyNameInputJSON)
-	_ruleKeyInput                   = schema.MustFromJSON(ruleKeyInputJSON)
-	_policyCreateInput              = schema.MustFromJSON(policyCreateInputJSON)
-	_policyOperationOutput          = schema.MustFromJSON(policyOperationOutputJSON)
-	_policyRuleOutput               = schema.MustFromJSON(policyRuleOutputJSON)
-	_policyValidateInput            = schema.MustFromJSON(policyValidateInputJSON)
-	_policyValidateOutput           = schema.MustFromJSON(policyValidateOutputJSON)
-	_policyReloadOutput             = schema.MustFromJSON(policyReloadOutputJSON)
-	_messageOutput                  = schema.MustFromJSON(messageOutputJSON)
-	_policyOperationGetInput        = schema.MustFromJSON(policyOperationGetInputJSON)
-	_policyRuleGetInput             = schema.MustFromJSON(policyRuleGetInputJSON)
-	_policyOperationUpsertInput     = schema.MustFromJSON(policyOperationUpsertInputJSON)
-	_policyOperationDeleteInput     = schema.MustFromJSON(policyOperationDeleteInputJSON)
-	_policyRuleUpsertInput          = schema.MustFromJSON(policyRuleUpsertInputJSON)
-	_policyRuleDeleteInput          = schema.MustFromJSON(policyRuleDeleteInputJSON)
+	_policyNameInput              = schema.MustFromJSON(policyNameInputJSON)
+	_policyOperationGetInput      = schema.MustFromJSON(policyOperationGetInputJSON)
+	_policyRuleGetInput           = schema.MustFromJSON(policyRuleGetInputJSON)
+	_policyRuleDeleteInput        = schema.MustFromJSON(policyRuleDeleteInputJSON)
+	_policyRuleCreateInput        = schema.MustFromJSON(policyRuleCreateInputJSON)
+	_policyRuleUpdateInput        = schema.MustFromJSON(policyRuleUpdateInputJSON)
+	_policyCreateInput            = schema.MustFromJSON(policyCreateInputJSON)
+	_policyUpdateRuleInput        = schema.MustFromJSON(policyUpdateRuleInputJSON)
+	_policySetEnabledInput        = schema.MustFromJSON(policySetEnabledInputJSON)
+	_policyValidateInput          = schema.MustFromJSON(policyValidateInputJSON)
+	_policyValidateOutput         = schema.MustFromJSON(policyValidateOutputJSON)
+	_policyReloadOutput           = schema.MustFromJSON(policyReloadOutputJSON)
+	_policyOperationOutput        = schema.MustFromJSON(policyOperationOutputJSON)
+	_policyRuleOutput             = schema.MustFromJSON(policyRuleOutputJSON)
+	_policyOutput                 = schema.MustFromJSON(policyOutputJSON)
+	_policyListOperationsOutput   = schema.MustFromJSON(policyListOperationsOutputJSON)
+	_policyListRulesOutput        = schema.MustFromJSON(policyListRulesOutputJSON)
+	_policyListPoliciesOutput     = schema.MustFromJSON(policyListPoliciesOutputJSON)
 )
 
-func policyNameInputSchema() *definition.Schema              { return _policyNameInput }
-func ruleKeyInputSchema() *definition.Schema                  { return _ruleKeyInput }
+func policyNameInputSchema() *definition.Schema               { return _policyNameInput }
+func policyOperationGetInputSchema() *definition.Schema       { return _policyOperationGetInput }
+func policyRuleGetInputSchema() *definition.Schema            { return _policyRuleGetInput }
+func policyRuleDeleteInputSchema() *definition.Schema         { return _policyRuleDeleteInput }
+func policyRuleCreateInputSchema() *definition.Schema         { return _policyRuleCreateInput }
+func policyRuleUpdateInputSchema() *definition.Schema         { return _policyRuleUpdateInput }
 func policyCreateInputSchema() *definition.Schema             { return _policyCreateInput }
-func policyOperationOutputSchema() *definition.Schema         { return _policyOperationOutput }
-func policyRuleOutputSchema() *definition.Schema              { return _policyRuleOutput }
+func policyUpdateRuleInputSchema() *definition.Schema         { return _policyUpdateRuleInput }
+func policySetEnabledInputSchema() *definition.Schema         { return _policySetEnabledInput }
 func policyValidateInputSchema() *definition.Schema           { return _policyValidateInput }
 func policyValidateOutputSchema() *definition.Schema          { return _policyValidateOutput }
 func policyReloadOutputSchema() *definition.Schema            { return _policyReloadOutput }
-func messageOutputSchema() *definition.Schema                 { return _messageOutput }
-func policyOperationGetInputSchema() *definition.Schema       { return _policyOperationGetInput }
-func policyRuleGetInputSchema() *definition.Schema            { return _policyRuleGetInput }
-func policyOperationUpsertInputSchema() *definition.Schema    { return _policyOperationUpsertInput }
-func policyOperationDeleteInputSchema() *definition.Schema    { return _policyOperationDeleteInput }
-func policyRuleUpsertInputSchema() *definition.Schema         { return _policyRuleUpsertInput }
-func policyRuleDeleteInputSchema() *definition.Schema         { return _policyRuleDeleteInput }
+func policyOperationOutputSchema() *definition.Schema         { return _policyOperationOutput }
+func policyRuleOutputSchema() *definition.Schema              { return _policyRuleOutput }
+func policyOutputSchema() *definition.Schema                  { return _policyOutput }
+func policyListOperationsOutputSchema() *definition.Schema    { return _policyListOperationsOutput }
+func policyListRulesOutputSchema() *definition.Schema         { return _policyListRulesOutput }
+func policyListPoliciesOutputSchema() *definition.Schema      { return _policyListPoliciesOutput }
 
 var policyNameInputJSON = []byte(`{
 	"name": "policy_name_input",
-	"description": "Policy name from the path",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
 			"name": "arguments",
-			"description": "Policy name argument",
 			"type": "object",
 			"schema": { "id": "policy_name_arguments" }
 		}
@@ -55,30 +59,138 @@ var policyNameInputJSON = []byte(`{
 		"policy_name_arguments": {
 			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"name": { "name": "name", "type": "string" }
 			}
 		}
 	}
 }`)
 
-var ruleKeyInputJSON = []byte(`{
-	"name": "rule_key_input",
-	"description": "Policy name and rule key from the path",
+var policyOperationGetInputJSON = []byte(`{
+	"name": "policy_operation_get_input",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
 			"name": "arguments",
-			"description": "Rule key arguments",
 			"type": "object",
-			"schema": { "id": "rule_key_arguments" }
+			"schema": { "id": "policy_name_arguments" }
 		}
 	},
 	"schemas": {
-		"rule_key_arguments": {
-			"name": "RuleKeyArguments",
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" },
-				"key": { "name": "key", "description": "Rule key", "type": "string" }
+				"name": { "name": "name", "type": "string" }
+			}
+		}
+	}
+}`)
+
+var policyRuleGetInputJSON = []byte(`{
+	"name": "policy_rule_get_input",
+	"version": "1.0.0",
+	"fields": {
+		"arguments": {
+			"name": "arguments",
+			"type": "object",
+			"schema": { "id": "policy_name_arguments" }
+		}
+	},
+	"schemas": {
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
+			"fields": {
+				"name": { "name": "name", "type": "string" }
+			}
+		}
+	}
+}`)
+
+var policyRuleDeleteInputJSON = []byte(`{
+	"name": "policy_rule_delete_input",
+	"version": "1.0.0",
+	"fields": {
+		"arguments": {
+			"name": "arguments",
+			"type": "object",
+			"schema": { "id": "policy_name_arguments" }
+		}
+	},
+	"schemas": {
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
+			"fields": {
+				"name": { "name": "name", "type": "string" }
+			}
+		}
+	}
+}`)
+
+var policyRuleCreateInputJSON = []byte(`{
+	"name": "policy_rule_create_input",
+	"version": "1.0.0",
+	"fields": {
+		"arguments": {
+			"name": "arguments",
+			"type": "object",
+			"schema": { "id": "policy_name_arguments" }
+		},
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "rule_create_payload" }
+		}
+	},
+	"schemas": {
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
+			"fields": {
+				"name": { "name": "name", "type": "string" }
+			}
+		},
+		"rule_create_payload": {
+			"name": "RuleCreatePayload",
+			"fields": {
+				"ruleType": { "name": "ruleType", "type": "string" },
+				"syntax": { "name": "syntax", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"rules": { "name": "rules", "type": "record" },
+				"description": { "name": "description", "type": "string" }
+			}
+		}
+	}
+}`)
+
+var policyRuleUpdateInputJSON = []byte(`{
+	"name": "policy_rule_update_input",
+	"version": "1.0.0",
+	"fields": {
+		"arguments": {
+			"name": "arguments",
+			"type": "object",
+			"schema": { "id": "policy_name_arguments" }
+		},
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "rule_update_payload" }
+		}
+	},
+	"schemas": {
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
+			"fields": {
+				"name": { "name": "name", "type": "string" }
+			}
+		},
+		"rule_update_payload": {
+			"name": "RuleUpdatePayload",
+			"fields": {
+				"ruleType": { "name": "ruleType", "type": "string" },
+				"syntax": { "name": "syntax", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"rules": { "name": "rules", "type": "record" },
+				"description": { "name": "description", "type": "string" },
+				"protected": { "name": "protected", "type": "boolean" }
 			}
 		}
 	}
@@ -86,112 +198,92 @@ var ruleKeyInputJSON = []byte(`{
 
 var policyCreateInputJSON = []byte(`{
 	"name": "policy_create_input",
-	"description": "Create or update rule within a policy",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
 			"name": "arguments",
-			"description": "Policy name argument",
 			"type": "object",
-			"schema": { "id": "policy_create_arguments" }
+			"schema": { "id": "policy_name_arguments" }
 		},
 		"payload": {
 			"name": "payload",
-			"description": "Rule payload",
 			"type": "object",
-			"schema": { "id": "rule_create_payload" }
+			"schema": { "id": "policy_create_payload" }
 		}
 	},
 	"schemas": {
-		"policy_create_arguments": {
-			"name": "PolicyCreateArguments",
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"name": { "name": "name", "type": "string" }
 			}
 		},
-		"rule_create_payload": {
-			"name": "RuleCreatePayload",
+		"policy_create_payload": {
+			"name": "PolicyCreatePayload",
 			"fields": {
-				"key": { "name": "key", "description": "Rule key", "type": "string" },
-				"rule_type": { "name": "rule_type", "description": "Type of rule (allow/deny)", "type": "string" },
-				"syntax": { "name": "syntax", "description": "Rule expression syntax", "type": "string" },
-				"expression": { "name": "expression", "description": "Rule expression", "type": "string" },
-				"rules": { "name": "rules", "description": "Nested rule nodes", "type": "string" },
-				"description": { "name": "description", "description": "Human-readable description", "type": "string" },
-				"protected": { "name": "protected", "description": "Whether the rule is protected", "type": "boolean" }
+				"ruleName": { "name": "ruleName", "type": "string" }
 			}
 		}
 	}
 }`)
 
-var policyOperationOutputJSON = []byte(`{
-	"name": "policy_operation_output",
-	"description": "Policy operation with intents and rule references",
+var policyUpdateRuleInputJSON = []byte(`{
+	"name": "policy_update_rule_input",
 	"version": "1.0.0",
 	"fields": {
-		"document": {
-			"name": "document",
-			"description": "Policy operation document",
+		"arguments": {
+			"name": "arguments",
 			"type": "object",
-			"schema": { "id": "policy_operation" }
+			"schema": { "id": "policy_name_arguments" }
+		},
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "policy_update_rule_payload" }
 		}
 	},
 	"schemas": {
-		"policy_operation": {
-			"name": "OperationPolicy",
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" },
-				"rule_key": { "name": "rule_key", "description": "Associated rule key", "type": "string" },
-				"description": { "name": "description", "description": "Human-readable description", "type": "string" },
-				"intent_type": { "name": "intent_type", "description": "Intent type for this operation", "type": "string" }
+				"name": { "name": "name", "type": "string" }
+			}
+		},
+		"policy_update_rule_payload": {
+			"name": "PolicyUpdateRulePayload",
+			"fields": {
+				"ruleName": { "name": "ruleName", "type": "string" }
 			}
 		}
 	}
 }`)
 
-var policyRuleOutputJSON = []byte(`{
-	"name": "policy_rule_output",
-	"description": "Policy rule with expression details",
+var policySetEnabledInputJSON = []byte(`{
+	"name": "policy_set_enabled_input",
 	"version": "1.0.0",
 	"fields": {
-		"document": {
-			"name": "document",
-			"description": "Policy rule document",
+		"arguments": {
+			"name": "arguments",
 			"type": "object",
-			"schema": { "id": "policy_rule" }
+			"schema": { "id": "policy_name_arguments" }
+		},
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "policy_set_enabled_payload" }
 		}
 	},
 	"schemas": {
-		"policy_rule": {
-			"name": "PolicyRule",
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" },
-				"rule_key": { "name": "rule_key", "description": "Rule key", "type": "string" },
-				"rule_type": { "name": "rule_type", "description": "Type of rule (allow/deny)", "type": "string" },
-				"syntax": { "name": "syntax", "description": "Rule expression syntax", "type": "string" },
-				"expression": { "name": "expression", "description": "Rule expression", "type": "string" },
-				"rules": {
-					"name": "rules",
-					"description": "Nested rule nodes for composite rules",
-					"type": "object",
-					"schema": { "id": "rule_node" }
-				},
-				"description": { "name": "description", "description": "Human-readable description", "type": "string" },
-				"protected": { "name": "protected", "description": "Whether the rule is protected", "type": "boolean" }
+				"name": { "name": "name", "type": "string" }
 			}
 		},
-		"rule_node": {
-			"name": "RuleNode",
+		"policy_set_enabled_payload": {
+			"name": "PolicySetEnabledPayload",
 			"fields": {
-				"operator": { "name": "operator", "description": "Logical operator (and/or/not)", "type": "string" },
-				"rules": {
-					"name": "rules",
-					"description": "Array of nested rule nodes",
-					"type": "array",
-					"schema": { "id": "rule_node" }
-				},
-				"expression": { "name": "expression", "description": "Leaf rule expression", "type": "string" },
-				"syntax": { "name": "syntax", "description": "Leaf rule syntax", "type": "string" }
+				"enabled": { "name": "enabled", "type": "boolean" }
 			}
 		}
 	}
@@ -199,34 +291,31 @@ var policyRuleOutputJSON = []byte(`{
 
 var policyValidateInputJSON = []byte(`{
 	"name": "policy_validate_input",
-	"description": "Policy validation request with operation and context",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
 			"name": "arguments",
-			"description": "Policy name argument",
 			"type": "object",
-			"schema": { "id": "policy_validate_arguments" }
+			"schema": { "id": "policy_name_arguments" }
 		},
 		"payload": {
 			"name": "payload",
-			"description": "Validation context",
 			"type": "object",
 			"schema": { "id": "policy_validate_payload" }
 		}
 	},
 	"schemas": {
-		"policy_validate_arguments": {
-			"name": "PolicyValidateArguments",
+		"policy_name_arguments": {
+			"name": "PolicyNameArguments",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"name": { "name": "name", "type": "string" }
 			}
 		},
 		"policy_validate_payload": {
 			"name": "PolicyValidatePayload",
 			"fields": {
-				"operation": { "name": "operation", "description": "Operation to validate", "type": "string" },
-				"context": { "name": "context", "description": "Validation context data", "type": "record" }
+				"operation": { "name": "operation", "type": "string" },
+				"context": { "name": "context", "type": "record" }
 			}
 		}
 	}
@@ -234,12 +323,10 @@ var policyValidateInputJSON = []byte(`{
 
 var policyValidateOutputJSON = []byte(`{
 	"name": "policy_validate_output",
-	"description": "Policy validation result",
 	"version": "1.0.0",
 	"fields": {
 		"document": {
 			"name": "document",
-			"description": "Validation result document",
 			"type": "object",
 			"schema": { "id": "policy_validate_result" }
 		}
@@ -248,8 +335,8 @@ var policyValidateOutputJSON = []byte(`{
 		"policy_validate_result": {
 			"name": "PolicyValidateResult",
 			"fields": {
-				"valid": { "name": "valid", "description": "Whether the request is permitted", "type": "boolean" },
-				"result": { "name": "result", "description": "Validation result detail", "type": "string" }
+				"valid": { "name": "valid", "type": "boolean" },
+				"result": { "name": "result", "type": "string" }
 			}
 		}
 	}
@@ -257,12 +344,10 @@ var policyValidateOutputJSON = []byte(`{
 
 var policyReloadOutputJSON = []byte(`{
 	"name": "policy_reload_output",
-	"description": "Reload result with operation and rule counts",
 	"version": "1.0.0",
 	"fields": {
 		"document": {
 			"name": "document",
-			"description": "Reload result document",
 			"type": "object",
 			"schema": { "id": "policy_reload_result" }
 		}
@@ -271,172 +356,204 @@ var policyReloadOutputJSON = []byte(`{
 		"policy_reload_result": {
 			"name": "PolicyReloadResult",
 			"fields": {
-				"operations": { "name": "operations", "description": "Number of operations loaded", "type": "integer" },
-				"rules": { "name": "rules", "description": "Number of rules loaded", "type": "integer" }
+				"operations": { "name": "operations", "type": "integer" },
+				"rules": { "name": "rules", "type": "integer" }
 			}
 		}
 	}
 }`)
 
-var messageOutputJSON = []byte(`{
-	"name": "policy_message",
-	"description": "A simple status message response",
+var policyOperationOutputJSON = []byte(`{
+	"name": "policy_operation_output",
 	"version": "1.0.0",
 	"fields": {
-		"message": { "name": "message", "description": "Human-readable status message", "type": "string" }
-	}
-}`)
-
-var policyOperationGetInputJSON = []byte(`{
-	"name": "policy_operation_get_input",
-	"description": "Policy operation name from path",
-	"version": "1.0.0",
-	"fields": {
-		"arguments": {
-			"name": "arguments",
+		"document": {
+			"name": "document",
 			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
+			"schema": { "id": "operation_info" }
 		}
 	},
 	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
+		"operation_info": {
+			"name": "Operation",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"name": { "name": "name", "type": "string" },
+				"description": { "name": "description", "type": "string" },
+				"intentType": { "name": "intentType", "type": "string" }
 			}
 		}
 	}
 }`)
 
-var policyRuleGetInputJSON = []byte(`{
-	"name": "policy_rule_get_input",
-	"description": "Policy rule name from path",
+var policyRuleOutputJSON = []byte(`{
+	"name": "policy_rule_output",
 	"version": "1.0.0",
 	"fields": {
-		"arguments": {
-			"name": "arguments",
+		"document": {
+			"name": "document",
 			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
+			"schema": { "id": "policy_rule" }
 		}
 	},
 	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
+		"policy_rule": {
+			"name": "PolicyRule",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
-			}
-		}
-	}
-}`)
-
-var policyOperationUpsertInputJSON = []byte(`{
-	"name": "policy_operation_upsert_input",
-	"description": "Create or update a policy operation",
-	"version": "1.0.0",
-	"fields": {
-		"arguments": {
-			"name": "arguments",
-			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
-		},
-		"payload": {
-			"name": "payload",
-			"type": "object",
-			"schema": { "id": "operation_upsert_payload" }
-		}
-	},
-	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
-			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"id": { "name": "id", "type": "string" },
+				"name": { "name": "name", "type": "string" },
+				"ruleType": { "name": "ruleType", "type": "string" },
+				"syntax": { "name": "syntax", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"rules": { "name": "rules", "type": "object", "schema": { "id": "rule_node" } },
+				"description": { "name": "description", "type": "string" },
+				"protected": { "name": "protected", "type": "boolean" }
 			}
 		},
-		"operation_upsert_payload": {
-			"name": "OperationUpsertPayload",
+		"rule_node": {
+			"name": "RuleNode",
 			"fields": {
-				"ruleKey": { "name": "ruleKey", "description": "Associated rule key", "type": "string" },
-				"description": { "name": "description", "description": "Human-readable description", "type": "string" },
-				"intentType": { "name": "intentType", "description": "Intent type for this operation", "type": "string" }
+				"type": { "name": "type", "type": "string" },
+				"name": { "name": "name", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"operator": { "name": "operator", "type": "string" },
+				"conditions": { "name": "conditions", "type": "array", "schema": { "id": "rule_node" } }
 			}
 		}
 	}
 }`)
 
-var policyOperationDeleteInputJSON = []byte(`{
-	"name": "policy_operation_delete_input",
-	"description": "Policy operation name from path",
+var policyOutputJSON = []byte(`{
+	"name": "policy_output",
 	"version": "1.0.0",
 	"fields": {
-		"arguments": {
-			"name": "arguments",
+		"document": {
+			"name": "document",
 			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
+			"schema": { "id": "policy" }
 		}
 	},
 	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
+		"policy": {
+			"name": "Policy",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"id": { "name": "id", "type": "string" },
+				"operationName": { "name": "operationName", "type": "string" },
+				"ruleName": { "name": "ruleName", "type": "string" },
+				"enabled": { "name": "enabled", "type": "boolean" },
+				"protected": { "name": "protected", "type": "boolean" }
 			}
 		}
 	}
 }`)
 
-var policyRuleUpsertInputJSON = []byte(`{
-	"name": "policy_rule_upsert_input",
-	"description": "Create or update a policy rule",
+var policyListOperationsOutputJSON = []byte(`{
+	"name": "policy_list_operations_output",
 	"version": "1.0.0",
 	"fields": {
-		"arguments": {
-			"name": "arguments",
+		"document": {
+			"name": "document",
 			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
+			"schema": { "id": "operation_list" }
+		}
+	},
+	"schemas": {
+		"operation_list": {
+			"name": "OperationList",
+			"fields": {
+				"operations": {
+					"name": "operations",
+					"type": "array",
+					"schema": { "id": "operation_info" }
+				}
+			}
 		},
-		"payload": {
-			"name": "payload",
-			"type": "object",
-			"schema": { "id": "rule_upsert_payload" }
-		}
-	},
-	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
+		"operation_info": {
+			"name": "Operation",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
-			}
-		},
-		"rule_upsert_payload": {
-			"name": "RuleUpsertPayload",
-			"fields": {
-				"ruleType": { "name": "ruleType", "description": "Type of rule (allow/deny)", "type": "string" },
-				"syntax": { "name": "syntax", "description": "Rule expression syntax", "type": "string" },
-				"expression": { "name": "expression", "description": "Rule expression", "type": "string" },
-				"rules": { "name": "rules", "description": "Nested rule nodes (JSON)", "type": "record" },
-				"description": { "name": "description", "description": "Human-readable description", "type": "string" },
-				"protected": { "name": "protected", "description": "Whether the rule is protected", "type": "boolean" }
+				"name": { "name": "name", "type": "string" },
+				"description": { "name": "description", "type": "string" },
+				"intentType": { "name": "intentType", "type": "string" }
 			}
 		}
 	}
 }`)
 
-var policyRuleDeleteInputJSON = []byte(`{
-	"name": "policy_rule_delete_input",
-	"description": "Policy rule name from path",
+var policyListRulesOutputJSON = []byte(`{
+	"name": "policy_list_rules_output",
 	"version": "1.0.0",
 	"fields": {
-		"arguments": {
-			"name": "arguments",
+		"document": {
+			"name": "document",
 			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
+			"schema": { "id": "rule_list" }
 		}
 	},
 	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
+		"rule_list": {
+			"name": "RuleList",
 			"fields": {
-				"name": { "name": "name", "description": "Policy name", "type": "string" }
+				"rules": {
+					"name": "rules",
+					"type": "array",
+					"schema": { "id": "policy_rule" }
+				}
+			}
+		},
+		"policy_rule": {
+			"name": "PolicyRule",
+			"fields": {
+				"id": { "name": "id", "type": "string" },
+				"name": { "name": "name", "type": "string" },
+				"ruleType": { "name": "ruleType", "type": "string" },
+				"syntax": { "name": "syntax", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"rules": { "name": "rules", "type": "object", "schema": { "id": "rule_node" } },
+				"description": { "name": "description", "type": "string" },
+				"protected": { "name": "protected", "type": "boolean" }
+			}
+		},
+		"rule_node": {
+			"name": "RuleNode",
+			"fields": {
+				"type": { "name": "type", "type": "string" },
+				"name": { "name": "name", "type": "string" },
+				"expression": { "name": "expression", "type": "string" },
+				"operator": { "name": "operator", "type": "string" },
+				"conditions": { "name": "conditions", "type": "array", "schema": { "id": "rule_node" } }
+			}
+		}
+	}
+}`)
+
+var policyListPoliciesOutputJSON = []byte(`{
+	"name": "policy_list_policies_output",
+	"version": "1.0.0",
+	"fields": {
+		"document": {
+			"name": "document",
+			"type": "object",
+			"schema": { "id": "policy_list" }
+		}
+	},
+	"schemas": {
+		"policy_list": {
+			"name": "PolicyList",
+			"fields": {
+				"policies": {
+					"name": "policies",
+					"type": "array",
+					"schema": { "id": "policy" }
+				}
+			}
+		},
+		"policy": {
+			"name": "Policy",
+			"fields": {
+				"id": { "name": "id", "type": "string" },
+				"operationName": { "name": "operationName", "type": "string" },
+				"ruleName": { "name": "ruleName", "type": "string" },
+				"enabled": { "name": "enabled", "type": "boolean" },
+				"protected": { "name": "protected", "type": "boolean" }
 			}
 		}
 	}

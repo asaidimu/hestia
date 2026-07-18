@@ -2,8 +2,8 @@ package apikeys
 
 import "github.com/asaidimu/hestia/internal/app/policies"
 
-func DefaultOperations() []policies.OperationPolicy {
-	return []policies.OperationPolicy{
+func DefaultOperations() []policies.Operation {
+	return []policies.Operation{
 		{Name: "system:apikeys:key:list", RuleKey: "administrator", Description: "List own API keys"},
 		{Name: "system:apikeys:key:get", RuleKey: "administrator", Description: "Get own API key details"},
 		{Name: "system:apikeys:key:create", RuleKey: "administrator", Description: "Create a new API key"},

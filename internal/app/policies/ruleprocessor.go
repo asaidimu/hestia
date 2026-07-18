@@ -9,7 +9,6 @@ import (
 	"github.com/google/cel-go/cel"
 )
 
-// celEnv is the shared CEL environment used to compile policy rule expressions.
 var celEnv *cel.Env
 
 func init() {
@@ -24,7 +23,6 @@ func init() {
 	}
 }
 
-// CompileCEL compiles a CEL expression into an iam.FunctionRule.
 func CompileCEL(expr string) (iam.FunctionRule, error) {
 	ast, issues := celEnv.Compile(expr)
 	if issues != nil && issues.Err() != nil {
@@ -52,8 +50,6 @@ func CompileCEL(expr string) (iam.FunctionRule, error) {
 	}, nil
 }
 
-// RuleDocProcessor compiles _iam_rule_ documents into iam.FunctionRule
-// values, suitable for use as the DocumentProcessor for a LiveCollection.
 type RuleDocProcessor struct{}
 
 func (p *RuleDocProcessor) Compile(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
@@ -68,19 +64,17 @@ func (p *RuleDocProcessor) CloneState(fn iam.FunctionRule) (iam.FunctionRule, er
 	return fn, nil
 }
 
-// OperationDocProcessor compiles _operation_policy_ documents into
-// *OperationPolicy values, suitable for use as the DocumentProcessor
-// for a LiveCollection.
-type OperationDocProcessor struct{}
+// PolicyDocProcessor compiles _operation_policy_ documents into *Policy values.
+type PolicyDocProcessor struct{}
 
-func (p *OperationDocProcessor) Compile(ctx context.Context, doc *data.Document) (*OperationPolicy, error) {
-	op, err := docToOperation(doc)
+func (p *PolicyDocProcessor) Compile(ctx context.Context, doc *data.Document) (*Policy, error) {
+	policies, err := docToPolicy(doc)
 	if err != nil {
 		return nil, err
 	}
-	return &op, nil
+	return &policies, nil
 }
 
-func (p *OperationDocProcessor) CloneState(op *OperationPolicy) (*OperationPolicy, error) {
-	return op, nil
+func (p *PolicyDocProcessor) CloneState(pol *Policy) (*Policy, error) {
+	return pol, nil
 }

@@ -33,5 +33,6 @@ var (
 	ErrUserDeleted          = common.NewSystemError("USER_DELETED")
 	ErrForbidden            = common.NewSystemError("FORBIDDEN")
 	ErrPermissionNotRegistered = common.NewSystemError("PERMISSION_NOT_REGISTERED")
-	ErrInvalidToken = common.NewSystemError("ERR_INVALID_TOKEN")
+	ErrOperationLacksPolicy   = common.NewSystemError("OPERATION_LACKS_POLICY")
+	ErrInvalidToken           = common.NewSystemError("ERR_INVALID_TOKEN")
 )

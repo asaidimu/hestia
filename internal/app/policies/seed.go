@@ -7,26 +7,9 @@ import (
 	"github.com/asaidimu/hestia/app/core"
 )
 
-func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []OperationPolicy) error {
-	ops, err := policyModel.ListOperations(ctx)
-	if err != nil {
-		return fmt.Errorf("check existing operations: %w", err)
-	}
-
-	existing := make(map[string]bool, len(ops))
-	for _, op := range ops {
-		existing[op.Name] = true
-	}
-	for _, op := range allOps {
-		if existing[op.Name] {
-			continue
-		}
-		op.Protected = true
-		if err := policyModel.UpsertOperation(ctx, op); err != nil {
-			return fmt.Errorf("seed operation %s: %w", op.Name, err)
-		}
-	}
-
+// SeedPolicies seeds the initial set of rules and policies.
+// Idempotent — existing records are left unchanged.
+func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies []Policy) error {
 	rules, err := policyModel.ListRules(ctx)
 	if err != nil {
 		return fmt.Errorf("check existing rules: %w", err)
@@ -41,16 +24,27 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []Operat
 			continue
 		}
 		rule.Protected = true
-		if err := policyModel.UpsertRule(ctx, rule); err != nil {
+		if _, err := policyModel.CreateRule(ctx, rule); err != nil {
 			return fmt.Errorf("seed rule %s: %w", rule.Name, err)
+		}
+	}
+
+	for _, policy := range initialPolicies {
+		existing, err := policyModel.GetPolicyForOperation(ctx, policy.OperationName)
+		if err == nil && existing.OperationName != "" {
+			continue
+		}
+		policy.Protected = true
+		if _, err := policyModel.CreatePolicy(ctx, policy); err != nil {
+			return fmt.Errorf("seed policy %s: %w", policy.OperationName, err)
 		}
 	}
 
 	return nil
 }
 
-func PopulatePermissionManager(perms core.PermissionRegistrar, allOps []OperationPolicy) {
+func PopulatePermissionManager(perms core.PermissionRegistrar, allOps []Operation) {
 	for _, op := range allOps {
-		perms.RegisterScope(op.Name, op.RuleKey, op.Description)
+		perms.RegisterScope(op.Name, "administrator", op.Description)
 	}
 }
