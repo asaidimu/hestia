@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/asaidimu/hestia/compare/v1.0.0...v1.0.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **auth,api,policies:** centralize credential/identity providers, migrate to IAM rule system, restructure API interface ([6d228f9](https://github.com/asaidimu/hestia/commit/6d228f9ec575699306562ed4c21375b33f17f403))
+
 # 1.0.0 (2026-07-15)
 
 
