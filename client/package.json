@@ -6,7 +6,7 @@
   "main": ".dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "ci": "bun install",
+    "ci": "bun install --frozen-lockfile",
     "build": "tsdown",
     "test": "vitest --run",
     "test:ci": "vitest run",

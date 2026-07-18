@@ -23,7 +23,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Build client
-        run: cd client && bun install && bun run build
+        run: cd client && bun ci && bun run build
 
       - name: version
         uses: cycjimmy/semantic-release-action@v6
