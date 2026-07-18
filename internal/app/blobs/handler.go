@@ -232,6 +232,10 @@ func NewDeleteBlobHandler(svc core.BlobStore) core.MessageHandler {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 
+		if _, err := svc.Namespace(nsID).Head(ctx, key); err != nil {
+			return nil, mapBlobError(err)
+		}
+
 		if err := svc.Namespace(nsID).Delete(ctx, key); err != nil {
 			return nil, mapBlobError(err)
 		}

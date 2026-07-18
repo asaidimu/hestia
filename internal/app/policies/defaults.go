@@ -1,7 +1,7 @@
 package policies
 
-func DefaultOperations() []PolicyOperation {
-	return []PolicyOperation{
+func DefaultOperations() []OperationPolicy {
+	return []OperationPolicy{
 		{Name: "system:policies:operation:get", RuleKey: "administrator", Description: "Get a policy operation by name"},
 		{Name: "system:policies:operation:upsert", RuleKey: "administrator", Description: "Create or update a policy operation"},
 		{Name: "system:policies:operation:delete", RuleKey: "administrator", Description: "Delete a policy operation"},

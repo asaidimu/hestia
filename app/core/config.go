@@ -1,6 +1,7 @@
 package core
 
 import (
+	"io/fs"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8"
@@ -57,6 +58,15 @@ type Config struct {
 
 	// ForceBootstrapped skips the bootstrap flow and marks the system as bootstrapped.
 	ForceBootstrapped bool
+
+	// APIPrefix is the URL prefix for all API routes (e.g. "/api").
+	// Empty string means no prefix.
+	APIPrefix string
+
+	// StaticFS serves static files for the SPA at the root path.
+	// When set, unmatched non-API routes fall through to file serving
+	// with index.html fallback for client-side routing.
+	StaticFS fs.FS
 
 	// CookieConfig controls httpOnly cookie settings for token cookies.
 	CookieConfig CookieConfig

@@ -23,20 +23,20 @@
       "type": "boolean"
     },
     "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-      "name": "scopes",
+      "name": "permissions",
       "type": "array",
       "schema": {
         "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
       }
     },
     "019f32aa-ba8c-7602-84a7-00db460db25b": {
-      "name": "deleted_at",
+      "name": "deleted",
       "type": "string"
     }
   },
   "schemas": {
     "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-      "name": "Scope",
+      "name": "Permission",
       "type": "string"
     }
   }

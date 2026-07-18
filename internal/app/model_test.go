@@ -205,7 +205,7 @@ func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 		t.Fatal("GeneratedKey.Hash is empty")
 	}
 
-	req := &apikeys.CreateKeyRequest{Name: "test-key", Scopes: []string{"read:*"}}
+	req := &apikeys.CreateKeyRequest{Name: "test-key", Operations: []string{"read:*"}}
 	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -434,7 +434,7 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	req := &apikeys.CreateKeyRequest{Name: "validatable", Scopes: []string{"read:*"}}
+	req := &apikeys.CreateKeyRequest{Name: "validatable", Operations: []string{"read:*"}}
 	_, err = keyModel.Create(ctx, gk, userDoc.ID(), req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -447,8 +447,8 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 	if claims.UserID != userDoc.ID() {
 		t.Errorf("claims.UserID = %q, want %q", claims.UserID, userDoc.ID())
 	}
-	if len(claims.Scopes) == 0 || claims.Scopes[0] != "read:*" {
-		t.Errorf("claims.Scopes = %v, want [read:*]", claims.Scopes)
+	if len(claims.Operations) == 0 || claims.Operations[0] != "read:*" {
+		t.Errorf("claims.Operations = %v, want [read:*]", claims.Operations)
 	}
 	if claims.TokenType != "api_key" {
 		t.Errorf("claims.TokenType = %q, want %q", claims.TokenType, "api_key")
@@ -467,7 +467,7 @@ func TestAPIKeyModelUpdate(t *testing.T) {
 	}
 
 	gk, _ := keyModel.Generate()
-	req := &apikeys.CreateKeyRequest{Name: "updatable", Scopes: []string{"read:*"}}
+	req := &apikeys.CreateKeyRequest{Name: "updatable", Operations: []string{"read:*"}}
 	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -476,7 +476,7 @@ func TestAPIKeyModelUpdate(t *testing.T) {
 	newName := "updated-name"
 	updated, err := keyModel.Update(ctx, doc.ID(), userDoc.ID(), &apikeys.UpdateKeyRequest{
 		Name:   &newName,
-		Scopes: []string{"read:*", "write:*"},
+		Operations: []string{"read:*", "write:*"},
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)

@@ -27,7 +27,7 @@
       "type": "string"
     },
     "019f32aa-ba8a-7ce2-9ec2-dd6f4d2f8a15": {
-      "name": "scopes",
+      "name": "operations",
       "type": "array",
       "schema": {
         "id": "019f32aa-ba8a-7226-9382-2607406fb689"
@@ -66,7 +66,7 @@
   },
   "schemas": {
     "019f32aa-ba8a-7226-9382-2607406fb689": {
-      "name": "Scope",
+      "name": "Operation",
       "type": "string"
     },
     "019f32aa-ba8b-7397-a13f-ce3d4d539f39": {

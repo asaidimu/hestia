@@ -2,7 +2,8 @@ import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { HestiaNetworkClient } from "../core/client";
 import { createPagedController } from "../core/pager";
-import type { Page, PagedData } from "../core/types";
+import type { Document, Page, PagedData, StoreEvent } from "../core/types";
+import type { DocumentStore } from "../core/types";
 import type {
     BlobDocument,
     BlobMeta,
@@ -34,12 +35,7 @@ function pageMeta<T extends Record<string,any>>(items: T[]): Page<T>["page"] {
   };
 }
 
-/**
- * Namespace-scoped blob facade shaped like HestiaCollection.
- * Wraps blob CRUD behind a DocumentStore-compatible interface
- * so you can use DataTable + PagedData.
- */
-export class BlobNamespace {
+export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>, string, QueryDSL<BlobMeta>, Record<string, unknown>, string, Record<string, any>, Record<string, unknown>, { key: string; contentType?: string }, Record<string, unknown>> {
   private pagerOptions = {};
   private pager: PagedData<BlobMeta>;
   private prefixFilter = "";
@@ -85,7 +81,7 @@ export class BlobNamespace {
     return { data: items.map(asDoc), loading: false, page: pageMeta(items), error: undefined };
   }
 
-  async head(key: string): Promise<BlobDocument | undefined> {
+  async read(key: string): Promise<Document<BlobMeta> | undefined> {
     try {
       const res = await this.client.get<{ data: BlobMeta }>(
         `${this.basePath()}/${encodeURIComponent(key)}`,
@@ -104,40 +100,18 @@ export class BlobNamespace {
     }
   }
 
-  async upload(
-    key: string,
-    data: Blob,
-    contentType?: string,
-  ): Promise<BlobDocument> {
-    const headers: Record<string, string> = {};
-    const ct = contentType || data.type;
-    if (ct) headers["Content-Type"] = ct;
-
-    const res = await this.client.post<{ data: BlobMeta }>(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-      data,
-      { headers, bodyType: "blob" },
-    );
-    return asDoc(res.data!.data);
+  async create(_props: { data: Partial<BlobMeta> }): Promise<Document<BlobMeta> | undefined> {
+    throw new Error("Use upload() to create blobs");
   }
 
-  async download(
-    key: string,
-  ): Promise<{ data: Blob; contentType: string }> {
-    const res = await this.client.get<Blob>(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-      { responseType: "blob" },
-    );
-    const blob = res.data!;
-    return { data: blob, contentType: blob.type };
-  }
-
-  async updateMetadata(key: string, custom: Record<string, any>): Promise<BlobMeta> {
+  async update(props: { data: Partial<BlobMeta>; options?: Record<string, any> }): Promise<Document<BlobMeta> | undefined> {
+    const key = props.options?.key as string;
+    if (!key) throw new Error("options.key is required for blob update");
     const res = await this.client.patch<{ data: BlobMeta }>(
       `${this.basePath()}/${encodeURIComponent(key)}`,
-      { custom },
+      { custom: props.data },
     );
-    return res.data!.data;
+    return asDoc(res.data!.data);
   }
 
   async delete(key: string): Promise<void> {
@@ -146,34 +120,63 @@ export class BlobNamespace {
     );
   }
 
-  async list(): Promise<BlobMeta[]> {
-    const res = await this.client.post<{
-      data: { blobs: BlobMeta[] };
-    }>(`${this.basePath()}/query`, {});
-    return res.data?.data?.blobs ?? [];
+  async list(options?: QueryDSL<BlobMeta>): Promise<Page<BlobMeta>> {
+    return this.find(options ?? {});
   }
 
-  page(): PagedData<BlobMeta> {
+  async upload(props: { file: File; options?: { key?: string; contentType?: string } }): Promise<Document<BlobMeta> | undefined> {
+    const key = (props.options as any)?.key as string;
+    if (!key) throw new Error("options.key is required for blob upload");
+    const headers: Record<string, string> = {};
+    const ct = props.options?.contentType || props.file.type;
+    if (ct) headers["Content-Type"] = ct;
+
+    const res = await this.client.post<{ data: BlobMeta }>(
+      `${this.basePath()}/${encodeURIComponent(key)}`,
+      props.file,
+      { headers, bodyType: "blob" },
+    );
+    return asDoc(res.data!.data);
+  }
+
+  async subscribe(_scope: string, _callback: (event: StoreEvent) => void): Promise<() => void> {
+    throw new Error("Subscription not supported for blobs");
+  }
+
+  async notify(_event: StoreEvent): Promise<void> {
+    throw new Error("Notify not supported for blobs");
+  }
+
+  stream(_options: Record<string, unknown>, _onStreamChange: () => void): {
+    stream: () => AsyncIterable<Document<BlobMeta>>;
+    cancel: () => void;
+    status: () => "active" | "cancelled" | "completed";
+  } {
+    throw new Error("Stream not supported for blobs");
+  }
+
+  page(_options?: Record<string, unknown>): PagedData<BlobMeta> {
     return this.pager;
+  }
+
+  async download(key: string): Promise<{ data: Blob; contentType: string }> {
+    const res = await this.client.get<Blob>(
+      `${this.basePath()}/${encodeURIComponent(key)}`,
+      { responseType: "blob" },
+    );
+    const blob = res.data!;
+    return { data: blob, contentType: blob.type };
   }
 }
 
-/**
- * Top-level blob client. Entry point for all blob operations.
- *
- * Usage:
- *   client.blobs.listNamespaces()
- *   const ns = client.blobs.namespace("my-bucket")
- *   ns.find({ prefix: "images/" })
- *   ns.upload("logo.png", file)
- *   const { data } = await ns.download("logo.png")
- */
 export class HestiaBlobClient {
-  constructor(private client: HestiaNetworkClient) {}
+  private apiPrefix: string;
+
+  constructor(private client: HestiaNetworkClient, apiPrefix: string = "/api") {
+    this.apiPrefix = apiPrefix;
+  }
 
   private nsBase = "/system/blobs";
-
-  // ── Namespace operations ──────────────────────────────────────────────
 
   async namespaces(): Promise<NamespaceInfo[]> {
     const res = await this.client.post<{
@@ -196,11 +199,9 @@ export class HestiaBlobClient {
     );
   }
 
-
   blob(namespace: string, key:string) {
-      return `${this.client.base()}${this.nsBase}/blob/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`
+      return `${this.client.base()}${this.apiPrefix}${this.nsBase}/blob/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`
   }
-  // ── Namespace-scoped facade ───────────────────────────────────────────
 
   namespace(ns: string): BlobNamespace {
     return new BlobNamespace(this.client, ns);

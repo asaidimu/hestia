@@ -132,13 +132,12 @@ docs/_book
 # TODO: where does this rule come from?
 test/
 
-# -- PJ --
-.pj
-.project
-.session.vim
-
 ./client/node_modules
 test-server
 .env
 node_modules
 docs/.vitepress
+hestia
+tmp
+.commit-message.md
+.readme.md

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/hestia/app/core"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -84,3 +85,70 @@ func (m *DBPermissionManager) Reload(ctx context.Context) error {
 }
 
 var _ core.PermissionManager = (*DBPermissionManager)(nil)
+
+// LivePermissionManager implements PermissionManager backed by a
+// LiveCollection of OperationPolicy documents.  Operations are loaded
+// on demand via read-through cache; writes (seeding, EnsureOperation,
+// DeleteOperation) update the LiveCollection which writes through to
+// the database and refreshes the cache atomically.
+type LivePermissionManager struct {
+	liveOps collection.LiveCollection[*OperationPolicy]
+	onEmpty []OperationPolicy // fallback if liveOps is empty
+}
+
+func NewLivePermissionManager(liveOps collection.LiveCollection[*OperationPolicy], onEmpty []OperationPolicy) *LivePermissionManager {
+	return &LivePermissionManager{liveOps: liveOps, onEmpty: onEmpty}
+}
+
+func (m *LivePermissionManager) Resolve(msg core.Message) (string, error) {
+	// LiveCollection does a read-through on cache miss, so if the
+	// operation exists in the database it is served from the cache.
+	op, ok := m.liveOps.Get(msg.Name())
+	if ok && op != nil {
+		return op.RuleKey, nil
+	}
+	// Fall back to default operations that may not have been seeded yet.
+	for _, d := range m.onEmpty {
+		if d.Name == msg.Name() {
+			return d.RuleKey, nil
+		}
+	}
+	return "", core.ErrPermissionNotRegistered.WithOperation(msg.Name())
+}
+
+func (m *LivePermissionManager) ListCapabilities() []core.CapabilityMetadata {
+	seen := make(map[string]bool, len(m.onEmpty))
+	for _, op := range m.onEmpty {
+		seen[op.Name] = true
+	}
+	result := make([]core.CapabilityMetadata, 0, len(m.onEmpty))
+	for _, op := range m.onEmpty {
+		result = append(result, core.CapabilityMetadata{
+			Name:        op.Name,
+			Scope:       op.RuleKey,
+			Description: op.Description,
+		})
+	}
+	// Merge in any cached operations not already covered by defaults.
+	for _, k := range m.liveOps.Keys() {
+		if seen[k] {
+			continue
+		}
+		op, ok := m.liveOps.Get(k)
+		if !ok || op == nil {
+			continue
+		}
+		result = append(result, core.CapabilityMetadata{
+			Name:        op.Name,
+			Scope:       op.RuleKey,
+			Description: op.Description,
+		})
+	}
+	return result
+}
+
+func (m *LivePermissionManager) Reload(ctx context.Context) error {
+	return nil
+}
+
+var _ core.ReloadablePermissionManager = (*LivePermissionManager)(nil)

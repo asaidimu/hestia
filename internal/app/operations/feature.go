@@ -19,6 +19,7 @@ type Dependencies struct {
 	AuditModel    *audit.AuditModel
 	Persist       persistence.Persistence
 	Registrations *[]abstract.MessageRegistration
+	APIPrefix     string
 }
 
 func Registrations(deps Dependencies) []abstract.MessageRegistration {
@@ -27,7 +28,7 @@ func Registrations(deps Dependencies) []abstract.MessageRegistration {
 		{Name: "system:core:capability:list", Handler: corepkg.NewListCapabilitiesHandler(deps.Disp), Description: "List all registered handlers", Enabled: true, Intent: registration.Read, Output: capabilitiesOutputSchema()},
 		{Name: "system:core:capability:set", Handler: corepkg.NewSetCapabilityEnabledHandler(deps.Disp), Description: "Enable or disable a handler", Enabled: true, Intent: registration.Update, Input: corepkg.Input{Schema: capabilityNameInputSchema()}, Output: messageOutputSchema()},
 		{Name: "system:core:audit:log", Handler: NewLogAccessHandler(deps.AuditModel), Description: "Record an audit log entry", Enabled: true, Internal: true, Intent: registration.Create},
-		{Name: "system:core:docs:list", Handler: NewDocumentationHandler(deps.Registrations), Description: "Endpoint documentation", Enabled: true, Intent: registration.Read, BootstrapSafe: true, Output: documentationOutputSchema()},
+		{Name: "system:core:docs:list", Handler: NewDocumentationHandler(deps.Registrations, deps.APIPrefix), Description: "Endpoint documentation", Enabled: true, Intent: registration.Read, BootstrapSafe: true, Output: documentationOutputSchema()},
 		{Name: "system:core:bootstrap:mark", Handler: NewMarkBootstrappedHandler(deps.OnBootstrap), Description: "Mark system as bootstrapped", Enabled: true, Internal: true, Intent: registration.Create, Output: messageOutputSchema()},
 		{Name: "system:core:reset", Handler: NewResetHandler(deps.OnReset), Description: "Reset system to initial state", Enabled: true, Intent: registration.Read, Output: messageOutputSchema()},
 	}

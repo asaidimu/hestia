@@ -1,5 +1,5 @@
-if (typeof globalThis.requestIdleCallback === "undefined") {
-  globalThis.requestIdleCallback = (cb: Function) => setTimeout(() => cb({ didTimeout: false }), 0) as any
+if (typeof (globalThis as any).requestIdleCallback === "undefined") {
+  (globalThis as any).requestIdleCallback = (cb: Function) => setTimeout(() => cb({ didTimeout: false }), 0)
 }
 
 import { describe, expect, it, beforeAll } from "vitest"
@@ -29,7 +29,7 @@ describe("auth", () => {
     expect(result.token.refresh).toBeTruthy()
     expect(result.token.type).toBe("Bearer")
     expect(result.user.email).toBe("admin@test.local")
-    expect(result.user.scopes).toContain("administrator")
+    expect(result.user.permissions).toContain("administrator")
   })
 
   it("rejects wrong password", async () => {
@@ -79,8 +79,8 @@ describe("users collection (_user_)", () => {
   })
 
   it("updates a user", async () => {
-    const updated = await container.users.update(registeredId, { name: "Updated Name" })
-    expect(updated.name).toBe("Updated Name")
+    const updated = await container.users.update({ data: { name: "Updated Name" }, options: registeredId })
+    expect(updated!.name).toBe("Updated Name")
   })
 
   it("changes a user password", async () => {
@@ -99,11 +99,11 @@ describe("api keys (_api_key_)", () => {
   })
 
   it("creates an api key", async () => {
-    const key = await container.keys.create({ name: "Test Key" })
-    expect(key.name).toBe("Test Key")
+    const key = await container.keys.create({ data: { name: "Test Key" } })
+    expect(key!.name).toBe("Test Key")
     expect((key as any).key).toBeTruthy()
     expect((key as any).prefix).toBeTruthy()
-    keyId = key._id_
+    keyId = key!._id_
     keySecret = (key as any).key
   })
 
@@ -121,8 +121,8 @@ describe("api keys (_api_key_)", () => {
   })
 
   it("updates an api key", async () => {
-    const updated = await container.keys.update(keyId, { name: "Renamed Key" })
-    expect(updated.name).toBe("Renamed Key")
+    const updated = await container.keys.update({ data: { name: "Renamed Key" }, options: keyId })
+    expect(updated!.name).toBe("Renamed Key")
   })
 
   it("rotates an api key", async () => {

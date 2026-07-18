@@ -164,13 +164,11 @@ func TestAuditQueryHandlerWithLimit(t *testing.T) {
 
 	input := data.MustNewDocument(map[string]any{
 		"payload": map[string]any{
-			"query": map[string]any{
-				"pagination": map[string]any{
-					"type":          "offset",
-					"offset":        0,
-					"limit":         3,
-					"include_total": true,
-				},
+			"pagination": map[string]any{
+				"type":          "offset",
+				"offset":        0,
+				"limit":         3,
+				"include_total": true,
 			},
 		},
 	}, ctx)

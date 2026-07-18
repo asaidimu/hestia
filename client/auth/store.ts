@@ -1,4 +1,4 @@
-import { HestiaNetworkClient, IdentityProvider } from "../core/client";
+import { HestiaNetworkClient, type IdentityProvider } from "../core/client";
 import type { LoginResult, ServerHealth, TokenPair } from "./types";
 
 export class HestiaAuth {
@@ -29,7 +29,7 @@ export class HestiaAuth {
     name: string,
   ): Promise<{ _id_: string; email: string; name: string }> {
     const res = await this.client.post<{
-      data: { _id_: string; email: string; name: string, scopes:string };
+      data: { _id_: string; email: string; name: string, permissions: string[] };
     }>("/system/auth/user", { email, password, name });
     return res.data!.data;
   }

@@ -1,6 +1,7 @@
-import { QueryDSL, QueryFilter, SortConfiguration, createMatcher, createSorter } from '@asaidimu/query'; //
+import { createMatcher, createSorter } from '@asaidimu/query'; //
+import type { QueryDSL, QueryFilter, SortConfiguration } from '@asaidimu/query'; //
 import { DELETE_SYMBOL, ReactiveDataStore } from "@asaidimu/utils-store"; //
-import { Page, PagedData } from '../core/types';
+import type { Page, PagedData, PagerRefreshOptions } from '../core/types';
 
 export interface FetchResult<T extends Record<string, any>> {
   data: T[];
@@ -168,6 +169,7 @@ export function createArrayPager<T extends Record<string, any>, F = any>(
   executeDataPipeline(true);
 
   return {
+    id: () => CACHE_KEY,
     page: () => selector.get() ?? sentinel, //
 
     navigate: async (page: number) => {
@@ -195,15 +197,17 @@ export function createArrayPager<T extends Record<string, any>, F = any>(
       await executeDataPipeline(true);
     },
 
-    refresh: async (delay: number = 600) => { //
+    refresh: async (opts?: PagerRefreshOptions) => { //
       const previousState = selector.get() ?? sentinel;
       await store.set({
         [CACHE_KEY]: { ...previousState, loading: true } //
       });
 
+      const delay = opts?.delay ?? 600;
+
       await Promise.all([
         new Promise((resolve) => setTimeout(resolve, delay)), //
-        executeDataPipeline(false) // Handle full resolution pipeline passing down false to bypass flashing double mutations
+        executeDataPipeline(false) // Handle full resolution pipeline passing down false to avoid flashing double mutations
       ]);
 
       const finishedState = selector.get() ?? sentinel;

@@ -20,7 +20,7 @@ import (
 	"github.com/asaidimu/hestia/app/core/registration"
 )
 
-type PolicyOperationStore interface {
+type OperationPolicyStore interface {
 	EnsureOperation(ctx context.Context, name, ruleKey, intentType, description string) error
 	DeleteOperation(ctx context.Context, name string) error
 	ForceDeleteOperation(ctx context.Context, name string) error
@@ -38,7 +38,7 @@ func wrapErr(err error, code, msg string) *common.SystemError {
 	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
 }
 
-func NewCollectionCreateHandler(persist persistence.Persistence, policyOp PolicyOperationStore, registry core.Registry, logger *zap.Logger) core.MessageHandler {
+func NewCollectionCreateHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry core.Registry, logger *zap.Logger) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		bodyRaw := doc.GetOr("payload", nil)
@@ -124,7 +124,7 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Policy
 	}
 }
 
-func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp PolicyOperationStore, registry core.Registry, logger *zap.Logger) core.MessageHandler {
+func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry core.Registry, logger *zap.Logger) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -160,10 +160,25 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Policy
 	}
 }
 
+var iamProtectedCollections = map[string]struct{}{
+	"_iam_rule_":        {},
+	"_operation_policy_": {},
+}
+
+func isIAMProtectedCollection(name string) bool {
+	_, ok := iamProtectedCollections[name]
+	return ok
+}
+
 func NewDocumentCreateHandler(persist persistence.Persistence) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if isIAMProtectedCollection(name) {
+			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
+		}
+
 		bodyRaw := doc.GetOr("payload", nil)
 
 		var body map[string]any
@@ -193,6 +208,11 @@ func NewDocumentDeleteHandler(persist persistence.Persistence) core.MessageHandl
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if isIAMProtectedCollection(name) {
+			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
+		}
+
 		documentID, _ := doc.GetOr("arguments.doc_id", "").(string)
 
 		col, err := persist.Collection(ctx, name)
@@ -217,6 +237,11 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) core.MessageHandl
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if isIAMProtectedCollection(name) {
+			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
+		}
+
 		documentID, _ := doc.GetOr("arguments.doc_id", "").(string)
 		bodyRaw := doc.GetOr("payload", nil)
 

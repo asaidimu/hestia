@@ -2,93 +2,110 @@ package policies
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"log/slog"
-	"time"
 
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-iam/v2/iam"
+
+	"github.com/asaidimu/hestia/app/core"
 )
 
 // PolicyStoreAdapter implements collections.PolicyStore using the system
-// module's PolicyModel, PermissionManager, and AccessController.
+// module's PolicyModel, LiveCollection-backed caches for both rules and
+// operations.  Every write through this adapter updates the in-memory
+// cache immediately — no manual reload needed.
 type PolicyStoreAdapter struct {
 	policyModel *PolicyModel
-	permMgr     *DBPermissionManager
-	ac          iam.AccessController
+	permMgr     core.ReloadablePermissionManager
+	liveOps     collection.LiveCollection[*OperationPolicy]
+	liveRules   iam.RuleSet[iam.FunctionRule]
 }
 
-func NewPolicyStoreAdapter(policyModel *PolicyModel, permMgr *DBPermissionManager, ac iam.AccessController) *PolicyStoreAdapter {
+func NewPolicyStoreAdapter(policyModel *PolicyModel, permMgr core.ReloadablePermissionManager, liveOps collection.LiveCollection[*OperationPolicy], liveRules iam.RuleSet[iam.FunctionRule]) *PolicyStoreAdapter {
 	return &PolicyStoreAdapter{
 		policyModel: policyModel,
 		permMgr:     permMgr,
-		ac:          ac,
+		liveOps:     liveOps,
+		liveRules:   liveRules,
 	}
 }
 
 func (a *PolicyStoreAdapter) EnsureOperation(ctx context.Context, name, ruleKey, intentType, description string) error {
-	return a.policyModel.UpsertOperation(ctx, PolicyOperation{
+	op := OperationPolicy{
 		Name:        name,
 		RuleKey:     ruleKey,
 		IntentType:  intentType,
 		Description: description,
 		Protected:   true,
-	})
+	}
+	if err := a.policyModel.UpsertOperation(ctx, op); err != nil {
+		return err
+	}
+	if a.liveOps != nil {
+		a.liveOps.Set(name, &op)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) DeleteOperation(ctx context.Context, name string) error {
-	return a.policyModel.DeleteOperation(ctx, name)
+	if err := a.policyModel.DeleteOperation(ctx, name); err != nil {
+		return err
+	}
+	if a.liveOps != nil {
+		a.liveOps.Unset(name)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) ForceDeleteOperation(ctx context.Context, name string) error {
-	return a.policyModel.ForceDeleteOperation(ctx, name)
+	if err := a.policyModel.ForceDeleteOperation(ctx, name); err != nil {
+		return err
+	}
+	if a.liveOps != nil {
+		a.liveOps.Unset(name)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) EnsureRule(ctx context.Context, name, expr, description string) error {
-	return a.policyModel.UpsertRule(ctx, PolicyRule{
+	if err := a.policyModel.UpsertRule(ctx, PolicyRule{
 		Name:        name,
 		RuleType:    "simple",
 		Syntax:      "cel",
 		Expression:  expr,
 		Description: description,
-	})
+	}); err != nil {
+		return err
+	}
+	fn, err := CompileCEL(expr)
+	if err != nil {
+		return err
+	}
+	if a.liveRules != nil {
+		a.liveRules.Set(name, fn)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) DeleteRule(ctx context.Context, name string) error {
-	return a.policyModel.DeleteRule(ctx, name)
+	if err := a.policyModel.DeleteRule(ctx, name); err != nil {
+		return err
+	}
+	if a.liveRules != nil {
+		a.liveRules.Unset(name)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) ForceDeleteRule(ctx context.Context, name string) error {
-	return a.policyModel.ForceDeleteRule(ctx, name)
+	if err := a.policyModel.ForceDeleteRule(ctx, name); err != nil {
+		return err
+	}
+	if a.liveRules != nil {
+		a.liveRules.Unset(name)
+	}
+	return nil
 }
 
 func (a *PolicyStoreAdapter) ReloadPolicies(ctx context.Context) error {
-	if err := a.permMgr.Reload(ctx); err != nil {
-		return fmt.Errorf("reload permissions: %w", err)
-	}
-
-	dbRules, err := a.policyModel.ListRules(ctx)
-	if err != nil {
-		return fmt.Errorf("list rules: %w", err)
-	}
-
-	// Start with Go default rules (no CEL bugs), then merge DB rules on top
-	fnRules := GoDefaultRules()
-
-	if len(dbRules) > 0 {
-		tmpAC := iam.CreateAccessController(iam.AccessControllerOptions{
-			CacheTTL: 5 * time.Second,
-		}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-
-		compiled, err := CompileRules(tmpAC, dbRules)
-		if err != nil {
-			return fmt.Errorf("compile rules: %w", err)
-		}
-		for name, fn := range compiled {
-			fnRules[name] = fn
-		}
-	}
-
-	a.ac.LoadRules(fnRules)
-	return nil
+	return a.permMgr.Reload(ctx)
 }

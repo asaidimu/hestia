@@ -15,8 +15,8 @@ import (
 	"github.com/asaidimu/hestia/internal/app/users"
 )
 
-var allDefaultOperations = func() []policies.PolicyOperation {
-	var all []policies.PolicyOperation
+var allDefaultOperations = func() []policies.OperationPolicy {
+	var all []policies.OperationPolicy
 	all = append(all, apikeys.DefaultOperations()...)
 	all = append(all, audit.DefaultOperations()...)
 	all = append(all, auth.DefaultOperations()...)
@@ -41,12 +41,11 @@ func collectFeatureRegistrations(m *SystemModule, apiKeyAuth *auth.APIKeyAuthent
 	}
 	all = append(all, audit.Registrations(auditDeps)...)
 	authDeps := auth.Dependencies{
-		UserModel: m.userModel,
-		JWTService: m.jwtSvc,
-		SessionSvc: m.sessionSvc,
-		BlocklistSvc: m.blocklistSvc,
-		APIKeyAuth: apiKeyAuth,
-		AdminUserID: m.adminUserID,
+		UserModel:           m.userModel,
+		CredentialsProvider: m.credProv,
+		BlocklistSvc:        m.blocklistSvc,
+		APIKeyAuth:          apiKeyAuth,
+		AdminUserID:         m.adminUserID,
 	}
 	all = append(all, auth.Registrations(authDeps)...)
 	blobsDeps := blobs.Dependencies{
@@ -78,13 +77,14 @@ func collectFeatureRegistrations(m *SystemModule, apiKeyAuth *auth.APIKeyAuthent
 		AuditModel: m.auditModel,
 		Persist: m.persist,
 		Registrations: &allRegs,
+		APIPrefix: m.cfg.APIPrefix,
 	}
 	all = append(all, operations.Registrations(operationsDeps)...)
 	policiesDeps := policies.Dependencies{
 		PolicyModel: m.policyModel,
 		PermManager: m.permMgr,
-		AccessController: m.ac,
-		CompileRules: policies.CompileRules,
+		LiveRules:   m.liveRules,
+		LiveOps:     m.liveOps,
 	}
 	all = append(all, policies.Registrations(policiesDeps)...)
 	usersDeps := users.Dependencies{

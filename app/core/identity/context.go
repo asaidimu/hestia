@@ -23,10 +23,13 @@ func ContextWithClaims(ctx context.Context, claims *Claims) context.Context {
 	}
 
 	props := map[string]any{
-		"user_id":    claims.UserID,
-		"email":      claims.Email,
-		"scopes":     perms,
-		"token_type": claims.TokenType,
+		"user_id":     claims.UserID,
+		"email":       claims.Email,
+		"permissions": perms,
+		"token_type":  claims.TokenType,
+	}
+	if claims.Operations != nil {
+		props["operations"] = claims.Operations
 	}
 
 	return iam.WithIdentity(ctx, iam.Identity{

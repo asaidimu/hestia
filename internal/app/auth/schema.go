@@ -75,7 +75,7 @@ var userOutputJSON = []byte(`{
 				"_id": { "name": "_id", "description": "Unique user identifier", "type": "string" },
 				"email": { "name": "email", "description": "User email address", "type": "string" },
 				"name": { "name": "name", "description": "User display name", "type": "string" },
-				"scopes": { "name": "scopes", "description": "Assigned permission scopes", "type": "array", "schema": { "type": "string" } }
+				"permissions": { "name": "permissions", "description": "Assigned permission scopes", "type": "array", "schema": { "type": "string" } }
 			}
 		}
 	}
@@ -289,7 +289,7 @@ var claimsOutputJSON = []byte(`{
 			"fields": {
 				"user_id": { "name": "user_id", "description": "Authenticated user ID", "type": "string" },
 				"email": { "name": "email", "description": "User email address", "type": "string" },
-				"scopes": { "name": "scopes", "description": "Assigned permission scopes", "type": "array", "schema": { "type": "string" } },
+				"permissions": { "name": "permissions", "description": "Assigned permission scopes", "type": "array", "schema": { "type": "string" } },
 				"token_type": { "name": "token_type", "description": "Token type (access/refresh)", "type": "string" },
 				"token_id": { "name": "token_id", "description": "Unique token identifier", "type": "string" },
 				"expires_at": { "name": "expires_at", "description": "Token expiration timestamp", "type": "string" }

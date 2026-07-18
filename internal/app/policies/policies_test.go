@@ -43,7 +43,7 @@ func TestPolicyModelUpsertAndListOperations(t *testing.T) {
 	p := persistest.NewPersistence(t)
 	model := policies.NewPolicyModel(p)
 
-	op := policies.PolicyOperation{
+	op := policies.OperationPolicy{
 		Name:        "test:operation",
 		RuleKey:     "administrator",
 		Description: "test operation",
@@ -77,7 +77,7 @@ func TestPolicyModelDeleteOperation(t *testing.T) {
 	p := persistest.NewPersistence(t)
 	model := policies.NewPolicyModel(p)
 
-	op := policies.PolicyOperation{
+	op := policies.OperationPolicy{
 		Name:    "test:delete-me",
 		RuleKey: "public",
 	}

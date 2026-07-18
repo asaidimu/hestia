@@ -37,29 +37,28 @@ function makeProvider(): IdentityProvider {
 }
 
 function okResponse<T>(data: T): ApiResponse<T> {
-  return { success: true, status: 200, data, raw: new Response() }
+  return { success: true, status: 200, data, raw: new Response(), headers: new Headers() }
 }
 
 function errorResponse(status: number): ApiResponse<never> {
-  return { success: false, status, data: undefined as never, raw: new Response(null, { status }) }
+  return { success: false, status, data: undefined as never, raw: new Response(null, { status }), headers: new Headers() }
 }
 
 describe("HestiaAuth refresh sequence", () => {
   let provider: IdentityProvider
   let client: HestiaNetworkClient
   let auth: HestiaAuth
-  let raw: ReturnType<typeof createNetworkClient>
+  let raw: any
 
   beforeEach(() => {
     provider = makeProvider()
-    client = new HestiaNetworkClient("http://test.local", provider)
+    client = new HestiaNetworkClient("http://test.local", "/api", provider)
     auth = new HestiaAuth(client, provider)
     raw = (createNetworkClient as ReturnType<typeof vi.fn>).mock.results[0]
-      ?.value as any
+      ?.value
     if (!raw) {
-      // first call happened in constructor; grab the mock
       const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-      raw = mock.results[mock.results.length - 1].value
+      raw = mock.results[mock.results.length - 1]!.value
     }
     vi.clearAllMocks()
   })
@@ -74,7 +73,7 @@ describe("HestiaAuth refresh sequence", () => {
             type: "Bearer",
             validity: 900,
           },
-          user: { _id_: "u1", email: "a@b.co", name: "A", scopes: ["administrator"] },
+          user: { _id_: "u1", email: "a@b.co", name: "A", permissions: ["administrator"] },
         },
       }),
     )
@@ -84,7 +83,7 @@ describe("HestiaAuth refresh sequence", () => {
     expect(result.token.refresh).toBe("refresh-token-1")
 
     expect(raw.post).toHaveBeenCalledWith(
-      "/system/auth/session",
+      "api/system/auth/session",
       { email: "a@b.co", password: "pwd" },
       {},
       undefined,
@@ -112,7 +111,7 @@ describe("HestiaAuth refresh sequence", () => {
     expect(pair.access).toBe("access-token-2")
     expect(pair.refresh).toBe("refresh-token-2")
     expect(raw.patch).toHaveBeenCalledWith(
-      "/system/auth/session",
+      "api/system/auth/session",
       { refresh_token: "old-refresh-token" },
       {},
       undefined,
@@ -123,13 +122,13 @@ describe("HestiaAuth refresh sequence", () => {
 describe("HestiaNetworkClient auto-refresh", () => {
   let provider: IdentityProvider
   let client: HestiaNetworkClient
-  let raw: ReturnType<typeof createNetworkClient>
+  let raw: any
 
   function initClient(onAuthChanged?: () => void) {
     provider = makeProvider()
-    client = new HestiaNetworkClient("http://test.local", provider, onAuthChanged)
+    client = new HestiaNetworkClient("http://test.local", "/api", provider, onAuthChanged)
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-    raw = mock.results[mock.results.length - 1].value
+    raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
   }
 
@@ -157,7 +156,7 @@ describe("HestiaNetworkClient auto-refresh", () => {
     expect(res.data).toEqual({ data: [{ _id_: "d1" }] })
     // refresh endpoint was called
     expect(raw.patch).toHaveBeenCalledWith(
-      "/system/auth/session",
+      "api/system/auth/session",
       { refresh_token: "valid-refresh" },
     )
     // new tokens stored

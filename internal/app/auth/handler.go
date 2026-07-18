@@ -7,13 +7,14 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/app/core/registration"
 	"github.com/asaidimu/hestia/internal/app/users"
 	"github.com/asaidimu/hestia/app/core/identity"
 )
 
-func NewCreateSessionHandler(users *users.UserModel, jwtSvc core.JWTService) core.MessageHandler {
+func NewCreateSessionHandler(users *users.UserModel, credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -36,17 +37,17 @@ func NewCreateSessionHandler(users *users.UserModel, jwtSvc core.JWTService) cor
 
 		userID := user.ID()
 		userEmail, _ := user.GetString("email")
-		scopes := []string{}
-		if rawScopes, err := user.GetStringArray("scopes"); err == nil {
-			scopes = rawScopes
+		perms := []string{}
+		if rawPerms, err := user.GetStringArray("permissions"); err == nil {
+			perms = rawPerms
 		}
 
-		accessToken, err := jwtSvc.GenerateAccessToken(userID, userEmail, scopes)
+		accessToken, err := credProv.IssueAccess(userID, userEmail, perms)
 		if err != nil {
 			return nil, err
 		}
 
-		refreshToken, err := jwtSvc.GenerateRefreshToken(userID, userEmail)
+		refreshToken, err := credProv.IssueRefresh(userID, userEmail)
 		if err != nil {
 			return nil, err
 		}
@@ -89,57 +90,15 @@ func NewRegisterHandler(users *users.UserModel) core.MessageHandler {
 	}
 }
 
-func validateRefreshToken(token string, jwtSvc core.JWTService, sessionSvc core.SessionService) (*identity.Claims, error) {
-	claims, err := jwtSvc.ValidateToken(token)
-	if err == nil && claims.TokenType == "refresh" {
-		return claims, nil
-	}
-	return sessionSvc.Validate(token)
-}
-
-func NewRefreshSessionHandler(users *users.UserModel, sessionSvc core.SessionService, jwtSvc core.JWTService, blocklist *TokenBlocklistService) core.MessageHandler {
+func NewRefreshSessionHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
 		token, _ := body["refresh_token"].(string)
 
-		claims, err := validateRefreshToken(token, jwtSvc, sessionSvc)
+		accessToken, newRefresh, err := credProv.Refresh(ctx, token)
 		if err != nil {
-			return nil, fmt.Errorf("invalid refresh token")
-		}
-
-		if blocklist != nil && claims.TokenID != "" {
-			blocklisted, err := blocklist.IsBlocklisted(ctx, claims.TokenID)
-			if err != nil {
-				return nil, fmt.Errorf("check blocklist: %w", err)
-			}
-			if blocklisted {
-				return nil, fmt.Errorf("refresh token has been revoked")
-			}
-		}
-
-		scopes := claims.Scopes
-		user, err := users.GetByID(ctx, claims.UserID)
-		if err == nil {
-			if rawScopes, err := user.GetStringArray("scopes"); err == nil && len(rawScopes) > 0 {
-				scopes = rawScopes
-			}
-		}
-
-		if blocklist != nil && claims.TokenID != "" && claims.ExpiresAt > 0 {
-			if err := blocklist.Blocklist(ctx, claims.TokenID, claims.ExpiresAt, claims.UserID); err != nil {
-				return nil, fmt.Errorf("rotate refresh token: %w", err)
-			}
-		}
-
-		accessToken, err := jwtSvc.GenerateAccessToken(claims.UserID, claims.Email, scopes)
-		if err != nil {
-			return nil, fmt.Errorf("generate access token: %w", err)
-		}
-
-		newRefresh, err := jwtSvc.GenerateRefreshToken(claims.UserID, claims.Email)
-		if err != nil {
-			return nil, fmt.Errorf("generate refresh token: %w", err)
+			return nil, err
 		}
 
 		respDoc := data.MustNewDocument(map[string]any{
@@ -154,46 +113,33 @@ func NewRefreshSessionHandler(users *users.UserModel, sessionSvc core.SessionSer
 	}
 }
 
-func NewDeleteSessionHandler(blocklist *TokenBlocklistService, jwtSvc core.JWTService) core.MessageHandler {
+func NewDeleteSessionHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		claims, ok := identity.ClaimsFromContext(ctx)
-		if ok && claims != nil && blocklist != nil && claims.TokenID != "" && claims.ExpiresAt > 0 {
-			if err := blocklist.Blocklist(ctx, claims.TokenID, claims.ExpiresAt, claims.UserID); err != nil {
+		if ok && claims != nil && claims.TokenID != "" {
+			if err := credProv.Revoke(ctx, claims); err != nil {
 				return nil, err
 			}
-		} else {
 		}
 
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
 		if body != nil {
 			if refreshToken, _ := body["refresh_token"].(string); refreshToken != "" {
-				refreshClaims, err := jwtSvc.ValidateToken(refreshToken)
-				if err == nil && refreshClaims != nil && refreshClaims.TokenID != "" && refreshClaims.ExpiresAt > 0 {
-					if err := blocklist.Blocklist(ctx, refreshClaims.TokenID, refreshClaims.ExpiresAt, refreshClaims.UserID); err != nil {
+				refreshClaims, err := credProv.Validate(refreshToken)
+				if err == nil && refreshClaims.TokenID != "" {
+					if err := credProv.Revoke(ctx, refreshClaims); err != nil {
 						return nil, err
 					}
 				}
-			} else {
 			}
-		} else {
 		}
 
 		return &registration.Result{}, nil
 	}
 }
 
-func safeTokenID(claims *identity.Claims) string {
-	if claims == nil { return "<nil>" }
-	return claims.TokenID
-}
-
-func safeExpiresAt(claims *identity.Claims) int64 {
-	if claims == nil { return 0 }
-	return claims.ExpiresAt
-}
-
-func NewPasswordResetHandler(users *users.UserModel, jwtSvc core.JWTService) core.MessageHandler {
+func NewPasswordResetHandler(users *users.UserModel, credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -205,7 +151,7 @@ func NewPasswordResetHandler(users *users.UserModel, jwtSvc core.JWTService) cor
 		}
 		userID := user.ID()
 		userEmail, _ := user.GetString("email")
-		jwtSvc.GenerateResetToken(userID, userEmail)
+		credProv.IssueReset(userID, userEmail)
 		return &registration.Result{}, nil
 	}
 }
@@ -254,22 +200,22 @@ func NewSetBootstrapPasswordHandler(users *users.UserModel, adminUserID string) 
 	}
 }
 
-func NewValidateTokenHandler(jwtSvc core.JWTService) core.MessageHandler {
+func NewValidateTokenHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		token, _ := doc.GetOr("token", "").(string)
 
-		claims, err := jwtSvc.ValidateToken(token)
+		claims, err := credProv.Validate(token)
 		if err != nil {
 			return nil, err
 		}
 		claimsDoc := data.MustNewDocument(map[string]any{
-			"user_id":    claims.UserID,
-			"email":      claims.Email,
-			"scopes":     claims.Scopes,
-			"token_type": claims.TokenType,
-			"token_id":   claims.TokenID,
-			"expires_at": claims.ExpiresAt,
+			"user_id":     claims.UserID,
+			"email":       claims.Email,
+			"permissions": claims.Scopes,
+			"token_type":  claims.TokenType,
+			"token_id":    claims.TokenID,
+			"expires_at":  claims.ExpiresAt,
 		}, ctx)
 		return &registration.Result{Document: claimsDoc}, nil
 	}
@@ -297,27 +243,6 @@ func NewCheckBlocklistHandler(blocklist *TokenBlocklistService) core.MessageHand
 	}
 }
 
-func NewValidateSessionHandler(sessionSvc core.SessionService) core.MessageHandler {
-	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
-		doc := msg.Input()
-		token, _ := doc.GetOr("token", "").(string)
-
-		claims, err := sessionSvc.Validate(token)
-		if err != nil {
-			return nil, err
-		}
-		claimsDoc := data.MustNewDocument(map[string]any{
-			"user_id":    claims.UserID,
-			"email":      claims.Email,
-			"scopes":     claims.Scopes,
-			"token_type": claims.TokenType,
-			"token_id":   claims.TokenID,
-			"expires_at": claims.ExpiresAt,
-		}, ctx)
-		return &registration.Result{Document: claimsDoc}, nil
-	}
-}
-
 type keyAuth interface {
 	Authenticate(ctx context.Context, key string) (*identity.Claims, error)
 }
@@ -332,12 +257,12 @@ func NewValidateAPIKeyHandler(keyAuth keyAuth) core.MessageHandler {
 			return nil, err
 		}
 		claimsDoc := data.MustNewDocument(map[string]any{
-			"user_id":    claims.UserID,
-			"email":      claims.Email,
-			"scopes":     claims.Scopes,
-			"token_type": claims.TokenType,
-			"token_id":   claims.TokenID,
-			"expires_at": claims.ExpiresAt,
+			"user_id":     claims.UserID,
+			"email":       claims.Email,
+			"permissions": claims.Scopes,
+			"token_type":  claims.TokenType,
+			"token_id":    claims.TokenID,
+			"expires_at":  claims.ExpiresAt,
 		}, ctx)
 		return &registration.Result{Document: claimsDoc}, nil
 	}

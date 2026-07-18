@@ -1,7 +1,10 @@
 import type { QueryDSL, QueryFilter, SortConfiguration } from "@asaidimu/query";
 import { DELETE_SYMBOL, type DataStore } from "@asaidimu/utils-store";
 import type { Page, PagedData, PagerRefreshOptions } from "./types";
+export type { PagerRefreshOptions }
 import { Debouncer } from "@asaidimu/utils-sync";
+
+declare function requestIdleCallback(cb: (deadline: { didTimeout: boolean }) => void): void;
 
 export interface PageOptions<T extends Record<string, any>> {
   page?: number;

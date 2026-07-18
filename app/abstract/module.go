@@ -7,11 +7,17 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 )
 
+type ArgDef struct {
+	Name string
+	Type definition.FieldType
+}
+
 type Input struct {
-	Schema    *definition.Schema
-	Arguments map[string]definition.FieldType
-	Modifiers map[string]definition.FieldType
-	Payload   definition.FieldType
+	Schema          *definition.Schema
+	Arguments       []ArgDef
+	Modifiers       map[string]definition.FieldType
+	Payload         definition.FieldType
+	ResourceIDField string
 }
 
 type Module interface {

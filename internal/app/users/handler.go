@@ -37,18 +37,18 @@ func NewUpdateUserHandler(users *UserModel) core.MessageHandler {
 		if v, exists := body["email"]; exists {
 			fields["email"], _ = v.(string)
 		}
-		if v, exists := body["scopes"]; exists {
+		if v, exists := body["permissions"]; exists {
 			switch arr := v.(type) {
 			case []string:
-				fields["scopes"] = arr
+				fields["permissions"] = arr
 			case []any:
-				scopes := make([]string, 0, len(arr))
+				perms := make([]string, 0, len(arr))
 				for _, item := range arr {
 					if s, ok := item.(string); ok {
-						scopes = append(scopes, s)
+						perms = append(perms, s)
 					}
 				}
-				fields["scopes"] = scopes
+				fields["permissions"] = perms
 			}
 		}
 		if v, exists := body["verified"]; exists {
@@ -172,10 +172,10 @@ func NewUserUpdateDocumentHandler(users *UserModel) core.MessageHandler {
 		}
 
 		var req struct {
-			Name     *string  `json:"name,omitempty"`
-			Email    *string  `json:"email,omitempty"`
-			Scopes   []string `json:"scopes,omitempty"`
-			Verified *bool    `json:"verified,omitempty"`
+			Name        *string   `json:"name,omitempty"`
+			Email       *string   `json:"email,omitempty"`
+			Permissions []string  `json:"permissions,omitempty"`
+			Verified    *bool     `json:"verified,omitempty"`
 		}
 		b, _ := json.Marshal(body)
 		if err := json.Unmarshal(b, &req); err != nil {
@@ -189,8 +189,8 @@ func NewUserUpdateDocumentHandler(users *UserModel) core.MessageHandler {
 		if req.Email != nil {
 			fields["email"] = *req.Email
 		}
-		if req.Scopes != nil {
-			fields["scopes"] = req.Scopes
+		if req.Permissions != nil {
+			fields["permissions"] = req.Permissions
 		}
 		if req.Verified != nil {
 			fields["verified"] = *req.Verified

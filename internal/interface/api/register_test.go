@@ -51,7 +51,7 @@ func (m *mockDispatcher) Send(msg core.Message) (*registration.Result, error) {
 
 func TestBuildDoc_PathParams(t *testing.T) {
 	input := core.Input{
-		Arguments: map[string]definition.FieldType{"user_id": definition.FieldTypeString},
+		Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
 	}
 
 	req := Request{
@@ -196,7 +196,7 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 		},
 		Intent: registration.Read,
 		Input: core.Input{
-			Arguments: map[string]definition.FieldType{"user_id": definition.FieldTypeString},
+			Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
 		},
 	}
 
@@ -243,7 +243,7 @@ func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 }
 
 func TestDeriveRoute_WithArguments(t *testing.T) {
-	path := DeriveRoute("system:blobs:blob:download", map[string]definition.FieldType{"ns": definition.FieldTypeString, "key": definition.FieldTypeString})
+	path := DeriveRoute("system:blobs:blob:download", []abstract.ArgDef{{Name: "ns", Type: definition.FieldTypeString}, {Name: "key", Type: definition.FieldTypeString}})
 	if path != "/system/blobs/blob/{ns}/{key}" {
 		t.Fatalf("expected /system/blobs/blob/{ns}/{key}, got %s", path)
 	}

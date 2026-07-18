@@ -14,28 +14,44 @@ type contextKey string
 
 const clearAccessCookieKey contextKey = "clear_access_cookie"
 const clearRefreshCookieKey contextKey = "clear_refresh_cookie"
+const setAccessCookieKey contextKey = "set_access_cookie"
+const setRefreshCookieKey contextKey = "set_refresh_cookie"
+
+func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next handlerFunc, req Request) (Response, error) {
+	claims := identityToClaims(ident)
+	ctx = identity.ContextWithClaims(ctx, claims)
+	ctx = addAuditContext(ctx, claims)
+	return next(ctx, req)
+}
 
 func (o *Interface) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
 	// 1. Try Bearer token
 	token := extractBearer(req)
 	if token != "" {
-		claims, err := o.validateBearer(ctx, req, token)
+		ident, err := o.identityProv.Authenticate("bearer", token)
 		if err == nil {
-			ctx = identity.ContextWithClaims(ctx, claims)
-			ctx = addAuditContext(ctx, claims)
-			return next(ctx, req)
+			return o.authenticated(ctx, ident, next, req)
 		}
 	}
 
 	// 2. Try access token cookie (for browser-based requests like <img>, <link>, etc.)
 	if token == "" && o.cookieCfg.AccessName != "" {
 		if at, ok := req.Cookies[o.cookieCfg.AccessName]; ok && at != "" {
-			claims, err := o.validateBearer(ctx, req, at)
+			ident, err := o.identityProv.Authenticate("bearer", at)
 			if err == nil {
-				ctx = identity.ContextWithClaims(ctx, claims)
-				ctx = addAuditContext(ctx, claims)
-				return next(ctx, req)
+				return o.authenticated(ctx, ident, next, req)
 			}
+
+			// Access token expired — try auto-refresh if we have a refresh cookie
+			// and this isn't an auth endpoint (which handles its own auth).
+			if !isAuthOperation(req.Operation) && o.cookieCfg.RefreshName != "" {
+				if rt, ok := req.Cookies[o.cookieCfg.RefreshName]; ok && rt != "" {
+					if newCtx, ok := o.autoRefresh(ctx, req, rt); ok {
+						return next(newCtx, req)
+					}
+				}
+			}
+
 			ctx = context.WithValue(ctx, clearAccessCookieKey, true)
 		}
 	}
@@ -46,18 +62,15 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 		apiKey = req.Headers["X-API-Key"]
 	}
 	if len(apiKey) > 0 && apiKey[0] != "" {
-		claims, err := o.authenticateAPIKey(ctx, req, apiKey[0])
+		ident, err := o.identityProv.Authenticate("api_key", apiKey[0])
 		if err == nil {
-			ctx = identity.ContextWithClaims(ctx, claims)
-			ctx = addAuditContext(ctx, claims)
-			return next(ctx, req)
+			return o.authenticated(ctx, ident, next, req)
 		}
 	}
 
 	// Default to anonymous identity
-	claims := &identity.Claims{}
-	ctx = identity.ContextWithClaims(ctx, claims)
-	ctx = addAuditContext(ctx, claims)
+	ctx = identity.ContextWithClaims(ctx, &identity.Claims{})
+	ctx = addAuditContext(ctx, &identity.Claims{})
 	return next(ctx, req)
 }
 
@@ -96,6 +109,30 @@ func addAuditContext(ctx context.Context, claims *identity.Claims) context.Conte
 	}
 
 	return core.ContextWithAuditIdentity(ctx, actorID, actorType, authMethod)
+}
+
+func isAuthOperation(op string) bool {
+	return strings.Contains(op, "/system/auth/")
+}
+
+func (o *Interface) autoRefresh(ctx context.Context, req Request, refreshToken string) (context.Context, bool) {
+	newAccess, newRefresh, err := o.credProv.Refresh(ctx, refreshToken)
+	if err != nil {
+		return ctx, false
+	}
+
+	ctx = context.WithValue(ctx, setAccessCookieKey, newAccess)
+	ctx = context.WithValue(ctx, setRefreshCookieKey, newRefresh)
+
+	ident, err := o.identityProv.Authenticate("bearer", newAccess)
+	if err != nil {
+		return ctx, false
+	}
+
+	newClaims := identityToClaims(ident)
+	ctx = identity.ContextWithClaims(ctx, newClaims)
+	ctx = addAuditContext(ctx, newClaims)
+	return ctx, true
 }
 
 func extractBearer(req Request) string {

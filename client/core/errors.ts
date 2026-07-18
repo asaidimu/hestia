@@ -1,4 +1,4 @@
-import {
+import type {
   ApiResponse,
 } from "@asaidimu/network-client"
 import { SystemError, Errors, type Issue } from "@asaidimu/utils-error"

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
+
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/app/core/registration"
 )
 
@@ -38,7 +40,7 @@ func TestIntentToHTTPMethod(t *testing.T) {
 }
 
 func TestDeriveRouteWithArgs(t *testing.T) {
-	got := DeriveRoute("system:auth:session:create", map[string]definition.FieldType{"id": definition.FieldTypeString})
+	got := DeriveRoute("system:auth:session:create", []abstract.ArgDef{{Name: "id", Type: definition.FieldTypeString}})
 	want := "/system/auth/session/{id}"
 	if got != want {
 		t.Fatalf("DeriveRoute() = %q, want %q", got, want)

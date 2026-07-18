@@ -26,10 +26,10 @@ func (m testMessage) BlobInputChannel() <-chan registration.Blob { return nil }
 
 func anonymousContext() context.Context {
 	props := map[string]any{
-		"user_id":    "",
-		"email":      "",
-		"scopes":     []string{},
-		"token_type": "",
+		"user_id":     "",
+		"email":       "",
+		"permissions": []string{},
+		"token_type":  "",
 	}
 	return iam.WithIdentity(context.Background(), iam.Identity{
 		Permissions: []string{},
@@ -39,10 +39,10 @@ func anonymousContext() context.Context {
 
 func adminContext() context.Context {
 	props := map[string]any{
-		"user_id":    "u1",
-		"email":      "admin@test.local",
-		"scopes":     []string{"administrator"},
-		"token_type": "access",
+		"user_id":     "u1",
+		"email":       "admin@test.local",
+		"permissions": []string{"administrator"},
+		"token_type":  "access",
 	}
 	return iam.WithIdentity(context.Background(), iam.Identity{
 		Permissions: []string{"administrator"},
@@ -52,7 +52,7 @@ func adminContext() context.Context {
 
 func systemContext() context.Context {
 	props := map[string]any{
-		"scopes": []string{"system:test"},
+		"permissions": []string{"system:test"},
 	}
 	return iam.WithIdentity(context.Background(), iam.Identity{
 		Permissions: []string{"system:test"},

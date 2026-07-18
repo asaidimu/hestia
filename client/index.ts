@@ -1,60 +1,37 @@
 // Core
-export { HestiaNetworkClient, HestiaResponse } from "./core/client"
-export type { IdentityProvider  } from "./core/client"
+export * from "./core/client"
 export { HestiaCollection } from "./core/collection"
-export { toSystemError } from "./core/errors"
-
-// Generic types
-export type { Document, Page, PagedData, PaginationInfo, StoreEvent } from "./core/types"
-
-export type { PageOptions } from "./core/pager"
+export * from "./core/errors"
+export * from "./core/types"
+export { createPagedController } from "./core/pager"
 
 // Auth
-export { HestiaAuth } from "./auth/store"
-export type { TokenPair, LoginResult, ServerHealth, LoginRequest, RegisterRequest } from "./auth/types"
+export * from "./auth/store"
+export * from "./auth/types"
 
 // System: identity
-export { HestiaUsers } from "./system/identity/store"
-export type {
-  UserData,
-  UserIdentity,
-  CreateUserRequest,
-  UpdateUserRequest,
-} from "./system/identity/types"
+export * from "./system/identity/store"
+export * from "./system/identity/types"
 
 // System: api-keys
-export { HestiaKeyStore } from "./system/api-keys/store"
-export type { APIKey, APIKeyWithSecret, CreateKeyRequest, UpdateKeyRequest } from "./system/api-keys/types"
+export * from "./system/api-keys/store"
+export * from "./system/api-keys/types"
 
 // System: policies
-export { HestiaPolicies } from "./system/policies/store"
-export type {
-  PolicyOperation,
-  PolicyRule,
-  UpsertOperationRequest,
-  UpsertRuleRequest,
-  ValidateRuleRequest,
-  ValidateRuleResult,
-  ReloadResult,
-} from "./system/policies/types"
+export * from "./system/policies/store"
+export * from "./system/policies/types"
 
 // System: logs
-export { HestiaLogs } from "./system/logs/store"
-export type { AuditEntry, LogFilter } from "./system/logs/types"
+export * from "./system/logs/store"
+export * from "./system/logs/types"
 
 // Blobs
-export { HestiaBlobClient, BlobNamespace } from "./blobs/store"
-export type {
-  NamespaceInfo,
-  BlobMeta,
-  BlobDocument as BlobDoc,
-  ListBlobsRequest,
-  CreateNamespaceRequest,
-} from "./blobs/types"
+export * from "./blobs/store"
+export * from "./blobs/types"
 
 // Collections
-export { HestiaCollections } from "./collections/store"
-export type { CollectionMeta } from "./collections/types"
+export * from "./collections/store"
+export * from "./collections/types"
 
 // Container
 export { HestiaClient } from "./container"

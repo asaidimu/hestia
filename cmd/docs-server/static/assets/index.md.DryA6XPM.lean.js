@@ -1,0 +1,1 @@
+import{_ as i,o as a,c as n,a0 as t}from"./chunks/framework.Bmhw_dvp.js";const c=JSON.parse('{"title":"Hestia","description":"","frontmatter":{},"headers":[],"relativePath":"index.md","filePath":"index.md"}'),e={name:"index.md"};function l(p,s,h,k,r,d){return a(),n("div",null,[...s[0]||(s[0]=[t("",11)])])}const E=i(e,[["render",l]]);export{c as __pageData,E as default};

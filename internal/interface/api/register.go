@@ -61,11 +61,20 @@ func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bo
 
 		httpMethod := IntentToHTTPMethod(reg.Intent)
 		httpPath := DeriveRoute(reg.Name, reg.Input.Arguments)
+		if o.opts.APIPrefix != "" {
+			httpPath = o.opts.APIPrefix + httpPath
+		}
 		pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
 
 		o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
 			req = o.injectCookieRefreshToken(req, reg.Name)
 			doc := buildDoc(ctx, req, reg.Input)
+
+			if reg.Input.ResourceIDField != "" {
+				if rid, ok := doc.GetOr("arguments."+reg.Input.ResourceIDField, "").(string); ok && rid != "" {
+					ctx = core.ContextWithAuditResourceID(ctx, rid)
+				}
+			}
 
 			msg := &transportMessage{
 				id:    abstract.MustNewID(),
@@ -102,9 +111,9 @@ func buildDoc(ctx context.Context, req Request, input core.Input) *data.Document
 	doc := data.MustNewDocument(map[string]any{}, ctx)
 
 	args := make(map[string]any)
-	for name := range input.Arguments {
-		if v, ok := req.PathParams[name]; ok {
-			args[name] = v
+	for _, argDef := range input.Arguments {
+		if v, ok := req.PathParams[argDef.Name]; ok {
+			args[argDef.Name] = v
 		}
 	}
 	doc.Set("arguments", args)

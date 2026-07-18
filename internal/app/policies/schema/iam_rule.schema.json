@@ -1,5 +1,5 @@
 {
-  "name": "_policy_rule_",
+  "name": "_iam_rule_",
   "version": "1.1.0",
   "fields": {
     "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {

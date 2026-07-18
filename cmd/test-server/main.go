@@ -62,6 +62,10 @@ func main() {
 	}
 	defer application.Close()
 
+	if err := systemMod.SeedPolicies(context.Background()); err != nil {
+		panic(err)
+	}
+
 	ifaces := hestia.BuildInterfaces(application, systemMod, "")
 	application.AddInterface(ifaces.RPC)
 

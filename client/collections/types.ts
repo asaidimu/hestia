@@ -1,4 +1,4 @@
-import { SchemaDefinition } from "@asaidimu/utils-schema"
+import type { SchemaDefinition } from "@asaidimu/utils-schema"
 import type { Document } from "../core/types"
 
 export interface CollectionMeta {

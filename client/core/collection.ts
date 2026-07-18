@@ -9,6 +9,7 @@ import type {
     PaginationInfo,
     StoreEvent,
 } from "./types";
+import type { DocumentStore } from "./types";
 
 interface ServerEnvelope<T extends Record<string, any>> {
   data: Document<T>[];
@@ -19,19 +20,20 @@ interface SingleEnvelope<T extends Record<string, any>> {
   data: Document<T>;
 }
 
-export class HestiaCollection<T extends Record<string, any>> {
+export class HestiaCollection<T extends Record<string, any>> implements DocumentStore<T, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pagerOptions: PageOptions<T> = {};
   private pager: PagedData<T>;
 
   constructor(
     private client: HestiaNetworkClient,
     private collectionName: string,
+    private defaultLimit: number = 50,
   ) {
     this.pager = createPagedController<T>(
       collectionName,
       new ReactiveDataStore<any>({}),
       this.pagerOptions,
-      (query) => this.find(query),
+      (query) => this.find(query as any),
     );
   }
 
@@ -51,7 +53,7 @@ export class HestiaCollection<T extends Record<string, any>> {
     return `${this.documentsPath}/${encodeURIComponent(id)}`;
   }
 
-  async find(query?: QueryDSL<T>): Promise<Page<T>> {
+  async find(query?: Record<string, unknown>): Promise<Page<T>> {
     const res = await this.client.post<ServerEnvelope<T>>(
       this.queryPath,
       query ?? {},
@@ -82,24 +84,35 @@ export class HestiaCollection<T extends Record<string, any>> {
     }
   }
 
-  async create(data: Partial<T>): Promise<Document<T>> {
+  async create(props: { data: Partial<T> }): Promise<Document<T> | undefined> {
     const res = await this.client.post<SingleEnvelope<T>>(
       this.documentsPath,
-      data,
+      props.data,
     );
     return res.data!.data;
   }
 
-  async update(id: string, data: Partial<T>): Promise<Document<T>> {
+  async update(props: { data: Partial<T>; options?: string }): Promise<Document<T> | undefined> {
+    const id = props.options!;
     const res = await this.client.patch<SingleEnvelope<T>>(
       this.documentPath(id),
-      data,
+      props.data,
     );
     return res.data!.data;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(this.documentPath(id));
+  }
+
+  async list(options?: Record<string, unknown>): Promise<Page<T>> {
+    return this.find(
+      options ?? { pagination: { type: "offset", offset: 0, limit: this.defaultLimit } },
+    );
+  }
+
+  async upload(_props: { file: File }): Promise<Document<T> | undefined> {
+    throw new Error("Upload not supported for collections");
   }
 
   async subscribe(
@@ -113,7 +126,18 @@ export class HestiaCollection<T extends Record<string, any>> {
     throw new Error("Notify not implemented for dynamic collections");
   }
 
-  page(): PagedData<T> {
+  stream(
+    _options: Record<string, unknown>,
+    _onStreamChange: () => void,
+  ): {
+    stream: () => AsyncIterable<Document<T>>;
+    cancel: () => void;
+    status: () => "active" | "cancelled" | "completed";
+  } {
+    throw new Error("Stream not supported for collections");
+  }
+
+  page(_options?: Record<string, unknown>): PagedData<T> {
     return this.pager;
   }
 }

@@ -2,8 +2,8 @@ package auth
 
 import "github.com/asaidimu/hestia/internal/app/policies"
 
-func DefaultOperations() []policies.PolicyOperation {
-	return []policies.PolicyOperation{
+func DefaultOperations() []policies.OperationPolicy {
+	return []policies.OperationPolicy{
 		{Name: "system:auth:session:create", RuleKey: "public", Description: "Authenticate and receive tokens"},
 		{Name: "system:auth:user:register", RuleKey: "administrator", Description: "Register new user"},
 		// TODO: Fix authentication flow so that this rule is secure. A refresh

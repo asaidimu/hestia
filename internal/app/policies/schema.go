@@ -138,7 +138,7 @@ var policyOperationOutputJSON = []byte(`{
 	},
 	"schemas": {
 		"policy_operation": {
-			"name": "PolicyOperation",
+			"name": "OperationPolicy",
 			"fields": {
 				"name": { "name": "name", "description": "Policy name", "type": "string" },
 				"rule_key": { "name": "rule_key", "description": "Associated rule key", "type": "string" },

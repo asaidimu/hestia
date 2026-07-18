@@ -38,14 +38,17 @@ func BuildInterfaces(a *Application, mod *app.SystemModule, version string) (*ap
 	chain := mod.DispatcherChain(a.Dispatcher())
 
 	rpcOrch := api.New(api.Options{
-		Dispatcher:         chain,
-		InternalDispatcher: a.Dispatcher(),
-		Logger:             a.Loggers.File,
-		Addr:               a.Config.Port,
-		Registrations:      a.Registrations,
-		CookieConfig:       a.Config.CookieConfig,
-		AccessTokenTTL:     a.Config.AccessTokenTTL,
-		RefreshTokenTTL:    a.Config.RefreshTokenTTL,
+		Dispatcher:          chain,
+		InternalDispatcher:  a.Dispatcher(),
+		CredentialsProvider: mod.CredentialsProvider(),
+		Logger:              a.Loggers.File,
+		Addr:                a.Config.Port,
+		Registrations:       a.Registrations,
+		CookieConfig:        a.Config.CookieConfig,
+		AccessTokenTTL:      a.Config.AccessTokenTTL,
+		RefreshTokenTTL:     a.Config.RefreshTokenTTL,
+		APIPrefix:           a.Config.APIPrefix,
+		StaticFS:            a.Config.StaticFS,
 	})
 
 	cliOrch := cli.New(cli.Options{

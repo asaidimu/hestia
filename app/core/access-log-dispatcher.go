@@ -24,7 +24,12 @@ const (
 	AuditSourceIPKey     auditCtxKey = "audit.source_ip"
 	AuditUserAgentKey    auditCtxKey = "audit.user_agent"
 	AuditRequestIDKey    auditCtxKey = "audit.request_id"
+	AuditResourceIDKey   auditCtxKey = "audit.resource_id"
 )
+
+func ContextWithAuditResourceID(ctx context.Context, resourceID string) context.Context {
+	return context.WithValue(ctx, AuditResourceIDKey, resourceID)
+}
 
 func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType ActorType, authMethod AuthMethod) context.Context {
 	ctx = context.WithValue(ctx, AuditActorIDKey, actorID)
@@ -171,6 +176,10 @@ func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerE
 	}
 	if v, _ := ctx.Value(AuditUserAgentKey).(string); v != "" {
 		entry.UserAgent = v
+	}
+
+	if v, _ := ctx.Value(AuditResourceIDKey).(string); v != "" {
+		entry.ResourceID = v
 	}
 
 	switch {

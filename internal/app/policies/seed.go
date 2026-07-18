@@ -7,7 +7,7 @@ import (
 	"github.com/asaidimu/hestia/app/core"
 )
 
-func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []PolicyOperation) error {
+func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []OperationPolicy) error {
 	ops, err := policyModel.ListOperations(ctx)
 	if err != nil {
 		return fmt.Errorf("check existing operations: %w", err)
@@ -49,7 +49,7 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, allOps []Policy
 	return nil
 }
 
-func PopulatePermissionManager(perms core.PermissionRegistrar, allOps []PolicyOperation) {
+func PopulatePermissionManager(perms core.PermissionRegistrar, allOps []OperationPolicy) {
 	for _, op := range allOps {
 		perms.RegisterScope(op.Name, op.RuleKey, op.Description)
 	}

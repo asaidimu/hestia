@@ -11,9 +11,13 @@ import (
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
+	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/app/core"
+	blobutil "github.com/asaidimu/hestia/app/core/blobstore"
 	"github.com/asaidimu/hestia/internal/app/apikeys"
 	"github.com/asaidimu/hestia/internal/app/audit"
 	"github.com/asaidimu/hestia/internal/app/auth"
@@ -21,10 +25,6 @@ import (
 	"github.com/asaidimu/hestia/internal/app/operations"
 	"github.com/asaidimu/hestia/internal/app/policies"
 	"github.com/asaidimu/hestia/internal/app/users"
-	blobutil "github.com/asaidimu/hestia/app/core/blobstore"
-	"github.com/asaidimu/hestia/app/core"
-	"github.com/asaidimu/hestia/internal/interface/api"
-	"github.com/asaidimu/hestia/app/abstract"
 )
 
 
@@ -34,8 +34,7 @@ type SystemModule struct {
 	cfg       *core.Config
 	disp      *core.LocalDispatcher
 	persist   base.Persistence
-	jwtSvc     core.JWTService
-	sessionSvc core.SessionService
+	credProv   abstract.CredentialsProvider
 
 	userModel      *users.UserModel
 	apiKeyModel    *apikeys.APIKeyModel
@@ -43,9 +42,11 @@ type SystemModule struct {
 	seedModel      *operations.SeedModel
 	auditModel *audit.AuditModel
 	blocklistSvc   *auth.TokenBlocklistService
-	permMgr        *policies.DBPermissionManager
+	permMgr        core.ReloadablePermissionManager
 	ac             iam.AccessController
 	policyBridge   *policies.PolicyStoreAdapter
+	liveRules      collection.LiveCollection[iam.FunctionRule]
+	liveOps        collection.LiveCollection[*policies.OperationPolicy]
 
 	blobSvc *blobutil.Service
 
@@ -73,11 +74,9 @@ type Options struct {
 
 func New(cfg *core.Config, disp *core.LocalDispatcher, opts Options) *SystemModule {
 	return &SystemModule{
-		opts:       opts,
-		cfg:        cfg,
-		disp:       disp,
-		jwtSvc:     auth.NewJWTService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL, cfg.ResetTokenTTL),
-		sessionSvc: api.NewService(cfg.JWTSecret),
+		opts: opts,
+		cfg:  cfg,
+		disp: disp,
 	}
 }
 
@@ -86,8 +85,10 @@ func (m *SystemModule) Name() string { return "system" }
 func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) error {
 	m.persist = persist
 	m.blocklistSvc = auth.NewTokenBlocklistService(persist)
-
 	m.initModels(persist)
+
+	jwtSvc := auth.NewJWTService(m.cfg.JWTSecret, m.cfg.AccessTokenTTL, m.cfg.RefreshTokenTTL, m.cfg.ResetTokenTTL)
+	m.credProv = auth.NewCredentialsProvider(jwtSvc, m.blocklistSvc, m.userModel)
 
 	blobSvc, err := blobutil.NewService(m.cfg.BlobsDir, m.opts.Logger)
 	if err != nil {
@@ -101,19 +102,17 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 	if err := m.initPermissions(ctx); err != nil {
 		return err
 	}
-	m.initAccessController(ctx)
+	if err := m.initAccessController(ctx); err != nil {
+		return fmt.Errorf("init access controller: %w", err)
+	}
 
-	m.policyBridge = policies.NewPolicyStoreAdapter(m.policyModel, m.permMgr, m.ac)
+	m.policyBridge = policies.NewPolicyStoreAdapter(m.policyModel, m.permMgr, m.liveOps, m.liveRules)
 
 	apiKeyAuth := auth.NewAPIKeyAuthenticator(m.apiKeyModel, m.userModel, m.ephemeralKey, m.adminUserID, m.adminEmail)
 
 	if err := m.registerExistingDocumentHandlers(ctx); err != nil {
 		return fmt.Errorf("register document handlers: %w", err)
 	}
-	if err := m.permMgr.Reload(ctx); err != nil {
-		m.opts.Logger.Warn("Failed to reload permissions after doc handler registration", zap.Error(err))
-	}
-
 	m.messages = collectFeatureRegistrations(m, apiKeyAuth)
 
 	go m.purgeBlocklistLoop()
@@ -167,28 +166,69 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 		}
 	}
 
-	m.permMgr = policies.NewDBPermissionManager(m.policyModel)
-	policies.PopulatePermissionManager(m.permMgr, allDefaultOperations)
-
-	if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultOperations); err != nil {
-		return fmt.Errorf("seed policies: %w", err)
+	// Only seed policies on first start (bootstrap). On subsequent starts
+	// the LiveCollection-backed caches and static defaults handle everything;
+	// call SeedPolicies explicitly after a code update to pick up new defaults.
+	if !m.bootstrapped {
+		if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultOperations); err != nil {
+			return fmt.Errorf("seed policies: %w", err)
+		}
 	}
 	return nil
 }
 
 func (m *SystemModule) initPermissions(ctx context.Context) error {
-	if err := m.permMgr.Reload(ctx); err != nil {
-		m.opts.Logger.Warn("Failed to reload permissions from DB, using fallback", zap.Error(err))
-		policies.PopulatePermissionManager(m.permMgr, allDefaultOperations)
+	opColl, err := m.persist.Collection(ctx, "_operation_policy_")
+	if err != nil {
+		m.opts.Logger.Warn("Failed to open _operation_policy_ collection, using static defaults", zap.Error(err))
+		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultOperations)
+		return nil
 	}
+
+	liveOps, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*policies.OperationPolicy]{
+		Collection: opColl,
+		Processor:  &policies.OperationDocProcessor{},
+		QueryKey:   "name",
+		Active:     false,
+	})
+	if err != nil {
+		m.opts.Logger.Warn("Failed to create live operation repository, using static defaults", zap.Error(err))
+		m.permMgr = policies.NewLivePermissionManager(nil, allDefaultOperations)
+		return nil
+	}
+	m.liveOps = liveOps
+	m.permMgr = policies.NewLivePermissionManager(liveOps, allDefaultOperations)
 	return nil
 }
 
-func (m *SystemModule) initAccessController(ctx context.Context) {
+func (m *SystemModule) initAccessController(ctx context.Context) error {
+	ruleColl, err := m.persist.Collection(ctx, "_iam_rule_")
+	if err != nil {
+		return fmt.Errorf("get _iam_rule_ collection: %w", err)
+	}
+
+	live, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[iam.FunctionRule]{
+		Collection: ruleColl,
+		Processor:  &policies.RuleDocProcessor{},
+		QueryKey:   "name",
+		Active:     false,
+	})
+	if err != nil {
+		return fmt.Errorf("create live rule repository: %w", err)
+	}
+	m.liveRules = live
+
+	// Seed Go default rules (no CEL bugs) — these are always present and
+	// take precedence over any DB rule with the same name.
+	for name, fn := range policies.GoDefaultRules() {
+		live.Set(name, fn)
+	}
+
 	m.ac = iam.CreateAccessController(iam.AccessControllerOptions{
-		CacheTTL: 5 * time.Second,
+		Rules:    live,
+		CacheTTL: 0,
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	m.ac.LoadRules(policies.GoDefaultRules())
+	return nil
 }
 
 func (m *SystemModule) registerExistingDocumentHandlers(ctx context.Context) error {
@@ -222,10 +262,44 @@ func (m *SystemModule) DispatcherChain(next core.Dispatcher) core.Dispatcher {
 	return disp
 }
 
-func (m *SystemModule) AdminUserID() string  { return m.adminUserID }
-func (m *SystemModule) AdminEmail() string   { return m.adminEmail }
-func (m *SystemModule) Bootstrapped() bool   { return m.bootstrapped }
-func (m *SystemModule) EphemeralKey() string { return m.ephemeralKey }
+func (m *SystemModule) AdminUserID() string   { return m.adminUserID }
+func (m *SystemModule) AdminEmail() string    { return m.adminEmail }
+func (m *SystemModule) Bootstrapped() bool    { return m.bootstrapped }
+func (m *SystemModule) EphemeralKey() string  { return m.ephemeralKey }
+func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider { return m.credProv }
+
+// SeedPolicies explicitly re-runs policy seeding (e.g. after a code update
+// that adds new default operations or rules).  Idempotent — new defaults are
+// inserted, existing ones are left unchanged.
+func (m *SystemModule) SeedPolicies(ctx context.Context) error {
+	if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultOperations); err != nil {
+		return fmt.Errorf("seed policies: %w", err)
+	}
+
+	// Refresh the LiveCollection-backed rule cache so newly seeded CEL
+	// rules are immediately visible without a manual reload.
+	if m.liveRules != nil {
+		dbRules, err := m.policyModel.ListRules(ctx)
+		if err != nil {
+			return fmt.Errorf("list rules after seed: %w", err)
+		}
+		count := 0
+		for _, r := range dbRules {
+			if r.Expression == "" {
+				continue
+			}
+			fn, err := policies.CompileCEL(r.Expression)
+			if err != nil {
+				continue
+			}
+			m.liveRules.Set(r.Name, fn)
+			count++
+		}
+		m.opts.Logger.Info("seeded rules", zap.Int("rules", count))
+	}
+
+	return nil
+}
 
 func (m *SystemModule) purgeBlocklistLoop() {
 	ticker := time.NewTicker(5 * time.Minute)

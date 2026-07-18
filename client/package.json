@@ -27,6 +27,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
     "@types/bun": "latest",
     "vitest": "^4.1.10"
   },
@@ -35,9 +36,12 @@
   },
   "dependencies": {
     "@asaidimu/network-client": "^2.0.0",
+    "@asaidimu/query": "^1.0.0",
     "@asaidimu/utils-artifacts": "^8.2.25",
     "@asaidimu/utils-error": "^1.1.10",
+    "@asaidimu/utils-schema": "^1.0.10",
     "@asaidimu/utils-store": "^10.2.18",
+    "@asaidimu/utils-sync": "^2.3.0",
     "uuid": "^14.0.1"
   }
 }

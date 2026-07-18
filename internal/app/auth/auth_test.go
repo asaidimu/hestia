@@ -66,6 +66,8 @@ func TestCreateSessionHandler(t *testing.T) {
 	p := persistest.NewPersistence(t)
 	userModel := users.NewUserModel(p)
 	jwtSvc := auth.NewJWTService("test-secret", 15*time.Minute, 7*24*time.Hour, 5*time.Minute)
+	blocklist := auth.NewTokenBlocklistService(p)
+	credProv := auth.NewCredentialsProvider(jwtSvc, blocklist, userModel)
 
 	ctx := context.Background()
 	_, err := userModel.Register(ctx, "test@example.com", "secret123", "Test User")
@@ -73,7 +75,7 @@ func TestCreateSessionHandler(t *testing.T) {
 		t.Fatalf("userModel.Register failed: %v", err)
 	}
 
-	handler := auth.NewCreateSessionHandler(userModel, jwtSvc)
+	handler := auth.NewCreateSessionHandler(userModel, credProv)
 	input := data.MustNewDocument(map[string]any{
 		"payload": map[string]any{
 			"email":    "test@example.com",
@@ -105,13 +107,17 @@ func TestCreateSessionHandler(t *testing.T) {
 
 func TestValidateTokenHandler(t *testing.T) {
 	jwtSvc := auth.NewJWTService("test-secret", 15*time.Minute, 7*24*time.Hour, 5*time.Minute)
+	p := persistest.NewPersistence(t)
+	blocklist := auth.NewTokenBlocklistService(p)
+	userModel := users.NewUserModel(p)
+	credProv := auth.NewCredentialsProvider(jwtSvc, blocklist, userModel)
 
 	token, err := jwtSvc.GenerateAccessToken("user-1", "test@example.com", []string{"read:*"})
 	if err != nil {
 		t.Fatalf("GenerateAccessToken failed: %v", err)
 	}
 
-	handler := auth.NewValidateTokenHandler(jwtSvc)
+	handler := auth.NewValidateTokenHandler(credProv)
 	ctx := context.Background()
 	input := data.MustNewDocument(map[string]any{
 		"token": token,
@@ -167,7 +173,9 @@ func TestDeleteSessionHandler(t *testing.T) {
 
 	claimsCtx := identity.ContextWithClaims(ctx, claims)
 
-	handler := auth.NewDeleteSessionHandler(blocklist, jwtSvc)
+	credProv := auth.NewCredentialsProvider(jwtSvc, blocklist, userModel)
+
+	handler := auth.NewDeleteSessionHandler(credProv)
 	input := data.MustNewDocument(map[string]any{
 		"payload": map[string]any{},
 	}, ctx)

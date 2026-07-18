@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	operationCollName = "_policy_operation_"
-	ruleCollName      = "_policy_rule_"
+	operationCollName = "_operation_policy_"
+	ruleCollName      = "_iam_rule_"
 )
 
-type PolicyOperation struct {
+type OperationPolicy struct {
 	Name        string `json:"name"`
 	RuleKey     string `json:"ruleKey"`
 	Description string `json:"description,omitempty"`
@@ -53,7 +53,7 @@ func NewPolicyModel(persistence base.Persistence) *PolicyModel {
 
 // ── Operations ──────────────────────────────────────────────────────────────
 
-func (m *PolicyModel) ListOperations(ctx context.Context) ([]PolicyOperation, error) {
+func (m *PolicyModel) ListOperations(ctx context.Context) ([]OperationPolicy, error) {
 	col, err := m.persistence.Collection(ctx, operationCollName)
 	if err != nil {
 		return nil, fmt.Errorf("access policy_operation collection: %w", err)
@@ -65,7 +65,7 @@ func (m *PolicyModel) ListOperations(ctx context.Context) ([]PolicyOperation, er
 		return nil, fmt.Errorf("list policy operations: %w", err)
 	}
 
-	ops := make([]PolicyOperation, 0, result.Count)
+	ops := make([]OperationPolicy, 0, result.Count)
 	for _, doc := range result.Data {
 		op, err := docToOperation(doc)
 		if err != nil {
@@ -76,7 +76,7 @@ func (m *PolicyModel) ListOperations(ctx context.Context) ([]PolicyOperation, er
 	return ops, nil
 }
 
-func (m *PolicyModel) UpsertOperation(ctx context.Context, op PolicyOperation) error {
+func (m *PolicyModel) UpsertOperation(ctx context.Context, op OperationPolicy) error {
 	col, err := m.persistence.Collection(ctx, operationCollName)
 	if err != nil {
 		return fmt.Errorf("access policy_operation collection: %w", err)
@@ -142,19 +142,19 @@ func (m *PolicyModel) DeleteOperation(ctx context.Context, name string) error {
 	return nil
 }
 
-func (m *PolicyModel) GetOperation(ctx context.Context, name string) (PolicyOperation, error) {
+func (m *PolicyModel) GetOperation(ctx context.Context, name string) (OperationPolicy, error) {
 	col, err := m.persistence.Collection(ctx, operationCollName)
 	if err != nil {
-		return PolicyOperation{}, fmt.Errorf("access policy_operation collection: %w", err)
+		return OperationPolicy{}, fmt.Errorf("access policy_operation collection: %w", err)
 	}
 
 	q := query.NewQueryBuilder().Where("name").Eq(name).Build()
 	result, err := col.Read(ctx, &q)
 	if err != nil {
-		return PolicyOperation{}, fmt.Errorf("query operation: %w", err)
+		return OperationPolicy{}, fmt.Errorf("query operation: %w", err)
 	}
 	if result.Count == 0 {
-		return PolicyOperation{}, fmt.Errorf("operation not found")
+		return OperationPolicy{}, fmt.Errorf("operation not found")
 	}
 	return docToOperation(result.Data[0])
 }
@@ -313,19 +313,19 @@ func (m *PolicyModel) ForceDeleteRule(ctx context.Context, name string) error {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-func docToOperation(doc *data.Document) (PolicyOperation, error) {
+func docToOperation(doc *data.Document) (OperationPolicy, error) {
 	name, err := doc.GetString("name")
 	if err != nil {
-		return PolicyOperation{}, err
+		return OperationPolicy{}, err
 	}
 	ruleKey, err := doc.GetString("ruleKey")
 	if err != nil {
-		return PolicyOperation{}, err
+		return OperationPolicy{}, err
 	}
 	desc, _ := doc.GetString("description")
 	intentType, _ := doc.GetString("intentType")
 	protected, _ := doc.GetBool("protected")
-	return PolicyOperation{
+	return OperationPolicy{
 		Name:        name,
 		RuleKey:     ruleKey,
 		Description: desc,

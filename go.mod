@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/asaidimu/blobs v1.0.2
-	github.com/asaidimu/go-anansi/v8 v8.0.3
+	github.com/asaidimu/go-anansi/v8 v8.0.4
 	github.com/asaidimu/go-events v1.1.0
 	github.com/asaidimu/go-events/v2 v2.0.0
 	github.com/asaidimu/go-iam/v2 v2.0.0

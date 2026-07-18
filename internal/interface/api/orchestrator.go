@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"io/fs"
 	"strings"
 	"time"
 
+	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/app/core"
@@ -13,14 +15,17 @@ import (
 )
 
 type Options struct {
-	Dispatcher        core.Dispatcher
-	InternalDispatcher core.Dispatcher
-	Logger            *zap.Logger
-	Addr              string
-	Registrations     []abstract.MessageRegistration
-	CookieConfig      core.CookieConfig
-	AccessTokenTTL    time.Duration
-	RefreshTokenTTL   time.Duration
+	Dispatcher         core.Dispatcher
+	InternalDispatcher  core.Dispatcher
+	CredentialsProvider abstract.CredentialsProvider
+	Logger             *zap.Logger
+	Addr               string
+	Registrations      []abstract.MessageRegistration
+	CookieConfig       core.CookieConfig
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
+	APIPrefix          string
+	StaticFS           fs.FS
 }
 
 type Interface struct {
@@ -28,6 +33,8 @@ type Interface struct {
 	trans           Transport
 	disp            core.Dispatcher
 	internalDisp    core.Dispatcher
+	identityProv    iam.IdentityProvider
+	credProv        abstract.CredentialsProvider
 	bootstrapped    bool
 	regs            []abstract.MessageRegistration
 	cookieCfg       core.CookieConfig
@@ -46,8 +53,11 @@ func New(opts Options) *Interface {
 	if cfg.RefreshName == "" {
 		cfg.RefreshName = "refresh_token"
 	}
+	if opts.APIPrefix == "" {
+		opts.APIPrefix = "/api"
+	}
 	if cfg.RefreshPath == "" {
-		cfg.RefreshPath = "/api/auth/session"
+		cfg.RefreshPath = opts.APIPrefix + "/auth/session"
 	}
 	accessTTL := opts.AccessTokenTTL
 	if accessTTL <= 0 {
@@ -61,6 +71,8 @@ func New(opts Options) *Interface {
 		opts:            opts,
 		disp:            opts.Dispatcher,
 		internalDisp:    opts.InternalDispatcher,
+		identityProv:    newIdentityProvider(opts.CredentialsProvider, opts.InternalDispatcher),
+		credProv:        opts.CredentialsProvider,
 		regs:            opts.Registrations,
 		cookieCfg:       cfg,
 		accessTokenTTL:  accessTTL,
@@ -72,8 +84,10 @@ func New(opts Options) *Interface {
 
 func newHTTPTransport(opts Options) Transport {
 	return httpserver.NewTransport(httpserver.TransportOptions{
-		Addr:   opts.Addr,
-		Logger: opts.Logger,
+		Addr:      opts.Addr,
+		Logger:    opts.Logger,
+		APIPrefix: opts.APIPrefix,
+		StaticFS:  opts.StaticFS,
 	})
 }
 
@@ -141,10 +155,14 @@ func (o *Interface) wrap(fn handlerFunc) Handler {
 		ctx = core.ContextWithAuditTransport(ctx, req.ClientIP, req.UserAgent, req.RequestID)
 		ctx = core.ContextWithTraceID(ctx, req.RequestID)
 		resp, err = o.authMiddleware(ctx, req, fn)
-		if v, _ := ctx.Value(clearAccessCookieKey).(bool); v {
+		if v, _ := ctx.Value(setAccessCookieKey).(string); v != "" {
+			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.AccessName, v, o.cookieCfg.AccessPath, o.accessTokenTTL, o.cookieCfg))
+		} else if v, _ := ctx.Value(clearAccessCookieKey).(bool); v {
 			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.AccessName, o.cookieCfg.AccessPath))
 		}
-		if v, _ := ctx.Value(clearRefreshCookieKey).(bool); v {
+		if v, _ := ctx.Value(setRefreshCookieKey).(string); v != "" {
+			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.RefreshName, v, o.cookieCfg.RefreshPath, o.refreshTokenTTL, o.cookieCfg))
+		} else if v, _ := ctx.Value(clearRefreshCookieKey).(bool); v {
 			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.RefreshName, o.cookieCfg.RefreshPath))
 		}
 		return
@@ -157,5 +175,18 @@ func clearCookie(name, path string) Cookie {
 		Value:  "",
 		Path:   path,
 		MaxAge: -1,
+	}
+}
+
+func cookie(name, value, path string, ttl time.Duration, cfg core.CookieConfig) Cookie {
+	return Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		Domain:   cfg.Domain,
+		Secure:   cfg.Secure,
+		HTTPOnly: cfg.HTTPOnly,
+		SameSite: cfg.SameSite,
+		MaxAge:   int(ttl.Seconds()),
 	}
 }

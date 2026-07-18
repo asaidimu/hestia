@@ -111,6 +111,7 @@ func NewConfig() (*core.Config, error) {
 		LogMaxAge:       30,
 		LogMaxBackups:   5,
 		BlobsDir:        blobsDir,
+		APIPrefix:       envOrString("API_PREFIX", "/api"),
 		CookieConfig: core.CookieConfig{
 			Domain:      os.Getenv("COOKIE_DOMAIN"),
 			Secure:      envOrBool("COOKIE_SECURE", true),

@@ -1,4 +1,4 @@
-import { QueryFilter, SortConfiguration } from "@asaidimu/query";
+import type { QueryFilter, SortConfiguration } from "@asaidimu/query";
 
 // Internal metadata managed by Anansi
 interface DocumentMetadata {
@@ -275,5 +275,5 @@ export interface DocumentStore<
    * // Navigate
    * await todosPaged.navigate(2);
    */
-  page(options: TPageOptions): Promise<PagedData<T>>;
+  page(options: TPageOptions): PagedData<T>;
 }

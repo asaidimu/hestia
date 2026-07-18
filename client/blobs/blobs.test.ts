@@ -29,23 +29,23 @@ function makeProvider(): IdentityProvider {
 }
 
 function okResponse<T>(data: T): ApiResponse<T> {
-  return { success: true, status: 200, data, raw: new Response() }
+  return { success: true, status: 200, data, raw: new Response(), headers: new Headers() }
 }
 
 function errorResponse(status: number): ApiResponse<never> {
-  return { success: false, status, data: undefined as never, raw: new Response(null, { status }) }
+  return { success: false, status, data: undefined as never, raw: new Response(null, { status }), headers: new Headers() }
 }
 
 describe("BlobNamespace", () => {
   let client: HestiaNetworkClient
-  let raw: ReturnType<typeof createNetworkClient>
+  let raw: any
   let ns: BlobNamespace
 
   beforeEach(() => {
     const provider = makeProvider()
-    client = new HestiaNetworkClient("http://test.local", provider)
+    client = new HestiaNetworkClient("http://test.local", "/api", provider)
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-    raw = mock.results[mock.results.length - 1].value
+    raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
     ns = new BlobNamespace(client, "test-bucket")
   })
@@ -62,7 +62,7 @@ describe("BlobNamespace", () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: { blobs: [] } }))
       await ns.find()
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/query",
+        "api/system/blobs/blob/test-bucket/query",
         { prefix: "images/" },
         {},
         undefined,
@@ -81,7 +81,7 @@ describe("BlobNamespace", () => {
       const page = await ns.find()
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/query",
+        "api/system/blobs/blob/test-bucket/query",
         {},
         {},
         undefined,
@@ -98,7 +98,7 @@ describe("BlobNamespace", () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: { blobs: [] } }))
       await ns.find({ prefix: "docs/" } as any)
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/query",
+        "api/system/blobs/blob/test-bucket/query",
         { prefix: "docs/" },
         {},
         undefined,
@@ -109,7 +109,7 @@ describe("BlobNamespace", () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: { blobs: [] } }))
       await ns.find({ pagination: { limit: 10 } } as any)
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/query",
+        "api/system/blobs/blob/test-bucket/query",
         { limit: 10 },
         {},
         undefined,
@@ -123,7 +123,7 @@ describe("BlobNamespace", () => {
     })
   })
 
-  describe("head", () => {
+  describe("read", () => {
     const meta = {
       key: "myfile",
       namespace_id: "test-bucket",
@@ -135,10 +135,10 @@ describe("BlobNamespace", () => {
     it("makes a GET and returns a BlobDocument", async () => {
       raw.get.mockResolvedValueOnce(okResponse({ data: meta }))
 
-      const doc = await ns.head("myfile")
+      const doc = await ns.read("myfile")
 
       expect(raw.get).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/myfile",
+        "api/system/blobs/blob/test-bucket/myfile",
         {},
       )
       expect(doc).toBeDefined()
@@ -151,7 +151,7 @@ describe("BlobNamespace", () => {
         okResponse({ data: undefined }),
       )
 
-      const doc = await ns.head("missing")
+      const doc = await ns.read("missing")
       expect(doc).toBeUndefined()
     })
 
@@ -161,7 +161,7 @@ describe("BlobNamespace", () => {
         message: "not found",
       })
 
-      const doc = await ns.head("missing")
+      const doc = await ns.read("missing")
       expect(doc).toBeUndefined()
     })
 
@@ -171,14 +171,14 @@ describe("BlobNamespace", () => {
         message: "blob not found",
       })
 
-      const doc = await ns.head("missing")
+      const doc = await ns.read("missing")
       expect(doc).toBeUndefined()
     })
 
     it("rethrows other errors", async () => {
       raw.get.mockRejectedValueOnce(new Error("network error"))
 
-      await expect(ns.head("myfile")).rejects.toThrow("network error")
+      await expect(ns.read("myfile")).rejects.toThrow("network error")
     })
   })
 
@@ -193,26 +193,26 @@ describe("BlobNamespace", () => {
       }
       raw.post.mockResolvedValueOnce(okResponse({ data: meta }))
 
-      const blob = new Blob(["fake-image-data"], { type: "image/jpeg" })
-      const doc = await ns.upload("photo.jpg", blob, "image/jpeg")
+      const blob = new Blob(["fake-image-data"], { type: "image/jpeg" }) as File
+      const doc = await ns.upload({ file: blob, options: { key: "photo.jpg", contentType: "image/jpeg" } })
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/photo.jpg",
+        "api/system/blobs/blob/test-bucket/photo.jpg",
         blob,
         { headers: { "Content-Type": "image/jpeg" }, bodyType: "blob" },
         { type: "blob" },
       )
-      expect(doc._id_).toBe("photo.jpg")
+      expect(doc!._id_).toBe("photo.jpg")
     })
 
     it("uses blob.type when contentType not provided", async () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: { key: "f", namespace_id: "test-bucket", content_type: "text/plain", size: 3, created_at: "2024-01-01T00:00:00Z" } }))
 
-      const blob = new Blob(["abc"], { type: "text/plain" })
-      await ns.upload("f", blob)
+      const blob = new Blob(["abc"], { type: "text/plain" }) as File
+      await ns.upload({ file: blob, options: { key: "f" } })
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/f",
+        "api/system/blobs/blob/test-bucket/f",
         blob,
         { headers: { "Content-Type": "text/plain" }, bodyType: "blob" },
         { type: "blob" },
@@ -222,11 +222,11 @@ describe("BlobNamespace", () => {
     it("omits Content-Type when neither contentType nor blob.type is set", async () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: { key: "f", namespace_id: "test-bucket", content_type: "", size: 3, created_at: "2024-01-01T00:00:00Z" } }))
 
-      const blob = new Blob(["abc"])
-      await ns.upload("f", blob)
+      const blob = new Blob(["abc"]) as File
+      await ns.upload({ file: blob, options: { key: "f" } })
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/f",
+        "api/system/blobs/blob/test-bucket/f",
         blob,
         { headers: {}, bodyType: "blob" },
         { type: "blob" },
@@ -242,7 +242,7 @@ describe("BlobNamespace", () => {
       const result = await ns.download("report.pdf")
 
       expect(raw.get).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/report.pdf",
+        "api/system/blobs/blob/test-bucket/report.pdf",
         { responseType: "blob" },
       )
       expect(result.data).toBe(blob)
@@ -250,7 +250,7 @@ describe("BlobNamespace", () => {
     })
   })
 
-  describe("updateMetadata", () => {
+  describe("update", () => {
     it("makes a PATCH with custom metadata", async () => {
       const meta = {
         key: "doc",
@@ -262,15 +262,15 @@ describe("BlobNamespace", () => {
       }
       raw.patch.mockResolvedValueOnce(okResponse({ data: meta }))
 
-      const result = await ns.updateMetadata("doc", { author: "alice", project: "x" })
+      const result = await ns.update({ data: { author: "alice", project: "x" } as any, options: { key: "doc" } })
 
       expect(raw.patch).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/doc",
+        "api/system/blobs/blob/test-bucket/doc",
         { custom: { author: "alice", project: "x" } },
         {},
         undefined,
       )
-      expect(result.custom).toEqual({ author: "alice", project: "x" })
+      expect(result!.custom).toEqual({ author: "alice", project: "x" })
     })
   })
 
@@ -281,7 +281,7 @@ describe("BlobNamespace", () => {
       await ns.delete("obsolete.txt")
 
       expect(raw.delete).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/obsolete.txt",
+        "api/system/blobs/blob/test-bucket/obsolete.txt",
         undefined,
         {},
         undefined,
@@ -290,7 +290,7 @@ describe("BlobNamespace", () => {
   })
 
   describe("list", () => {
-    it("makes a POST /query and returns raw BlobMeta array", async () => {
+    it("makes a POST /query and returns a page of BlobMeta", async () => {
       const blobs = [
         { key: "a", namespace_id: "test-bucket", content_type: "text/plain", size: 1, created_at: "2024-01-01T00:00:00Z" },
       ]
@@ -299,20 +299,20 @@ describe("BlobNamespace", () => {
       const result = await ns.list()
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/blob/test-bucket/query",
+        "api/system/blobs/blob/test-bucket/query",
         {},
         {},
         undefined,
       )
-      expect(result).toHaveLength(1)
-      expect(result[0]!.key).toBe("a")
+      expect(result.data).toHaveLength(1)
+      expect(result.data[0]!.key).toBe("a")
     })
 
-    it("returns empty array when no blobs key in response", async () => {
+    it("returns empty page when no blobs key in response", async () => {
       raw.post.mockResolvedValueOnce(okResponse({ data: {} }))
 
       const result = await ns.list()
-      expect(result).toEqual([])
+      expect(result.data).toEqual([])
     })
   })
 
@@ -329,16 +329,16 @@ describe("BlobNamespace", () => {
 
 describe("HestiaBlobClient", () => {
   let client: HestiaNetworkClient
-  let raw: ReturnType<typeof createNetworkClient>
+  let raw: any
   let blobClient: HestiaBlobClient
 
   beforeEach(() => {
     const provider = makeProvider()
-    client = new HestiaNetworkClient("http://test.local", provider)
+    client = new HestiaNetworkClient("http://test.local", "/api", provider)
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-    raw = mock.results[mock.results.length - 1].value
+    raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
-    blobClient = new HestiaBlobClient(client)
+    blobClient = new HestiaBlobClient(client, "/api")
   })
 
   describe("namespaces", () => {
@@ -352,7 +352,7 @@ describe("HestiaBlobClient", () => {
       const result = await blobClient.namespaces()
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/namespace/query",
+        "api/system/blobs/namespace/query",
         undefined,
         {},
         undefined,
@@ -377,7 +377,7 @@ describe("HestiaBlobClient", () => {
       const result = await blobClient.createNamespace({ display_name: "New Bucket" })
 
       expect(raw.post).toHaveBeenCalledWith(
-        "/system/blobs/namespace",
+        "api/system/blobs/namespace",
         { display_name: "New Bucket" },
         {},
         undefined,
@@ -393,7 +393,7 @@ describe("HestiaBlobClient", () => {
       await blobClient.deleteNamespace("old-ns")
 
       expect(raw.delete).toHaveBeenCalledWith(
-        "/system/blobs/namespace/old-ns",
+        "api/system/blobs/namespace/old-ns",
         undefined,
         {},
         undefined,
@@ -406,7 +406,7 @@ describe("HestiaBlobClient", () => {
       await blobClient.deleteNamespace("my namespace")
 
       expect(raw.delete).toHaveBeenCalledWith(
-        "/system/blobs/namespace/my%20namespace",
+        "api/system/blobs/namespace/my%20namespace",
         undefined,
         {},
         undefined,
@@ -418,7 +418,7 @@ describe("HestiaBlobClient", () => {
     it("returns the full URL for a blob (key is URI-encoded)", () => {
       const url = blobClient.blob("my-bucket", "path/to/file.txt")
       expect(url).toBe(
-        "http://test.local/system/blobs/blob/my-bucket/path%2Fto%2Ffile.txt",
+        "http://test.local/api/system/blobs/blob/my-bucket/path%2Fto%2Ffile.txt",
       )
     })
   })

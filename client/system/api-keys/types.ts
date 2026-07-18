@@ -2,7 +2,7 @@ export interface APIKey {
   _id_: string
   name: string
   prefix: string
-  scopes: string[]
+  operations: string[]
   status: string
   expiry?: string | null
   environment?: string
@@ -16,14 +16,14 @@ export interface APIKeyWithSecret extends APIKey {
 export interface CreateKeyRequest {
   name: string
   environment?: string
-  scopes?: string[]
+  operations?: string[]
   expiry?: string
 }
 
 export interface UpdateKeyRequest {
   name?: string
   environment?: string
-  scopes?: string[]
+  operations?: string[]
   status?: "active" | "revoked"
   expiry?: string
 }

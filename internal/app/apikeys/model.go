@@ -38,7 +38,7 @@ type APIKeyModel struct {
 type CreateKeyRequest struct {
 	Name        string         `json:"name"`
 	Environment string         `json:"environment,omitempty"`
-	Scopes      []string       `json:"scopes,omitempty"`
+	Operations  []string       `json:"operations,omitempty"`
 	Expiry      string         `json:"expiry,omitempty"`
 	Limits      map[string]any `json:"limits,omitempty"`
 	IP          map[string]any `json:"ip,omitempty"`
@@ -46,7 +46,7 @@ type CreateKeyRequest struct {
 
 type UpdateKeyRequest struct {
 	Name        *string         `json:"name,omitempty"`
-	Scopes      []string        `json:"scopes,omitempty"`
+	Operations  []string        `json:"operations,omitempty"`
 	Status      *string         `json:"status,omitempty"`
 	Expiry      *string         `json:"expiry,omitempty"`
 	Limits      map[string]any  `json:"limits,omitempty"`
@@ -88,7 +88,7 @@ func (m *APIKeyModel) Create(ctx context.Context, key *GeneratedKey, userID stri
 		"userId":      userID,
 		"prefix":      key.Prefix,
 		"hash":        key.Hash,
-		"scopes":      req.Scopes,
+		"operations":  req.Operations,
 		"status":      "active",
 		"usage":       0,
 		"limits":      req.Limits,
@@ -152,8 +152,8 @@ func (m *APIKeyModel) Update(ctx context.Context, keyID, userID string, req *Upd
 	if req.Name != nil {
 		setFields["name"] = *req.Name
 	}
-	if req.Scopes != nil {
-		setFields["scopes"] = req.Scopes
+	if req.Operations != nil {
+		setFields["operations"] = req.Operations
 	}
 	if req.Status != nil {
 		setFields["status"] = *req.Status
@@ -295,7 +295,7 @@ func (m *APIKeyModel) ValidateKey(ctx context.Context, keyString string) (*ident
 	}
 
 	userID, _ := doc.GetString("userId")
-	scopes, _ := doc.GetStringArray("scopes")
+	operations, _ := doc.GetStringArray("operations")
 	usage, _ := doc.GetInt("usage")
 
 	now := time.Now().Format(time.RFC3339)
@@ -309,9 +309,9 @@ func (m *APIKeyModel) ValidateKey(ctx context.Context, keyString string) (*ident
 	})
 
 	return &identity.Claims{
-		UserID:    userID,
-		Scopes:    scopes,
-		TokenType: "api_key",
+		UserID:     userID,
+		Operations: operations,
+		TokenType:  "api_key",
 	}, nil
 }
 

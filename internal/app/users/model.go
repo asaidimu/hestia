@@ -27,7 +27,7 @@ func (m *UserModel) collection(ctx context.Context) (base.Collection, error) {
 	return m.persistence.Collection(ctx, userCollectionName)
 }
 
-func (m *UserModel) Register(ctx context.Context, email, password, name string, scopes ...string) (*data.Document, error) {
+func (m *UserModel) Register(ctx context.Context, email, password, name string, permissions ...string) (*data.Document, error) {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("access user collection: %w", err)
@@ -47,16 +47,16 @@ func (m *UserModel) Register(ctx context.Context, email, password, name string, 
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	if len(scopes) == 0 {
-		scopes = []string{"read:*"}
+	if len(permissions) == 0 {
+		permissions = []string{"read:*"}
 	}
 
 	doc := data.MustNewDocument(map[string]any{
-		"email":    email,
-		"password": hashed,
-		"name":     name,
-		"verified": false,
-		"scopes":   scopes,
+		"email":       email,
+		"password":    hashed,
+		"name":        name,
+		"verified":    false,
+		"permissions": permissions,
 	})
 
 	result, err := col.CreateOne(ctx, doc)
@@ -162,7 +162,7 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 
 	q := query.NewQueryBuilder().
 		Where(data.DocumentIDField).Eq(id).
-		Where("deleted_at").NotExists().
+		Where("deleted").NotExists().
 		Build()
 
 	result, err := col.Read(ctx, &q)
@@ -176,13 +176,13 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 }
 
 func (m *UserModel) IsDeleted(doc *data.Document) bool {
-	deletedAt, err := doc.GetString("deleted_at")
-	return err == nil && deletedAt != ""
+	deleted, err := doc.GetString("deleted")
+	return err == nil && deleted != ""
 }
 
 func (m *UserModel) SoftDelete(ctx context.Context, id string) error {
 	return m.Update(ctx, id, map[string]any{
-		"deleted_at": time.Now().Format(time.RFC3339),
+		"deleted": time.Now().Format(time.RFC3339),
 	})
 }
 

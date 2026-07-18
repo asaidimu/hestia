@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-
+	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/app/core/registration"
 )
 
-func DeriveRoute(name string, arguments map[string]definition.FieldType) string {
+func DeriveRoute(name string, arguments []abstract.ArgDef) string {
 	parts := strings.SplitN(name, ":", 4)
 	path := fmt.Sprintf("/%s/%s/%s", parts[0], parts[1], parts[2])
-	for arg := range arguments {
-		path += fmt.Sprintf("/{%s}", arg)
+	for _, arg := range arguments {
+		path += fmt.Sprintf("/{%s}", arg.Name)
 	}
 	return path
 }

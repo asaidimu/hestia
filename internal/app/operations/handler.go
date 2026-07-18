@@ -23,7 +23,7 @@ func NewSystemStatusHandler(bootstrapped func() bool) corepkg.MessageHandler {
 	}
 }
 
-func NewDocumentationHandler(registrations *[]abstract.MessageRegistration) corepkg.MessageHandler {
+func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiPrefix string) corepkg.MessageHandler {
 	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
 		regs := *registrations
 		docs := make(data.DocumentSet, 0, len(regs))
@@ -31,6 +31,9 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration) core
 
 			method := api.IntentToHTTPMethod(r.Intent)
 			httpPath := api.DeriveRoute(r.Name, r.Input.Arguments)
+			if apiPrefix != "" {
+				httpPath = apiPrefix + httpPath
+			}
 			pattern := method + " " + api.IntentToHTTPPath(r.Intent, httpPath)
 			doc := data.MustNewDocument(map[string]any{
 				"name":           r.Name,

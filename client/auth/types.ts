@@ -1,4 +1,4 @@
-import { UserIdentity } from "../system/identity/types"
+import type { UserIdentity } from "../system/identity/types"
 
 export interface TokenPair {
   access: string

@@ -1,4 +1,3 @@
-import { ArtifactContainer } from "@asaidimu/utils-artifacts";
 import type { SimplePersistence } from "@asaidimu/utils-persistence";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { HestiaAuth } from "./auth/store";
@@ -9,7 +8,7 @@ import {
 } from "./core/client";
 import { HestiaKeyStore } from "./system/api-keys/store";
 import { HestiaUsers } from "./system/identity/store";
-import { UserIdentity } from "./system/identity/types";
+import type { UserIdentity } from "./system/identity/types";
 import { HestiaLogs } from "./system/logs/store";
 import { HestiaPolicies } from "./system/policies/store";
 import { HestiaBlobClient } from "./blobs/store";
@@ -17,6 +16,7 @@ import { HestiaCapabilities } from "./system/capabilities/store";
 
 export interface HestiaConfig {
   baseUrl: string;
+  apiPrefix?: string;
   persistence?: SimplePersistence<AuthState>;
 }
 
@@ -26,11 +26,8 @@ interface AuthState {
   identity: UserIdentity | null;
 }
 
-type Registry = Record<string, any>;
-
 export class HestiaClient {
   readonly store: ReactiveDataStore<AuthState>;
-  readonly container: ArtifactContainer<Registry, any>;
   readonly client: HestiaNetworkClient;
   readonly auth: HestiaAuth;
   readonly users: HestiaUsers;
@@ -50,8 +47,6 @@ export class HestiaClient {
       config.persistence,
     );
 
-    this.container = new ArtifactContainer<Registry, any>(this.store);
-
     const tokenProvider: IdentityProvider = {
       identity: () => this.store.get().identity,
       token: (key: "access" | "refresh") => this.store.get()[key],
@@ -63,8 +58,10 @@ export class HestiaClient {
         void (await this.store.set({ access: null, refresh: null })),
     };
 
+    const apiPrefix = config.apiPrefix ?? "/api";
+
     this.tokenProvider = tokenProvider;
-    this.client = new HestiaNetworkClient(config.baseUrl, tokenProvider, () =>
+    this.client = new HestiaNetworkClient(config.baseUrl, apiPrefix, tokenProvider, () =>
       this.onAuthStateChanged?.(),
     );
 
@@ -75,9 +72,10 @@ export class HestiaClient {
     this.logs = new HestiaLogs(
       this.client,
       config.baseUrl,
+      apiPrefix,
     );
     this.collections = new HestiaCollections(this.client);
-    this.blobs = new HestiaBlobClient(this.client);
+    this.blobs = new HestiaBlobClient(this.client, apiPrefix);
     this.capabilities = new HestiaCapabilities(this.client)
   }
 

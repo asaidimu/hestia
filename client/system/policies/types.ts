@@ -1,4 +1,4 @@
-export interface PolicyOperation {
+export interface OperationPolicy {
   name: string
   ruleKey: string
   description?: string
@@ -11,7 +11,7 @@ export interface UpsertOperationRequest {
   intentType?: "COMMAND" | "QUERY"
 }
 
-export interface PolicyRule {
+export interface IamRule {
   name: string
   ruleType?: string
   expression?: string

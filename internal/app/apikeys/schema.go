@@ -128,7 +128,7 @@ var apiKeyUpdateInputJSON = []byte(`{
 				"name": { "name": "name", "description": "Display name", "type": "string" },
 				"status": { "name": "status", "description": "Key status (active/revoked)", "type": "string" },
 				"environment": { "name": "environment", "description": "Environment restriction", "type": "string" },
-				"scopes": { "name": "scopes", "description": "Permission scopes", "type": "array", "schema": { "type": "string" } },
+				"operations": { "name": "operations", "description": "Operation allowlist (empty = allow all, nil = backward compatible)", "type": "array", "schema": { "type": "string" } },
 				"expiry": { "name": "expiry", "description": "Expiration timestamp (RFC3339)", "type": "string" }
 			}
 		}

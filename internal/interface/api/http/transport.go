@@ -1,11 +1,15 @@
 package httpserver
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
+	"io/fs"
+	"mime"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -23,15 +27,19 @@ type Logger interface {
 }
 
 type TransportOptions struct {
-	Addr   string
-	Logger Logger
+	Addr      string
+	Logger    Logger
+	APIPrefix string
+	StaticFS  fs.FS
 }
 
 type HTTPTransport struct {
-	addr   string
-	logger Logger
-	server *fasthttp.Server
-	routes []routeEntry
+	addr      string
+	logger    Logger
+	apiPrefix string
+	staticFS  fs.FS
+	server    *fasthttp.Server
+	routes    []routeEntry
 }
 
 type routeEntry struct {
@@ -42,8 +50,10 @@ type routeEntry struct {
 
 func NewTransport(opts TransportOptions) *HTTPTransport {
 	return &HTTPTransport{
-		addr:   opts.Addr,
-		logger: opts.Logger,
+		addr:      opts.Addr,
+		logger:    opts.Logger,
+		apiPrefix: opts.APIPrefix,
+		staticFS:  opts.StaticFS,
 	}
 }
 
@@ -112,9 +122,18 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetStatusCode(fasthttp.StatusNotFound)
-	ctx.SetContentType("application/json")
-	json.NewEncoder(ctx).Encode(map[string]any{
+	if t.staticFS != nil {
+		if t.apiPrefix != "" && strings.HasPrefix(path, t.apiPrefix) {
+			t.writeJSON(ctx, fasthttp.StatusNotFound, map[string]any{
+				"error": map[string]any{"code": "NOT_FOUND", "message": "no matching route"},
+			})
+			return
+		}
+		t.serveStatic(ctx, path)
+		return
+	}
+
+	t.writeJSON(ctx, fasthttp.StatusNotFound, map[string]any{
 		"error": map[string]any{"code": "NOT_FOUND", "message": "no matching route"},
 	})
 }
@@ -179,20 +198,23 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 	}
 
 	if stream, ok := resp.Body.(abstract.StreamBody); ok {
-		ctx.SetContentType("text/event-stream")
+		if resp.Status == 0 {
+			resp.Status = fasthttp.StatusOK
+		}
+		ctx.Response.Header.SetContentType("text/event-stream")
 		ctx.Response.Header.Set("Cache-Control", "no-cache")
 		ctx.Response.Header.Set("Connection", "keep-alive")
 		ctx.SetStatusCode(resp.Status)
-		ctx.Hijack(func(c net.Conn) {
-			defer c.Close()
-			// flush headers by writing an initial newline
-			fmt.Fprintf(c, "\n")
+		ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
 			for data := range stream {
 				jsonBytes, err := json.Marshal(map[string]any{"data": data})
 				if err != nil {
 					continue
 				}
-				fmt.Fprintf(c, "data: %s\n\n", jsonBytes)
+				fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
+				if err := w.Flush(); err != nil {
+					return
+				}
 			}
 		})
 		return
@@ -258,6 +280,51 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies 
 			"request":   ctx.Request.Header.Peek("X-Request-ID"),
 		},
 	})
+}
+
+// ── Static file serving ──────────────────────────────────────────────────────
+
+func (t *HTTPTransport) serveStatic(ctx *fasthttp.RequestCtx, path string) {
+	clean := strings.TrimPrefix(path, "/")
+	if clean == "" {
+		clean = "index.html"
+	}
+
+	data, err := fs.ReadFile(t.staticFS, clean)
+	if err != nil {
+		// SPA fallback — serve index.html
+		index, err := fs.ReadFile(t.staticFS, "index.html")
+		if err != nil {
+			t.writeJSON(ctx, fasthttp.StatusNotFound, map[string]any{
+				"error": map[string]any{"code": "NOT_FOUND", "message": "not found"},
+			})
+			return
+		}
+		ct := mime.TypeByExtension(filepath.Ext(clean))
+		if ct == "" {
+			ct = "text/html"
+		}
+		ctx.SetContentType(ct)
+		ctx.Write(index)
+		return
+	}
+
+	ctx.SetContentType(mimeType(clean))
+	ctx.Write(data)
+}
+
+func (t *HTTPTransport) writeJSON(ctx *fasthttp.RequestCtx, status int, v any) {
+	ctx.SetStatusCode(status)
+	ctx.SetContentType("application/json")
+	json.NewEncoder(ctx).Encode(v)
+}
+
+func mimeType(name string) string {
+	ct := mime.TypeByExtension(filepath.Ext(name))
+	if ct == "" {
+		return "application/octet-stream"
+	}
+	return ct
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

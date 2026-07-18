@@ -82,14 +82,14 @@ func NewCreateAPIKeyHandler(keys *APIKeyModel) core.MessageHandler {
 		if v, ok := body["environment"]; ok {
 			req.Environment, _ = v.(string)
 		}
-		if v, ok := body["scopes"]; ok {
+		if v, ok := body["operations"]; ok {
 			switch arr := v.(type) {
 			case []string:
-				req.Scopes = arr
+				req.Operations = arr
 			case []any:
 				for _, item := range arr {
 					if s, ok := item.(string); ok {
-						req.Scopes = append(req.Scopes, s)
+						req.Operations = append(req.Operations, s)
 					}
 				}
 			}
@@ -145,14 +145,14 @@ func NewUpdateAPIKeyHandler(keys *APIKeyModel) core.MessageHandler {
 			s := v.(string)
 			req.Environment = &s
 		}
-		if v, exists := body["scopes"]; exists {
+		if v, exists := body["operations"]; exists {
 			switch arr := v.(type) {
 			case []string:
-				req.Scopes = arr
+				req.Operations = arr
 			case []any:
 				for _, item := range arr {
 					if s, ok := item.(string); ok {
-						req.Scopes = append(req.Scopes, s)
+						req.Operations = append(req.Operations, s)
 					}
 				}
 			}

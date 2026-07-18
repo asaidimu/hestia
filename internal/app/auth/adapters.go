@@ -26,26 +26,36 @@ func NewAPIKeyAuthenticator(apiKeyModel *apikeys.APIKeyModel, userModel *users.U
 	}
 }
 
-func (a *APIKeyAuthenticator) loadUserScopes(ctx context.Context) []string {
-	if a.adminUserID == "" {
+func (a *APIKeyAuthenticator) loadUserScopes(ctx context.Context, userID string) []string {
+	if userID == "" {
 		return nil
 	}
-	doc, err := a.userModel.GetByID(ctx, a.adminUserID)
+	doc, err := a.userModel.GetByID(ctx, userID)
 	if err != nil {
 		return nil
 	}
-	scopes, _ := doc.GetStringArray("scopes")
-	return scopes
+	perms, _ := doc.GetStringArray("permissions")
+	return perms
 }
 
 func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*identity.Claims, error) {
 	if a.ephemeralKey != "" && key == a.ephemeralKey {
-		scopes := a.loadUserScopes(ctx)
+		scopes := a.loadUserScopes(ctx, a.adminUserID)
 		return &identity.Claims{
 			UserID: a.adminUserID,
 			Email:  a.adminEmail,
 			Scopes: scopes,
 		}, nil
 	}
-	return a.apiKeyModel.ValidateKey(ctx, key)
+
+	claims, err := a.apiKeyModel.ValidateKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	// API keys don't store permission scopes — they inherit the owning user's
+	// current permissions at authentication time. This ensures permission
+	// changes are reflected immediately without key rotation.
+	claims.Scopes = a.loadUserScopes(ctx, claims.UserID)
+	return claims, nil
 }

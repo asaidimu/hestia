@@ -87,7 +87,7 @@ func TestDocumentationHandler(t *testing.T) {
 		},
 	}
 
-	handler := operations.NewDocumentationHandler(&regs)
+	handler := operations.NewDocumentationHandler(&regs, "")
 	msg := testMessage{ctx: ctx}
 	result, err := handler(ctx, msg)
 	if err != nil {

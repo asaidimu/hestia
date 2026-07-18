@@ -63,6 +63,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Always seed default policies so the test server has a complete set
+	// of operations and rules regardless of bootstrapped state.
+	ctx := context.Background()
+	if err := systemMod.SeedPolicies(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: seed policies: %v\n", err)
+		os.Exit(1)
+	}
+
 	ephemeralKey := systemMod.EphemeralKey()
 	adminEmail := systemMod.AdminEmail()
 	bootstrapped := systemMod.Bootstrapped()

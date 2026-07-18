@@ -23,7 +23,7 @@ describe("auth sequence", () => {
     expect(result.token.refresh).toBeTruthy()
     expect(result.token.type).toBe("Bearer")
     expect(result.user.email).toBe("admin@test.local")
-    expect(result.user.scopes).toContain("administrator")
+    expect(result.user.permissions).toContain("administrator")
   })
 
   it("login rejects wrong password", async () => {

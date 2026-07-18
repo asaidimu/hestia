@@ -6,13 +6,14 @@ import (
 	"fmt"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/app/core/registration"
 )
 
-func NewUpsertOperationHandler(policyModel *PolicyModel) core.MessageHandler {
+func NewUpsertOperationHandler(policyModel *PolicyModel, liveOps collection.LiveCollection[*OperationPolicy]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -21,7 +22,7 @@ func NewUpsertOperationHandler(policyModel *PolicyModel) core.MessageHandler {
 		description, _ := body["description"].(string)
 		intentType, _ := body["intentType"].(string)
 
-		op := PolicyOperation{
+		op := OperationPolicy{
 			Name:        name,
 			RuleKey:     ruleKey,
 			Description: description,
@@ -29,6 +30,9 @@ func NewUpsertOperationHandler(policyModel *PolicyModel) core.MessageHandler {
 		}
 		if err := policyModel.UpsertOperation(ctx, op); err != nil {
 			return nil, err
+		}
+		if liveOps != nil {
+			liveOps.Set(name, &op)
 		}
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{
@@ -41,7 +45,7 @@ func NewUpsertOperationHandler(policyModel *PolicyModel) core.MessageHandler {
 	}
 }
 
-func NewDeleteOperationHandler(policyModel *PolicyModel) core.MessageHandler {
+func NewDeleteOperationHandler(policyModel *PolicyModel, liveOps collection.LiveCollection[*OperationPolicy]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -49,13 +53,16 @@ func NewDeleteOperationHandler(policyModel *PolicyModel) core.MessageHandler {
 		if err := policyModel.DeleteOperation(ctx, name); err != nil {
 			return nil, err
 		}
+		if liveOps != nil {
+			liveOps.Unset(name)
+		}
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{"message": "deleted", "name": name}, ctx),
 		}, nil
 	}
 }
 
-func NewUpsertRuleHandler(policyModel *PolicyModel) core.MessageHandler {
+func NewUpsertRuleHandler(policyModel *PolicyModel, liveRules iam.RuleSet[iam.FunctionRule]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -88,6 +95,15 @@ func NewUpsertRuleHandler(policyModel *PolicyModel) core.MessageHandler {
 		if err := policyModel.UpsertRule(ctx, rule); err != nil {
 			return nil, err
 		}
+
+		// Compile and cache so the rule is immediately visible.
+		if expression != "" && liveRules != nil {
+			fn, err := CompileCEL(expression)
+			if err == nil {
+				liveRules.Set(name, fn)
+			}
+		}
+
 		b, _ := json.Marshal(rule)
 		var m map[string]any
 		json.Unmarshal(b, &m)
@@ -97,7 +113,7 @@ func NewUpsertRuleHandler(policyModel *PolicyModel) core.MessageHandler {
 	}
 }
 
-func NewDeleteRuleHandler(policyModel *PolicyModel) core.MessageHandler {
+func NewDeleteRuleHandler(policyModel *PolicyModel, liveRules iam.RuleSet[iam.FunctionRule]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -111,6 +127,9 @@ func NewDeleteRuleHandler(policyModel *PolicyModel) core.MessageHandler {
 		}
 		if err := policyModel.DeleteRule(ctx, name); err != nil {
 			return nil, err
+		}
+		if liveRules != nil {
+			liveRules.Unset(name)
 		}
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{"message": "deleted", "name": name}, ctx),
@@ -167,32 +186,38 @@ func NewValidateRuleHandler() core.MessageHandler {
 	}
 }
 
-type ruleCompiler func(iam.AccessController, []PolicyRule) (iam.FunctionRuleSet, error)
-
-func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager core.ReloadablePermissionManager, accessController iam.AccessController, compileRules ruleCompiler) core.MessageHandler {
+func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager core.ReloadablePermissionManager, liveRules iam.RuleSet[iam.FunctionRule]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		if err := permManager.Reload(ctx); err != nil {
 			return nil, fmt.Errorf("reload permissions: %w", err)
 		}
 
-		rules, err := policyModel.ListRules(ctx)
+		dbRules, err := policyModel.ListRules(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list rules: %w", err)
 		}
 
-		fnRules, err := compileRules(accessController, rules)
-		if err != nil {
-			return nil, fmt.Errorf("compile rules: %w", err)
-		}
-
-		if err := accessController.LoadRules(fnRules); err != nil {
-			return nil, fmt.Errorf("load rules: %w", err)
+		// Repopulate the LiveCollection-backed rule cache from DB, preserving
+		// Go default rules (which are Set at startup and layered on top).
+		ruleCount := 0
+		for _, r := range dbRules {
+			if r.Expression == "" {
+				continue
+			}
+			fn, err := CompileCEL(r.Expression)
+			if err != nil {
+				continue
+			}
+			if liveRules != nil {
+				liveRules.Set(r.Name, fn)
+				ruleCount++
+			}
 		}
 
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"operations": len(permManager.ListCapabilities()),
-				"rules":      len(fnRules),
+				"rules":      ruleCount,
 			}, ctx),
 		}, nil
 	}
