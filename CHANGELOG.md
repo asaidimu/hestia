@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/asaidimu/hestia/compare/v1.0.3...v1.0.4) (2026-07-19)
+
+
+### Bug Fixes
+
+* **auth:** replace JWT bearer tokens with server-managed HTTP-only session cookies ([1b5583f](https://github.com/asaidimu/hestia/commit/1b5583f3c4bc20c5b3769ba1afd85c070b0db2b8))
+
 ## [1.0.3](https://github.com/asaidimu/hestia/compare/v1.0.2...v1.0.3) (2026-07-18)
 
 
