@@ -42,7 +42,7 @@ func main() {
 		DataDir:           tmpDir,
 		BlobsDir:          filepath.Join(tmpDir, "blobs"),
 		DBPath:            ":memory:",
-		JWTSecret:         "docs-secret-do-not-use-in-production",
+		SessionSecret:     "docs-secret-do-not-use-in-production",
 		LogPath:           filepath.Join(tmpDir, "server.log"),
 		LogMaxSize:        100,
 		LogMaxAge:         30,
@@ -57,10 +57,8 @@ func main() {
 			Secure:      false,
 			HTTPOnly:    true,
 			SameSite:    1,
-			AccessName:  "access_token",
-			AccessPath:  "/",
-			RefreshName: "refresh_token",
-			RefreshPath: "/api/auth/session",
+			SessionName: "session",
+			SessionPath: "/",
 		},
 	}
 

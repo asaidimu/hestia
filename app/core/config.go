@@ -12,10 +12,13 @@ import (
 )
 
 const (
-	DefaultBcryptCost      = 12
-	DefaultAccessTokenTTL  = 15 * time.Minute
-	DefaultRefreshTokenTTL = 7 * 24 * time.Hour
-	DefaultResetTokenTTL   = 5 * time.Minute
+	DefaultBcryptCost = 12
+
+	// Session defaults (sliding window).
+	DefaultSessionTTL  = 8 * time.Hour // Absolute session lifetime (1 work day)
+	DefaultIdleTTL     = 30 * time.Minute    // Max idle time before session expires
+	DefaultRefreshTTL  = 15 * time.Minute    // Refresh session cookie after this idle period
+	DefaultResetTTL    = 5 * time.Minute     // Password reset token lifetime
 )
 
 // InteractorFactory creates a database interactor and returns a cleanup function.
@@ -25,7 +28,7 @@ type Config struct {
 	Port          string
 	DataDir       string
 	DBPath        string
-	JWTSecret     string
+	SessionSecret string
 	LogPath       string
 	LogMaxSize    int
 	LogMaxAge     int
@@ -36,11 +39,12 @@ type Config struct {
 	// Defaults to DefaultBcryptCost (12).
 	BcryptCost int
 
-	// AccessTokenTTL, RefreshTokenTTL, ResetTokenTTL control JWT token lifetimes.
-	// Defaults to DefaultAccessTokenTTL (15m), DefaultRefreshTokenTTL (168h), DefaultResetTokenTTL (5m).
-	AccessTokenTTL  time.Duration
-	RefreshTokenTTL time.Duration
-	ResetTokenTTL   time.Duration
+	// SessionTTL is the absolute session lifetime (default 7 days).
+	SessionTTL time.Duration
+	// IdleTTL is the maximum idle time before a session expires (default 30 min).
+	IdleTTL time.Duration
+	// RefreshTTL is the idle threshold after which the session cookie is refreshed (default 15 min).
+	RefreshTTL time.Duration
 
 	// InteractorFactory overrides the default SQLite database creation.
 	// When set, the factory is called to create the database interactor.
@@ -82,13 +86,8 @@ type CookieConfig struct {
 	// SameSite controls CSRF protection (default abstract.SameSiteStrictMode).
 	SameSite abstract.SameSite
 
-	// AccessName is the access token cookie name (default "access_token").
-	AccessName string
-	// AccessPath restricts the access cookie to a path (default "/").
-	AccessPath string
-
-	// RefreshName is the refresh token cookie name (default "refresh_token").
-	RefreshName string
-	// RefreshPath restricts the refresh cookie to a path (default "/api/auth/session").
-	RefreshPath string
+	// SessionName is the session cookie name (default "session").
+	SessionName string
+	// SessionPath restricts the session cookie to a path (default "/").
+	SessionPath string
 }

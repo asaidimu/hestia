@@ -83,19 +83,13 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
 
   async read(key: string): Promise<Document<BlobMeta> | undefined> {
     try {
-      const res = await this.client.get<{ data: BlobMeta }>(
-        `${this.basePath()}/${encodeURIComponent(key)}`,
+      const res = await this.client.post<{ data: BlobMeta }>(
+        `${this.basePath()}/${encodeURIComponent(key)}/query`,
       );
       if (!res.data?.data) return undefined;
       return asDoc(res.data.data);
     } catch (err: any) {
-      if (
-        err?.code === "SYNC-001-NF" ||
-        (err?.code === "INTERNAL_ERROR" &&
-          typeof err?.message === "string" &&
-          err.message.includes("not found"))
-      )
-        return undefined;
+      if (err?.code === "NOT_FOUND") return undefined;
       throw err;
     }
   }

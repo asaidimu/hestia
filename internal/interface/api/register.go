@@ -1,6 +1,5 @@
 package api
 
-// 05/07/2026 TODO: DO SOMETHING WITH SANITIZATION ERRORS
 import (
 	"context"
 	"encoding/json"
@@ -14,16 +13,16 @@ import (
 )
 
 const (
-	statusOK         = 200
-	statusCreated    = 201
-	statusNoContent  = 204
-	statusNotFound   = 404
-	statusTooMany    = 429
+	statusOK        = 200
+	statusCreated   = 201
+	statusNoContent = 204
+	statusNotFound  = 404
+	statusTooMany   = 429
 )
+
 const (
 	msgSessionCreate = "system:auth:session:create"
-	msgSessionRefresh = "system:auth:session:refresh"
-	msgSessionDelete  = "system:auth:session:delete"
+	msgSessionDelete = "system:auth:session:delete"
 )
 
 type transportMessage struct {
@@ -35,10 +34,10 @@ type transportMessage struct {
 	blobCh  <-chan registration.Blob
 }
 
-func (m *transportMessage) ID() string                         { return m.id }
-func (m *transportMessage) Name() string                       { return m.name }
-func (m *transportMessage) Context() context.Context            { return m.ctx }
-func (m *transportMessage) Input() *data.Document               { return m.input }
+func (m *transportMessage) ID() string                           { return m.id }
+func (m *transportMessage) Name() string                         { return m.name }
+func (m *transportMessage) Context() context.Context              { return m.ctx }
+func (m *transportMessage) Input() *data.Document                 { return m.input }
 func (m *transportMessage) InputChannel() <-chan *data.Document   { return m.inputCh }
 func (m *transportMessage) BlobInputChannel() <-chan registration.Blob { return m.blobCh }
 
@@ -67,7 +66,6 @@ func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bo
 		pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
 
 		o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
-			req = o.injectCookieRefreshToken(req, reg.Name)
 			doc := buildDoc(ctx, req, reg.Input)
 
 			if reg.Input.ResourceIDField != "" {
@@ -91,9 +89,7 @@ func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bo
 
 			result, err := o.disp.Send(msg)
 			if err != nil {
-				resp := Response{}
-				resp = o.attachCookieClearingResponse(resp, reg.Name)
-				return resp, err
+				return o.attachCookieClearingResponse(Response{}, reg.Name), err
 			}
 
 			if reg.Intent == registration.Stream {
@@ -268,87 +264,37 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 	return Response{Status: status}
 }
 
-// injectCookieRefreshToken reads the refresh token from the cookie and
-// injects it into the request body for refresh and logout endpoints,
-// so the handler can find it as a regular payload field.
-func (o *Interface) injectCookieRefreshToken(req Request, name string) Request {
-	if o.cookieCfg.RefreshName == "" {
-		return req
+func extractSessionToken(result *registration.Result) string {
+	if result == nil {
+		return ""
 	}
-	if name != msgSessionRefresh && name != msgSessionDelete {
-		return req
-	}
-	rt, ok := req.Cookies[o.cookieCfg.RefreshName]
-	if !ok || rt == "" {
-		return req
-	}
-	var bodyMap map[string]any
-	if len(req.Body) > 0 {
-		json.Unmarshal(req.Body, &bodyMap)
-	}
-	if bodyMap == nil {
-		bodyMap = make(map[string]any)
-	}
-	if _, exists := bodyMap["refresh_token"]; !exists {
-		bodyMap["refresh_token"] = rt
-		req.Body, _ = json.Marshal(bodyMap)
-	}
-	return req
+	return result.SessionToken
 }
 
-// attachCookieToResponse sets or clears both access and refresh token cookies
-// based on the auth operation.
 func (o *Interface) attachCookieToResponse(resp Response, result *registration.Result, name string) Response {
 	switch name {
-	case msgSessionCreate, msgSessionRefresh:
-		at := extractAccessToken(result)
-		rt := extractRefreshToken(result)
-		if at == "" && rt == "" {
+	case msgSessionCreate:
+		token := extractSessionToken(result)
+		if token == "" {
 			return resp
 		}
-		if at != "" && o.cookieCfg.AccessName != "" {
-			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:     o.cookieCfg.AccessName,
-				Value:    at,
-				Path:     o.cookieCfg.AccessPath,
-				Domain:   o.cookieCfg.Domain,
-				Secure:   o.cookieCfg.Secure,
-				HTTPOnly: o.cookieCfg.HTTPOnly,
-				SameSite: o.cookieCfg.SameSite,
-				MaxAge:   int(o.accessTokenTTL.Seconds()),
-			})
-		}
-		if rt != "" && o.cookieCfg.RefreshName != "" {
-			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:     o.cookieCfg.RefreshName,
-				Value:    rt,
-				Path:     o.cookieCfg.RefreshPath,
-				Domain:   o.cookieCfg.Domain,
-				Secure:   o.cookieCfg.Secure,
-				HTTPOnly: o.cookieCfg.HTTPOnly,
-				SameSite: o.cookieCfg.SameSite,
-				MaxAge:   int(o.refreshTokenTTL.Seconds()),
-			})
-		}
+		resp.Cookies = append(resp.Cookies, Cookie{
+			Name:     o.cookieCfg.SessionName,
+			Value:    token,
+			Path:     o.cookieCfg.SessionPath,
+			Domain:   o.cookieCfg.Domain,
+			Secure:   o.cookieCfg.Secure,
+			HTTPOnly: o.cookieCfg.HTTPOnly,
+			SameSite: o.cookieCfg.SameSite,
+			MaxAge:   int(o.sessionTTL.Seconds()),
+		})
 
 	case msgSessionDelete:
-		if o.cookieCfg.AccessName != "" {
+		if o.cookieCfg.SessionName != "" {
 			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:     o.cookieCfg.AccessName,
+				Name:     o.cookieCfg.SessionName,
 				Value:    "",
-				Path:     o.cookieCfg.AccessPath,
-				Domain:   o.cookieCfg.Domain,
-				Secure:   o.cookieCfg.Secure,
-				HTTPOnly: o.cookieCfg.HTTPOnly,
-				SameSite: o.cookieCfg.SameSite,
-				MaxAge:   -1,
-			})
-		}
-		if o.cookieCfg.RefreshName != "" {
-			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:     o.cookieCfg.RefreshName,
-				Value:    "",
-				Path:     o.cookieCfg.RefreshPath,
+				Path:     o.cookieCfg.SessionPath,
 				Domain:   o.cookieCfg.Domain,
 				Secure:   o.cookieCfg.Secure,
 				HTTPOnly: o.cookieCfg.HTTPOnly,
@@ -360,57 +306,17 @@ func (o *Interface) attachCookieToResponse(resp Response, result *registration.R
 	return resp
 }
 
-// attachCookieClearingResponse clears both cookies for auth operations when
-// the handler returns an error (e.g. expired/revoked token).
 func (o *Interface) attachCookieClearingResponse(resp Response, name string) Response {
-	switch name {
-	case msgSessionCreate, msgSessionRefresh, msgSessionDelete:
-		if o.cookieCfg.AccessName != "" {
+	if name == msgSessionCreate || name == msgSessionDelete {
+		if o.cookieCfg.SessionName != "" {
 			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:   o.cookieCfg.AccessName,
+				Name:   o.cookieCfg.SessionName,
 				Value:  "",
-				Path:   o.cookieCfg.AccessPath,
-				Domain: o.cookieCfg.Domain,
-				MaxAge: -1,
-			})
-		}
-		if o.cookieCfg.RefreshName != "" {
-			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:   o.cookieCfg.RefreshName,
-				Value:  "",
-				Path:   o.cookieCfg.RefreshPath,
+				Path:   o.cookieCfg.SessionPath,
 				Domain: o.cookieCfg.Domain,
 				MaxAge: -1,
 			})
 		}
 	}
 	return resp
-}
-
-// extractAccessToken pulls the access token from a registration.Result.
-func extractAccessToken(result *registration.Result) string {
-	if result == nil || result.Document == nil {
-		return ""
-	}
-	tokenIf := result.Document.GetOr("token", nil)
-	tokenMap, ok := tokenIf.(map[string]any)
-	if !ok {
-		return ""
-	}
-	at, _ := tokenMap["access"].(string)
-	return at
-}
-
-// extractRefreshToken pulls the refresh token from a registration.Result.
-func extractRefreshToken(result *registration.Result) string {
-	if result == nil || result.Document == nil {
-		return ""
-	}
-	tokenIf := result.Document.GetOr("token", nil)
-	tokenMap, ok := tokenIf.(map[string]any)
-	if !ok {
-		return ""
-	}
-	rt, _ := tokenMap["refresh"].(string)
-	return rt
 }

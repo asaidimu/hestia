@@ -21,8 +21,6 @@ export interface HestiaConfig {
 }
 
 interface AuthState {
-  access: string | null;
-  refresh: string | null;
   identity: UserIdentity | null;
 }
 
@@ -43,19 +41,16 @@ export class HestiaClient {
 
   constructor(config: HestiaConfig) {
     this.store = new ReactiveDataStore<AuthState>(
-      { access: null, refresh: null, identity: null },
+      { identity: null },
       config.persistence,
     );
 
     const tokenProvider: IdentityProvider = {
       identity: () => this.store.get().identity,
-      token: (key: "access" | "refresh") => this.store.get()[key],
-      setTokens: async (access: string, refresh: string) =>
-        void (await this.store.set({ access, refresh })),
       setIdentity: async (identity) =>
         void (await this.store.set({ identity })),
       clear: async () =>
-        void (await this.store.set({ access: null, refresh: null })),
+        void (await this.store.set({ identity: null })),
     };
 
     const apiPrefix = config.apiPrefix ?? "/api";
@@ -84,7 +79,7 @@ export class HestiaClient {
   }
 
   authenticated(): boolean {
-    return this.tokenProvider.token("access") !== null;
+    return this.tokenProvider.identity() !== null;
   }
 
   collection<T extends Record<string, any>>(name: string) {

@@ -60,9 +60,9 @@ func collectFeatureRegistrations(m *SystemModule, apiKeyAuth *auth.APIKeyAuthent
 	authDeps := auth.Dependencies{
 		UserModel:           m.userModel,
 		CredentialsProvider: m.credProv,
-		BlocklistSvc:        m.blocklistSvc,
 		APIKeyAuth:          apiKeyAuth,
 		AdminUserID:         m.adminUserID,
+		SessionTTL:          m.cfg.SessionTTL,
 	}
 	all = append(all, auth.Registrations(authDeps)...)
 	blobsDeps := blobs.Dependencies{

@@ -12,10 +12,10 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
 	"github.com/asaidimu/hestia/app/abstract"
-	"github.com/asaidimu/hestia/internal/app"
-	"github.com/asaidimu/hestia/internal/boot"
 	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/app/core/schema"
+	"github.com/asaidimu/hestia/internal/app"
+	"github.com/asaidimu/hestia/internal/boot"
 	"github.com/asaidimu/hestia/internal/interface/api"
 	"github.com/asaidimu/hestia/internal/interface/cli"
 )

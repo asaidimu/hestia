@@ -1,6 +1,6 @@
 package abstract
 
-import "context"
+import "time"
 
 type Claims struct {
 	UserID     string   `json:"user_id"`
@@ -12,18 +12,18 @@ type Claims struct {
 	ExpiresAt  int64    `json:"expires_at,omitempty"`
 }
 
+type SessionInfo struct {
+	SessionID string
+	UserID    string
+	IssuedAt  int64
+	ExpiresAt int64
+	CreatedAt int64
+}
+
 type CredentialsProvider interface {
-	IssueAccess(userID, email string, scopes []string) (token string, err error)
-	IssueRefresh(userID, email string) (token string, err error)
-	IssueReset(userID, email string) (token string, err error)
-	Validate(tokenString string) (*Claims, error)
-
-	// Refresh validates a refresh token, blocklists the old one (rotation),
-	// re-reads current user scopes, and issues a new access+refresh pair.
-	Refresh(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
-
-	// Revoked checks whether a token has been blocklisted.
-	Revoked(ctx context.Context, tokenID string) (bool, error)
-
-	Revoke(ctx context.Context, claims *Claims) error
+	CreateSession(userID string, ttl time.Duration) (token string, info *SessionInfo, err error)
+	ValidateSession(tokenString string) (*SessionInfo, error)
+	RefreshSession(info *SessionInfo) (newToken string, err error)
+	IssueResetToken(userID string) (token string, err error)
+	ValidateResetToken(tokenString string) (userID string, err error)
 }

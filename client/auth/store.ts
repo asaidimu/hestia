@@ -1,5 +1,5 @@
 import { HestiaNetworkClient, type IdentityProvider } from "../core/client";
-import type { LoginResult, ServerHealth, TokenPair } from "./types";
+import type { LoginResult, ServerHealth } from "./types";
 
 export class HestiaAuth {
   constructor(
@@ -19,7 +19,6 @@ export class HestiaAuth {
     );
     const result = res.data!.data;
     this.provider.setIdentity(result.user);
-    this.client.storeTokens(result.token.access, result.token.refresh);
     return result;
   }
 
@@ -34,19 +33,8 @@ export class HestiaAuth {
     return res.data!.data;
   }
 
-  async refresh(refreshToken?: string): Promise<TokenPair> {
-    const body = refreshToken ? { refresh_token: refreshToken } : {};
-    const res = await this.client.patch<{ data: { token: TokenPair } }>(
-      "/system/auth/session",
-      body,
-    );
-    return res.data!.data.token;
-  }
-
   async logout(): Promise<void> {
-    const refresh = this.provider.token("refresh");
-    const body = refresh ? { refresh_token: refresh } : {};
-    await this.client.delete("/system/auth/session", body);
+    await this.client.delete("/system/auth/session");
     await this.provider.clear();
   }
 
@@ -60,8 +48,7 @@ export class HestiaAuth {
   ): Promise<void> {
     await this.client.patch(
       "/system/auth/password",
-      { password, token:resetToken },
-      { headers: { Authorization: `Bearer ${resetToken}` } },
+      { password, token: resetToken },
     );
   }
 

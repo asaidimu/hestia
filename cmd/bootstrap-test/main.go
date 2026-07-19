@@ -21,11 +21,18 @@ import (
 func buildInterface(a *boot.Application, mod *app.SystemModule) *api.Interface {
 	secureDisp := mod.SecureDispatcher(a.Dispatcher())
 	return api.New(api.Options{
-		Dispatcher:         secureDisp,
-		InternalDispatcher: a.Dispatcher(),
-		Logger:             a.Loggers.File,
-		Addr:               a.Config.Port,
-		Registrations:      a.Registrations,
+		Dispatcher:          secureDisp,
+		InternalDispatcher:  a.Dispatcher(),
+		CredentialsProvider: mod.CredentialsProvider(),
+		Logger:              a.Loggers.File,
+		Addr:                a.Config.Port,
+		Registrations:       a.Registrations,
+		CookieConfig:        a.Config.CookieConfig,
+		SessionTTL:          a.Config.SessionTTL,
+		IdleTTL:             a.Config.IdleTTL,
+		RefreshTTL:          a.Config.RefreshTTL,
+		APIPrefix:           a.Config.APIPrefix,
+		UserModel:           mod.UserModel(),
 	})
 }
 

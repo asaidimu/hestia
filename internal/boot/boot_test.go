@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewConfigDefaults(t *testing.T) {
-	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("SESSION_SECRET", "test-secret")
 	t.Setenv("APP_DATA_DIR", "/tmp/hestia-test-defaults")
 
 	cfg, err := NewConfig()
@@ -33,20 +33,20 @@ func TestNewConfigDefaults(t *testing.T) {
 	if cfg.BlobsDir != "/tmp/hestia-test-defaults/blobs" {
 		t.Errorf("BlobsDir = %q, want %q", cfg.BlobsDir, "/tmp/hestia-test-defaults/blobs")
 	}
-	if cfg.JWTSecret != "test-secret" {
-		t.Errorf("JWTSecret = %q, want %q", cfg.JWTSecret, "test-secret")
+	if cfg.SessionSecret != "test-secret" {
+		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "test-secret")
 	}
 	if cfg.BcryptCost != core.DefaultBcryptCost {
 		t.Errorf("BcryptCost = %d, want %d", cfg.BcryptCost, core.DefaultBcryptCost)
 	}
-	if cfg.AccessTokenTTL != core.DefaultAccessTokenTTL {
-		t.Errorf("AccessTokenTTL = %v, want %v", cfg.AccessTokenTTL, core.DefaultAccessTokenTTL)
+	if cfg.SessionTTL != core.DefaultSessionTTL {
+		t.Errorf("SessionTTL = %v, want %v", cfg.SessionTTL, core.DefaultSessionTTL)
 	}
-	if cfg.RefreshTokenTTL != core.DefaultRefreshTokenTTL {
-		t.Errorf("RefreshTokenTTL = %v, want %v", cfg.RefreshTokenTTL, core.DefaultRefreshTokenTTL)
+	if cfg.IdleTTL != core.DefaultIdleTTL {
+		t.Errorf("IdleTTL = %v, want %v", cfg.IdleTTL, core.DefaultIdleTTL)
 	}
-	if cfg.ResetTokenTTL != core.DefaultResetTokenTTL {
-		t.Errorf("ResetTokenTTL = %v, want %v", cfg.ResetTokenTTL, core.DefaultResetTokenTTL)
+	if cfg.RefreshTTL != core.DefaultRefreshTTL {
+		t.Errorf("RefreshTTL = %v, want %v", cfg.RefreshTTL, core.DefaultRefreshTTL)
 	}
 
 	cc := cfg.CookieConfig
@@ -59,36 +59,28 @@ func TestNewConfigDefaults(t *testing.T) {
 	if cc.SameSite != abstract.SameSiteStrictMode {
 		t.Errorf("CookieConfig.SameSite = %v, want SameSiteStrictMode", cc.SameSite)
 	}
-	if cc.AccessName != "access_token" {
-		t.Errorf("CookieConfig.AccessName = %q, want %q", cc.AccessName, "access_token")
+	if cc.SessionName != "session" {
+		t.Errorf("CookieConfig.SessionName = %q, want %q", cc.SessionName, "session")
 	}
-	if cc.AccessPath != "/" {
-		t.Errorf("CookieConfig.AccessPath = %q, want %q", cc.AccessPath, "/")
-	}
-	if cc.RefreshName != "refresh_token" {
-		t.Errorf("CookieConfig.RefreshName = %q, want %q", cc.RefreshName, "refresh_token")
-	}
-	if cc.RefreshPath != "/api/auth/session" {
-		t.Errorf("CookieConfig.RefreshPath = %q, want %q", cc.RefreshPath, "/api/auth/session")
+	if cc.SessionPath != "/" {
+		t.Errorf("CookieConfig.SessionPath = %q, want %q", cc.SessionPath, "/")
 	}
 }
 
 func TestNewConfigCustom(t *testing.T) {
 	t.Setenv("PORT", ":9999")
-	t.Setenv("JWT_SECRET", "custom-secret")
+	t.Setenv("SESSION_SECRET", "custom-secret")
 	t.Setenv("APP_DATA_DIR", "/tmp/hestia-custom/data")
 	t.Setenv("BLOBS_DIR", "/tmp/hestia-custom/blobs")
 	t.Setenv("BCRYPT_COST", "10")
-	t.Setenv("JWT_ACCESS_TTL", "30m")
-	t.Setenv("JWT_REFRESH_TTL", "336h")
-	t.Setenv("JWT_RESET_TTL", "10m")
+	t.Setenv("SESSION_TTL", "168h")
+	t.Setenv("SESSION_IDLE_TTL", "1h")
+	t.Setenv("SESSION_REFRESH_TTL", "30m")
 	t.Setenv("COOKIE_DOMAIN", "example.com")
 	t.Setenv("COOKIE_SECURE", "false")
 	t.Setenv("COOKIE_SAMESITE", "lax")
-	t.Setenv("ACCESS_COOKIE_NAME", "at")
-	t.Setenv("ACCESS_COOKIE_PATH", "/app")
-	t.Setenv("REFRESH_COOKIE_NAME", "rt")
-	t.Setenv("REFRESH_COOKIE_PATH", "/auth")
+	t.Setenv("SESSION_COOKIE_NAME", "sid")
+	t.Setenv("SESSION_COOKIE_PATH", "/app")
 
 	cfg, err := NewConfig()
 	if err != nil {
@@ -110,20 +102,20 @@ func TestNewConfigCustom(t *testing.T) {
 	if cfg.BlobsDir != "/tmp/hestia-custom/blobs" {
 		t.Errorf("BlobsDir = %q, want %q", cfg.BlobsDir, "/tmp/hestia-custom/blobs")
 	}
-	if cfg.JWTSecret != "custom-secret" {
-		t.Errorf("JWTSecret = %q, want %q", cfg.JWTSecret, "custom-secret")
+	if cfg.SessionSecret != "custom-secret" {
+		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "custom-secret")
 	}
 	if cfg.BcryptCost != 10 {
 		t.Errorf("BcryptCost = %d, want 10", cfg.BcryptCost)
 	}
-	if cfg.AccessTokenTTL != 30*time.Minute {
-		t.Errorf("AccessTokenTTL = %v, want 30m", cfg.AccessTokenTTL)
+	if cfg.SessionTTL != 168*time.Hour {
+		t.Errorf("SessionTTL = %v, want 168h", cfg.SessionTTL)
 	}
-	if cfg.RefreshTokenTTL != 336*time.Hour {
-		t.Errorf("RefreshTokenTTL = %v, want 336h", cfg.RefreshTokenTTL)
+	if cfg.IdleTTL != 1*time.Hour {
+		t.Errorf("IdleTTL = %v, want 1h", cfg.IdleTTL)
 	}
-	if cfg.ResetTokenTTL != 10*time.Minute {
-		t.Errorf("ResetTokenTTL = %v, want 10m", cfg.ResetTokenTTL)
+	if cfg.RefreshTTL != 30*time.Minute {
+		t.Errorf("RefreshTTL = %v, want 30m", cfg.RefreshTTL)
 	}
 
 	cc := cfg.CookieConfig
@@ -136,25 +128,32 @@ func TestNewConfigCustom(t *testing.T) {
 	if cc.SameSite != abstract.SameSiteLaxMode {
 		t.Errorf("CookieConfig.SameSite = %v, want SameSiteLaxMode", cc.SameSite)
 	}
-	if cc.AccessName != "at" {
-		t.Errorf("CookieConfig.AccessName = %q, want %q", cc.AccessName, "at")
+	if cc.SessionName != "sid" {
+		t.Errorf("CookieConfig.SessionName = %q, want %q", cc.SessionName, "sid")
 	}
-	if cc.AccessPath != "/app" {
-		t.Errorf("CookieConfig.AccessPath = %q, want %q", cc.AccessPath, "/app")
-	}
-	if cc.RefreshName != "rt" {
-		t.Errorf("CookieConfig.RefreshName = %q, want %q", cc.RefreshName, "rt")
-	}
-	if cc.RefreshPath != "/auth" {
-		t.Errorf("CookieConfig.RefreshPath = %q, want %q", cc.RefreshPath, "/auth")
+	if cc.SessionPath != "/app" {
+		t.Errorf("CookieConfig.SessionPath = %q, want %q", cc.SessionPath, "/app")
 	}
 }
 
-func TestNewConfigMissingJWTSecret(t *testing.T) {
+func TestNewConfigMissingSessionSecret(t *testing.T) {
+	os.Unsetenv("SESSION_SECRET")
 	os.Unsetenv("JWT_SECRET")
 	_, err := NewConfig()
 	if err == nil {
-		t.Fatal("NewConfig() expected error when JWT_SECRET is unset")
+		t.Fatal("NewConfig() expected error when SESSION_SECRET is unset")
+	}
+}
+
+func TestNewConfigFallsBackToJWTSecret(t *testing.T) {
+	os.Unsetenv("SESSION_SECRET")
+	t.Setenv("JWT_SECRET", "fallback-secret")
+	cfg, err := NewConfig()
+	if err != nil {
+		t.Fatalf("NewConfig() error with JWT_SECRET fallback: %v", err)
+	}
+	if cfg.SessionSecret != "fallback-secret" {
+		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "fallback-secret")
 	}
 }
 

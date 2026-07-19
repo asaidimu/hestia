@@ -6,7 +6,7 @@ RELEASE ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 all: build
 
 build:
-	go build -v -ldflags "-X main.Version=$(VERSION) -X main.Release=$(RELEASE)" ./cmd/anansi
+	go build -v ./cmd/hestia
 
 test:
 	go clean -testcache && go test -v ./...

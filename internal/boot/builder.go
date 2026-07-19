@@ -45,10 +45,12 @@ func BuildInterfaces(a *Application, mod *app.SystemModule, version string) (*ap
 		Addr:                a.Config.Port,
 		Registrations:       a.Registrations,
 		CookieConfig:        a.Config.CookieConfig,
-		AccessTokenTTL:      a.Config.AccessTokenTTL,
-		RefreshTokenTTL:     a.Config.RefreshTokenTTL,
+		SessionTTL:          a.Config.SessionTTL,
+		IdleTTL:             a.Config.IdleTTL,
+		RefreshTTL:          a.Config.RefreshTTL,
 		APIPrefix:           a.Config.APIPrefix,
 		StaticFS:            a.Config.StaticFS,
+		UserModel:           mod.UserModel(),
 	})
 
 	cliOrch := cli.New(cli.Options{

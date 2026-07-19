@@ -19,19 +19,14 @@ vi.mock("@asaidimu/network-client", () => {
 import { createNetworkClient } from "@asaidimu/network-client"
 
 function makeProvider(): IdentityProvider {
-  let state: { access: string | null; refresh: string | null } = {
-    access: null,
-    refresh: null,
-  }
+  let identity: any = null
   return {
-    identity: () => null,
-    token: (k: "access" | "refresh") => state[k],
-    setTokens: vi.fn(async (a: string, r: string) => {
-      state = { access: a, refresh: r }
+    identity: () => identity,
+    setIdentity: vi.fn(async (id: any) => {
+      identity = id
     }),
-    setIdentity: vi.fn(),
     clear: vi.fn(async () => {
-      state = { access: null, refresh: null }
+      identity = null
     }),
   }
 }
@@ -44,7 +39,7 @@ function errorResponse(status: number): ApiResponse<never> {
   return { success: false, status, data: undefined as never, raw: new Response(null, { status }), headers: new Headers() }
 }
 
-describe("HestiaAuth refresh sequence", () => {
+describe("HestiaAuth login", () => {
   let provider: IdentityProvider
   let client: HestiaNetworkClient
   let auth: HestiaAuth
@@ -63,184 +58,49 @@ describe("HestiaAuth refresh sequence", () => {
     vi.clearAllMocks()
   })
 
-  it("login stores tokens and calls refresh endpoint", async () => {
+  it("login stores identity", async () => {
     raw.post.mockResolvedValueOnce(
       okResponse({
         data: {
-          token: {
-            access: "access-token-1",
-            refresh: "refresh-token-1",
-            type: "Bearer",
-            validity: 900,
-          },
           user: { _id_: "u1", email: "a@b.co", name: "A", permissions: ["administrator"] },
         },
       }),
     )
 
     const result = await auth.login("a@b.co", "pwd")
-    expect(result.token.access).toBe("access-token-1")
-    expect(result.token.refresh).toBe("refresh-token-1")
+    expect(result.user.email).toBe("a@b.co")
 
     expect(raw.post).toHaveBeenCalledWith(
       "api/system/auth/session",
       { email: "a@b.co", password: "pwd" },
-      {},
+      { headers: {} },
       undefined,
     )
-    // tokens stored
-    expect(provider.token("access")).toBe("access-token-1")
-    expect(provider.token("refresh")).toBe("refresh-token-1")
+    expect(provider.identity()).toEqual({ _id_: "u1", email: "a@b.co", name: "A", permissions: ["administrator"] })
   })
 
-  it("refresh() exchanges a refresh token for new tokens", async () => {
-    raw.patch.mockResolvedValueOnce(
+  it("logout clears identity", async () => {
+    raw.post.mockResolvedValueOnce(
       okResponse({
         data: {
-          token: {
-            access: "access-token-2",
-            refresh: "refresh-token-2",
-            type: "Bearer",
-            validity: 900,
-          },
+          user: { _id_: "u1", email: "a@b.co", name: "A", permissions: [] },
         },
       }),
     )
+    raw.delete.mockResolvedValueOnce(okResponse({}))
 
-    const pair = await auth.refresh("old-refresh-token")
-    expect(pair.access).toBe("access-token-2")
-    expect(pair.refresh).toBe("refresh-token-2")
-    expect(raw.patch).toHaveBeenCalledWith(
-      "api/system/auth/session",
-      { refresh_token: "old-refresh-token" },
-      {},
-      undefined,
-    )
-  })
-})
+    await auth.login("a@b.co", "pwd")
+    expect(provider.identity()).toBeTruthy()
 
-describe("HestiaNetworkClient auto-refresh", () => {
-  let provider: IdentityProvider
-  let client: HestiaNetworkClient
-  let raw: any
-
-  function initClient(onAuthChanged?: () => void) {
-    provider = makeProvider()
-    client = new HestiaNetworkClient("http://test.local", "/api", provider, onAuthChanged)
-    const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-    raw = mock.results[mock.results.length - 1]!.value
-    vi.clearAllMocks()
-  }
-
-  it("auto-refreshes on 401 and retries the original request", async () => {
-    initClient()
-
-    // store initial tokens
-    await provider.setTokens("expired-access", "valid-refresh")
-
-    // First call fails with 401, refresh succeeds, retry succeeds
-    raw.get.mockResolvedValueOnce(errorResponse(401))
-    raw.patch.mockResolvedValueOnce(
-      okResponse({
-        data: {
-          token: { access: "new-access", refresh: "new-refresh", type: "Bearer", validity: 900 },
-        },
-      }),
-    )
-    raw.get.mockResolvedValueOnce(
-      okResponse({ data: [{ _id_: "d1" }] }),
-    )
-
-    const res = await client.get<{ data: any[] }>("/collection/items")
-
-    expect(res.data).toEqual({ data: [{ _id_: "d1" }] })
-    // refresh endpoint was called
-    expect(raw.patch).toHaveBeenCalledWith(
-      "api/system/auth/session",
-      { refresh_token: "valid-refresh" },
-    )
-    // new tokens stored
-    expect(provider.token("access")).toBe("new-access")
-    expect(provider.token("refresh")).toBe("new-refresh")
-    // original GET was retried
-    expect(raw.get).toHaveBeenCalledTimes(2)
+    await auth.logout()
+    expect(raw.delete).toHaveBeenCalledWith("api/system/auth/session", undefined, { headers: {} }, undefined)
+    expect(provider.identity()).toBeNull()
   })
 
-  it("does NOT auto-refresh on auth endpoints", async () => {
-    initClient()
-
-    await provider.setTokens("expired-access", "valid-refresh")
-
+  it("login rejects wrong password", async () => {
     raw.post.mockResolvedValueOnce(errorResponse(401))
 
-    await expect(
-      client.post("/system/auth/session", { email: "a", password: "b" }),
-    ).rejects.toThrow()
-
-    // refresh should NOT have been called
-    expect(raw.patch).not.toHaveBeenCalled()
-  })
-
-  it("calls onAuthStateChanged after refresh", async () => {
-    const onChanged = vi.fn()
-    initClient(onChanged)
-
-    await provider.setTokens("expired-access", "valid-refresh")
-
-    raw.get.mockResolvedValueOnce(errorResponse(401))
-    raw.patch.mockResolvedValueOnce(
-      okResponse({
-        data: {
-          token: { access: "new-access", refresh: "new-refresh", type: "Bearer", validity: 900 },
-        },
-      }),
-    )
-    raw.get.mockResolvedValueOnce(okResponse({ data: [] }))
-
-    await client.get("/items")
-    expect(onChanged).toHaveBeenCalledTimes(1)
-  })
-
-  it("clears tokens and throws when refresh also fails", async () => {
-    initClient()
-
-    await provider.setTokens("expired-access", "bad-refresh")
-
-    raw.get.mockResolvedValueOnce(errorResponse(401))
-    raw.patch.mockResolvedValueOnce(errorResponse(403))
-
-    await expect(client.get("/items")).rejects.toThrow()
-    // tokens cleared
-    expect(provider.token("access")).toBeNull()
-    expect(provider.token("refresh")).toBeNull()
-  })
-
-  it("deduplicates concurrent refresh calls", async () => {
-    initClient()
-
-    await provider.setTokens("expired-access", "valid-refresh")
-
-    // both requests fail with 401
-    raw.get.mockResolvedValueOnce(errorResponse(401))
-    raw.get.mockResolvedValueOnce(errorResponse(401))
-    raw.patch.mockResolvedValueOnce(
-      okResponse({
-        data: {
-          token: { access: "new-access", refresh: "new-refresh", type: "Bearer", validity: 900 },
-        },
-      }),
-    )
-    // after refresh, both retries succeed
-    raw.get.mockResolvedValue(okResponse({ data: [] }))
-
-    const [r1, r2] = await Promise.all([
-      client.get("/a"),
-      client.get("/b"),
-    ])
-
-    expect(r1.status).toBe(200)
-    expect(r2.status).toBe(200)
-    // refresh should only be called ONCE
-    expect(raw.patch).toHaveBeenCalledTimes(1)
+    await expect(auth.login("a@b.co", "wrong")).rejects.toThrow()
+    expect(provider.identity()).toBeNull()
   })
 })

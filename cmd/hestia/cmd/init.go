@@ -128,6 +128,52 @@ clean:
 		}
 		fmt.Printf("Wrote %s\n", makefilePath)
 
+		// Write .env.example
+		envPath := filepath.Join(dir, ".env.example")
+		envContent := `# Session secret (required) — generate with: openssl rand -hex 32
+SESSION_SECRET=change-me-to-a-random-secret
+
+# Server port (default :8090)
+PORT=:8090
+
+# Cookie settings
+COOKIE_SECURE=false
+COOKIE_SAMESITE=lax
+`
+		if err := os.WriteFile(envPath, []byte(envContent), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", envPath, err)
+			os.Exit(1)
+		}
+		fmt.Printf("Wrote %s\n", envPath)
+
+		// Update .gitignore
+		gitignorePath := filepath.Join(dir, ".gitignore")
+		gitignoreEntry := ".env\n"
+		existing, err := os.ReadFile(gitignorePath)
+		if err != nil {
+			// .gitignore doesn't exist — create it
+			if err := os.WriteFile(gitignorePath, []byte(gitignoreEntry), 0644); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", gitignorePath, err)
+				os.Exit(1)
+			}
+			fmt.Printf("Wrote %s\n", gitignorePath)
+		} else if !strings.Contains(string(existing), ".env") {
+			// .gitignore exists but missing .env entry
+			f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to open %s: %v\n", gitignorePath, err)
+				os.Exit(1)
+			}
+			if _, err := f.WriteString(gitignoreEntry); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to update %s: %v\n", gitignorePath, err)
+				os.Exit(1)
+			}
+			f.Close()
+			fmt.Printf("Updated %s\n", gitignorePath)
+		} else {
+			fmt.Printf("Skipped %s (already has .env entry)\n", gitignorePath)
+		}
+
 		// Run go mod tidy
 		fmt.Println("Running go mod tidy...")
 		tidy := exec.Command("go", "mod", "tidy")

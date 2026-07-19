@@ -30,15 +30,6 @@ func (p *hestiaIdentityProvider) Authenticate(args ...any) (*iam.Identity, error
 		return nil, fmt.Errorf("invalid auth method type")
 	}
 	switch method {
-	case "bearer":
-		if len(args) < 2 {
-			return nil, fmt.Errorf("missing bearer token")
-		}
-		token, ok := args[1].(string)
-		if !ok || token == "" {
-			return nil, fmt.Errorf("invalid bearer token")
-		}
-		return p.authenticateBearer(token)
 	case "api_key":
 		if len(args) < 2 {
 			return nil, fmt.Errorf("missing API key")
@@ -54,35 +45,7 @@ func (p *hestiaIdentityProvider) Authenticate(args ...any) (*iam.Identity, error
 }
 
 func (p *hestiaIdentityProvider) Deauthenticate(props any) (bool, error) {
-	claims, ok := props.(abstract.Claims)
-	if !ok {
-		return false, nil
-	}
-	ctx := context.Background()
-	if claims.TokenID != "" {
-		if err := p.credProv.Revoke(ctx, &claims); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
-}
-
-func (p *hestiaIdentityProvider) authenticateBearer(token string) (*iam.Identity, error) {
-	ctx := context.Background()
-
-	claims, err := p.credProv.Validate(token)
-	if err != nil {
-		return nil, common.NewSystemError("UNAUTHORIZED", err.Error())
-	}
-
-	if claims.TokenID != "" {
-		blocklisted, err := p.credProv.Revoked(ctx, claims.TokenID)
-		if err == nil && blocklisted {
-			return nil, common.NewSystemError("UNAUTHORIZED", "token has been revoked")
-		}
-	}
-
-	return claimsToIdentity(claims), nil
+	return false, nil
 }
 
 func (p *hestiaIdentityProvider) authenticateAPIKey(key string) (*iam.Identity, error) {

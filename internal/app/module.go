@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
@@ -27,21 +26,18 @@ import (
 	"github.com/asaidimu/hestia/internal/app/users"
 )
 
-
-
 type SystemModule struct {
 	opts      Options
 	cfg       *core.Config
 	disp      *core.LocalDispatcher
 	persist   base.Persistence
-	credProv   abstract.CredentialsProvider
+	credProv  abstract.CredentialsProvider
 
 	userModel      *users.UserModel
 	apiKeyModel    *apikeys.APIKeyModel
 	policyModel    *policies.PolicyModel
 	seedModel      *operations.SeedModel
-	auditModel *audit.AuditModel
-	blocklistSvc   *auth.TokenBlocklistService
+	auditModel     *audit.AuditModel
 	permMgr        core.ReloadablePermissionManager
 	ac             iam.AccessController
 	policyBridge   *policies.PolicyStoreAdapter
@@ -50,10 +46,10 @@ type SystemModule struct {
 
 	blobSvc *blobutil.Service
 
-	bootstrapped   bool
-	ephemeralKey   string
-	adminUserID    string
-	adminEmail     string
+	bootstrapped bool
+	ephemeralKey string
+	adminUserID  string
+	adminEmail   string
 
 	messages []abstract.MessageRegistration
 }
@@ -66,9 +62,6 @@ type Options struct {
 	AdminPassword     string
 	ForceBootstrapped bool
 
-	// DispatcherHooks wraps the dispatcher chain with additional layers.
-	// Applied after the default chain (Secure→Blob→AccessLog→Local).
-	// Each hook receives and returns a Dispatcher.
 	DispatcherHooks []func(abstract.Dispatcher) abstract.Dispatcher
 }
 
@@ -84,13 +77,13 @@ func (m *SystemModule) Name() string { return "system" }
 
 func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) error {
 	m.persist = persist
-	m.blocklistSvc = auth.NewTokenBlocklistService(persist)
 	if err := m.initModels(ctx, persist); err != nil {
 		return err
 	}
 
-	jwtSvc := auth.NewJWTService(m.cfg.JWTSecret, m.cfg.AccessTokenTTL, m.cfg.RefreshTokenTTL, m.cfg.ResetTokenTTL)
-	m.credProv = auth.NewCredentialsProvider(jwtSvc, m.blocklistSvc, m.userModel)
+	sessionSvc := auth.NewSessionService(m.cfg.SessionSecret)
+	resetSecret := m.cfg.SessionSecret + ":reset"
+	m.credProv = auth.NewCredentialsProvider(sessionSvc, resetSecret)
 
 	blobSvc, err := blobutil.NewService(m.cfg.BlobsDir, m.opts.Logger)
 	if err != nil {
@@ -117,8 +110,6 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 	}
 	m.messages = collectFeatureRegistrations(m, apiKeyAuth)
 	m.policyModel.SetKnownOps(collectAllKnownOperations())
-
-	go m.purgeBlocklistLoop()
 
 	return nil
 }
@@ -179,9 +170,6 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 		}
 	}
 
-	// Only seed policies on first start (bootstrap). On subsequent starts
-	// the LiveCollection-backed caches and static defaults handle everything;
-	// call SeedPolicies explicitly after a code update to pick up new defaults.
 	if !m.bootstrapped {
 		if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultPolicyBindings); err != nil {
 			return fmt.Errorf("seed policies: %w", err)
@@ -238,8 +226,6 @@ func (m *SystemModule) initAccessController(ctx context.Context) error {
 		m.policyModel.SetRuleColl(liveColl)
 	}
 
-	// Seed Go default rules (no CEL bugs) — these are always present and
-	// take precedence over any DB rule with the same name.
 	for name, fn := range policies.GoDefaultRules() {
 		live.Set(name, fn)
 	}
@@ -268,8 +254,7 @@ func (m *SystemModule) registerExistingDocumentHandlers(ctx context.Context) err
 }
 
 func (m *SystemModule) SecureDispatcher(next core.Dispatcher) core.Dispatcher {
-	var disp core.Dispatcher = core.NewSecureDispatcher(next, m.permMgr, m.ac)
-	return disp
+	return core.NewSecureDispatcher(next, m.permMgr, m.ac)
 }
 
 func (m *SystemModule) DispatcherChain(next core.Dispatcher) core.Dispatcher {
@@ -282,22 +267,19 @@ func (m *SystemModule) DispatcherChain(next core.Dispatcher) core.Dispatcher {
 	return disp
 }
 
-func (m *SystemModule) AdminUserID() string   { return m.adminUserID }
-func (m *SystemModule) AdminEmail() string    { return m.adminEmail }
-func (m *SystemModule) Bootstrapped() bool    { return m.bootstrapped }
-func (m *SystemModule) EphemeralKey() string  { return m.ephemeralKey }
+func (m *SystemModule) AdminUserID() string                        { return m.adminUserID }
+func (m *SystemModule) AdminEmail() string                         { return m.adminEmail }
+func (m *SystemModule) Bootstrapped() bool                         { return m.bootstrapped }
+func (m *SystemModule) EphemeralKey() string                        { return m.ephemeralKey }
 func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider { return m.credProv }
+func (m *SystemModule) UserModel() *users.UserModel                 { return m.userModel }
 
-// SeedPolicies explicitly re-runs policy seeding (e.g. after a code update
-// that adds new default operations or rules).  Idempotent — new defaults are
-// inserted, existing ones are left unchanged.
+
 func (m *SystemModule) SeedPolicies(ctx context.Context) error {
 	if err := policies.SeedPolicies(ctx, m.policyModel, allDefaultPolicyBindings); err != nil {
 		return fmt.Errorf("seed policies: %w", err)
 	}
 
-	// Refresh the LiveCollection-backed rule cache so newly seeded CEL
-	// rules are immediately visible without a manual reload.
 	if m.liveRules != nil {
 		dbRules, err := m.policyModel.ListRules(ctx)
 		if err != nil {
@@ -319,14 +301,4 @@ func (m *SystemModule) SeedPolicies(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (m *SystemModule) purgeBlocklistLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
-		if err := m.blocklistSvc.PurgeExpired(context.Background()); err != nil {
-			m.opts.Logger.Warn("failed to purge expired blocklist entries", zap.Error(err))
-		}
-	}
 }

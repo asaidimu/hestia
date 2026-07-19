@@ -11,72 +11,82 @@ import (
 
 	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/app/abstract"
+	"github.com/asaidimu/hestia/internal/app/users"
 	httpserver "github.com/asaidimu/hestia/internal/interface/api/http"
 )
 
+type Middleware func(ctx context.Context, req Request, next handlerFunc) (Response, error)
+
 type Options struct {
-	Dispatcher         core.Dispatcher
-	InternalDispatcher  core.Dispatcher
+	Dispatcher        core.Dispatcher
+	InternalDispatcher core.Dispatcher
 	CredentialsProvider abstract.CredentialsProvider
-	Logger             *zap.Logger
-	Addr               string
-	Registrations      []abstract.MessageRegistration
-	CookieConfig       core.CookieConfig
-	AccessTokenTTL     time.Duration
-	RefreshTokenTTL    time.Duration
-	APIPrefix          string
-	StaticFS           fs.FS
+	Logger            *zap.Logger
+	Addr              string
+	Registrations     []abstract.MessageRegistration
+	CookieConfig      core.CookieConfig
+	SessionTTL        time.Duration
+	IdleTTL           time.Duration
+	RefreshTTL        time.Duration
+	APIPrefix         string
+	StaticFS          fs.FS
+	UserModel         *users.UserModel
+	Middleware        []Middleware
 }
 
 type Interface struct {
-	opts            Options
-	trans           Transport
-	disp            core.Dispatcher
-	internalDisp    core.Dispatcher
-	identityProv    iam.IdentityProvider
-	credProv        abstract.CredentialsProvider
-	bootstrapped    bool
-	regs            []abstract.MessageRegistration
-	cookieCfg       core.CookieConfig
-	accessTokenTTL  time.Duration
-	refreshTokenTTL time.Duration
+	opts         Options
+	trans        Transport
+	disp         core.Dispatcher
+	internalDisp core.Dispatcher
+	identityProv iam.IdentityProvider
+	credProv     abstract.CredentialsProvider
+	userModel    *users.UserModel
+	bootstrapped bool
+	regs         []abstract.MessageRegistration
+	cookieCfg    core.CookieConfig
+	sessionTTL   time.Duration
+	idleTTL      time.Duration
+	refreshTTL   time.Duration
+	middleware   []Middleware
 }
 
 func New(opts Options) *Interface {
 	cfg := opts.CookieConfig
-	if cfg.AccessName == "" {
-		cfg.AccessName = "access_token"
+	if cfg.SessionName == "" {
+		cfg.SessionName = "session"
 	}
-	if cfg.AccessPath == "" {
-		cfg.AccessPath = "/"
-	}
-	if cfg.RefreshName == "" {
-		cfg.RefreshName = "refresh_token"
+	if cfg.SessionPath == "" {
+		cfg.SessionPath = "/"
 	}
 	if opts.APIPrefix == "" {
 		opts.APIPrefix = "/api"
 	}
-	if cfg.RefreshPath == "" {
-		cfg.RefreshPath = opts.APIPrefix + "/auth/session"
+	sessionTTL := opts.SessionTTL
+	if sessionTTL <= 0 {
+		sessionTTL = core.DefaultSessionTTL
 	}
-	accessTTL := opts.AccessTokenTTL
-	if accessTTL <= 0 {
-		accessTTL = core.DefaultAccessTokenTTL
+	idleTTL := opts.IdleTTL
+	if idleTTL <= 0 {
+		idleTTL = core.DefaultIdleTTL
 	}
-	refreshTTL := opts.RefreshTokenTTL
+	refreshTTL := opts.RefreshTTL
 	if refreshTTL <= 0 {
-		refreshTTL = core.DefaultRefreshTokenTTL
+		refreshTTL = core.DefaultRefreshTTL
 	}
 	o := &Interface{
-		opts:            opts,
-		disp:            opts.Dispatcher,
-		internalDisp:    opts.InternalDispatcher,
-		identityProv:    newIdentityProvider(opts.CredentialsProvider, opts.InternalDispatcher),
-		credProv:        opts.CredentialsProvider,
-		regs:            opts.Registrations,
-		cookieCfg:       cfg,
-		accessTokenTTL:  accessTTL,
-		refreshTokenTTL: refreshTTL,
+		opts:         opts,
+		disp:         opts.Dispatcher,
+		internalDisp: opts.InternalDispatcher,
+		identityProv: newIdentityProvider(opts.CredentialsProvider, opts.InternalDispatcher),
+		credProv:     opts.CredentialsProvider,
+		userModel:    opts.UserModel,
+		regs:         opts.Registrations,
+		cookieCfg:    cfg,
+		sessionTTL:   sessionTTL,
+		idleTTL:      idleTTL,
+		refreshTTL:   refreshTTL,
+		middleware:   opts.Middleware,
 	}
 	o.trans = newHTTPTransport(opts)
 	return o
@@ -133,10 +143,11 @@ func (o *Interface) Shutdown(ctx context.Context) error {
 	return o.trans.Shutdown(ctx)
 }
 
-// ── core.Interface compliance ───────────────────────────────────────────
-var _ core.Interface = (*Interface)(nil)
+func (o *Interface) SetMiddleware(mw ...Middleware) {
+	o.middleware = append(o.middleware, mw...)
+}
 
-// ── Route registration ─────────────────────────────────────────────────────
+var _ core.Interface = (*Interface)(nil)
 
 func (o *Interface) registerRoutes() {
 	if o.bootstrapped {
@@ -146,24 +157,31 @@ func (o *Interface) registerRoutes() {
 	}
 }
 
-// ── Middleware stack ────────────────────────────────────────────────────────
-
-type handlerFunc func(ctx context.Context, req Request) (Response, error)
+type HandlerFunc func(ctx context.Context, req Request) (Response, error)
+type handlerFunc = HandlerFunc
 
 func (o *Interface) wrap(fn handlerFunc) Handler {
+	var chain HandlerFunc
+	chain = func(ctx context.Context, req Request) (Response, error) {
+		return o.authMiddleware(ctx, req, fn)
+	}
+	for i := len(o.middleware) - 1; i >= 0; i-- {
+		mw := o.middleware[i]
+		next := chain
+		chain = func(ctx context.Context, req Request) (Response, error) {
+			return mw(ctx, req, next)
+		}
+	}
+
 	return func(ctx context.Context, req Request) (resp Response, err error) {
 		ctx = core.ContextWithAuditTransport(ctx, req.ClientIP, req.UserAgent, req.RequestID)
 		ctx = core.ContextWithTraceID(ctx, req.RequestID)
-		resp, err = o.authMiddleware(ctx, req, fn)
-		if v, _ := ctx.Value(setAccessCookieKey).(string); v != "" {
-			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.AccessName, v, o.cookieCfg.AccessPath, o.accessTokenTTL, o.cookieCfg))
-		} else if v, _ := ctx.Value(clearAccessCookieKey).(bool); v {
-			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.AccessName, o.cookieCfg.AccessPath))
-		}
-		if v, _ := ctx.Value(setRefreshCookieKey).(string); v != "" {
-			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.RefreshName, v, o.cookieCfg.RefreshPath, o.refreshTokenTTL, o.cookieCfg))
-		} else if v, _ := ctx.Value(clearRefreshCookieKey).(bool); v {
-			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.RefreshName, o.cookieCfg.RefreshPath))
+		resp, err = chain(ctx, req)
+
+		if v, _ := ctx.Value(setSessionCookieKey).(string); v != "" {
+			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.SessionName, v, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg))
+		} else if v, _ := ctx.Value(clearSessionCookieKey).(bool); v {
+			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.SessionName, o.cookieCfg.SessionPath))
 		}
 		return
 	}

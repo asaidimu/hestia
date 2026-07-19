@@ -3,18 +3,19 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/identity"
 	"github.com/asaidimu/hestia/app/core/registration"
 	"github.com/asaidimu/hestia/internal/app/users"
-	"github.com/asaidimu/hestia/app/core/identity"
 )
 
-func NewCreateSessionHandler(users *users.UserModel, credProv abstract.CredentialsProvider) core.MessageHandler {
+func NewCreateSessionHandler(users *users.UserModel, credProv abstract.CredentialsProvider, sessionTTL time.Duration) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -36,18 +37,8 @@ func NewCreateSessionHandler(users *users.UserModel, credProv abstract.Credentia
 		}
 
 		userID := user.ID()
-		userEmail, _ := user.GetString("email")
-		perms := []string{}
-		if rawPerms, err := user.GetStringArray("permissions"); err == nil {
-			perms = rawPerms
-		}
 
-		accessToken, err := credProv.IssueAccess(userID, userEmail, perms)
-		if err != nil {
-			return nil, err
-		}
-
-		refreshToken, err := credProv.IssueRefresh(userID, userEmail)
+		token, _, err := credProv.CreateSession(userID, sessionTTL)
 		if err != nil {
 			return nil, err
 		}
@@ -58,19 +49,12 @@ func NewCreateSessionHandler(users *users.UserModel, credProv abstract.Credentia
 			return nil, err
 		}
 
-		respDoc := data.MustNewDocument(map[string]any{
-			"token": map[string]any{
-				"access":   accessToken,
-				"refresh":  refreshToken,
-				"type":     "Bearer",
-				"validity": 900,
-			},
-		}, ctx)
+		respDoc := data.MustNewDocument(map[string]any{}, ctx)
 		if sane != nil {
 			respDoc.Set("user", sane)
 		}
 
-		return &registration.Result{Document: respDoc}, nil
+		return &registration.Result{Document: respDoc, SessionToken: token}, nil
 	}
 }
 
@@ -90,51 +74,8 @@ func NewRegisterHandler(users *users.UserModel) core.MessageHandler {
 	}
 }
 
-func NewRefreshSessionHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
+func NewDeleteSessionHandler() core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
-		doc := msg.Input()
-		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		token, _ := body["refresh_token"].(string)
-
-		accessToken, newRefresh, err := credProv.Refresh(ctx, token)
-		if err != nil {
-			return nil, err
-		}
-
-		respDoc := data.MustNewDocument(map[string]any{
-			"token": map[string]any{
-				"access":   accessToken,
-				"refresh":  newRefresh,
-				"type":     "Bearer",
-				"validity": 900,
-			},
-		}, ctx)
-		return &registration.Result{Document: respDoc}, nil
-	}
-}
-
-func NewDeleteSessionHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
-	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
-		claims, ok := identity.ClaimsFromContext(ctx)
-		if ok && claims != nil && claims.TokenID != "" {
-			if err := credProv.Revoke(ctx, claims); err != nil {
-				return nil, err
-			}
-		}
-
-		doc := msg.Input()
-		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		if body != nil {
-			if refreshToken, _ := body["refresh_token"].(string); refreshToken != "" {
-				refreshClaims, err := credProv.Validate(refreshToken)
-				if err == nil && refreshClaims.TokenID != "" {
-					if err := credProv.Revoke(ctx, refreshClaims); err != nil {
-						return nil, err
-					}
-				}
-			}
-		}
-
 		return &registration.Result{}, nil
 	}
 }
@@ -150,26 +91,24 @@ func NewPasswordResetHandler(users *users.UserModel, credProv abstract.Credentia
 			return &registration.Result{}, nil
 		}
 		userID := user.ID()
-		userEmail, _ := user.GetString("email")
-		credProv.IssueReset(userID, userEmail)
+		credProv.IssueResetToken(userID)
 		return &registration.Result{}, nil
 	}
 }
 
-func NewPasswordConfirmHandler(users *users.UserModel) core.MessageHandler {
+func NewPasswordConfirmHandler(users *users.UserModel, credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
+		token, _ := body["token"].(string)
 		password, _ := body["password"].(string)
 
-		claims, ok := identity.ClaimsFromContext(ctx)
-		if !ok || claims == nil {
-			return nil, fmt.Errorf("authorization required")
+		userID, err := credProv.ValidateResetToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("invalid or expired reset token")
 		}
-		if claims.TokenType != "password_reset" {
-			return nil, fmt.Errorf("invalid token type for this operation")
-		}
-		if err := users.ChangePassword(ctx, claims.UserID, password); err != nil {
+
+		if err := users.ChangePassword(ctx, userID, password); err != nil {
 			return nil, err
 		}
 		return &registration.Result{}, nil
@@ -200,46 +139,23 @@ func NewSetBootstrapPasswordHandler(users *users.UserModel, adminUserID string) 
 	}
 }
 
-func NewValidateTokenHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
+func NewValidateSessionHandler(credProv abstract.CredentialsProvider) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		token, _ := doc.GetOr("token", "").(string)
 
-		claims, err := credProv.Validate(token)
+		info, err := credProv.ValidateSession(token)
 		if err != nil {
 			return nil, err
 		}
 		claimsDoc := data.MustNewDocument(map[string]any{
-			"user_id":     claims.UserID,
-			"email":       claims.Email,
-			"permissions": claims.Scopes,
-			"token_type":  claims.TokenType,
-			"token_id":    claims.TokenID,
-			"expires_at":  claims.ExpiresAt,
+			"user_id":    info.UserID,
+			"session_id": info.SessionID,
+			"issued_at":  info.IssuedAt,
+			"expires_at": info.ExpiresAt,
+			"created_at": info.CreatedAt,
 		}, ctx)
 		return &registration.Result{Document: claimsDoc}, nil
-	}
-}
-
-func NewCheckBlocklistHandler(blocklist *TokenBlocklistService) core.MessageHandler {
-	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
-		doc := msg.Input()
-		tokenID, _ := doc.GetOr("token_id", "").(string)
-
-		if blocklist == nil || tokenID == "" {
-			return &registration.Result{
-				Document: data.MustNewDocument(map[string]any{"blocklisted": false}, ctx),
-			}, nil
-		}
-		blocklisted, err := blocklist.IsBlocklisted(ctx, tokenID)
-		if err != nil {
-			return &registration.Result{
-				Document: data.MustNewDocument(map[string]any{"blocklisted": false}, ctx),
-			}, nil
-		}
-		return &registration.Result{
-			Document: data.MustNewDocument(map[string]any{"blocklisted": blocklisted}, ctx),
-		}, nil
 	}
 }
 

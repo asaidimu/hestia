@@ -25,9 +25,6 @@ describe("health", () => {
 describe("auth", () => {
   it("logs in as admin", async () => {
     const result = await container.auth.login("admin@test.local", "password123")
-    expect(result.token.access).toBeTruthy()
-    expect(result.token.refresh).toBeTruthy()
-    expect(result.token.type).toBe("Bearer")
     expect(result.user.email).toBe("admin@test.local")
     expect(result.user.permissions).toContain("administrator")
   })
@@ -38,29 +35,22 @@ describe("auth", () => {
     ).rejects.toThrow(SystemError)
   })
 
-  it("registers a new user", async () => {
-    // need admin login first for the token
-    await container.auth.login("admin@test.local", "password123")
-    const user = await container.auth.register("newuser@test.local", "TestPass1", "New User")
-    expect(user.email).toBe("newuser@test.local")
+  it("registers a new user (no login needed)", async () => {
+    const email = `hestia-test-${Date.now()}@example.co`
+    const user = await container.auth.register(email, "TestPass1", "New User")
+    expect(user.email).toBe(email)
     expect(user.name).toBe("New User")
     expect(user._id_).toBeTruthy()
-  })
-
-  it("refreshes a token", async () => {
-    const loginResult = await container.auth.login("admin@test.local", "password123")
-    const token = await container.auth.refresh(loginResult.token.refresh)
-    expect(token.access).toBeTruthy()
-    expect(token.refresh).toBeTruthy()
   })
 })
 
 describe("users collection (_user_)", () => {
   let registeredId: string
+  let registeredEmail: string
 
   beforeAll(async () => {
-    await container.auth.login("admin@test.local", "password123")
-    const user = await container.auth.register("usertest@test.local", "TestPass1", "User Test")
+    registeredEmail = `usertest-${Date.now()}@example.co`
+    const user = await container.auth.register(registeredEmail, "TestPass1", "User Test")
     registeredId = user._id_
   })
 
@@ -74,7 +64,7 @@ describe("users collection (_user_)", () => {
   it("gets a user by id", async () => {
     const doc = await container.users.read(registeredId)
     expect(doc).toBeDefined()
-    expect(doc!.email).toBe("usertest@test.local")
+    expect(doc!.email).toBe(registeredEmail)
     expect(doc!.name).toBe("User Test")
   })
 
@@ -85,18 +75,14 @@ describe("users collection (_user_)", () => {
 
   it("changes a user password", async () => {
     await container.users.changePassword(registeredId, "TestPass1", "NewPass1")
-    const loginResult = await container.auth.login("usertest@test.local", "NewPass1")
-    expect(loginResult.token.access).toBeTruthy()
+    const loginResult = await container.auth.login(registeredEmail, "NewPass1")
+    expect(loginResult.user.email).toBe(registeredEmail)
   })
 })
 
 describe("api keys (_api_key_)", () => {
   let keyId: string
   let keySecret: string
-
-  beforeAll(async () => {
-    await container.auth.login("admin@test.local", "password123")
-  })
 
   it("creates an api key", async () => {
     const key = await container.keys.create({ data: { name: "Test Key" } })
@@ -139,10 +125,6 @@ describe("api keys (_api_key_)", () => {
 })
 
 describe("pagination via users collection", () => {
-  beforeAll(async () => {
-    await container.auth.login("admin@test.local", "password123")
-  })
-
   it("provides a reactive pager", async () => {
     const pager = container.users.page()
     const initial = pager.page()
@@ -154,15 +136,12 @@ describe("pagination via users collection", () => {
 
     const loading = pager.page()
     expect(loading.loading).toBe(true)
-    // page metadata reflects the last known state until fetch completes
     expect(loading.page.number).toBe(1)
 
-    // subscribe starts empty and delivers on navigate
     const values: any[] = []
     const unsub = pager.subscribe((p) => values.push(p))
     expect(values.length).toBe(0)
 
-    // navigate triggers debounce(50ms) + 2×requestIdleCallback → fetch
     await pager.navigate(2)
     await new Promise<void>((resolve) => setTimeout(resolve, 100))
     expect(values.length).toBeGreaterThanOrEqual(1)

@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/asaidimu/hestia/internal/app"
+	"github.com/asaidimu/hestia/internal/interface/api"
 
 	"github.com/asaidimu/hestia/app/core"
+	"github.com/asaidimu/hestia/app/core/identity"
 	"github.com/asaidimu/hestia"
 
 	_ "github.com/asaidimu/hestia/internal/boot"
@@ -31,7 +33,7 @@ func main() {
 		DataDir:           tmpDir,
 		BlobsDir:          filepath.Join(tmpDir, "blobs"),
 		DBPath:            ":memory:",
-		JWTSecret:         "test-secret-do-not-use-in-production",
+		SessionSecret:     "test-secret-do-not-use-in-production",
 		LogPath:           filepath.Join(tmpDir, "server.log"),
 		LogMaxSize:        100,
 		LogMaxAge:         30,
@@ -40,14 +42,12 @@ func main() {
 		AdminPassword:     "password123",
 		ForceBootstrapped: true,
 		CookieConfig: core.CookieConfig{
-			Domain:       "",
-			Secure:       false,
-			HTTPOnly:     true,
-			SameSite:     1,
-			AccessName:   "access_token",
-			AccessPath:   "/",
-			RefreshName:  "refresh_token",
-			RefreshPath:  "/api/auth/session",
+			Domain:      "",
+			Secure:      false,
+			HTTPOnly:    true,
+			SameSite:    1,
+			SessionName: "session",
+			SessionPath: "/",
 		},
 	}
 
@@ -67,6 +67,17 @@ func main() {
 	}
 
 	ifaces := hestia.BuildInterfaces(application, systemMod, "")
+	ifaces.RPC.SetMiddleware(func(ctx context.Context, req api.Request, next api.HandlerFunc) (api.Response, error) {
+		claims := &identity.Claims{
+			UserID:    "auth_disabled",
+			Email:     "admin@test.local",
+			Scopes:    []string{"administrator"},
+			TokenType: "system",
+		}
+		ctx = identity.ContextWithClaims(ctx, claims)
+		ctx = core.ContextWithAuditIdentity(ctx, claims.UserID, core.ActorTypeUser, core.AuthMethodPassword)
+		return next(ctx, req)
+	})
 	application.AddInterface(ifaces.RPC)
 
 	application.Start(systemMod.Bootstrapped())

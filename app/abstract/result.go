@@ -91,6 +91,7 @@ type Result struct {
 	Blob            Blob
 	DocumentChannel <-chan *data.Document
 	BlobChannel     <-chan Blob
+	SessionToken    string
 }
 
 func NewDocumentResult(doc *data.Document) *Result {

@@ -28,8 +28,6 @@ func envOrBool(key string, defaultVal bool) bool {
 	return defaultVal
 }
 
-// ProjectName is the default data-directory leaf name and DB file basename.
-// Override at build time: go build -ldflags '-X github.com/asaidimu/hestia/internal/boot.ProjectName=myapp'
 var ProjectName = "hestia"
 
 func parseSameSite(s string) abstract.SameSite {
@@ -84,9 +82,12 @@ func NewConfig() (*core.Config, error) {
 	}
 	_ = os.MkdirAll(dataDir, 0700)
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET environment variable is required")
+	signingSecret := os.Getenv("SESSION_SECRET")
+	if signingSecret == "" {
+		signingSecret = os.Getenv("JWT_SECRET")
+	}
+	if signingSecret == "" {
+		return nil, fmt.Errorf("SESSION_SECRET environment variable is required")
 	}
 
 	blobsDir := os.Getenv("BLOBS_DIR")
@@ -101,11 +102,11 @@ func NewConfig() (*core.Config, error) {
 		Port:            port,
 		DataDir:         dataDir,
 		DBPath:          filepath.Join(dataDir, projectName+".db"),
-		JWTSecret:       jwtSecret,
+		SessionSecret:   signingSecret,
 		BcryptCost:      envInt("BCRYPT_COST", core.DefaultBcryptCost),
-		AccessTokenTTL:  envDuration("JWT_ACCESS_TTL", core.DefaultAccessTokenTTL),
-		RefreshTokenTTL: envDuration("JWT_REFRESH_TTL", core.DefaultRefreshTokenTTL),
-		ResetTokenTTL:   envDuration("JWT_RESET_TTL", core.DefaultResetTokenTTL),
+		SessionTTL:      envDuration("SESSION_TTL", core.DefaultSessionTTL),
+		IdleTTL:         envDuration("SESSION_IDLE_TTL", core.DefaultIdleTTL),
+		RefreshTTL:      envDuration("SESSION_REFRESH_TTL", core.DefaultRefreshTTL),
 		LogPath:         filepath.Join(dataDir, "server.log"),
 		LogMaxSize:      100,
 		LogMaxAge:       30,
@@ -117,10 +118,8 @@ func NewConfig() (*core.Config, error) {
 			Secure:      envOrBool("COOKIE_SECURE", true),
 			HTTPOnly:    true,
 			SameSite:    parseSameSite(os.Getenv("COOKIE_SAMESITE")),
-			AccessName:  envOrString("ACCESS_COOKIE_NAME", "access_token"),
-			AccessPath:  envOrString("ACCESS_COOKIE_PATH", "/"),
-			RefreshName: envOrString("REFRESH_COOKIE_NAME", "refresh_token"),
-			RefreshPath: envOrString("REFRESH_COOKIE_PATH", "/api/auth/session"),
+			SessionName: envOrString("SESSION_COOKIE_NAME", "session"),
+			SessionPath: envOrString("SESSION_COOKIE_PATH", "/"),
 		},
 	}, nil
 }

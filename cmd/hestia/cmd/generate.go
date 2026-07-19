@@ -244,10 +244,6 @@ func fieldToExpr(f depField) string {
 		return "m.seedModel"
 	case t == "*audit.AccessLogModel":
 		return "m.accessLogModel"
-	case t == "core.JWTService":
-		return "m.jwtSvc"
-	case t == "core.SessionService":
-		return "m.sessionSvc"
 	case t == "core.Dispatcher" || t == "*corepkg.LocalDispatcher" || t == "*core.LocalDispatcher":
 		return "m.disp"
 	case t == "persistence.Persistence" || t == "base.Persistence":
@@ -260,8 +256,6 @@ func fieldToExpr(f depField) string {
 		return "m.ac"
 	case strings.Contains(t, "BlobStore"):
 		return "m.blobSvc"
-	case strings.Contains(t, "TokenBlocklist"):
-		return "m.blocklistSvc"
 	case strings.Contains(t, "PermissionManager"):
 		return "m.permMgr"
 	case strings.Contains(t, "PolicyStore") || strings.Contains(t, "PolicyOperation"):
