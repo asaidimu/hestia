@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/asaidimu/hestia/compare/v1.0.4...v1.0.5) (2026-07-19)
+
+
+### Bug Fixes
+
+* fix migrations ([f4d07c2](https://github.com/asaidimu/hestia/commit/f4d07c2097eaf7d4a12514a32a179b709f914c70))
+
 ## [1.0.4](https://github.com/asaidimu/hestia/compare/v1.0.3...v1.0.4) (2026-07-19)
 
 
