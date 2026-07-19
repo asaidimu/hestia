@@ -133,6 +133,7 @@ docs/_book
 test/
 
 ./client/node_modules
+./cmd/docs-server/static
 test-server
 .env
 node_modules

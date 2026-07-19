@@ -22,7 +22,7 @@ func _operation_policy__2_0_0_to_3_0_0() *base.MigrationPlan {
 	}
 	
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
-		panic("migrations: _operation_policy__2_0_0_to_3_0_0: implement transformer or remove this line")
+		return doc, nil
 	}
 	return m
 }
