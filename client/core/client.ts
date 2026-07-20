@@ -55,7 +55,7 @@ export class HestiaNetworkClient {
   constructor(
     private baseUrl: string,
     private apiPrefix: string,
-    private tokens: IdentityProvider,
+    private provider: IdentityProvider,
     private onAuthStateChanged?: () => void,
   ) {
     this.raw = createNetworkClient({
@@ -124,8 +124,9 @@ export class HestiaNetworkClient {
       return new HestiaResponse(res.data as T, res.status);
     }
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401) {
       if (!options?.headers?.["X-API-Key"]) {
+        await this.provider.clear()
         this.onAuthStateChanged?.();
       }
       throw new SystemError({

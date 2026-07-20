@@ -65,6 +65,10 @@ func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bo
 		}
 		pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
 
+		if _, ok := o.noRefreshCommands[reg.Name]; ok {
+			o.noRefreshOps[pattern] = struct{}{}
+		}
+
 		o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
 			doc := buildDoc(ctx, req, reg.Input)
 

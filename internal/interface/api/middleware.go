@@ -45,13 +45,15 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 				return Response{Status: 401}, core.ErrUnauthorized
 			}
 
-			// Sliding window — refresh cookie
-			if elapsed > int64(o.refreshTTL.Seconds()) {
+		// Sliding window — refresh cookie
+		if elapsed > int64(o.refreshTTL.Seconds()) {
+			if _, skip := o.noRefreshOps[req.Operation]; !skip {
 				newToken, err := o.credProv.RefreshSession(info)
 				if err == nil {
 					ctx = context.WithValue(ctx, setSessionCookieKey, newToken)
 				}
 			}
+		}
 
 			ident := o.resolveIdentity(ctx, info.UserID)
 			return o.authenticated(ctx, ident, next, req)

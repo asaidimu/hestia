@@ -18,37 +18,40 @@ import (
 type Middleware func(ctx context.Context, req Request, next handlerFunc) (Response, error)
 
 type Options struct {
-	Dispatcher        core.Dispatcher
-	InternalDispatcher core.Dispatcher
+	Dispatcher         core.Dispatcher
+	InternalDispatcher  core.Dispatcher
 	CredentialsProvider abstract.CredentialsProvider
-	Logger            *zap.Logger
-	Addr              string
-	Registrations     []abstract.MessageRegistration
-	CookieConfig      core.CookieConfig
-	SessionTTL        time.Duration
-	IdleTTL           time.Duration
-	RefreshTTL        time.Duration
-	APIPrefix         string
-	StaticFS          fs.FS
-	UserModel         *users.UserModel
-	Middleware        []Middleware
+	Logger             *zap.Logger
+	Addr               string
+	Registrations      []abstract.MessageRegistration
+	CookieConfig       core.CookieConfig
+	SessionTTL         time.Duration
+	IdleTTL            time.Duration
+	RefreshTTL         time.Duration
+	APIPrefix          string
+	StaticFS           fs.FS
+	UserModel          *users.UserModel
+	Middleware         []Middleware
+	NoRefreshCommands  []string
 }
 
 type Interface struct {
-	opts         Options
-	trans        Transport
-	disp         core.Dispatcher
-	internalDisp core.Dispatcher
-	identityProv iam.IdentityProvider
-	credProv     abstract.CredentialsProvider
-	userModel    *users.UserModel
-	bootstrapped bool
-	regs         []abstract.MessageRegistration
-	cookieCfg    core.CookieConfig
-	sessionTTL   time.Duration
-	idleTTL      time.Duration
-	refreshTTL   time.Duration
-	middleware   []Middleware
+	opts           Options
+	trans          Transport
+	disp           core.Dispatcher
+	internalDisp   core.Dispatcher
+	identityProv   iam.IdentityProvider
+	credProv       abstract.CredentialsProvider
+	userModel      *users.UserModel
+	bootstrapped   bool
+	regs           []abstract.MessageRegistration
+	cookieCfg      core.CookieConfig
+	sessionTTL     time.Duration
+	idleTTL        time.Duration
+	refreshTTL     time.Duration
+	middleware         []Middleware
+	noRefreshCommands  map[string]struct{}
+	noRefreshOps       map[string]struct{}
 }
 
 func New(opts Options) *Interface {
@@ -74,19 +77,26 @@ func New(opts Options) *Interface {
 	if refreshTTL <= 0 {
 		refreshTTL = core.DefaultRefreshTTL
 	}
+	nrc := make(map[string]struct{}, len(opts.NoRefreshCommands))
+	for _, p := range opts.NoRefreshCommands {
+		nrc[p] = struct{}{}
+	}
+
 	o := &Interface{
-		opts:         opts,
-		disp:         opts.Dispatcher,
-		internalDisp: opts.InternalDispatcher,
-		identityProv: newIdentityProvider(opts.CredentialsProvider, opts.InternalDispatcher),
-		credProv:     opts.CredentialsProvider,
-		userModel:    opts.UserModel,
-		regs:         opts.Registrations,
-		cookieCfg:    cfg,
-		sessionTTL:   sessionTTL,
-		idleTTL:      idleTTL,
-		refreshTTL:   refreshTTL,
-		middleware:   opts.Middleware,
+		opts:              opts,
+		disp:              opts.Dispatcher,
+		internalDisp:      opts.InternalDispatcher,
+		identityProv:      newIdentityProvider(opts.CredentialsProvider, opts.InternalDispatcher),
+		credProv:          opts.CredentialsProvider,
+		userModel:         opts.UserModel,
+		regs:              opts.Registrations,
+		cookieCfg:         cfg,
+		sessionTTL:        sessionTTL,
+		idleTTL:           idleTTL,
+		refreshTTL:        refreshTTL,
+		middleware:        opts.Middleware,
+		noRefreshCommands: nrc,
+		noRefreshOps:      make(map[string]struct{}),
 	}
 	o.trans = newHTTPTransport(opts)
 	return o
