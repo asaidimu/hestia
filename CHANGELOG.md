@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/asaidimu/hestia/compare/v1.0.7...v1.1.0) (2026-07-20)
+
+
+### Features
+
+* **core:** introduce blob namespace dynamic routing and heartbeat support ([aa9971f](https://github.com/asaidimu/hestia/commit/aa9971f4bd18ebe1063d00f24a83d3a965e2e6d2))
+
 ## [1.0.7](https://github.com/asaidimu/hestia/compare/v1.0.6...v1.0.7) (2026-07-20)
 
 
