@@ -3,7 +3,9 @@ package policies
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 
@@ -287,15 +289,97 @@ func NewDeleteRuleHandler(policyModel *PolicyModel) core.MessageHandler {
 	}
 }
 
-func NewValidateRuleHandler() core.MessageHandler {
+func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
+		payload, _ := msg.Input().GetOr("payload", nil).(map[string]any)
+		if payload == nil {
+			return nil, common.NewSystemError("VALIDATION_ERROR", "request body is required")
+		}
+
+		contextRaw, _ := payload["context"].(map[string]any)
+		identity, _ := contextRaw["identity"].(map[string]any)
+		resource, _ := contextRaw["resource"].(map[string]any)
+		env, _ := contextRaw["environment"].(map[string]any)
+
+		req := iam.AccessRequest{
+			Identity:    identity,
+			Resource:    resource,
+			Environment: env,
+		}
+
+		var fn iam.FunctionRule
+		switch rule := payload["rule"].(type) {
+		case string:
+			var err error
+			fn, err = CompileCEL(rule)
+			if err != nil {
+				return &registration.Result{
+					Document: data.MustNewDocument(map[string]any{
+						"valid":  false,
+						"result": false,
+						"error":  err.Error(),
+					}, ctx),
+				}, nil
+			}
+		case map[string]any:
+			b, _ := json.Marshal(rule)
+			var node RuleNode
+			if err := json.Unmarshal(b, &node); err != nil {
+				return nil, common.NewSystemError("VALIDATION_ERROR", "invalid rule node: "+err.Error())
+			}
+			var err error
+			fn, err = compileValidateNode(&node, liveRules)
+			if err != nil {
+				return &registration.Result{
+					Document: data.MustNewDocument(map[string]any{
+						"valid":  false,
+						"result": false,
+						"error":  err.Error(),
+					}, ctx),
+				}, nil
+			}
+		default:
+			return nil, common.NewSystemError("VALIDATION_ERROR", "rule must be a CEL string or a rule object")
+		}
+
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"valid":  true,
-				"result": true,
+				"result": fn(req),
 			}, ctx),
 		}, nil
 	}
+}
+
+func compileValidateNode(node *RuleNode, liveRules iam.RuleSet[iam.FunctionRule]) (iam.FunctionRule, error) {
+	if node == nil {
+		return nil, fmt.Errorf("nil rule node")
+	}
+	switch node.Type {
+	case "ref":
+		if liveRules == nil {
+			return nil, fmt.Errorf("ref %q not found — no live rules available", node.Name)
+		}
+		fn, ok := liveRules.Get(node.Name)
+		if !ok {
+			return nil, fmt.Errorf("ref %q not found in live rules", node.Name)
+		}
+		return fn, nil
+	case "cel":
+		return CompileCEL(node.Expression)
+	}
+	if node.Operator == "" {
+		return nil, fmt.Errorf("rule node must have expression, type, or operator")
+	}
+	fns := make([]iam.FunctionRule, len(node.Conditions))
+	for i, child := range node.Conditions {
+		fn, err := compileValidateNode(&child, liveRules)
+		if err != nil {
+			return nil, fmt.Errorf("condition %d: %w", i, err)
+		}
+		fns[i] = fn
+	}
+	return combineRules(node.Operator, fns), nil
 }
 
 func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager core.ReloadablePermissionManager, liveRules iam.RuleSet[iam.FunctionRule]) core.MessageHandler {

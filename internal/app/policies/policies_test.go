@@ -2,16 +2,23 @@ package policies_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/app/abstract"
 	"github.com/asaidimu/hestia/internal/app/policies"
 	"github.com/asaidimu/hestia/app/core"
 	"github.com/asaidimu/hestia/internal/utility/persistest"
 )
+
+func TestMain(m *testing.M) {
+	data.ConfigureDocumentFactory(data.DocumentFactoryConfig{}, zap.NewNop())
+	os.Exit(m.Run())
+}
 
 type testMessage struct {
 	name string
@@ -238,4 +245,144 @@ func TestDefaultRules(t *testing.T) {
 	if len(rules) == 0 {
 		t.Fatal("DefaultRules returned empty list")
 	}
+}
+
+type testMsg struct {
+	core.Message
+	input *data.Document
+}
+
+func newTestMsg(ctx context.Context, payload map[string]any) testMsg {
+	return testMsg{
+		Message: testMessage{ctx: ctx},
+		input:   data.MustNewDocument(map[string]any{"payload": payload}, ctx),
+	}
+}
+
+func (m testMsg) Input() *data.Document { return m.input }
+
+func TestValidateRuleHandler(t *testing.T) {
+	ctx := context.Background()
+
+	liveRules := policies.GoDefaultRules()
+
+	t.Run("simple CEL passes", func(t *testing.T) {
+		h := policies.NewValidateRuleHandler(liveRules)
+		msg := newTestMsg(ctx, map[string]any{
+			"rule": "'administrator' in identity.permissions",
+			"context": map[string]any{
+				"identity":    map[string]any{"permissions": []string{"administrator"}},
+				"resource":    map[string]any{},
+				"environment": map[string]any{},
+			},
+		})
+		res, err := h(ctx, msg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		doc := res.Document.ToMap()
+		if doc["valid"] != true {
+			t.Errorf("expected valid=true, got %v", doc["valid"])
+		}
+		if doc["result"] != true {
+			t.Errorf("expected result=true, got %v", doc["result"])
+		}
+	})
+
+	t.Run("simple CEL fails for non-admin", func(t *testing.T) {
+		h := policies.NewValidateRuleHandler(liveRules)
+		msg := newTestMsg(ctx, map[string]any{
+			"rule": "'administrator' in identity.permissions",
+			"context": map[string]any{
+				"identity":    map[string]any{"permissions": []string{"user"}},
+				"resource":    map[string]any{},
+				"environment": map[string]any{},
+			},
+		})
+		res, err := h(ctx, msg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		doc := res.Document.ToMap()
+		if doc["valid"] != true {
+			t.Errorf("expected valid=true, got %v", doc["valid"])
+		}
+		if doc["result"] != false {
+			t.Errorf("expected result=false, got %v", doc["result"])
+		}
+	})
+
+	t.Run("invalid CEL returns valid=false", func(t *testing.T) {
+		h := policies.NewValidateRuleHandler(liveRules)
+		msg := newTestMsg(ctx, map[string]any{
+			"rule":    "not valid cel {{{",
+			"context": map[string]any{},
+		})
+		res, err := h(ctx, msg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		doc := res.Document.ToMap()
+		if doc["valid"] != false {
+			t.Errorf("expected valid=false, got %v", doc["valid"])
+		}
+		if doc["error"] == nil {
+			t.Error("expected error message")
+		}
+	})
+
+	t.Run("composite AND rule", func(t *testing.T) {
+		h := policies.NewValidateRuleHandler(liveRules)
+		msg := newTestMsg(ctx, map[string]any{
+			"rule": map[string]any{
+				"operator": "AND",
+				"conditions": []any{
+					map[string]any{"type": "cel", "expression": "'administrator' in identity.permissions"},
+					map[string]any{"type": "cel", "expression": "identity.user_id != ''"},
+				},
+			},
+			"context": map[string]any{
+				"identity":    map[string]any{"permissions": []string{"administrator"}, "user_id": "abc"},
+				"resource":    map[string]any{},
+				"environment": map[string]any{},
+			},
+		})
+		res, err := h(ctx, msg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		doc := res.Document.ToMap()
+		if doc["valid"] != true {
+			t.Errorf("expected valid=true, got %v", doc["valid"])
+		}
+		if doc["result"] != true {
+			t.Errorf("expected result=true, got %v", doc["result"])
+		}
+	})
+
+	t.Run("composite with ref to default rule", func(t *testing.T) {
+		h := policies.NewValidateRuleHandler(liveRules)
+		msg := newTestMsg(ctx, map[string]any{
+			"rule": map[string]any{
+				"type": "ref",
+				"name": "administrator",
+			},
+			"context": map[string]any{
+				"identity":    map[string]any{"permissions": []string{"administrator"}},
+				"resource":    map[string]any{},
+				"environment": map[string]any{},
+			},
+		})
+		res, err := h(ctx, msg)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		doc := res.Document.ToMap()
+		if doc["valid"] != true {
+			t.Errorf("expected valid=true, got %v", doc["valid"])
+		}
+		if doc["result"] != true {
+			t.Errorf("expected result=true, got %v", doc["result"])
+		}
+	})
 }

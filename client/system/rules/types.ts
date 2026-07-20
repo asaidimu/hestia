@@ -35,15 +35,18 @@ export interface RuleNode {
 }
 
 export interface ValidateRuleRequest {
-  expression: string
-  identity?: Record<string, unknown>
-  resource?: Record<string, unknown>
-  environment?: Record<string, unknown>
+  rule: string | RuleNode
+  context?: {
+    identity?: Record<string, unknown>
+    resource?: Record<string, unknown>
+    environment?: Record<string, unknown>
+  }
 }
 
 export interface ValidateRuleResult {
   valid: boolean
   result?: boolean
+  error?: string
 }
 
 export interface ReloadResult {

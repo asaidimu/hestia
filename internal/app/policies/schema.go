@@ -282,8 +282,16 @@ var policyValidateInputJSON = []byte(`{
 		"policy_validate_payload": {
 			"name": "PolicyValidatePayload",
 			"fields": {
-				"operation": { "name": "operation", "type": "string" },
-				"context": { "name": "context", "type": "record" }
+				"rule": { "name": "rule", "type": "string" },
+				"context": { "name": "context", "type": "object", "schema": { "id": "policy_validate_context" } }
+			}
+		},
+		"policy_validate_context": {
+			"name": "PolicyValidateContext",
+			"fields": {
+				"identity": { "name": "identity", "type": "record" },
+				"resource": { "name": "resource", "type": "record" },
+				"environment": { "name": "environment", "type": "record" }
 			}
 		}
 	}
@@ -304,7 +312,7 @@ var policyValidateOutputJSON = []byte(`{
 			"name": "PolicyValidateResult",
 			"fields": {
 				"valid": { "name": "valid", "type": "boolean" },
-				"result": { "name": "result", "type": "string" }
+				"result": { "name": "result", "type": "boolean" }
 			}
 		}
 	}

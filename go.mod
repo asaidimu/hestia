@@ -3,12 +3,12 @@ module github.com/asaidimu/hestia
 go 1.26.4
 
 require (
-	github.com/asaidimu/blobs v1.0.2
+	github.com/asaidimu/blobs v1.1.0
 	github.com/asaidimu/go-anansi/v8 v8.0.4
 	github.com/asaidimu/go-events v1.1.0
 	github.com/asaidimu/go-events/v2 v2.0.0
 	github.com/asaidimu/go-iam/v2 v2.0.0
-	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/google/cel-go v0.26.1
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.48
 	github.com/natefinch/lumberjack v2.0.0+incompatible
@@ -39,7 +39,6 @@ require (
 	github.com/gofrs/uuid/v5 v5.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/cel-go v0.26.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
