@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/asaidimu/hestia/compare/v1.0.6...v1.0.7) (2026-07-20)
+
+
+### Bug Fixes
+
+* fix auth flow in client ([5abac6d](https://github.com/asaidimu/hestia/commit/5abac6d7839246a872317d399c3c4c2b74c7f60d))
+
 ## [1.0.6](https://github.com/asaidimu/hestia/compare/v1.0.5...v1.0.6) (2026-07-20)
 
 
