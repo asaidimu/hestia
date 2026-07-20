@@ -16,6 +16,16 @@ import (
 	"github.com/asaidimu/hestia/app/core/registration"
 )
 
+type OperationPolicyStore interface {
+	EnsureOperation(ctx context.Context, name, ruleKey, intentType, description string) error
+	DeleteOperation(ctx context.Context, name string) error
+	ForceDeleteOperation(ctx context.Context, name string) error
+	EnsureRule(ctx context.Context, name, expr, description string) error
+	DeleteRule(ctx context.Context, name string) error
+	ForceDeleteRule(ctx context.Context, name string) error
+	ReloadPolicies(ctx context.Context) error
+}
+
 func NewListNamespacesHandler(svc core.BlobStore) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		namespaces, err := svc.ListNamespaces(ctx)
@@ -36,7 +46,7 @@ func NewListNamespacesHandler(svc core.BlobStore) core.MessageHandler {
 	}
 }
 
-func NewCreateNamespaceHandler(svc core.BlobStore) core.MessageHandler {
+func NewCreateNamespaceHandler(svc core.BlobStore, policyOp OperationPolicyStore, registry core.Registry) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
 		displayName, _ := body["display_name"].(string)
@@ -58,6 +68,14 @@ func NewCreateNamespaceHandler(svc core.BlobStore) core.MessageHandler {
 			return nil, fmt.Errorf("create namespace: %w", err)
 		}
 
+		if err := SeedNamespaceOperations(ctx, policyOp, nsID); err != nil {
+			return nil, fmt.Errorf("seed namespace operations: %w", err)
+		}
+
+		if err := RegisterBlobHandlers(registry, svc, nsID); err != nil {
+			return nil, fmt.Errorf("register blob handlers: %w", err)
+		}
+
 		return &registration.Result{
 			Document: mustDoc(map[string]any{
 				"id":           nsID,
@@ -68,11 +86,24 @@ func NewCreateNamespaceHandler(svc core.BlobStore) core.MessageHandler {
 	}
 }
 
-func NewDeleteNamespaceHandler(svc core.BlobStore) core.MessageHandler {
+func NewDeleteNamespaceHandler(svc core.BlobStore, policyOp OperationPolicyStore, registry core.Registry) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		if nsID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
+		}
+
+		UnregisterBlobHandlers(registry, nsID)
+
+		for _, op := range blobOps {
+			opName := "blob." + nsID + "." + op.Suffix
+			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
+				return nil, fmt.Errorf("delete operation %s: %w", opName, err)
+			}
+		}
+
+		if err := policyOp.ReloadPolicies(ctx); err != nil {
+			return nil, fmt.Errorf("reload policies: %w", err)
 		}
 
 		if err := svc.DeleteNamespace(ctx, nsID); err != nil {
@@ -259,6 +290,14 @@ func blobMetaToMap(m *core.BlobMeta) map[string]any {
 	return out
 }
 
+func wrapErr(err error, code, msg string) *common.SystemError {
+	if sysErr, ok := err.(*common.SystemError); ok {
+		return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, sysErr.Error())).
+			WithCause(sysErr)
+	}
+	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
+}
+
 func mapBlobError(err error) error {
 	var notFound *bserrors.NotFoundError
 	if errors.As(err, &notFound) {
@@ -273,4 +312,70 @@ func mapBlobError(err error) error {
 
 func mustDoc(m map[string]any, ctx context.Context) *data.Document {
 	return data.MustNewDocument(m, ctx)
+}
+
+type BlobOp struct {
+	Suffix, RuleKey, Intent, Desc string
+}
+
+var blobOps = []BlobOp{
+	{"list", "administrator", "QUERY", "List blobs"},
+	{"head", "administrator", "QUERY", "Get blob metadata"},
+	{"upload", "administrator", "COMMAND", "Upload a blob"},
+	{"download", "administrator", "COMMAND", "Download a blob"},
+	{"delete", "administrator", "COMMAND", "Delete a blob"},
+	{"update", "administrator", "COMMAND", "Update blob metadata"},
+	{"admin", "administrator", "COMMAND", "Administer blob namespace"},
+}
+
+func BlobOps() []BlobOp { return blobOps }
+
+func SeedNamespaceOperations(ctx context.Context, policyOp OperationPolicyStore, nsID string) error {
+	for _, op := range blobOps {
+		opName := "blob." + nsID + "." + op.Suffix
+		if err := policyOp.EnsureOperation(ctx, opName, op.RuleKey, op.Intent, op.Desc+" in "+nsID); err != nil {
+			return fmt.Errorf("register operation %s: %w", opName, err)
+		}
+	}
+	return policyOp.ReloadPolicies(ctx)
+}
+
+func RegisterBlobHandlers(registry core.Registry, svc core.BlobStore, nsID string) error {
+	entries := []struct {
+		suffix  string
+		handler core.MessageHandler
+	}{
+		{"list", NewListBlobsHandler(svc)},
+		{"head", NewHeadBlobHandler(svc)},
+		{"upload", NewUploadBlobHandler(svc)},
+		{"download", NewDownloadBlobHandler(svc)},
+		{"delete", NewDeleteBlobHandler(svc)},
+		{"update", NewUpdateBlobHandler(svc)},
+	}
+	for _, e := range entries {
+		name := "blob." + nsID + "." + e.suffix
+		if err := registry.RegisterHandler(name, e.handler, core.HandlerInfo{
+			Name:        name,
+			Description: fmt.Sprintf("%s in namespace %q", blobOpDesc(e.suffix), nsID),
+			Enabled:     true,
+		}); err != nil {
+			return fmt.Errorf("register %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func UnregisterBlobHandlers(registry core.Registry, nsID string) {
+	for _, op := range blobOps {
+		registry.DeleteHandler("blob." + nsID + "." + op.Suffix)
+	}
+}
+
+func blobOpDesc(suffix string) string {
+	for _, op := range blobOps {
+		if op.Suffix == suffix {
+			return op.Desc
+		}
+	}
+	return suffix
 }

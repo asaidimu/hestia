@@ -191,18 +191,22 @@ func (o *Interface) wrap(fn handlerFunc) Handler {
 		if v, _ := ctx.Value(setSessionCookieKey).(string); v != "" {
 			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.SessionName, v, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg))
 		} else if v, _ := ctx.Value(clearSessionCookieKey).(bool); v {
-			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.SessionName, o.cookieCfg.SessionPath))
+			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg))
 		}
 		return
 	}
 }
 
-func clearCookie(name, path string) Cookie {
+func clearCookie(name, path string, cfg core.CookieConfig) Cookie {
 	return Cookie{
-		Name:   name,
-		Value:  "",
-		Path:   path,
-		MaxAge: -1,
+		Name:     name,
+		Value:    "",
+		Path:     path,
+		Domain:   cfg.Domain,
+		Secure:   cfg.Secure,
+		HTTPOnly: cfg.HTTPOnly,
+		SameSite: cfg.SameSite,
+		MaxAge:   -1,
 	}
 }
 

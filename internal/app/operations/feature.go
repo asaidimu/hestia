@@ -24,6 +24,7 @@ type Dependencies struct {
 
 func Registrations(deps Dependencies) []abstract.MessageRegistration {
 	return []abstract.MessageRegistration{
+		{Name: "system:core:heartbeat", Handler: NewHeartbeatHandler(), Description: "Session keepalive — does not count as a health check", Enabled: true, Intent: registration.Read, BootstrapSafe: true},
 		{Name: "system:core:health:check", Handler: NewSystemStatusHandler(deps.Bootstrapped), Description: "Health check", Enabled: true, Intent: registration.Read, BootstrapSafe: true, Output: healthOutputSchema()},
 		{Name: "system:core:capability:list", Handler: corepkg.NewListCapabilitiesHandler(deps.Disp), Description: "List all registered handlers", Enabled: true, Intent: registration.Read, Output: capabilitiesOutputSchema()},
 		{Name: "system:core:capability:set", Handler: corepkg.NewSetCapabilityEnabledHandler(deps.Disp), Description: "Enable or disable a handler", Enabled: true, Intent: registration.Update, Input: corepkg.Input{Schema: capabilityNameInputSchema()}, Output: messageOutputSchema()},

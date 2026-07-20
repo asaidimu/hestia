@@ -314,11 +314,14 @@ func (o *Interface) attachCookieClearingResponse(resp Response, name string) Res
 	if name == msgSessionCreate || name == msgSessionDelete {
 		if o.cookieCfg.SessionName != "" {
 			resp.Cookies = append(resp.Cookies, Cookie{
-				Name:   o.cookieCfg.SessionName,
-				Value:  "",
-				Path:   o.cookieCfg.SessionPath,
-				Domain: o.cookieCfg.Domain,
-				MaxAge: -1,
+				Name:     o.cookieCfg.SessionName,
+				Value:    "",
+				Path:     o.cookieCfg.SessionPath,
+				Domain:   o.cookieCfg.Domain,
+				Secure:   o.cookieCfg.Secure,
+				HTTPOnly: o.cookieCfg.HTTPOnly,
+				SameSite: o.cookieCfg.SameSite,
+				MaxAge:   -1,
 			})
 		}
 	}

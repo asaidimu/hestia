@@ -16,6 +16,7 @@ const (
 	Delete
 	Query
 	Stream
+	Check
 )
 
 func (v Verb) String() string {
@@ -32,6 +33,8 @@ func (v Verb) String() string {
 		return "QUERY"
 	case Stream:
 		return "STREAM"
+	case Check:
+		return "CHECK"
 	}
 	return ""
 }
@@ -58,6 +61,8 @@ func (v *Verb) UnmarshalJSON(b []byte) error {
 		*v = Query
 	case "STREAM":
 		*v = Stream
+	case "CHECK":
+		*v = Check
 	}
 	return nil
 }

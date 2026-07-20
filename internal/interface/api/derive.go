@@ -31,6 +31,8 @@ func IntentToHTTPMethod(verb registration.Verb) string {
 		return "POST"
 	case registration.Stream:
 		return "GET"
+	case registration.Check:
+		return "POST"
 	}
 	return "GET"
 }
@@ -41,6 +43,8 @@ func IntentToHTTPPath(verb registration.Verb, path string) string {
 		return path + "/query"
 	case registration.Stream:
 		return path + "/stream"
+	case registration.Check:
+		return path + "/check"
 	}
 	return path
 }

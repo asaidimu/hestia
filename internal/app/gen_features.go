@@ -66,7 +66,9 @@ func collectFeatureRegistrations(m *SystemModule, apiKeyAuth *auth.APIKeyAuthent
 	}
 	all = append(all, auth.Registrations(authDeps)...)
 	blobsDeps := blobs.Dependencies{
-		BlobStore: m.blobSvc,
+		BlobStore:    m.blobSvc,
+		PolicyBridge: m.policyBridge,
+		Registry:     m.disp,
 	}
 	all = append(all, blobs.Registrations(blobsDeps)...)
 	collectionsDeps := collections.Dependencies{

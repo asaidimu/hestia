@@ -2,7 +2,9 @@ package policies
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 
 	"github.com/asaidimu/hestia/app/core"
@@ -31,7 +33,7 @@ func (m *LivePermissionManager) Resolve(msg core.Message) (string, bool, error) 
 			return d.RuleName, d.Enabled, nil
 		}
 	}
-	return "", false, core.ErrOperationLacksPolicy.WithOperation(msg.Name())
+	return "", false, core.ErrOperationLacksPolicy.WithIssue(common.Issue{Message: fmt.Sprintf("command %s has no policy",msg.Name())}).WithOperation(msg.Name())
 }
 
 func (m *LivePermissionManager) ListCapabilities() []core.CapabilityMetadata {

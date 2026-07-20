@@ -71,12 +71,6 @@ func TestDefaultOperations(t *testing.T) {
 		"system:blobs:namespace:list":   "administrator",
 		"system:blobs:namespace:create": "administrator",
 		"system:blobs:namespace:delete": "administrator",
-		"system:blobs:blob:list":        "blob",
-		"system:blobs:blob:head":        "blob",
-		"system:blobs:blob:upload":      "administrator",
-		"system:blobs:blob:download":    "blob",
-		"system:blobs:blob:delete":      "administrator",
-		"system:blobs:blob:update":      "blob",
 	}
 
 	if len(ops) != len(expected) {

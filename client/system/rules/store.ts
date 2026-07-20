@@ -5,8 +5,9 @@ import type {
   PolicyRule,
   CreateRuleRequest,
   UpdateRuleRequest,
-  ReloadResult,
+  ValidateRuleRequest,
   ValidateRuleResult,
+  ReloadResult,
 } from "./types"
 
 const RULES_PATH = "/system/policies/rule"
@@ -52,7 +53,7 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
   }
 
   async create(props: { data: Partial<CreateRuleRequest>; options?: string }): Promise<Document<PolicyRule> | undefined> {
-    const name = props.options!
+    const name = props.options ?? (props.data as any).name
     if (!name) throw new Error("Rule name is required for create")
     const res = await this.client.post<{ data: PolicyRule }>(
       `${RULES_PATH}/${encodeURIComponent(name)}`,
@@ -87,12 +88,12 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
     await this.client.delete(`${RULES_PATH}/${encodeURIComponent(name)}`)
   }
 
-  async validate(expression: string): Promise<boolean> {
-    const res = await this.client.post<{ data: { valid: boolean } }>(
-      `${RULES_PATH}/query`,
-      { expression },
+  async validate(request: ValidateRuleRequest): Promise<ValidateRuleResult> {
+    const res = await this.client.check<{ data: ValidateRuleResult }>(
+      RULES_PATH,
+      request,
     )
-    return res.data?.data?.valid ?? false
+    return res.data?.data ?? { valid: false }
   }
 
   async reload(): Promise<ReloadResult> {

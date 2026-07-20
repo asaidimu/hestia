@@ -51,6 +51,8 @@ export interface StreamOptions {
 
 export class HestiaNetworkClient {
   private raw: NetworkClient;
+  private heartbeatTimer?: ReturnType<typeof setInterval>;
+  private defaultHeartbeatInterval = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     private baseUrl: string,
@@ -71,6 +73,34 @@ export class HestiaNetworkClient {
 
   prefix(): string {
     return this.apiPrefix;
+  }
+
+  /** Start periodic heartbeat to keep the session alive.
+   *  Sends a lightweight GET to the health-check endpoint at the given
+   *  interval (default 5 min).  The server's sliding-window refresh logic
+   *  renews the session cookie automatically. */
+  startHeartbeat(intervalMs?: number): void {
+    this.stopHeartbeat();
+    const ms = intervalMs ?? this.defaultHeartbeatInterval;
+    this.heartbeatTimer = setInterval(() => this.heartbeat(), ms);
+  }
+
+  stopHeartbeat(): void {
+    if (this.heartbeatTimer !== undefined) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
+    }
+  }
+
+  private async heartbeat(): Promise<void> {
+    try {
+      const path = this.canonicalPath("system/core/heartbeat");
+      const url = `${this.baseUrl.replace(/\/+$/, "")}/${path}`;
+      await fetch(url, { method: "GET", credentials: "include" });
+    } catch {
+      // Silently ignore — the session may be gone; the next real
+      // request will trigger the 401 flow and redirect to login.
+    }
   }
 
   private canonicalPath(path: string): string {
@@ -137,6 +167,14 @@ export class HestiaNetworkClient {
 
     const errorBody = res.raw ? await parseErrorBody(res.raw) : null;
     throw toSystemError(res, errorBody);
+  }
+
+  async check<T>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<HestiaResponse<T>> {
+    return this.request<T>("POST", `${path}/check`, body, options);
   }
 
   async get<T>(

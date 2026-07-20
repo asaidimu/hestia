@@ -12,6 +12,12 @@ import (
 	"github.com/asaidimu/hestia/app/abstract"
 )
 
+func NewHeartbeatHandler() corepkg.MessageHandler {
+	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+		return &registration.Result{}, nil
+	}
+}
+
 func NewSystemStatusHandler(bootstrapped func() bool) corepkg.MessageHandler {
 	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
 		return &registration.Result{

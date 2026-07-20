@@ -13,7 +13,7 @@ func DefaultOperations() []Operation {
 		{Name: "system:policies:rule:create", Description: "Create a policy rule"},
 		{Name: "system:policies:rule:update", Description: "Update a policy rule"},
 		{Name: "system:policies:rule:delete", Description: "Delete a policy rule"},
-		{Name: "system:policies:rule:reload", Description: "Reload policies from database"},
+		{Name: "system:policies:reload", Description: "Reload policies from database"},
 	}
 }
 
@@ -30,7 +30,7 @@ func DefaultPolicyBindings() []Policy {
 		{OperationName: "system:policies:rule:create", RuleName: "administrator", Enabled: true, Protected: true},
 		{OperationName: "system:policies:rule:update", RuleName: "administrator", Enabled: true, Protected: true},
 		{OperationName: "system:policies:rule:delete", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:reload", RuleName: "administrator", Enabled: true, Protected: true},
+		{OperationName: "system:policies:reload", RuleName: "administrator", Enabled: true, Protected: true},
 	}
 }
 
@@ -40,12 +40,5 @@ func DefaultRules() []PolicyRule {
 		{Name: "authenticated", RuleType: "simple", Syntax: "cel", Expression: "identity != null", Description: "Any authenticated user"},
 		{Name: "password_reset", RuleType: "simple", Syntax: "cel", Expression: "identity != null && identity.token_type == 'password_reset'", Description: "Valid password-reset token type"},
 		{Name: "administrator", RuleType: "simple", Syntax: "cel", Expression: "identity != null && 'administrator' in identity.permissions", Description: "Administrator-only access"},
-		{Name: "blob", RuleType: "composite", Rules: &RuleNode{
-			Operator: "OR",
-			Conditions: []RuleNode{
-				{Type: "cel", Expression: "resource.public == true"},
-				{Type: "ref", Name: "administrator"},
-			},
-		}, Description: "Blob access — public namespace or admin"},
 	}
 }

@@ -59,6 +59,11 @@ func NewTransport(opts TransportOptions) *HTTPTransport {
 
 func (t *HTTPTransport) Handle(pattern string, handler abstract.Handler) {
 	method, path := splitPattern(pattern)
+	for _, r := range t.routes {
+		if r.method == method && r.prefix == path {
+			panic(fmt.Sprintf("duplicate route registration: %s %s", method, path))
+		}
+	}
 	t.routes = append(t.routes, routeEntry{method: method, prefix: path, handler: handler})
 }
 

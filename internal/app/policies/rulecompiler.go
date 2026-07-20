@@ -39,22 +39,6 @@ func GoDefaultRules() iam.FunctionRuleSet {
 		return false
 	}
 
-	rules["blob"] = func(req iam.AccessRequest) bool {
-		if res, ok := req.Resource.(map[string]any); ok {
-			if pub, ok := res["public"].(bool); ok && pub {
-				return true
-			}
-		}
-		ident, _ := req.Identity.(map[string]any)
-		perms, _ := ident["permissions"].([]string)
-		for _, p := range perms {
-			if p == "administrator" {
-				return true
-			}
-		}
-		return false
-	}
-
 	return rules
 }
 

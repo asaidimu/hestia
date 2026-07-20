@@ -14,4 +14,5 @@ const (
 	Delete      = abstract.Delete
 	Query       = abstract.Query
 	Stream      = abstract.Stream
+	Check       = abstract.Check
 )

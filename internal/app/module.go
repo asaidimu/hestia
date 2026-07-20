@@ -20,6 +20,7 @@ import (
 	"github.com/asaidimu/hestia/internal/app/apikeys"
 	"github.com/asaidimu/hestia/internal/app/audit"
 	"github.com/asaidimu/hestia/internal/app/auth"
+	"github.com/asaidimu/hestia/internal/app/blobs"
 	"github.com/asaidimu/hestia/internal/app/collections"
 	"github.com/asaidimu/hestia/internal/app/operations"
 	"github.com/asaidimu/hestia/internal/app/policies"
@@ -107,6 +108,9 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 
 	if err := m.registerExistingDocumentHandlers(ctx); err != nil {
 		return fmt.Errorf("register document handlers: %w", err)
+	}
+	if err := m.registerExistingBlobHandlers(ctx); err != nil {
+		return fmt.Errorf("register blob handlers: %w", err)
 	}
 	m.messages = collectFeatureRegistrations(m, apiKeyAuth)
 	m.policyModel.SetKnownOps(collectAllKnownOperations())
@@ -234,6 +238,28 @@ func (m *SystemModule) initAccessController(ctx context.Context) error {
 		Rules:    live,
 		CacheTTL: 0,
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return nil
+}
+
+func (m *SystemModule) registerExistingBlobHandlers(ctx context.Context) error {
+	namespaces, err := m.blobSvc.ListNamespaces(ctx)
+	if err != nil {
+		return err
+	}
+	for _, ns := range namespaces {
+		for _, op := range blobs.BlobOps() {
+			opName := "blob." + ns.ID + "." + op.Suffix
+			if err := m.policyBridge.EnsureOperation(ctx, opName, op.RuleKey, op.Intent, op.Desc+" in "+ns.ID); err != nil {
+				return fmt.Errorf("seed operation %s: %w", opName, err)
+			}
+		}
+		if err := blobs.RegisterBlobHandlers(m.disp, m.blobSvc, ns.ID); err != nil {
+			return fmt.Errorf("register blob handlers for %q: %w", ns.ID, err)
+		}
+	}
+	if err := m.policyBridge.ReloadPolicies(ctx); err != nil {
+		return fmt.Errorf("reload policies: %w", err)
+	}
 	return nil
 }
 

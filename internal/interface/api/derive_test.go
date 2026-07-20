@@ -28,6 +28,7 @@ func TestIntentToHTTPMethod(t *testing.T) {
 		{registration.Delete, "DELETE"},
 		{registration.Query, "POST"},
 		{registration.Stream, "GET"},
+		{registration.Check, "POST"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.verb.String(), func(t *testing.T) {
