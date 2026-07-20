@@ -14,12 +14,8 @@ type CapabilityMetadata struct {
 }
 
 type PermissionManager interface {
-	Resolve(msg Message) (string, error)
+	Resolve(msg Message) (ruleKey string, enabled bool, err error)
 	ListCapabilities() []CapabilityMetadata
-}
-
-type PermissionRegistrar interface {
-	RegisterScope(name, scope, description string)
 }
 
 type ReloadablePermissionManager interface {
@@ -48,14 +44,14 @@ func (m *MapPermissionManager) RegisterScope(name, scope, description string) {
 	}
 }
 
-func (m *MapPermissionManager) Resolve(msg Message) (string, error) {
+func (m *MapPermissionManager) Resolve(msg Message) (string, bool, error) {
 	scope, ok := m.scopes[msg.Name()]
 	if !ok {
-		return "", ErrPermissionNotRegistered.WithOperation(msg.Name()).WithIssue(common.Issue{
+		return "", false, ErrPermissionNotRegistered.WithOperation(msg.Name()).WithIssue(common.Issue{
 			Path: msg.Name(),
 		})
 	}
-	return scope, nil
+	return scope, true, nil
 }
 
 func (m *MapPermissionManager) ListCapabilities() []CapabilityMetadata {

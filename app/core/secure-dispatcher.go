@@ -39,9 +39,17 @@ func (d *SecureDispatcher) Send(msg Message) (*registration.Result, error) {
 			}
 		}
 
-		ruleKey, err := d.permMgr.Resolve(msg)
+		ruleKey, enabled, err := d.permMgr.Resolve(msg)
 		if err != nil {
 			return nil, err
+		}
+		if !enabled {
+			return nil, ErrAccessDenied.WithIssues(common.Issues{
+				common.Issue{
+					Message: "policy disabled",
+					Path:    msg.Name(),
+				},
+			})
 		}
 		var resource any
 		if ex, ok := msg.(ResourceContextExtractor); ok {

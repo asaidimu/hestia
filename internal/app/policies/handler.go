@@ -78,39 +78,41 @@ func NewCreatePolicyHandler(policyModel *PolicyModel) core.MessageHandler {
 	}
 }
 
-func NewUpdatePolicyRuleHandler(policyModel *PolicyModel) core.MessageHandler {
+func NewUpdatePolicyHandler(policyModel *PolicyModel) core.MessageHandler {
 	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
 		doc := msg.Input()
 		operationName, _ := doc.GetOr("arguments.name", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		ruleName, _ := body["ruleName"].(string)
 
-		updated, err := policyModel.UpdatePolicyRule(ctx, operationName, ruleName)
-		if err != nil {
-			return nil, err
+		var updated Policy
+		hasUpdate := false
+
+		if _, ok := body["ruleName"]; ok {
+			ruleName, _ := body["ruleName"].(string)
+			var err error
+			updated, err = policyModel.UpdatePolicyRule(ctx, operationName, ruleName)
+			if err != nil {
+				return nil, err
+			}
+			hasUpdate = true
 		}
-		return &registration.Result{
-			Document: data.MustNewDocument(map[string]any{
-				"id":            updated.ID,
-				"operationName": updated.OperationName,
-				"ruleName":      updated.RuleName,
-				"enabled":       updated.Enabled,
-			}, ctx),
-		}, nil
-	}
-}
-
-func NewSetPolicyEnabledHandler(policyModel *PolicyModel) core.MessageHandler {
-	return func(ctx context.Context, msg core.Message) (*registration.Result, error) {
-		doc := msg.Input()
-		operationName, _ := doc.GetOr("arguments.name", "").(string)
-		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		enabled, _ := body["enabled"].(bool)
-
-		updated, err := policyModel.SetPolicyEnabled(ctx, operationName, enabled)
-		if err != nil {
-			return nil, err
+		if _, ok := body["enabled"]; ok {
+			enabled, _ := body["enabled"].(bool)
+			var err error
+			updated, err = policyModel.SetPolicyEnabled(ctx, operationName, enabled)
+			if err != nil {
+				return nil, err
+			}
+			hasUpdate = true
 		}
+		if !hasUpdate {
+			var err error
+			updated, err = policyModel.GetPolicyForOperation(ctx, operationName)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"id":            updated.ID,

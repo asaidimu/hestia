@@ -22,7 +22,11 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
     const res = await this.client.get<{ data: { rules: PolicyRule[] } }>(RULES_PATH)
     const items = res.data?.data?.rules ?? []
     return {
-      data: items.map(r => ({ data: r, metadata: {} })),
+      data: items.map(r => ({
+        _id_: r.id,
+        _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+        ...r,
+      })),
       loading: false,
       page: { number: 1, size: items.length, count: items.length, total: items.length, pages: 1 },
       error: null,
@@ -35,7 +39,12 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
         `${RULES_PATH}/${encodeURIComponent(id)}`,
       )
       if (!res.data?.data) return undefined
-      return { data: res.data.data, metadata: {} }
+      const r = res.data.data
+      return {
+        _id_: r.id,
+        _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+        ...r,
+      }
     } catch (err: any) {
       if (err?.code === "SYNC-001-NF" || err?.code === "NOT_FOUND") return undefined
       throw err
@@ -50,7 +59,12 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
       props.data,
     )
     if (!res.data?.data) return undefined
-    return { data: res.data.data, metadata: {} }
+    const r = res.data.data
+    return {
+      _id_: r.id,
+      _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+      ...r,
+    }
   }
 
   async update(props: { data: UpdateRuleRequest; options?: string }): Promise<Document<PolicyRule> | undefined> {
@@ -61,7 +75,12 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
       props.data,
     )
     if (!res.data?.data) return undefined
-    return { data: res.data.data, metadata: {} }
+    const r = res.data.data
+    return {
+      _id_: r.id,
+      _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+      ...r,
+    }
   }
 
   async delete(name: string): Promise<void> {

@@ -11,6 +11,7 @@ import { HestiaUsers } from "./system/identity/store";
 import type { UserIdentity } from "./system/identity/types";
 import { HestiaLogs } from "./system/logs/store";
 import { HestiaPolicies } from "./system/policies/store";
+import { HestiaRules } from "./system/rules/store";
 import { HestiaBlobClient } from "./blobs/store";
 import { HestiaCapabilities } from "./system/capabilities/store";
 
@@ -31,6 +32,7 @@ export class HestiaClient {
   readonly users: HestiaUsers;
   readonly keys: HestiaKeyStore;
   readonly policies: HestiaPolicies;
+  readonly rules: HestiaRules;
   readonly logs: HestiaLogs;
   readonly collections: HestiaCollections;
   readonly blobs: HestiaBlobClient;
@@ -64,6 +66,7 @@ export class HestiaClient {
     this.users = new HestiaUsers(this.client);
     this.keys = new HestiaKeyStore(this.client,);
     this.policies = new HestiaPolicies(this.client);
+    this.rules = new HestiaRules(this.client);
     this.logs = new HestiaLogs(
       this.client,
       config.baseUrl,

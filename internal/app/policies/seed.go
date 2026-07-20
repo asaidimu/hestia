@@ -3,8 +3,6 @@ package policies
 import (
 	"context"
 	"fmt"
-
-	"github.com/asaidimu/hestia/app/core"
 )
 
 // SeedPolicies seeds the initial set of rules and policies.
@@ -43,8 +41,4 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies
 	return nil
 }
 
-func PopulatePermissionManager(perms core.PermissionRegistrar, allOps []Operation) {
-	for _, op := range allOps {
-		perms.RegisterScope(op.Name, "administrator", op.Description)
-	}
-}
+

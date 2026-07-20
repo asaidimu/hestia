@@ -16,15 +16,18 @@ func TestMapPermissionManager(t *testing.T) {
 	pm.RegisterScope("test:cmd", "administrator", "test command")
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
-	scope, err := pm.Resolve(msg)
+	scope, enabled, err := pm.Resolve(msg)
 	if err != nil {
 		t.Fatalf("Resolve failed for registered scope: %v", err)
 	}
 	if scope != "administrator" {
 		t.Fatalf("expected scope 'administrator', got %q", scope)
 	}
+	if !enabled {
+		t.Fatal("expected enabled=true for registered scope")
+	}
 
-	_, err = pm.Resolve(testMessage{name: "unknown:cmd", ctx: context.Background()})
+	_, _, err = pm.Resolve(testMessage{name: "unknown:cmd", ctx: context.Background()})
 	if err == nil {
 		t.Fatal("expected error for unregistered scope, got nil")
 	}

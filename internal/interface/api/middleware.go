@@ -24,8 +24,12 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 	if o.credProv != nil {
 		if cookie, ok := req.Cookies[o.cookieCfg.SessionName]; ok && cookie != "" {
 			info, err := o.credProv.ValidateSession(cookie)
-			if err == nil {
-				now := time.Now().Unix()
+			if err != nil {
+				ctx = context.WithValue(ctx, clearSessionCookieKey, true)
+				return Response{Status: 401}, core.ErrUnauthorized.WithCause(err)
+			}
+
+			now := time.Now().Unix()
 
 			// Absolute expiry check
 			if now > info.ExpiresAt {
@@ -41,17 +45,16 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 				return Response{Status: 401}, core.ErrUnauthorized
 			}
 
-				// Sliding window — refresh cookie
-				if elapsed > int64(o.refreshTTL.Seconds()) {
-					newToken, err := o.credProv.RefreshSession(info)
-					if err == nil {
-						ctx = context.WithValue(ctx, setSessionCookieKey, newToken)
-					}
+			// Sliding window — refresh cookie
+			if elapsed > int64(o.refreshTTL.Seconds()) {
+				newToken, err := o.credProv.RefreshSession(info)
+				if err == nil {
+					ctx = context.WithValue(ctx, setSessionCookieKey, newToken)
 				}
-
-				ident := o.resolveIdentity(ctx, info.UserID)
-				return o.authenticated(ctx, ident, next, req)
 			}
+
+			ident := o.resolveIdentity(ctx, info.UserID)
+			return o.authenticated(ctx, ident, next, req)
 		}
 	}
 
@@ -62,9 +65,10 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 	}
 	if len(apiKey) > 0 && apiKey[0] != "" {
 		ident, err := o.identityProv.Authenticate("api_key", apiKey[0])
-		if err == nil {
-			return o.authenticated(ctx, ident, next, req)
+		if err != nil {
+			return Response{Status: 401}, core.ErrInvalidCredentials.WithCause(err)
 		}
+		return o.authenticated(ctx, ident, next, req)
 	}
 
 	// Default to anonymous

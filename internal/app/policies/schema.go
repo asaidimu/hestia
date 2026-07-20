@@ -13,8 +13,7 @@ var (
 	_policyRuleCreateInput        = schema.MustFromJSON(policyRuleCreateInputJSON)
 	_policyRuleUpdateInput        = schema.MustFromJSON(policyRuleUpdateInputJSON)
 	_policyCreateInput            = schema.MustFromJSON(policyCreateInputJSON)
-	_policyUpdateRuleInput        = schema.MustFromJSON(policyUpdateRuleInputJSON)
-	_policySetEnabledInput        = schema.MustFromJSON(policySetEnabledInputJSON)
+	_policyUpdateInput            = schema.MustFromJSON(policyUpdateInputJSON)
 	_policyValidateInput          = schema.MustFromJSON(policyValidateInputJSON)
 	_policyValidateOutput         = schema.MustFromJSON(policyValidateOutputJSON)
 	_policyReloadOutput           = schema.MustFromJSON(policyReloadOutputJSON)
@@ -33,8 +32,7 @@ func policyRuleDeleteInputSchema() *definition.Schema         { return _policyRu
 func policyRuleCreateInputSchema() *definition.Schema         { return _policyRuleCreateInput }
 func policyRuleUpdateInputSchema() *definition.Schema         { return _policyRuleUpdateInput }
 func policyCreateInputSchema() *definition.Schema             { return _policyCreateInput }
-func policyUpdateRuleInputSchema() *definition.Schema         { return _policyUpdateRuleInput }
-func policySetEnabledInputSchema() *definition.Schema         { return _policySetEnabledInput }
+func policyUpdateInputSchema() *definition.Schema                { return _policyUpdateInput }
 func policyValidateInputSchema() *definition.Schema           { return _policyValidateInput }
 func policyValidateOutputSchema() *definition.Schema          { return _policyValidateOutput }
 func policyReloadOutputSchema() *definition.Schema            { return _policyReloadOutput }
@@ -227,8 +225,8 @@ var policyCreateInputJSON = []byte(`{
 	}
 }`)
 
-var policyUpdateRuleInputJSON = []byte(`{
-	"name": "policy_update_rule_input",
+var policyUpdateInputJSON = []byte(`{
+	"name": "policy_update_input",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
@@ -239,7 +237,7 @@ var policyUpdateRuleInputJSON = []byte(`{
 		"payload": {
 			"name": "payload",
 			"type": "object",
-			"schema": { "id": "policy_update_rule_payload" }
+			"schema": { "id": "policy_update_payload" }
 		}
 	},
 	"schemas": {
@@ -249,40 +247,10 @@ var policyUpdateRuleInputJSON = []byte(`{
 				"name": { "name": "name", "type": "string" }
 			}
 		},
-		"policy_update_rule_payload": {
-			"name": "PolicyUpdateRulePayload",
+		"policy_update_payload": {
+			"name": "PolicyUpdatePayload",
 			"fields": {
-				"ruleName": { "name": "ruleName", "type": "string" }
-			}
-		}
-	}
-}`)
-
-var policySetEnabledInputJSON = []byte(`{
-	"name": "policy_set_enabled_input",
-	"version": "1.0.0",
-	"fields": {
-		"arguments": {
-			"name": "arguments",
-			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
-		},
-		"payload": {
-			"name": "payload",
-			"type": "object",
-			"schema": { "id": "policy_set_enabled_payload" }
-		}
-	},
-	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
-			"fields": {
-				"name": { "name": "name", "type": "string" }
-			}
-		},
-		"policy_set_enabled_payload": {
-			"name": "PolicySetEnabledPayload",
-			"fields": {
+				"ruleName": { "name": "ruleName", "type": "string" },
 				"enabled": { "name": "enabled", "type": "boolean" }
 			}
 		}

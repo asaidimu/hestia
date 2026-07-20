@@ -169,43 +169,57 @@ func TestPolicyModelDeleteRuleBlockedByPolicy(t *testing.T) {
 	}
 }
 
-func TestDBPermissionManagerRegisterScope(t *testing.T) {
-	pm := policies.NewDBPermissionManager(nil)
-	pm.RegisterScope("test:scope", "admin:*", "test scope description")
+func TestSetPolicyEnabledPreservesRuleName(t *testing.T) {
+	ctx := context.Background()
+	model := newTestModel(t)
 
-	caps := pm.ListCapabilities()
-	if len(caps) == 0 {
-		t.Fatal("ListCapabilities returned empty list after RegisterScope")
+	pol := policies.Policy{
+		OperationName: "test:operation",
+		RuleName:      "administrator",
+		Enabled:       true,
 	}
-
-	var found bool
-	for _, c := range caps {
-		if c.Name == "test:scope" {
-			found = true
-			if c.Scope != "admin:*" {
-				t.Errorf("expected Scope %q, got %q", "admin:*", c.Scope)
-			}
-			if c.Description != "test scope description" {
-				t.Errorf("expected Description %q, got %q", "test scope description", c.Description)
-			}
-			break
-		}
-	}
-	if !found {
-		t.Fatal("ListCapabilities does not include the registered scope")
-	}
-}
-
-func TestDBPermissionManagerResolve(t *testing.T) {
-	pm := policies.NewDBPermissionManager(nil)
-	pm.RegisterScope("admin:read", "admin:*", "admin read scope")
-
-	scope, err := pm.Resolve(testMessage{name: "admin:read", ctx: context.Background()})
+	created, err := model.CreatePolicy(ctx, pol)
 	if err != nil {
-		t.Fatalf("Resolve failed: %v", err)
+		t.Fatalf("CreatePolicy failed: %v", err)
 	}
-	if scope != "admin:*" {
-		t.Errorf("expected scope %q, got %q", "admin:*", scope)
+
+	// Disable — verify ruleName is preserved
+	updated, err := model.SetPolicyEnabled(ctx, "test:operation", false)
+	if err != nil {
+		t.Fatalf("SetPolicyEnabled(false) failed: %v", err)
+	}
+	if updated.Enabled != false {
+		t.Errorf("expected Enabled=false, got %v", updated.Enabled)
+	}
+	if updated.RuleName != "administrator" {
+		t.Errorf("expected RuleName=%q after disable, got %q", "administrator", updated.RuleName)
+	}
+	if updated.ID != created.ID {
+		t.Errorf("expected same ID %q, got %q", created.ID, updated.ID)
+	}
+
+	// Re-enable — verify ruleName still intact
+	updated, err = model.SetPolicyEnabled(ctx, "test:operation", true)
+	if err != nil {
+		t.Fatalf("SetPolicyEnabled(true) failed: %v", err)
+	}
+	if updated.Enabled != true {
+		t.Errorf("expected Enabled=true, got %v", updated.Enabled)
+	}
+	if updated.RuleName != "administrator" {
+		t.Errorf("expected RuleName=%q after re-enable, got %q", "administrator", updated.RuleName)
+	}
+
+	// Read fresh from DB — verify persistence
+	read, err := model.GetPolicyForOperation(ctx, "test:operation")
+	if err != nil {
+		t.Fatalf("GetPolicyForOperation failed: %v", err)
+	}
+	if read.Enabled != true {
+		t.Errorf("expected Enabled=true from DB, got %v", read.Enabled)
+	}
+	if read.RuleName != "administrator" {
+		t.Errorf("expected RuleName=%q from DB, got %q", "administrator", read.RuleName)
 	}
 }
 
