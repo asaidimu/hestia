@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	// "embed"
 	"log"
 	"path/filepath"
 	"runtime"
@@ -16,8 +16,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
-//go:embed frontend/dist
-var assets embed.FS
+//go: embed frontend/dist
+// var assets embed.FS
 
 func init() {
 	_, file, _, _ := runtime.Caller(0)
@@ -48,7 +48,7 @@ func main() {
 		Width:  1024,
 		Height: 768,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			// Assets: assets,
 		},
 		Bind: []any{
 			dispatch.New(app.Dispatcher()),
