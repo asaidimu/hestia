@@ -1,6 +1,6 @@
 import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
-import { HestiaNetworkClient } from "./client";
+import { type Transport } from "./client";
 import { createPagedController, type PageOptions } from "./pager";
 import type {
     Document,
@@ -25,7 +25,7 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
   private pager: PagedData<T>;
 
   constructor(
-    private client: HestiaNetworkClient,
+    private client: Transport,
     private collectionName: string,
     private defaultLimit: number = 50,
   ) {
@@ -41,22 +41,10 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
     return this.collectionName;
   }
 
-  private get queryPath(): string {
-    return `/system/collections/document/${encodeURIComponent(this.collectionName)}/query`;
-  }
-
-  private get documentsPath(): string {
-    return `/system/collections/document/${encodeURIComponent(this.collectionName)}`;
-  }
-
-  private documentPath(id: string): string {
-    return `${this.documentsPath}/${encodeURIComponent(id)}`;
-  }
-
   async find(query?: Record<string, unknown>): Promise<Page<T>> {
-    const res = await this.client.post<ServerEnvelope<T>>(
-      this.queryPath,
-      query ?? {},
+    const res = await this.client.dispatch<ServerEnvelope<T>>(
+      "system:collections:document:query",
+      { arguments: { name: this.collectionName }, payload: query ?? {} },
     );
 
     const items = res.data?.data ?? [];
@@ -73,8 +61,9 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
 
   async read(id: string): Promise<Document<T> | undefined> {
     try {
-      const res = await this.client.get<{ data: Document<T> }>(
-        this.documentPath(id),
+      const res = await this.client.dispatch<{ data: Document<T> }>(
+        "system:collections:document:get",
+        { arguments: { name: this.collectionName, doc_id: id } },
       );
       return res.data?.data;
     } catch (err: any) {
@@ -85,24 +74,26 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
   }
 
   async create(props: { data: Partial<T> }): Promise<Document<T> | undefined> {
-    const res = await this.client.post<SingleEnvelope<T>>(
-      this.documentsPath,
-      props.data,
+    const res = await this.client.dispatch<SingleEnvelope<T>>(
+      "system:collections:document:create",
+      { arguments: { name: this.collectionName }, payload: props.data },
     );
     return res.data!.data;
   }
 
   async update(props: { data: Partial<T>; options?: string }): Promise<Document<T> | undefined> {
     const id = props.options!;
-    const res = await this.client.patch<SingleEnvelope<T>>(
-      this.documentPath(id),
-      props.data,
+    const res = await this.client.dispatch<SingleEnvelope<T>>(
+      "system:collections:document:update",
+      { arguments: { name: this.collectionName, doc_id: id }, payload: props.data },
     );
     return res.data!.data;
   }
 
   async delete(id: string): Promise<void> {
-    await this.client.delete(this.documentPath(id));
+    await this.client.dispatch("system:collections:document:delete", {
+      arguments: { name: this.collectionName, doc_id: id },
+    });
   }
 
   async list(options?: Record<string, unknown>): Promise<Page<T>> {

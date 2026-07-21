@@ -30,7 +30,7 @@ type ResponseType =
   | "formData"
   | "auto";
 
-interface RequestOptions {
+export interface RequestOptions {
   headers?: Record<string, string>;
   responseType?: ResponseType;
   bodyType?: BodyType;
@@ -49,10 +49,44 @@ export interface StreamOptions {
   signal?: AbortSignal;
 }
 
-export class HestiaNetworkClient {
+export interface DispatchInput {
+  arguments?: Record<string, string>;
+  modifiers?: Record<string, string | string[]>;
+  payload?: unknown;
+  headers?: Record<string, string>;
+  responseType?: ResponseType;
+  bodyType?: BodyType;
+  signal?: AbortSignal;
+}
+
+export interface Transport {
+  base(): string;
+  prefix(): string;
+
+  ready(): Promise<void>;
+
+  dispatch<T>(name: string, input?: DispatchInput): Promise<HestiaResponse<T>>;
+
+  get<T>(path: string, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  delete<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  check<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
+  openStream(path: string, handlers: StreamHandlers, options?: StreamOptions): Promise<void>;
+}
+
+interface RouteDoc {
+  method: string;
+  route: string;
+  arguments: string[];
+}
+
+export class HttpTransport implements Transport {
   private raw: NetworkClient;
   private heartbeatTimer?: ReturnType<typeof setInterval>;
-  private defaultHeartbeatInterval = 5 * 60 * 1000; // 5 minutes
+  private defaultHeartbeatInterval = 5 * 60 * 1000;
+  private routeCache: Map<string, RouteDoc> | null = null;
 
   constructor(
     private baseUrl: string,
@@ -67,6 +101,87 @@ export class HestiaNetworkClient {
     });
   }
 
+  private async getRouteCache(): Promise<Map<string, RouteDoc>> {
+    if (this.routeCache) return this.routeCache;
+    this.routeCache = new Map();
+
+    try {
+      const path = this.canonicalPath("system/core/docs");
+      const res = await this.raw.get<any>(path, { headers: {} });
+      if (res.success) {
+        const docs: any[] = res.data?.data;
+        if (Array.isArray(docs)) {
+          for (const doc of docs) {
+            if (!doc.name || !doc.http) continue;
+            const args: string[] = [];
+            const argField = doc.input?.fields?.arguments;
+            if (argField?.schema?.id) {
+              const schemaId = argField.schema.id;
+              const schema = doc.input?.schemas?.[schemaId];
+              if (schema?.fields) {
+                for (const key of Object.keys(schema.fields)) {
+                  args.push(key);
+                }
+              }
+            }
+            this.routeCache.set(doc.name, {
+              method: doc.http.method,
+              route: doc.http.route,
+              arguments: args,
+            });
+          }
+        }
+      }
+    } catch {
+      // Cache stays empty
+    }
+
+    return this.routeCache;
+  }
+
+  private substituteArgs(route: string, args: Record<string, string>): string {
+    return route.replace(/\{(\w+)\}/g, (_, key) => {
+      if (args[key]) return encodeURIComponent(args[key]);
+      return `{${key}}`;
+    });
+  }
+
+  async dispatch<T>(name: string, input?: DispatchInput): Promise<HestiaResponse<T>> {
+    const cache = await this.getRouteCache();
+    const entry = cache.get(name);
+
+    if (!entry) {
+      throw new SystemError({
+        code: "ROUTE_NOT_FOUND",
+        message: `No registered route for handler: ${name} — has the server been bootstrapped?`,
+      });
+    }
+
+    const path = this.substituteArgs(entry.route, input?.arguments ?? {});
+    const method = entry.method as HttpMethod;
+    const options: RequestOptions = {};
+
+    if (input?.headers) options.headers = input.headers;
+    if (input?.responseType) options.responseType = input.responseType;
+    if (input?.bodyType) options.bodyType = input.bodyType;
+    if (input?.signal) options.signal = input.signal;
+
+    if (input?.modifiers) {
+      const qs = Object.entries(input.modifiers)
+        .flatMap(([k, v]) => {
+          const vals = Array.isArray(v) ? v : [v];
+          return vals.map((vv) => `${encodeURIComponent(k)}=${encodeURIComponent(vv)}`);
+        })
+        .join("&");
+      if (qs) {
+        const sep = path.includes("?") ? "&" : "?";
+        return this.request<T>(method, `${path}${sep}${qs}`, input?.payload, options);
+      }
+    }
+
+    return this.request<T>(method, path, input?.payload, options);
+  }
+
   base() {
     return this.baseUrl;
   }
@@ -75,10 +190,10 @@ export class HestiaNetworkClient {
     return this.apiPrefix;
   }
 
-  /** Start periodic heartbeat to keep the session alive.
-   *  Sends a lightweight GET to the health-check endpoint at the given
-   *  interval (default 5 min).  The server's sliding-window refresh logic
-   *  renews the session cookie automatically. */
+  async ready(): Promise<void> {
+    return;
+  }
+
   startHeartbeat(intervalMs?: number): void {
     this.stopHeartbeat();
     const ms = intervalMs ?? this.defaultHeartbeatInterval;
@@ -98,8 +213,7 @@ export class HestiaNetworkClient {
       const url = `${this.baseUrl.replace(/\/+$/, "")}/${path}`;
       await fetch(url, { method: "GET", credentials: "include" });
     } catch {
-      // Silently ignore — the session may be gone; the next real
-      // request will trigger the 401 flow and redirect to login.
+      // Silently ignore
     }
   }
 
@@ -302,3 +416,7 @@ export class HestiaNetworkClient {
     }
   }
 }
+
+// Backward compatibility alias
+export const HestiaNetworkClient = HttpTransport;
+export type HestiaNetworkClient = HttpTransport;

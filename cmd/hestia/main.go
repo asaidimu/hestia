@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/asaidimu/hestia/cmd/hestia/cmd"
+	cmd "github.com/asaidimu/hestia/cmd/hestia/core"
 )
 
 func main() {

@@ -3,7 +3,8 @@ import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { HestiaAuth } from "./auth/store";
 import { HestiaCollections } from "./collections/store";
 import {
-    HestiaNetworkClient,
+    HttpTransport,
+    type Transport,
     type IdentityProvider,
 } from "./core/client";
 import { HestiaKeyStore } from "./system/api-keys/store";
@@ -19,6 +20,7 @@ export interface HestiaConfig {
   baseUrl: string;
   apiPrefix?: string;
   persistence?: SimplePersistence<AuthState>;
+  transport?: Transport;
 }
 
 interface AuthState {
@@ -27,7 +29,7 @@ interface AuthState {
 
 export class HestiaClient {
   readonly store: ReactiveDataStore<AuthState>;
-  readonly client: HestiaNetworkClient;
+  readonly client: Transport;
   readonly auth: HestiaAuth;
   readonly users: HestiaUsers;
   readonly keys: HestiaKeyStore;
@@ -58,8 +60,11 @@ export class HestiaClient {
     const apiPrefix = config.apiPrefix ?? "/api";
 
     this.tokenProvider = tokenProvider;
-    this.client = new HestiaNetworkClient(config.baseUrl, apiPrefix, tokenProvider, () =>
-      this.onAuthStateChanged?.(),
+    this.client = config.transport ?? new HttpTransport(
+      config.baseUrl,
+      apiPrefix,
+      tokenProvider,
+      () => this.onAuthStateChanged?.(),
     );
 
     this.auth = new HestiaAuth(this.client, tokenProvider);
@@ -87,5 +92,9 @@ export class HestiaClient {
 
   collection<T extends Record<string, any>>(name: string) {
     return this.collections.documents<T>(name);
+  }
+
+  ready(){
+      return this.client.ready()
   }
 }

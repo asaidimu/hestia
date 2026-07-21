@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
 	"io/fs"
 	"os"
 	"os/signal"
@@ -11,10 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/asaidimu/hestia"
-	"github.com/asaidimu/hestia/app/core"
-	"github.com/asaidimu/hestia/internal/app"
-	_ "github.com/asaidimu/hestia/internal/boot"
+	"github.com/asaidimu/hestia/core"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 //go:embed static
@@ -37,7 +34,7 @@ func main() {
 		panic(err)
 	}
 
-	cfg := &core.Config{
+	cfg := &runtime.Config{
 		Port:              ":" + port,
 		DataDir:           tmpDir,
 		BlobsDir:          filepath.Join(tmpDir, "blobs"),
@@ -52,7 +49,7 @@ func main() {
 		ForceBootstrapped: true,
 		StaticFS:          staticFS,
 		APIPrefix:         "/api",
-		CookieConfig: core.CookieConfig{
+		CookieConfig: runtime.CookieConfig{
 			Domain:      "",
 			Secure:      false,
 			HTTPOnly:    true,
@@ -62,28 +59,15 @@ func main() {
 		},
 	}
 
-	application, systemMod, err := hestia.Setup(hestia.SetupConfig{
+	app, err := hestia.Setup(hestia.SetupConfig{
 		Config: cfg,
-		Options: app.Options{
-			ForceBootstrapped: true,
-		},
 	})
 	if err != nil {
 		panic(err)
 	}
-	defer application.Close()
+	defer app.Close()
 
-	if err := systemMod.SeedPolicies(context.Background()); err != nil {
-		panic(err)
-	}
-
-	ifaces := hestia.BuildInterfaces(application, systemMod, "")
-	application.AddInterface(ifaces.RPC)
-
-	application.Start(systemMod.Bootstrapped())
-
-	fmt.Println(port)
-	os.Stdout.Sync()
+	app.Start()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -91,5 +75,5 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	application.Shutdown(ctx)
+	app.Shutdown(ctx)
 }

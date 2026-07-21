@@ -1,5 +1,5 @@
 import type { QueryDSL } from "@asaidimu/query"
-import { HestiaNetworkClient } from "../../core/client"
+import { type Transport } from "../../core/client"
 import { ReactiveDataStore } from "@asaidimu/utils-store"
 import { createPagedController } from "../../core/pager"
 import type { Document, Page, PagedData, PaginationInfo, StoreEvent } from "../../core/types"
@@ -11,13 +11,12 @@ import type {
     SetPolicyEnabledRequest,
 } from "./types"
 
-const POLICIES_PATH = "/system/policies/policy"
 const POLICY_COLLECTION = "_operation_policy_"
 
 export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, string, QueryDSL<Policy>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pager: PagedData<Policy>
 
-  constructor(private client: HestiaNetworkClient) {
+  constructor(private client: Transport) {
     this.pager = createPagedController<Policy>(
       "policies",
       new ReactiveDataStore<any>({}),
@@ -31,9 +30,9 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
   }
 
   async query(qdsl: Record<string, unknown>): Promise<Page<Policy>> {
-    const res = await this.client.post<{ data: any[]; metadata?: { page?: PaginationInfo } }>(
-      `/system/collections/document/${POLICY_COLLECTION}/query`,
-      qdsl,
+    const res = await this.client.dispatch<{ data: any[]; metadata?: { page?: PaginationInfo } }>(
+      "system:collections:document:query",
+      { arguments: { name: POLICY_COLLECTION }, payload: qdsl },
     )
     const items = res.data?.data ?? []
     const pagination = res.data?.metadata?.page
@@ -55,7 +54,9 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
   }
 
   async list(_options?: QueryDSL<Policy>): Promise<Page<Policy>> {
-    const res = await this.client.get<{ data: { policies: Policy[] } }>(POLICIES_PATH)
+    const res = await this.client.dispatch<{ data: { policies: Policy[] } }>(
+      "system:policies:policy:list",
+    )
     const items = res.data?.data?.policies ?? []
     return {
       data: items.map(p => ({ data: p, metadata: {} })),
@@ -67,11 +68,22 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
 
   async read(id: string): Promise<Document<Policy> | undefined> {
     try {
-      const res = await this.client.get<{ data: Policy }>(
-        `${POLICIES_PATH}/${encodeURIComponent(id)}`,
+      const res = await this.client.dispatch<{ data: Policy }>(
+        "system:policies:policy:list",
       )
-      if (!res.data?.data) return undefined
-      return { data: res.data.data, metadata: {} }
+      const items = (res.data?.data as any)?.policies ?? []
+      const match = items.find((p: any) => p._id_ === id || p.operation === id)
+      if (!match) return undefined
+      return {
+        data: {
+          id: match._id_,
+          operationName: match.operation ?? "",
+          ruleName: match.rule ?? "",
+          enabled: match.enabled ?? true,
+          protected: match.protected ?? false,
+        },
+        metadata: {},
+      }
     } catch (err: any) {
       if (err?.code === "SYNC-001-NF" || err?.code === "NOT_FOUND") return undefined
       throw err
@@ -82,9 +94,9 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
     const name = props.options ?? (props.data as any).name
     if (!name) throw new Error("Operation name is required for create")
     const body: CreatePolicyRequest = { ruleName: (props.data as any).ruleName ?? "" }
-    const res = await this.client.post<{ data: Policy }>(
-      `${POLICIES_PATH}/${encodeURIComponent(name)}`,
-      body,
+    const res = await this.client.dispatch<{ data: Policy }>(
+      "system:policies:policy:create",
+      { arguments: { name }, payload: body },
     )
     if (!res.data?.data) return undefined
     return { data: res.data.data, metadata: {} }
@@ -93,18 +105,18 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
   async update(props: { data: UpdatePolicyRuleRequest; options?: string }): Promise<Document<Policy> | undefined> {
     const name = props.options!
     if (!name) throw new Error("Operation name is required for update")
-    const res = await this.client.patch<{ data: Policy }>(
-      `${POLICIES_PATH}/${encodeURIComponent(name)}`,
-      props.data,
+    const res = await this.client.dispatch<{ data: Policy }>(
+      "system:policies:policy:update",
+      { arguments: { name }, payload: props.data },
     )
     if (!res.data?.data) return undefined
     return { data: res.data.data, metadata: {} }
   }
 
   async setEnabled(name: string, enabled: boolean): Promise<Document<Policy>> {
-    const res = await this.client.patch<{ data: Policy }>(
-      `${POLICIES_PATH}/${encodeURIComponent(name)}`,
-      { enabled } as SetPolicyEnabledRequest,
+    const res = await this.client.dispatch<{ data: Policy }>(
+      "system:policies:policy:update",
+      { arguments: { name }, payload: { enabled } as SetPolicyEnabledRequest },
     )
     return { data: res.data!.data, metadata: {} }
   }

@@ -1,6 +1,6 @@
 import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
-import { HestiaNetworkClient } from "../core/client";
+import { type Transport } from "../core/client";
 import { createPagedController } from "../core/pager";
 import type { Document, Page, PagedData, StoreEvent } from "../core/types";
 import type { DocumentStore } from "../core/types";
@@ -41,7 +41,7 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
   private prefixFilter = "";
 
   constructor(
-    private client: HestiaNetworkClient,
+    private client: Transport,
     private ns: string,
   ) {
     this.pager = createPagedController<BlobMeta>(
@@ -60,10 +60,6 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     this.prefixFilter = prefix;
   }
 
-  private basePath() {
-    return `/system/blobs/blob/${encodeURIComponent(this.ns)}`;
-  }
-
   async find(query?: QueryDSL<BlobMeta>): Promise<Page<BlobMeta>> {
     const prefix = this.prefixFilter || (query as any)?.prefix || "";
     const limit =
@@ -73,9 +69,12 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     if (prefix) req.prefix = prefix;
     if (limit) req.limit = limit;
 
-    const res = await this.client.post<{
+    const res = await this.client.dispatch<{
       data: { blobs: BlobMeta[] };
-    }>(`${this.basePath()}/query`, req);
+    }>("system:blobs:blob:list", {
+      arguments: { ns: this.ns },
+      payload: req,
+    });
 
     const items = res.data?.data?.blobs ?? [];
     return { data: items.map(asDoc), loading: false, page: pageMeta(items), error: undefined };
@@ -83,8 +82,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
 
   async read(key: string): Promise<Document<BlobMeta> | undefined> {
     try {
-      const res = await this.client.post<{ data: BlobMeta }>(
-        `${this.basePath()}/${encodeURIComponent(key)}/query`,
+      const res = await this.client.dispatch<{ data: BlobMeta }>(
+        "system:blobs:blob:head",
+        { arguments: { ns: this.ns, key } },
       );
       if (!res.data?.data) return undefined;
       return asDoc(res.data.data);
@@ -101,17 +101,17 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
   async update(props: { data: Partial<BlobMeta>; options?: Record<string, any> }): Promise<Document<BlobMeta> | undefined> {
     const key = props.options?.key as string;
     if (!key) throw new Error("options.key is required for blob update");
-    const res = await this.client.patch<{ data: BlobMeta }>(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-      { custom: props.data },
+    const res = await this.client.dispatch<{ data: BlobMeta }>(
+      "system:blobs:blob:update",
+      { arguments: { ns: this.ns, key }, payload: { custom: props.data } },
     );
     return asDoc(res.data!.data);
   }
 
   async delete(key: string): Promise<void> {
-    await this.client.delete(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-    );
+    await this.client.dispatch("system:blobs:blob:delete", {
+      arguments: { ns: this.ns, key },
+    });
   }
 
   async list(options?: QueryDSL<BlobMeta>): Promise<Page<BlobMeta>> {
@@ -125,10 +125,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     const ct = props.options?.contentType || props.file.type;
     if (ct) headers["Content-Type"] = ct;
 
-    const res = await this.client.post<{ data: BlobMeta }>(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-      props.file,
-      { headers, bodyType: "blob" },
+    const res = await this.client.dispatch<{ data: BlobMeta }>(
+      "system:blobs:blob:upload",
+      { arguments: { ns: this.ns, key }, payload: props.file, headers, bodyType: "blob" },
     );
     return asDoc(res.data!.data);
   }
@@ -154,9 +153,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
   }
 
   async download(key: string): Promise<{ data: Blob; contentType: string }> {
-    const res = await this.client.get<Blob>(
-      `${this.basePath()}/${encodeURIComponent(key)}`,
-      { responseType: "blob" },
+    const res = await this.client.dispatch<Blob>(
+      "system:blobs:blob:download",
+      { arguments: { ns: this.ns, key }, responseType: "blob" },
     );
     const blob = res.data!;
     return { data: blob, contentType: blob.type };
@@ -166,35 +165,33 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
 export class HestiaBlobClient {
   private apiPrefix: string;
 
-  constructor(private client: HestiaNetworkClient, apiPrefix: string = "/api") {
+  constructor(private client: Transport, apiPrefix: string = "/api") {
     this.apiPrefix = apiPrefix;
   }
 
-  private nsBase = "/system/blobs";
-
   async namespaces(): Promise<NamespaceInfo[]> {
-    const res = await this.client.post<{
+    const res = await this.client.dispatch<{
       data: { namespaces: NamespaceInfo[] };
-    }>(`${this.nsBase}/namespace/query`);
+    }>("system:blobs:namespace:list");
     return res.data?.data?.namespaces ?? [];
   }
 
   async createNamespace(data: CreateNamespaceRequest): Promise<NamespaceInfo> {
-    const res = await this.client.post<{ data: NamespaceInfo }>(
-      `${this.nsBase}/namespace`,
-      data,
+    const res = await this.client.dispatch<{ data: NamespaceInfo }>(
+      "system:blobs:namespace:create",
+      { payload: data },
     );
     return res.data!.data;
   }
 
   async deleteNamespace(ns: string): Promise<void> {
-    await this.client.delete(
-      `${this.nsBase}/namespace/${encodeURIComponent(ns)}`,
-    );
+    await this.client.dispatch("system:blobs:namespace:delete", {
+      arguments: { ns },
+    });
   }
 
   blob(namespace: string, key:string) {
-      return `${this.client.base()}${this.apiPrefix}${this.nsBase}/blob/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`
+      return `${this.client.base()}${this.apiPrefix}/system/blobs/blob/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`
   }
 
   namespace(ns: string): BlobNamespace {

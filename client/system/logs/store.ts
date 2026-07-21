@@ -1,6 +1,6 @@
 import type { QueryDSL } from "@asaidimu/query"
 import { ReactiveDataStore } from "@asaidimu/utils-store"
-import { HestiaNetworkClient } from "../../core/client"
+import { type Transport } from "../../core/client"
 import { createPagedController, type PageOptions } from "../../core/pager"
 import type { Document, Page, PagedData, PaginationInfo, StoreEvent } from "../../core/types"
 import type { DocumentStore } from "../../core/types"
@@ -22,7 +22,7 @@ export class HestiaLogs implements DocumentStore<AuditEntry, QueryDSL<AuditEntry
   private apiPrefix: string;
 
   constructor(
-    private client: HestiaNetworkClient,
+    private client: Transport,
     private baseUrl: string,
     apiPrefix: string = "/api",
   ) {

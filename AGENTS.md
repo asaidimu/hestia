@@ -4,8 +4,8 @@ This codebase relies on **go-anansi** for database operations and its proprietar
 * **Local Development Path:** `~/projects/go-anansi` for reference.
 When working with schemas: 
 1. Prefer writing schemas in json. The guide meta schema is at `~/projects/go-anansi/core/schema/meta/schema.json`
-2. Schemas that contribute towards collection go into `./internal/app/**/schema/*.schema.json"` as plain json files
-3. Schemas that describe DTOs go into `./internal/app/**/schema.go"` as 
+2. Schemas that contribute towards collection go into `./core/internal/feature/**/schema/*.schema.json` as plain json files
+3. Schemas that describe DTOs go into `./core/internal/feature/**/schema.go` as 
 ```go 
 
 var mySchema = []byte(`{

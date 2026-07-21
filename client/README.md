@@ -24,9 +24,16 @@ bun add @asaidimu/hestia
 ## Quick Start
 
 ```ts
-import { HestiaClient } from "@asaidimu/hestia"
+import { HestiaClient, WailsTransport } from "@asaidimu/hestia"
 
+// HTTP mode (browser/node)
 const api = new HestiaClient({ baseUrl: "http://localhost:8070" })
+
+// Wails desktop mode — same API, different transport
+const desktop = new HestiaClient({
+  transport: new WailsTransport(),
+})
+// Now api.auth.login(), api.users.find(), etc. call Go directly
 
 // Login as admin
 const { token, user } = await api.auth.login("admin@test.local", "password123")
@@ -62,7 +69,7 @@ The main entry point. Construct with a `baseUrl` pointing to a Hestia server.
 | `collections` | `HestiaCollections` | Generic collection metadata |
 | `blobs` | `HestiaBlobClient` | Blob (file) storage |
 | `capabilities` | `HestiaCapabilities` | Available capabilities |
-| `client` | `HestiaNetworkClient` | Low-level HTTP client |
+| `client` | `Transport` | Low-level transport (HTTP or Wails) |
 
 ### Auth
 

@@ -4,19 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
-	"time"
 
-	"github.com/asaidimu/hestia/internal/app"
-	"github.com/asaidimu/hestia/internal/interface/api"
-
-	"github.com/asaidimu/hestia/app/core"
-	"github.com/asaidimu/hestia/app/core/identity"
-	"github.com/asaidimu/hestia"
-
-	_ "github.com/asaidimu/hestia/internal/boot"
+	"github.com/asaidimu/hestia/core"
+	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/identity"
+	"github.com/asaidimu/hestia/core/interface/api"
 )
 
 func main() {
@@ -28,7 +21,7 @@ func main() {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	cfg := &core.Config{
+	cfg := &runtime.Config{
 		Port:              ":" + port,
 		DataDir:           tmpDir,
 		BlobsDir:          filepath.Join(tmpDir, "blobs"),
@@ -41,7 +34,7 @@ func main() {
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
 		ForceBootstrapped: true,
-		CookieConfig: core.CookieConfig{
+		CookieConfig: runtime.CookieConfig{
 			Domain:      "",
 			Secure:      false,
 			HTTPOnly:    true,
@@ -51,45 +44,32 @@ func main() {
 		},
 	}
 
-	application, systemMod, err := hestia.Setup(hestia.SetupConfig{
+	app, err := hestia.Setup(hestia.SetupConfig{
 		Config: cfg,
-		Options: app.Options{
-			ForceBootstrapped: true,
+		Middlewares: []hestia.Middleware{
+			func(ctx context.Context, req api.Request, next api.HandlerFunc) (api.Response, error) {
+				claims := &identity.Claims{
+					UserID:    "auth_disabled",
+					Email:     "admin@test.local",
+					Scopes:    []string{"administrator"},
+					TokenType: "system",
+				}
+				ctx = identity.ContextWithClaims(ctx, claims)
+				ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, runtime.ActorTypeUser, runtime.AuthMethodPassword)
+				return next(ctx, req)
+			},
 		},
 	})
 	if err != nil {
 		panic(err)
 	}
-	defer application.Close()
-
-	if err := systemMod.SeedPolicies(context.Background()); err != nil {
+	if err := app.Start(); err != nil {
 		panic(err)
 	}
-
-	ifaces := hestia.BuildInterfaces(application, systemMod, "")
-	ifaces.RPC.SetMiddleware(func(ctx context.Context, req api.Request, next api.HandlerFunc) (api.Response, error) {
-		claims := &identity.Claims{
-			UserID:    "auth_disabled",
-			Email:     "admin@test.local",
-			Scopes:    []string{"administrator"},
-			TokenType: "system",
-		}
-		ctx = identity.ContextWithClaims(ctx, claims)
-		ctx = core.ContextWithAuditIdentity(ctx, claims.UserID, core.ActorTypeUser, core.AuthMethodPassword)
-		return next(ctx, req)
-	})
-	application.AddInterface(ifaces.RPC)
-
-	application.Start(systemMod.Bootstrapped())
+	defer app.Close()
 
 	fmt.Println(port)
 	os.Stdout.Sync()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	application.Shutdown(ctx)
+	select {}
 }

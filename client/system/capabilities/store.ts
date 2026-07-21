@@ -1,18 +1,18 @@
-import { HestiaNetworkClient } from "../../core/client";
+import { type Transport } from "../../core/client";
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
 import type { DocumentStore } from "../../core/types";
 
 export class HestiaCapabilities implements DocumentStore<any, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
   constructor(
-    private client: HestiaNetworkClient,
+    private client: Transport,
   ) {
 
   }
 
   async find(_query?: Record<string, unknown>): Promise<Page<any>> {
-    const res = await this.client.get<{ data: Array<Document<any>> }>(
-      `/system/core/docs`,
-    );
+    const res = await this.client.dispatch<{ data: Array<Document<any>> }>(
+      "system:core:docs:list",
+    )
     const items = res.data?.data ?? [];
     return {
       data: items,

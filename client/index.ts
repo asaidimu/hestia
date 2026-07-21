@@ -1,5 +1,6 @@
 // Core
 export * from "./core/client"
+export { WailsTransport } from "./core/wails-transport"
 export { HestiaCollection } from "./core/collection"
 export * from "./core/errors"
 export * from "./core/types"

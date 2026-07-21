@@ -2,7 +2,7 @@
   "version": "1",
   "schemas": {
     "_api_key_": {
-      "path": "internal/app/apikeys/schema/api_key.schema.json",
+      "path": "core/internal/feature/apikeys/schema/api_key.schema.json",
       "hash": "sha256:db8f4663f766b3eae84428121d8fa6b70937606c03d518666f590aee7d979b75",
       "version": "2.0.0",
       "schema": {
@@ -218,7 +218,7 @@
       ]
     },
     "_audit_log_": {
-      "path": "internal/app/audit/schema/access_log.schema.json",
+      "path": "core/internal/feature/audit/schema/access_log.schema.json",
       "hash": "sha256:46f8d00dacbed16175bb78f83b59a560898ea0950c7f3800cd6f40b086087707",
       "version": "1.0.0",
       "schema": {
@@ -504,7 +504,7 @@
       "migration_file": "019f6642-12d1-7a61-832f-bac77b80eea5__audit_log__major.go"
     },
     "_iam_rule_": {
-      "path": "internal/app/policies/schema/iam_rule.schema.json",
+      "path": "core/internal/feature/policies/schema/iam_rule.schema.json",
       "hash": "sha256:c4d907f6a6afc1a648e91c3f0cc3d89dbc67dcc0655afc292c69865c8d1e989d",
       "version": "2.0.0",
       "schema": {
@@ -625,7 +625,7 @@
       ]
     },
     "_operation_policy_": {
-      "path": "internal/app/policies/schema/operation_policy.schema.json",
+      "path": "core/internal/feature/policies/schema/operation_policy.schema.json",
       "hash": "sha256:ca9893a77c209c9f735d6ab6d4443619ab7cada49479642a5da679b6187f8be4",
       "version": "3.0.0",
       "schema": {
@@ -765,7 +765,7 @@
       ]
     },
     "_seed_": {
-      "path": "internal/app/operations/schema/seed.schema.json",
+      "path": "core/internal/feature/operations/schema/seed.schema.json",
       "hash": "sha256:609b8a25b8118f61727c5819875e2dc52e8f9cefe74246147c55a2735b55d7e0",
       "version": "1.0.0",
       "schema": {
@@ -795,7 +795,7 @@
       "migration_file": "019f6640-8f9a-7077-abea-89dd860a22f7__seed__major.go"
     },
     "_token_blocklist_": {
-      "path": "internal/app/auth/schema/token_blocklist.schema.json",
+      "path": "core/internal/feature/auth/schema/token_blocklist.schema.json",
       "hash": "sha256:93217df99995831306aa2b46b4eb94d3e8368cf4712a562dde2ac15d1c105e2e",
       "version": "1.0.0",
       "schema": {
@@ -838,7 +838,7 @@
       "migration_file": "019f6640-8f99-7f1f-992b-00fc578a2ce1__token_blocklist__major.go"
     },
     "_user_": {
-      "path": "internal/app/users/schema/user.schema.json",
+      "path": "core/internal/feature/users/schema/user.schema.json",
       "hash": "sha256:2395587f1ef1948e90ef745a95b9bdab03582aacc85165b88f7b8dc4d69dcc68",
       "version": "2.0.0",
       "schema": {

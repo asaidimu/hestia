@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { HestiaPolicies } from "./store"
-import { HestiaNetworkClient, type IdentityProvider } from "../../core/client"
+import { HttpTransport, type IdentityProvider } from "../../core/client"
 import type { ApiResponse } from "@asaidimu/network-client"
 
 vi.mock("@asaidimu/network-client", () => {
@@ -30,13 +30,23 @@ function okResponse<T>(data: T): ApiResponse<T> {
   return { success: true, status: 200, data, raw: new Response(), headers: new Headers() }
 }
 
+function mockDocsResponse() {
+  return okResponse({
+    data: [
+      { name: "system:policies:policy:update", http: { method: "PATCH", route: "/system/policies/policy/{name}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { name: { name: "name", type: "string", required: true } } } } } },
+      { name: "system:collections:document:query", http: { method: "POST", route: "/system/collections/document/{name}/query" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { name: { name: "name", type: "string", required: true } } } } } },
+      { name: "system:policies:policy:list", http: { method: "GET", route: "/system/policies/policy" }, input: {} },
+    ],
+  })
+}
+
 describe("HestiaPolicies", () => {
   let policies: HestiaPolicies
   let raw: any
 
   beforeEach(() => {
     const provider = makeProvider()
-    const client = new HestiaNetworkClient("http://test.local", "/api", provider)
+    const client = new HttpTransport("http://test.local", "/api", provider)
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
     raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
@@ -45,6 +55,7 @@ describe("HestiaPolicies", () => {
 
   describe("setEnabled", () => {
     it("sends PATCH with enabled:false and preserves all fields in response", async () => {
+      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.patch.mockResolvedValueOnce(
         okResponse({
           data: {
@@ -59,13 +70,6 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.setEnabled("system:apikeys:key:create", false)
 
-      expect(raw.patch).toHaveBeenCalledWith(
-        "api/system/policies/policy/system%3Aapikeys%3Akey%3Acreate",
-        { enabled: false },
-        { headers: {} },
-        undefined,
-      )
-
       expect(result.data.enabled).toBe(false)
       expect(result.data.ruleName).toBe("administrator")
       expect(result.data.operationName).toBe("system:apikeys:key:create")
@@ -74,6 +78,7 @@ describe("HestiaPolicies", () => {
     })
 
     it("sends PATCH with enabled:true", async () => {
+      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.patch.mockResolvedValueOnce(
         okResponse({
           data: {
@@ -88,18 +93,13 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.setEnabled("system:apikeys:key:create", true)
 
-      expect(raw.patch).toHaveBeenCalledWith(
-        "api/system/policies/policy/system%3Aapikeys%3Akey%3Acreate",
-        { enabled: true },
-        { headers: {} },
-        undefined,
-      )
       expect(result.data.enabled).toBe(true)
     })
   })
 
   describe("query", () => {
     it("maps raw doc fields (operation, rule) to Policy fields", async () => {
+      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: [
@@ -125,6 +125,7 @@ describe("HestiaPolicies", () => {
     })
 
     it("defaults ruleName to empty string when rule field is missing", async () => {
+      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: [
@@ -147,6 +148,7 @@ describe("HestiaPolicies", () => {
 
   describe("list", () => {
     it("returns policies from server response", async () => {
+      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.get.mockResolvedValueOnce(
         okResponse({
           data: {

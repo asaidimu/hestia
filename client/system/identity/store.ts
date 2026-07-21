@@ -1,6 +1,6 @@
 import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
-import { HestiaNetworkClient } from "../../core/client";
+import { type Transport } from "../../core/client";
 import { createPagedController } from "../../core/pager";
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
 import type { DocumentStore } from "../../core/types";
@@ -11,7 +11,7 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
   private pager: PagedData<UserData>;
 
   constructor(
-    private client: HestiaNetworkClient,
+    private client: Transport,
   ) {
     this.pager = createPagedController<UserData>(
       "users",
@@ -26,10 +26,10 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
   }
 
   async find(query?: QueryDSL<UserData>): Promise<Page<UserData>> {
-    const res = await this.client.post<{
-      data:  Document<UserData>[];
+    const res = await this.client.dispatch<{
+      data: Document<UserData>[];
       metadata?: { page?: any };
-    }>("/system/users/user/query", query ?? {});
+    }>("system:users:user:query", { payload: query ?? {} });
     const data = res.data?.data ?? [];
     const pageMeta = res.data?.metadata?.page ?? {
       number: 1,
@@ -49,8 +49,9 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
 
   async read(id: string): Promise<Document<UserData> | undefined> {
     try {
-      const res = await this.client.get<{ data: Document<UserData> }>(
-        `/system/users/user/${encodeURIComponent(id)}`,
+      const res = await this.client.dispatch<{ data: Document<UserData> }>(
+        "system:users:user:get",
+        { arguments: { user_id: id } },
       );
       return res.data?.data;
     } catch (err: any) {
@@ -61,18 +62,20 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
 
   async update(props: { data: Partial<UserData>; options?: string }): Promise<Document<UserData> | undefined> {
     const id = props.options!;
-    const res = await this.client.patch<{ data: Document<UserData> }>(
-      `/system/users/user/${encodeURIComponent(id)}`,
-      props.data as any,
+    const res = await this.client.dispatch<{ data: Document<UserData> }>(
+      "system:users:user:update",
+      { arguments: { user_id: id }, payload: props.data as any },
     );
     return res.data!.data;
   }
 
   async delete(id: string): Promise<void> {
-    await this.client.delete(`/system/users/user/${encodeURIComponent(id)}`);
+    await this.client.dispatch("system:users:user:delete", {
+      arguments: { user_id: id },
+    });
   }
 
-  async create(props: { data: Partial<UserData> }): Promise<Document<UserData> | undefined> {
+  async create(_props: { data: Partial<UserData> }): Promise<Document<UserData> | undefined> {
     throw new Error("User creation requires email/password/name, use register endpoint");
   }
 
@@ -105,9 +108,9 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
     current: string,
     newPassword: string,
   ): Promise<void> {
-    await this.client.patch(`/system/users/password/${encodeURIComponent(userId)}`, {
-      current,
-      new: newPassword,
+    await this.client.dispatch("system:users:password:change", {
+      arguments: { user_id: userId },
+      payload: { current, new: newPassword },
     });
   }
 }

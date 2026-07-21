@@ -1,0 +1,11 @@
+package audit
+
+import "github.com/asaidimu/hestia/core/internal/feature/policies"
+
+func DefaultOperations() []policies.Operation {
+	return []policies.Operation{
+		{Name: "system:audit:log:query", RuleKey: "administrator", Description: "Query access logs"},
+		{Name: "system:audit:log:export", RuleKey: "administrator", Description: "Export access logs"},
+		{Name: "system:audit:log:stream", RuleKey: "administrator", Description: "Stream access logs in real-time"},
+	}
+}

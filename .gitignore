@@ -143,3 +143,4 @@ tmp
 .commit-message.md
 .readme.md
 schemas.lock.json.bak
+.env
