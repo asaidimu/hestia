@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/asaidimu/hestia/compare/v1.1.0...v1.2.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* **policies:** improve rule validation API and update dependencies ([96a86b8](https://github.com/asaidimu/hestia/commit/96a86b8cce68c885dba82cb38bb5436cc97ba6a9))
+
+
+### Features
+
+* **core:** restructure core package and introduce Wails transport ([f5494b4](https://github.com/asaidimu/hestia/commit/f5494b426ed2e284f76e60b8c14c1e12d6eec84b))
+
 # [1.1.0](https://github.com/asaidimu/hestia/compare/v1.0.7...v1.1.0) (2026-07-20)
 
 
