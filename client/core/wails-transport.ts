@@ -87,11 +87,10 @@ export class WailsTransport implements Transport {
     this.apiPrefix = config?.apiPrefix ?? "/api";
     this.onUnauthorized = config?.onUnauthorized;
 
-    if (config?.baseUrl && config?.identityProvider) {
+    if (config?.baseUrl) {
       this.http = new HttpTransport(
         config.baseUrl,
         this.apiPrefix,
-        config.identityProvider,
         () => this.onUnauthorized?.(),
       );
     }
@@ -99,11 +98,10 @@ export class WailsTransport implements Transport {
 
   setOnUnauthorized(cb: () => void, provider?: IdentityProvider) {
     this.onUnauthorized = cb;
-    if (provider && !this.http) {
+    if (!this.http) {
       this.http = new HttpTransport(
         this.baseUrl || "http://wails.local",
         this.apiPrefix,
-        provider,
         () => this.onUnauthorized?.(),
       );
     }
@@ -112,11 +110,10 @@ export class WailsTransport implements Transport {
   configure(baseUrl: string, apiPrefix: string, provider?: IdentityProvider) {
     this.baseUrl = baseUrl;
     this.apiPrefix = apiPrefix;
-    if (provider && !this.http) {
+    if (!this.http) {
       this.http = new HttpTransport(
         baseUrl,
         apiPrefix,
-        provider,
         () => this.onUnauthorized?.(),
       );
     }
@@ -175,6 +172,7 @@ export class WailsTransport implements Transport {
       return this.http.dispatch<T>(name, input);
     }
 
+    const notify = input?.notifyAuthStateChange ?? true;
     let payload = input?.payload ?? null;
     const modifiers = { ...(input?.modifiers ?? {}) };
 
@@ -206,7 +204,7 @@ export class WailsTransport implements Transport {
         const message = errorData?.message ?? `dispatch returned status ${resp.status}`;
         console.error(`[WailsTransport] dispatch "${name}" error [${code}]: ${message}`);
 
-        if (resp.status === 401) {
+        if (resp.status === 401 && notify) {
           this.init = new Once<void>({ throws: true });
           this.onUnauthorized?.();
         }

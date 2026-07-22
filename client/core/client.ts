@@ -57,6 +57,7 @@ export interface DispatchInput {
   responseType?: ResponseType;
   bodyType?: BodyType;
   signal?: AbortSignal;
+  notifyAuthStateChange?: boolean;
 }
 
 export interface Transport {
@@ -84,14 +85,11 @@ interface RouteDoc {
 
 export class HttpTransport implements Transport {
   private raw: NetworkClient;
-  private heartbeatTimer?: ReturnType<typeof setInterval>;
-  private defaultHeartbeatInterval = 5 * 60 * 1000;
   private routeCache: Map<string, RouteDoc> | null = null;
 
   constructor(
     private baseUrl: string,
     private apiPrefix: string,
-    private provider: IdentityProvider,
     private onAuthStateChanged?: () => void,
   ) {
     this.raw = createNetworkClient({
@@ -160,6 +158,7 @@ export class HttpTransport implements Transport {
     const path = this.substituteArgs(entry.route, input?.arguments ?? {});
     const method = entry.method as HttpMethod;
     const options: RequestOptions = {};
+    const notifyAuthStateChange = input?.notifyAuthStateChange ?? true;
 
     if (input?.headers) options.headers = input.headers;
     if (input?.responseType) options.responseType = input.responseType;
@@ -175,11 +174,11 @@ export class HttpTransport implements Transport {
         .join("&");
       if (qs) {
         const sep = path.includes("?") ? "&" : "?";
-        return this.request<T>(method, `${path}${sep}${qs}`, input?.payload, options);
+        return this.request<T>(method, `${path}${sep}${qs}`, input?.payload, options, notifyAuthStateChange);
       }
     }
 
-    return this.request<T>(method, path, input?.payload, options);
+    return this.request<T>(method, path, input?.payload, options, notifyAuthStateChange);
   }
 
   base() {
@@ -192,29 +191,6 @@ export class HttpTransport implements Transport {
 
   async ready(): Promise<void> {
     return;
-  }
-
-  startHeartbeat(intervalMs?: number): void {
-    this.stopHeartbeat();
-    const ms = intervalMs ?? this.defaultHeartbeatInterval;
-    this.heartbeatTimer = setInterval(() => this.heartbeat(), ms);
-  }
-
-  stopHeartbeat(): void {
-    if (this.heartbeatTimer !== undefined) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = undefined;
-    }
-  }
-
-  private async heartbeat(): Promise<void> {
-    try {
-      const path = this.canonicalPath("system/core/heartbeat");
-      const url = `${this.baseUrl.replace(/\/+$/, "")}/${path}`;
-      await fetch(url, { method: "GET", credentials: "include" });
-    } catch {
-      // Silently ignore
-    }
   }
 
   private canonicalPath(path: string): string {
@@ -237,6 +213,7 @@ export class HttpTransport implements Transport {
     path: string,
     body?: unknown,
     options?: RequestOptions,
+    notifyAuthStateChange = false,
   ): Promise<HestiaResponse<T>> {
     const fullPath = this.canonicalPath(path);
 
@@ -268,15 +245,8 @@ export class HttpTransport implements Transport {
       return new HestiaResponse(res.data as T, res.status);
     }
 
-    if (res.status === 401) {
-      if (!options?.headers?.["X-API-Key"]) {
-        await this.provider.clear()
-        this.onAuthStateChanged?.();
-      }
-      throw new SystemError({
-        code: "AUTH-002-UNAUTH",
-        message: "Session expired",
-      });
+    if (res.status === 401 && notifyAuthStateChange) {
+      this.onAuthStateChanged?.();
     }
 
     const errorBody = res.raw ? await parseErrorBody(res.raw) : null;
@@ -355,17 +325,6 @@ export class HttpTransport implements Transport {
         return;
       }
       handlers.onError?.(err instanceof Error ? err : new Error(String(err)));
-      return;
-    }
-
-    if (response.status === 401) {
-      this.onAuthStateChanged?.();
-      handlers.onError?.(
-        new SystemError({
-          code: "AUTH-002-UNAUTH",
-          message: "Session expired",
-        }),
-      );
       return;
     }
 

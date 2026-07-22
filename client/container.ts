@@ -74,7 +74,6 @@ export class HestiaClient {
       this.client = config.transport ?? new HttpTransport(
         config.baseUrl,
         apiPrefix,
-        tokenProvider,
         onUnauthorized,
       );
     }
@@ -98,8 +97,44 @@ export class HestiaClient {
     this.onAuthStateChanged = callback;
   }
 
-  authenticated(): boolean {
-    return this.tokenProvider.identity() !== null;
+  async authenticated(): Promise<boolean> {
+    if (this.tokenProvider.identity() === null) return false;
+    try {
+      await this.client.dispatch("system:core:heartbeat", { notifyAuthStateChange: false });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private heartbeatTimer?: ReturnType<typeof setTimeout>;
+  private defaultHeartbeatInterval = 5 * 60 * 1000;
+
+  startHeartbeat(intervalMs?: number): void {
+    this.stopHeartbeat();
+    const ms = intervalMs ?? this.defaultHeartbeatInterval;
+    const tick = () => {
+      this.heartbeatTimer = setTimeout(async () => {
+        await this.#heartbeat();
+        tick();
+      }, ms);
+    };
+    tick();
+  }
+
+  stopHeartbeat(): void {
+    if (this.heartbeatTimer !== undefined) {
+      clearTimeout(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
+    }
+  }
+
+  async #heartbeat(): Promise<void> {
+    try {
+      await this.client.dispatch("system:core:heartbeat");
+    } catch {
+      // dispatch already handled onAuthStateChanged
+    }
   }
 
   collection<T extends Record<string, any>>(name: string) {
