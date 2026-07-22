@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/asaidimu/hestia/compare/v1.2.0...v1.2.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **client:** polyfill requestIdleCallback for Wails webkit2_41 compatibility ([3f7e77a](https://github.com/asaidimu/hestia/commit/3f7e77a57d9edc73c7c72dc2f987b8e1297c8469))
+
 # [1.2.0](https://github.com/asaidimu/hestia/compare/v1.1.0...v1.2.0) (2026-07-21)
 
 
