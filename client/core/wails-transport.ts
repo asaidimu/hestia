@@ -1,7 +1,9 @@
 import { Once } from "@asaidimu/utils-sync";
 import {
   type Transport,
+  HttpTransport,
   HestiaResponse,
+  type IdentityProvider,
   type RequestOptions,
   type StreamHandlers,
   type StreamOptions,
@@ -38,6 +40,10 @@ declare global {
 export interface WailsTransportConfig {
   pkg: string;
   struct: string;
+  baseUrl?: string;
+  apiPrefix?: string;
+  identityProvider?: IdentityProvider;
+  onUnauthorized?: () => void;
 }
 
 function findService(): Record<
@@ -60,14 +66,60 @@ function findService(): Record<
   }
 }
 
+function noHttpError(): never {
+  throw new SystemError({
+    code: "HTTP_UNAVAILABLE",
+    message: "WailsTransport needs baseUrl and identityProvider for path-based requests. Use dispatch() instead.",
+  });
+}
+
 export class WailsTransport implements Transport {
   private baseUrl = "";
   private apiPrefix = "";
   private init = new Once<void>({ throws: true });
   private config?: WailsTransportConfig;
+  private http?: HttpTransport;
+  private onUnauthorized?: () => void;
 
   constructor(config?: WailsTransportConfig) {
     this.config = config;
+    this.baseUrl = config?.baseUrl ?? "";
+    this.apiPrefix = config?.apiPrefix ?? "/api";
+    this.onUnauthorized = config?.onUnauthorized;
+
+    if (config?.baseUrl && config?.identityProvider) {
+      this.http = new HttpTransport(
+        config.baseUrl,
+        this.apiPrefix,
+        config.identityProvider,
+        () => this.onUnauthorized?.(),
+      );
+    }
+  }
+
+  setOnUnauthorized(cb: () => void, provider?: IdentityProvider) {
+    this.onUnauthorized = cb;
+    if (provider && !this.http) {
+      this.http = new HttpTransport(
+        this.baseUrl || "http://wails.local",
+        this.apiPrefix,
+        provider,
+        () => this.onUnauthorized?.(),
+      );
+    }
+  }
+
+  configure(baseUrl: string, apiPrefix: string, provider?: IdentityProvider) {
+    this.baseUrl = baseUrl;
+    this.apiPrefix = apiPrefix;
+    if (provider && !this.http) {
+      this.http = new HttpTransport(
+        baseUrl,
+        apiPrefix,
+        provider,
+        () => this.onUnauthorized?.(),
+      );
+    }
   }
 
   private resolveService(): Record<
@@ -98,7 +150,7 @@ export class WailsTransport implements Transport {
    * Concurrent callers share the single initialization attempt.
    */
   async ready(timeoutMs = 10_000): Promise<void> {
-    return void this.init.do(async () => {
+    await this.init.do(async () => {
       const startTime = Date.now();
 
       while (!this.resolveService()) {
@@ -117,19 +169,51 @@ export class WailsTransport implements Transport {
     name: string,
     input?: DispatchInput,
   ): Promise<HestiaResponse<T>> {
-    // Automatically wait for binding resolution before dispatching
     await this.ready();
+
+    if (this.http && (input?.bodyType === "blob" || input?.bodyType === "stream")) {
+      return this.http.dispatch<T>(name, input);
+    }
+
+    let payload = input?.payload ?? null;
+    const modifiers = { ...(input?.modifiers ?? {}) };
+
+    if (input?.headers?.["Content-Type"]) {
+      (modifiers as Record<string, string>)["content_type"] = input.headers["Content-Type"];
+    }
 
     const svc = this.resolveService();
     if (svc?.Dispatch) {
-      const result = await svc.Dispatch({
-        name,
-        arguments: input?.arguments ?? {},
-        modifiers: input?.modifiers ?? {},
-        payload: input?.payload ?? null,
-      } as WailsDispatchPayload);
+      let resp: WailsDispatchResponse;
+      try {
+        const result = await svc.Dispatch({
+          name,
+          arguments: input?.arguments ?? {},
+          modifiers,
+          payload,
+        } as WailsDispatchPayload);
+        resp = result as unknown as WailsDispatchResponse;
+      } catch (err: any) {
+        console.error(`[WailsTransport] dispatch "${name}" failed:`, err?.message ?? err);
+        throw err instanceof SystemError
+          ? err
+          : new SystemError({ code: "DISPATCH_ERROR", message: err?.message ?? String(err) });
+      }
 
-      const resp = result as unknown as WailsDispatchResponse;
+      if (resp.status >= 400) {
+        const errorData = (resp.data as any)?.error;
+        const code = errorData?.code ?? "UNKNOWN";
+        const message = errorData?.message ?? `dispatch returned status ${resp.status}`;
+        console.error(`[WailsTransport] dispatch "${name}" error [${code}]: ${message}`);
+
+        if (resp.status === 401) {
+          this.init = new Once<void>({ throws: true });
+          this.onUnauthorized?.();
+        }
+
+        throw new SystemError({ code, message });
+      }
+
       return new HestiaResponse(resp.data as T, resp.status);
     }
 
@@ -146,14 +230,18 @@ export class WailsTransport implements Transport {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("POST", `${path}/check`, body, options);
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.check<T>(path, body, options);
   }
 
   async get<T>(
     path: string,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("GET", path, undefined, options);
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.get<T>(path, options);
   }
 
   async post<T>(
@@ -161,7 +249,9 @@ export class WailsTransport implements Transport {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("POST", path, body, options);
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.post<T>(path, body, options);
   }
 
   async patch<T>(
@@ -169,7 +259,9 @@ export class WailsTransport implements Transport {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("PATCH", path, body, options);
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.patch<T>(path, body, options);
   }
 
   async put<T>(
@@ -177,7 +269,9 @@ export class WailsTransport implements Transport {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("PUT", path, body, options);
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.put<T>(path, body, options);
   }
 
   async delete<T>(
@@ -185,20 +279,9 @@ export class WailsTransport implements Transport {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<HestiaResponse<T>> {
-    return this.request<T>("DELETE", path, body, options);
-  }
-
-  private async request<T>(
-    _method: string,
-    _path: string,
-    _body?: unknown,
-    _options?: RequestOptions,
-  ): Promise<HestiaResponse<T>> {
-    throw new SystemError({
-      code: "USE_DISPATCH",
-      message:
-        "WailsTransport does not support path-based requests. Use dispatch(name, input) instead.",
-    });
+    await this.ready();
+    if (!this.http) throw noHttpError();
+    return this.http.delete<T>(path, body, options);
   }
 
   async openStream(

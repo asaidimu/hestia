@@ -26,8 +26,18 @@ func projectName(projectName string) string {
 	return "hestia"
 }
 
-type Middleware = api.Middleware
+// SystemModule provides access to system-level services.
+// Use with caution — direct access bypasses normal API safety guarantees.
+// Prefer Application-level methods when available.
+type SystemModule interface {
+	DispatcherChain(next runtime.Dispatcher) runtime.Dispatcher
+	CredentialsProvider() abstract.CredentialsProvider
+	Bootstrapped() bool
+	AdminUserID() string
+	AdminEmail() string
+}
 
+type Middleware = api.Middleware
 type Module = abstract.Module
 type Capability = abstract.Capability
 type MessageRegistration = abstract.MessageRegistration
@@ -58,6 +68,8 @@ type Application struct {
 
 func (a *Application) Persistence() base.Persistence         { return a.inner.Persistence() }
 func (a *Application) Dispatcher() runtime.Dispatcher        { return a.inner.Dispatcher() }
+func (a *Application) SystemModule() SystemModule            { return a.inner.SystemModule() }
+func (a *Application) Registrations() []abstract.MessageRegistration { return a.inner.Registrations }
 func (a *Application) RegisterModules(m ...Module) error     { return a.inner.RegisterModules(m...) }
 func (a *Application) Start() error {
 	if sysMod := a.inner.SystemModule(); sysMod != nil {
@@ -119,8 +131,10 @@ type SetupConfig struct {
 	// StaticFS serves static files / SPA at the root path.
 	StaticFS fs.FS
 
-	// Cookie settings (Secure and HTTPOnly are configured via COOKIE_SECURE / COOKIE_HTTP_ONLY env vars).
+	// Cookie settings
 	CookieDomain      string
+	CookieSecure      *bool
+	CookieHTTPOnly    *bool
 	CookieSameSite    abstract.SameSite
 	CookieSessionName string
 	CookieSessionPath string
@@ -229,6 +243,12 @@ func Setup(cfg SetupConfig) (*Application, error) {
 	}
 	if cfg.CookieDomain != "" {
 		conf.CookieConfig.Domain = cfg.CookieDomain
+	}
+	if cfg.CookieSecure != nil {
+		conf.CookieConfig.Secure = *cfg.CookieSecure
+	}
+	if cfg.CookieHTTPOnly != nil {
+		conf.CookieConfig.HTTPOnly = *cfg.CookieHTTPOnly
 	}
 	if cfg.CookieSameSite != 0 {
 		conf.CookieConfig.SameSite = cfg.CookieSameSite

@@ -33,7 +33,7 @@ func TestExtractPathParams(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractPathParams(tt.pattern, tt.path)
+			got := ExtractPathParams(tt.pattern, tt.path)
 			if tt.want == nil {
 				if got != nil {
 					t.Errorf("want nil, got %v", got)

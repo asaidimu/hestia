@@ -97,7 +97,7 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 		if route.method != "" && route.method != method {
 			continue
 		}
-		params := extractPathParams(route.prefix, path)
+		params := ExtractPathParams(route.prefix, path)
 		if params == nil && route.prefix != path {
 			continue
 		}
@@ -343,7 +343,7 @@ func splitPattern(pattern string) (string, string) {
 	return "", pattern
 }
 
-func extractPathParams(pattern, path string) map[string]string {
+func ExtractPathParams(pattern, path string) map[string]string {
 	var patternParts, pathParts []string
 	start := 0
 	for i := 0; i <= len(pattern); i++ {

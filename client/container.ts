@@ -7,6 +7,7 @@ import {
     type Transport,
     type IdentityProvider,
 } from "./core/client";
+import { WailsTransport } from "./core/wails-transport";
 import { HestiaKeyStore } from "./system/api-keys/store";
 import { HestiaUsers } from "./system/identity/store";
 import type { UserIdentity } from "./system/identity/types";
@@ -59,13 +60,24 @@ export class HestiaClient {
 
     const apiPrefix = config.apiPrefix ?? "/api";
 
+    const onUnauthorized = () => {
+      tokenProvider.clear();
+      this.onAuthStateChanged?.();
+    };
+
     this.tokenProvider = tokenProvider;
-    this.client = config.transport ?? new HttpTransport(
-      config.baseUrl,
-      apiPrefix,
-      tokenProvider,
-      () => this.onAuthStateChanged?.(),
-    );
+    if (config.transport instanceof WailsTransport) {
+      config.transport.configure(config.baseUrl, apiPrefix, tokenProvider);
+      config.transport.setOnUnauthorized(onUnauthorized);
+      this.client = config.transport;
+    } else {
+      this.client = config.transport ?? new HttpTransport(
+        config.baseUrl,
+        apiPrefix,
+        tokenProvider,
+        onUnauthorized,
+      );
+    }
 
     this.auth = new HestiaAuth(this.client, tokenProvider);
     this.users = new HestiaUsers(this.client);

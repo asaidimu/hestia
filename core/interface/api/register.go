@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
@@ -108,42 +107,7 @@ func (o *Interface) installRegistrations(regs []abstract.MessageRegistration, bo
 }
 
 func buildDoc(ctx context.Context, req Request, input runtime.Input) *data.Document {
-	doc := data.MustNewDocument(map[string]any{}, ctx)
-
-	args := make(map[string]any)
-	for _, argDef := range input.Arguments {
-		if v, ok := req.PathParams[argDef.Name]; ok {
-			args[argDef.Name] = v
-		}
-	}
-	doc.Set("arguments", args)
-
-	modifiers := make(map[string]any)
-	for name := range input.Modifiers {
-		if vals, ok := req.Query[name]; ok && len(vals) > 0 {
-			modifiers[name] = vals[0]
-		}
-	}
-	doc.Set("modifiers", modifiers)
-
-	if input.Payload != 0 {
-		switch input.Payload {
-		case definition.FieldTypeBytes:
-			doc.Set("payload", req.Body)
-		default:
-			var body map[string]any
-			if len(req.Body) > 0 {
-				if err := json.Unmarshal(req.Body, &body); err != nil {
-					body = nil
-				}
-			}
-			if body != nil {
-				doc.Set("payload", body)
-			}
-		}
-	}
-
-	return doc
+	return BuildInputDocument(ctx, input, req.PathParams, req.Query, req.Body)
 }
 
 func serializeResponse(result *registration.Result, output *definition.Schema, intent registration.Verb, httpPath string) Response {
@@ -235,23 +199,13 @@ func serializeResponse(result *registration.Result, output *definition.Schema, i
 			}
 		case "documents":
 			if result.Documents != nil {
-				items := make([]any, 0, len(result.Documents))
-				for _, d := range result.Documents {
-					sane, _ := d.Sanitize()
-					items = append(items, sane.ToMap())
-				}
-				return Response{Status: statusOK, Body: items}
+				return Response{Status: statusOK, Body: SanitizeAll(result.Documents)}
 			}
 		case "page":
 			if result.Page != nil {
-				items := make([]any, 0, len(result.Page.Documents))
-				for _, d := range result.Page.Documents {
-					sane, _ := d.Sanitize()
-					items = append(items, sane.ToMap())
-				}
 				return Response{
 					Status: statusOK,
-					Body:   items,
+					Body:   SanitizeAll(result.Page.Documents),
 					Page:   result.Page.Pagination,
 				}
 			}
