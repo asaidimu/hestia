@@ -1,10 +1,36 @@
 import type { QueryDSL, QueryFilter, SortConfiguration } from "@asaidimu/query";
 import { DELETE_SYMBOL, type DataStore } from "@asaidimu/utils-store";
 import type { Page, PagedData, PagerRefreshOptions } from "./types";
-export type { PagerRefreshOptions }
+export type { PagerRefreshOptions };
 import { Debouncer } from "@asaidimu/utils-sync";
 
-declare function requestIdleCallback(cb: (deadline: { didTimeout: boolean }) => void): void;
+interface IdleDeadline {
+  readonly didTimeout: boolean;
+  readonly timeRemaining: () => number;
+}
+
+interface IdleRequestOptions {
+  timeout?: number;
+}
+
+const safeIdleCallback: (
+  callback: (deadline: IdleDeadline) => void,
+  options?: IdleRequestOptions,
+) => number =
+  // @ts-ignore
+  globalThis.requestIdleCallback?.bind(globalThis) ??
+  ((callback, options) => {
+    const start = performance.now();
+    const deadline: IdleDeadline = {
+      didTimeout: false,
+      timeRemaining: () => Math.max(0, 50 - (performance.now() - start)),
+    };
+    const id = setTimeout(
+      () => callback(deadline),
+      options?.timeout != null ? Math.min(options.timeout, 0) : 0,
+    );
+    return id as unknown as number;
+  });
 
 export interface PageOptions<T extends Record<string, any>> {
   page?: number;
@@ -78,8 +104,8 @@ export function createPagedController<T extends Record<string, any>>(
     return await new Promise((resolve) => {
       resolve(
         debounce.do(async () => {
-          requestIdleCallback(() => {
-            requestIdleCallback(async () => {
+          safeIdleCallback(() => {
+            safeIdleCallback(async () => {
               try {
                 const result = await find(buildQuery(opts));
                 await store.set({ [CACHE_KEY]: result });
