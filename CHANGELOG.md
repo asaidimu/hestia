@@ -1,3 +1,11 @@
+## [1.2.2](https://github.com/asaidimu/hestia/compare/v1.2.1...v1.2.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* **core:** flatten SetupConfig and fix port type to int ([993e593](https://github.com/asaidimu/hestia/commit/993e59306bfc72e33034bc3163c6cbbedc451272))
+* fighting with wails ([046b838](https://github.com/asaidimu/hestia/commit/046b838df25d791e09c02f5fd8ae6c133ae99943))
+
 ## [1.2.1](https://github.com/asaidimu/hestia/compare/v1.2.0...v1.2.1) (2026-07-22)
 
 
