@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/asaidimu/hestia/compare/v1.2.2...v1.2.3) (2026-07-22)
+
+
+### Bug Fixes
+
+* fix heartbeats ([6a8d7a8](https://github.com/asaidimu/hestia/commit/6a8d7a85199741b52f5b95a1cab2e27cec921eba))
+
 ## [1.2.2](https://github.com/asaidimu/hestia/compare/v1.2.1...v1.2.2) (2026-07-22)
 
 
