@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	DefaultPort      = 8090
 	DefaultBcryptCost = 12
 
 	// Session defaults (sliding window).
@@ -25,7 +26,8 @@ const (
 type InteractorFactory func(logger *zap.Logger) (query.DatabaseInteractor, func(), error)
 
 type Config struct {
-	Port          string
+	// Port is the HTTP server port number (0 means DefaultPort / 8090).
+	Port          int
 	DataDir       string
 	DBPath        string
 	SessionSecret string

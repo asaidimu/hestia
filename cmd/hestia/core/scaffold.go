@@ -69,7 +69,6 @@ var addCmdCmd = &cobra.Command{
 		mainContent := fmt.Sprintf(`package main
 
 import (
-	"fmt"
 	"os"
 
 	hestia "github.com/asaidimu/hestia/core"

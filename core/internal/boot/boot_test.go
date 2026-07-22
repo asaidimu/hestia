@@ -18,8 +18,8 @@ func TestNewConfigDefaults(t *testing.T) {
 		t.Fatalf("NewConfig() error: %v", err)
 	}
 
-	if cfg.Port != ":8090" {
-		t.Errorf("Port = %q, want %q", cfg.Port, ":8090")
+	if cfg.Port != 8090 {
+		t.Errorf("Port = %d, want %d", cfg.Port, 8090)
 	}
 	if cfg.DataDir != "/tmp/hestia-test-defaults" {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "/tmp/hestia-test-defaults")
@@ -68,7 +68,7 @@ func TestNewConfigDefaults(t *testing.T) {
 }
 
 func TestNewConfigCustom(t *testing.T) {
-	t.Setenv("PORT", ":9999")
+	t.Setenv("PORT", "9999")
 	t.Setenv("SESSION_SECRET", "custom-secret")
 	t.Setenv("APP_DATA_DIR", "/tmp/hestia-custom/data")
 	t.Setenv("BLOBS_DIR", "/tmp/hestia-custom/blobs")
@@ -87,8 +87,8 @@ func TestNewConfigCustom(t *testing.T) {
 		t.Fatalf("NewConfig() error: %v", err)
 	}
 
-	if cfg.Port != ":9999" {
-		t.Errorf("Port = %q, want %q", cfg.Port, ":9999")
+	if cfg.Port != 9999 {
+		t.Errorf("Port = %d, want %d", cfg.Port, 9999)
 	}
 	if cfg.DataDir != "/tmp/hestia-custom/data" {
 		t.Errorf("DataDir = %q, want %q", cfg.DataDir, "/tmp/hestia-custom/data")
@@ -139,9 +139,12 @@ func TestNewConfigCustom(t *testing.T) {
 func TestNewConfigMissingSessionSecret(t *testing.T) {
 	os.Unsetenv("SESSION_SECRET")
 	os.Unsetenv("JWT_SECRET")
-	_, err := NewConfig()
-	if err == nil {
-		t.Fatal("NewConfig() expected error when SESSION_SECRET is unset")
+	cfg, err := NewConfig()
+	if err != nil {
+		t.Fatalf("NewConfig() error: %v", err)
+	}
+	if cfg.SessionSecret != "" {
+		t.Errorf("SessionSecret = %q, want empty", cfg.SessionSecret)
 	}
 }
 

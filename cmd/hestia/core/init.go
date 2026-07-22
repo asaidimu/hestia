@@ -78,7 +78,6 @@ Flags:
 		mainContent := fmt.Sprintf(`package main
 
 import (
-	"fmt"
 	"os"
 
 	hestia "github.com/asaidimu/hestia/core"
@@ -142,8 +141,8 @@ clean:
 		envContent := `# Session secret (required) — generate with: openssl rand -hex 32
 SESSION_SECRET=change-me-to-a-random-secret
 
-# Server port (default :8090)
-PORT=:8090
+# Server port (default 8090)
+PORT=8090
 
 # Cookie settings
 COOKIE_SECURE=false

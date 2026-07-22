@@ -100,7 +100,7 @@ func scaffoldRegister(modName, featureName string) string {
 	return fmt.Sprintf(`package %s
 
 import (
-	"github.com/asaidimu/hestia/core"
+	hestia "github.com/asaidimu/hestia/core"
 )
 
 type Dependencies struct {
@@ -122,7 +122,7 @@ import (
 	"context"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
-	"github.com/asaidimu/hestia/core"
+	hestia "github.com/asaidimu/hestia/core"
 )
 
 func NewPingHandler(store *%sStore) hestia.MessageHandler {
@@ -151,7 +151,7 @@ func scaffoldDefaults(featureName string) string {
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core"
+	hestia "github.com/asaidimu/hestia/core"
 )
 
 func outputSchema() *definition.Schema {

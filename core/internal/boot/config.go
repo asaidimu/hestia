@@ -60,10 +60,7 @@ func envInt(key string, defaultVal int) int {
 }
 
 func NewConfig() (*runtime.Config, error) {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = ":8090"
-	}
+	port := envInt("PORT", runtime.DefaultPort)
 
 	projectName := ProjectName
 
@@ -85,9 +82,6 @@ func NewConfig() (*runtime.Config, error) {
 	signingSecret := os.Getenv("SESSION_SECRET")
 	if signingSecret == "" {
 		signingSecret = os.Getenv("JWT_SECRET")
-	}
-	if signingSecret == "" {
-		return nil, fmt.Errorf("SESSION_SECRET environment variable is required")
 	}
 
 	blobsDir := os.Getenv("BLOBS_DIR")

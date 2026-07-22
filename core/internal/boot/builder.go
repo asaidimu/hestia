@@ -13,6 +13,13 @@ import (
 	"github.com/asaidimu/hestia/core/migrations"
 )
 
+func listenAddr(port int) string {
+	if port <= 0 {
+		port = runtime.DefaultPort
+	}
+	return fmt.Sprintf(":%d", port)
+}
+
 func BuildApp(cfg *runtime.Config, opts abstract.SystemOptions) (*Application, error) {
 	application := Create(cfg)
 
@@ -45,7 +52,7 @@ func BuildInterfaces(a *Application, version string, middlewares []api.Middlewar
 		InternalDispatcher:  a.Dispatcher(),
 		CredentialsProvider: mod.CredentialsProvider(),
 		Logger:              a.Loggers.File,
-		Addr:                a.Config.Port,
+		Addr:                listenAddr(a.Config.Port),
 		Registrations:       a.Registrations,
 		CookieConfig:        a.Config.CookieConfig,
 		SessionTTL:          a.Config.SessionTTL,

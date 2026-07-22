@@ -6,21 +6,22 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/asaidimu/hestia/core"
-	"github.com/asaidimu/hestia/core/runtime"
 )
 
 //go:embed static
 var staticFiles embed.FS
 
 func main() {
-	port := "8080"
+	port := 8080
 	if p := os.Getenv("PORT"); p != "" {
-		port = p
+		if n, err := strconv.Atoi(p); err == nil {
+			port = n
+		}
 	}
 
 	tmpDir, err := os.MkdirTemp("", "hestia-docs-*")
@@ -34,33 +35,16 @@ func main() {
 		panic(err)
 	}
 
-	cfg := &runtime.Config{
-		Port:              ":" + port,
+	app, err := hestia.Setup(hestia.SetupConfig{
+		Port:              port,
 		DataDir:           tmpDir,
-		BlobsDir:          filepath.Join(tmpDir, "blobs"),
 		DBPath:            ":memory:",
 		SessionSecret:     "docs-secret-do-not-use-in-production",
-		LogPath:           filepath.Join(tmpDir, "server.log"),
-		LogMaxSize:        100,
-		LogMaxAge:         30,
-		LogMaxBackups:     5,
+		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		ForceBootstrapped: true,
 		StaticFS:          staticFS,
 		APIPrefix:         "/api",
-		CookieConfig: runtime.CookieConfig{
-			Domain:      "",
-			Secure:      false,
-			HTTPOnly:    true,
-			SameSite:    1,
-			SessionName: "session",
-			SessionPath: "/",
-		},
-	}
-
-	app, err := hestia.Setup(hestia.SetupConfig{
-		Config: cfg,
 	})
 	if err != nil {
 		panic(err)

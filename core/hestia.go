@@ -3,7 +3,11 @@ package hestia
 import (
 	"context"
 	"fmt"
+	"io/fs"
+	"path/filepath"
+	"time"
 
+	"github.com/asaidimu/go-anansi/v8"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"go.uber.org/zap"
@@ -14,6 +18,13 @@ import (
 	"github.com/asaidimu/hestia/core/interface/api"
 	"github.com/asaidimu/hestia/core/internal/boot"
 )
+
+func projectName(projectName string) string {
+	if projectName != "" {
+		return projectName
+	}
+	return "hestia"
+}
 
 type Middleware = api.Middleware
 
@@ -67,43 +78,173 @@ func (a *Application) SeedPolicies() error {
 }
 
 type SetupConfig struct {
-	Config  *runtime.Config
-	Version string
-	Modules []Module
-
-	OnBootstrapped    func()
-	OnReset           func()
-	ForceBootstrapped bool
-	Logger            *zap.Logger
-
+	// Port is the HTTP server port (0 means DefaultPort / 8090).
+	Port int
+	// SessionSecret is the signing key for JWT tokens.
+	// Falls back to SESSION_SECRET / JWT_SECRET env vars.
+	SessionSecret string
+	// DataDir is the directory for DB, logs, and blob storage.
+	// Falls back to XDG_DATA_HOME/<ProjectName> / ~/.local/share/<ProjectName>.
+	DataDir  string
+	DBPath   string
+	LogPath  string
+	BlobsDir string
+	// ProjectName is used for the data directory sub-path and DB filename.
 	ProjectName string
+	// Version is baked into the binary at build time via -ldflags.
+	Version string
 
+	// BcryptCost is the cost factor for password hashing (default 12).
+	BcryptCost int
+	// SessionTTL is the absolute session lifetime (default 8h).
+	SessionTTL time.Duration
+	// IdleTTL is the max idle time before session expiry (default 30m).
+	IdleTTL time.Duration
+	// RefreshTTL is the idle threshold for cookie refresh (default 15m).
+	RefreshTTL time.Duration
+	// ForceBootstrapped skips the bootstrap flow.
+	ForceBootstrapped bool
+
+	// Log rotation (defaults: MaxSize=100MB, MaxAge=30d, MaxBackups=5).
+	LogMaxSize    int
+	LogMaxAge     int
+	LogMaxBackups int
+
+	// Admin credentials for the initial seed.
+	AdminEmail    string
+	AdminPassword string
+
+	// APIPrefix is the URL prefix for all API routes (default "/api").
+	APIPrefix string
+	// StaticFS serves static files / SPA at the root path.
+	StaticFS fs.FS
+
+	// Cookie settings (Secure and HTTPOnly are configured via COOKIE_SECURE / COOKIE_HTTP_ONLY env vars).
+	CookieDomain      string
+	CookieSameSite    abstract.SameSite
+	CookieSessionName string
+	CookieSessionPath string
+
+	// Modules registered with the application.
+	Modules   []Module
+	// Middlewares applied to every API request.
+	Middlewares  []Middleware
+	// DispatcherHooks wrap the dispatcher chain.
+	DispatcherHooks []func(abstract.Dispatcher) abstract.Dispatcher
+	// Interfaces register custom runtime interfaces.
+	Interfaces []func(runtime.Dispatcher) runtime.Interface
+
+	// OnBootstrapped is called after the system is bootstrapped.
+	OnBootstrapped func()
+	// OnReset is called after a full system reset.
+	OnReset func()
+	// Migrate is a user-provided migration function.
 	Migrate func(ctx context.Context, p base.Persistence) error
 
-	DispatcherHooks []func(abstract.Dispatcher) abstract.Dispatcher
+	// PersistenceFactory gives full control over persistence setup.
+	// Receives an anansi.SetupConfig and returns a base.Persistence.
+	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
+	// Flags to disable built-in interfaces.
 	DisableRPC bool
 	DisableCLI bool
-	Interfaces []func(runtime.Dispatcher) runtime.Interface
-	Middlewares  []Middleware
+
+	// Logger overrides the default zap logger.
+	Logger *zap.Logger
 }
 
 func Setup(cfg SetupConfig) (*Application, error) {
-	if cfg.Config == nil {
-		if cfg.ProjectName != "" {
-			boot.ProjectName = cfg.ProjectName
-		}
-		var err error
-		cfg.Config, err = boot.NewConfig()
-		if err != nil {
-			return nil, err
-		}
+	if cfg.ProjectName != "" {
+		boot.ProjectName = cfg.ProjectName
 	}
 
-	forceBootstrapped := cfg.ForceBootstrapped
-	if !forceBootstrapped && cfg.Config != nil {
-		forceBootstrapped = cfg.Config.ForceBootstrapped
+	conf, err := boot.NewConfig()
+	if err != nil {
+		return nil, err
 	}
+
+	if cfg.Port > 0 {
+		conf.Port = cfg.Port
+	}
+	if cfg.SessionSecret != "" {
+		conf.SessionSecret = cfg.SessionSecret
+	}
+	pn := projectName(cfg.ProjectName)
+	if cfg.DataDir != "" {
+		conf.DataDir = cfg.DataDir
+		if cfg.DBPath == "" {
+			conf.DBPath = filepath.Join(cfg.DataDir, pn+".db")
+		}
+		if cfg.LogPath == "" {
+			conf.LogPath = filepath.Join(cfg.DataDir, "server.log")
+		}
+		if cfg.BlobsDir == "" {
+			conf.BlobsDir = filepath.Join(cfg.DataDir, "blobs")
+		}
+	}
+	if cfg.DBPath != "" {
+		conf.DBPath = cfg.DBPath
+	}
+	if cfg.LogPath != "" {
+		conf.LogPath = cfg.LogPath
+	}
+	if cfg.BlobsDir != "" {
+		conf.BlobsDir = cfg.BlobsDir
+	}
+	if cfg.BcryptCost > 0 {
+		conf.BcryptCost = cfg.BcryptCost
+	}
+	if cfg.SessionTTL > 0 {
+		conf.SessionTTL = cfg.SessionTTL
+	}
+	if cfg.IdleTTL > 0 {
+		conf.IdleTTL = cfg.IdleTTL
+	}
+	if cfg.RefreshTTL > 0 {
+		conf.RefreshTTL = cfg.RefreshTTL
+	}
+	if cfg.LogMaxSize > 0 {
+		conf.LogMaxSize = cfg.LogMaxSize
+	}
+	if cfg.LogMaxAge > 0 {
+		conf.LogMaxAge = cfg.LogMaxAge
+	}
+	if cfg.LogMaxBackups > 0 {
+		conf.LogMaxBackups = cfg.LogMaxBackups
+	}
+	if cfg.AdminEmail != "" {
+		conf.AdminEmail = cfg.AdminEmail
+	}
+	if cfg.AdminPassword != "" {
+		conf.AdminPassword = cfg.AdminPassword
+	}
+	if cfg.APIPrefix != "" {
+		conf.APIPrefix = cfg.APIPrefix
+	}
+	if cfg.StaticFS != nil {
+		conf.StaticFS = cfg.StaticFS
+	}
+	if cfg.PersistenceFactory != nil {
+		conf.PersistenceFactory = cfg.PersistenceFactory
+	}
+	if cfg.CookieDomain != "" {
+		conf.CookieConfig.Domain = cfg.CookieDomain
+	}
+	if cfg.CookieSameSite != 0 {
+		conf.CookieConfig.SameSite = cfg.CookieSameSite
+	}
+	if cfg.CookieSessionName != "" {
+		conf.CookieConfig.SessionName = cfg.CookieSessionName
+	}
+	if cfg.CookieSessionPath != "" {
+		conf.CookieConfig.SessionPath = cfg.CookieSessionPath
+	}
+
+	if conf.SessionSecret == "" {
+		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret, SESSION_SECRET, or JWT_SECRET env var")
+	}
+
+	forceBootstrapped := cfg.ForceBootstrapped || conf.ForceBootstrapped
 
 	var app *boot.Application
 	wrapBootstrapped := cfg.OnBootstrapped
@@ -120,7 +261,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		},
 		OnReset: func() {
 			if app != nil {
-				app.Reset(cfg.Config, cfg.Version)
+				app.Reset(conf, cfg.Version)
 			}
 			if wrapReset != nil {
 				wrapReset()
@@ -131,7 +272,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		DispatcherHooks:   cfg.DispatcherHooks,
 	}
 
-	application, err := boot.BuildApp(cfg.Config, opts)
+	application, err := boot.BuildApp(conf, opts)
 	if err != nil {
 		return nil, err
 	}

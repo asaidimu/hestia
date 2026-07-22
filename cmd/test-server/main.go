@@ -4,48 +4,28 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/asaidimu/hestia/core"
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/identity"
 	"github.com/asaidimu/hestia/core/interface/api"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 func main() {
-	port := "8070"
-
 	tmpDir, err := os.MkdirTemp("", "hestiav2-test-*")
 	if err != nil {
 		panic(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	cfg := &runtime.Config{
-		Port:              ":" + port,
+	app, err := hestia.Setup(hestia.SetupConfig{
+		Port:              8070,
 		DataDir:           tmpDir,
-		BlobsDir:          filepath.Join(tmpDir, "blobs"),
 		DBPath:            ":memory:",
 		SessionSecret:     "test-secret-do-not-use-in-production",
-		LogPath:           filepath.Join(tmpDir, "server.log"),
-		LogMaxSize:        100,
-		LogMaxAge:         30,
-		LogMaxBackups:     5,
+		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		ForceBootstrapped: true,
-		CookieConfig: runtime.CookieConfig{
-			Domain:      "",
-			Secure:      false,
-			HTTPOnly:    true,
-			SameSite:    1,
-			SessionName: "session",
-			SessionPath: "/",
-		},
-	}
-
-	app, err := hestia.Setup(hestia.SetupConfig{
-		Config: cfg,
 		Middlewares: []hestia.Middleware{
 			func(ctx context.Context, req api.Request, next api.HandlerFunc) (api.Response, error) {
 				claims := &identity.Claims{
@@ -68,7 +48,7 @@ func main() {
 	}
 	defer app.Close()
 
-	fmt.Println(port)
+	fmt.Println("8070")
 	os.Stdout.Sync()
 
 	select {}
