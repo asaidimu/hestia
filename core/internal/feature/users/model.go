@@ -17,17 +17,29 @@ const userCollectionName = "_user_"
 
 type UserModel struct {
 	persistence base.Persistence
+	liveColl    base.Collection // optional; when set, all reads/writes route through it
 }
 
 func NewUserModel(persistence base.Persistence) *UserModel {
 	return &UserModel{persistence: persistence}
 }
 
+// UseLiveCollection replaces the default persistence-backed collection with a
+// LiveCollection-backed one, so that write operations (CreateOne, Update,
+// Delete) fire the LiveCollection's cache interceptors. Must be called before
+// any user operations.
+func (m *UserModel) UseLiveCollection(c base.Collection) {
+	m.liveColl = c
+}
+
 func (m *UserModel) collection(ctx context.Context) (base.Collection, error) {
+	if m.liveColl != nil {
+		return m.liveColl, nil
+	}
 	return m.persistence.Collection(ctx, userCollectionName)
 }
 
-func (m *UserModel) Register(ctx context.Context, email, password, name string, permissions ...string) (*data.Document, error) {
+func (m *UserModel) Register(ctx context.Context, email, password, name, tenantID string, permissions ...string) (*data.Document, error) {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("access user collection: %w", err)
@@ -52,12 +64,16 @@ func (m *UserModel) Register(ctx context.Context, email, password, name string, 
 	}
 
 	doc := data.MustNewDocument(map[string]any{
-		"email":       email,
-		"password":    hashed,
-		"name":        name,
-		"verified":    false,
-		"permissions": permissions,
+		"email":         email,
+		"password":      hashed,
+		"name":          name,
+		"verified":      false,
+		"permissions":   permissions,
+		"token_version": 0,
 	})
+	if tenantID != "" {
+		doc.Set("tenant_id", tenantID)
+	}
 
 	result, err := col.CreateOne(ctx, doc)
 	if err != nil {
@@ -184,6 +200,47 @@ func (m *UserModel) SoftDelete(ctx context.Context, id string) error {
 	return m.Update(ctx, id, map[string]any{
 		"deleted": time.Now().Format(time.RFC3339),
 	})
+}
+
+func (m *UserModel) IncrementTokenVersion(ctx context.Context, id string) error {
+	user, err := m.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	v, _ := user.GetInt("token_version")
+	return m.Update(ctx, id, map[string]any{"token_version": v + 1})
+}
+
+func (m *UserModel) GetSettings(ctx context.Context, id string) (map[string]any, error) {
+	user, err := m.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := user.Get("settings")
+	if err != nil || raw == nil {
+		return make(map[string]any), nil
+	}
+	s, ok := raw.(map[string]any)
+	if !ok {
+		return make(map[string]any), nil
+	}
+	return s, nil
+}
+
+func (m *UserModel) UpdateSettings(ctx context.Context, id string, settings map[string]any) error {
+	user, err := m.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	raw, _ := user.Get("settings")
+	current, _ := raw.(map[string]any)
+	if current == nil {
+		current = make(map[string]any)
+	}
+	for k, v := range settings {
+		current[k] = v
+	}
+	return m.Update(ctx, id, map[string]any{"settings": current})
 }
 
 func (m *UserModel) HardDelete(ctx context.Context, id string) error {

@@ -1,9 +1,8 @@
-package api
+package http
 
 import (
 	"context"
 	"io/fs"
-	"strings"
 	"time"
 
 	"github.com/asaidimu/go-iam/v2/iam"
@@ -12,7 +11,6 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
-	httpserver "github.com/asaidimu/hestia/core/interface/api/http"
 )
 
 type cookieAction struct {
@@ -42,6 +40,7 @@ type Options struct {
 	UserModel          *users.UserModel
 	Middleware         []Middleware
 	NoRefreshCommands  []string
+	AllowedOrigins     []string
 }
 
 type Interface struct {
@@ -112,28 +111,13 @@ func New(opts Options) *Interface {
 }
 
 func newHTTPTransport(opts Options) Transport {
-	return httpserver.NewTransport(httpserver.TransportOptions{
-		Addr:      opts.Addr,
-		Logger:    opts.Logger,
-		APIPrefix: opts.APIPrefix,
-		StaticFS:  opts.StaticFS,
+	return NewTransport(TransportOptions{
+		Addr:           opts.Addr,
+		Logger:         opts.Logger,
+		APIPrefix:      opts.APIPrefix,
+		StaticFS:       opts.StaticFS,
+		AllowedOrigins: opts.AllowedOrigins,
 	})
-}
-
-func methodFromOp(op string) string {
-	parts := strings.SplitN(op, " ", 2)
-	if len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
-}
-
-func pathFromOp(op string) string {
-	parts := strings.SplitN(op, " ", 2)
-	if len(parts) == 2 {
-		return parts[1]
-	}
-	return op
 }
 
 func (o *Interface) Start(bootstrapped bool) {
@@ -169,11 +153,7 @@ func (o *Interface) SetMiddleware(mw ...Middleware) {
 var _ runtime.Interface = (*Interface)(nil)
 
 func (o *Interface) registerRoutes() {
-	if o.bootstrapped {
-		o.installDispatcherRegistrations()
-	} else {
-		o.installBootstrapSafeRegistrations()
-	}
+	o.installDispatcherRegistrations()
 }
 
 type HandlerFunc func(ctx context.Context, req Request) (Response, error)
@@ -200,36 +180,12 @@ func (o *Interface) wrap(fn handlerFunc) Handler {
 		resp, err = chain(ctx, req)
 
 		if action.SetToken != "" {
-			resp.Cookies = append(resp.Cookies, cookie(o.cookieCfg.SessionName, action.SetToken, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg))
+			resp.Cookies = append(resp.Cookies, newSessionCookie(o.cookieCfg.SessionName, action.SetToken, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg))
 		} else if action.Clear {
-			resp.Cookies = append(resp.Cookies, clearCookie(o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg))
+			resp.Cookies = append(resp.Cookies, clearSessionCookie(o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg))
 		}
 		return
 	}
 }
 
-func clearCookie(name, path string, cfg runtime.CookieConfig) Cookie {
-	return Cookie{
-		Name:     name,
-		Value:    "",
-		Path:     path,
-		Domain:   cfg.Domain,
-		Secure:   cfg.Secure,
-		HTTPOnly: cfg.HTTPOnly,
-		SameSite: cfg.SameSite,
-		MaxAge:   -1,
-	}
-}
 
-func cookie(name, value, path string, ttl time.Duration, cfg runtime.CookieConfig) Cookie {
-	return Cookie{
-		Name:     name,
-		Value:    value,
-		Path:     path,
-		Domain:   cfg.Domain,
-		Secure:   cfg.Secure,
-		HTTPOnly: cfg.HTTPOnly,
-		SameSite: cfg.SameSite,
-		MaxAge:   int(ttl.Seconds()),
-	}
-}

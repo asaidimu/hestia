@@ -61,7 +61,7 @@ func newRuleStore(t *testing.T, p base.Persistence, ac iam.AccessController) wri
 		Collection: ruleColl,
 		Processor:  &ruleDocProcessor{ac: tmpAC},
 		QueryKey:   "name",
-		Active:     false,
+		AutoLoad:   false,
 	})
 	if err != nil {
 		t.Fatalf("NewLiveRepository: %v", err)
@@ -259,7 +259,7 @@ func TestSecureDispatcher_AutoRefreshedRule(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unregistered rule 'auto_test' before creation")
 	}
-	if !strings.Contains(err.Error(), "access denied") && !strings.Contains(err.Error(), "not registered") {
+	if !strings.Contains(err.Error(), "access denied") && !strings.Contains(err.Error(), "not registered") && !strings.Contains(err.Error(), "AUTH_REQUIRED") {
 		t.Fatalf("expected access denial, got: %v", err)
 	}
 

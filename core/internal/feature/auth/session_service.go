@@ -17,7 +17,8 @@ type SessionToken struct {
 	UserID    string `json:"uid"`
 	IssuedAt  int64  `json:"iat"`
 	ExpiresAt int64  `json:"exp"`
-	CreatedAt int64  `json:"crt"`
+	CreatedAt    int64  `json:"crt"`
+	TokenVersion int    `json:"tv"`
 }
 
 type SessionService struct {
@@ -28,14 +29,15 @@ func NewSessionService(secret string) *SessionService {
 	return &SessionService{secret: []byte(secret)}
 }
 
-func (s *SessionService) Create(userID string, absoluteTTL time.Duration) (string, *SessionToken, error) {
+func (s *SessionService) Create(userID string, absoluteTTL time.Duration, tokenVersion int) (string, *SessionToken, error) {
 	now := time.Now().Unix()
 	st := &SessionToken{
-		SessionID: uuid.Must(uuid.NewV7()).String(),
-		UserID:    userID,
-		IssuedAt:  now,
-		ExpiresAt: now + int64(absoluteTTL.Seconds()),
-		CreatedAt: now,
+		SessionID:    uuid.Must(uuid.NewV7()).String(),
+		UserID:       userID,
+		IssuedAt:     now,
+		ExpiresAt:    now + int64(absoluteTTL.Seconds()),
+		CreatedAt:    now,
+		TokenVersion: tokenVersion,
 	}
 	token, err := s.encode(st)
 	if err != nil {
@@ -47,11 +49,12 @@ func (s *SessionService) Create(userID string, absoluteTTL time.Duration) (strin
 func (s *SessionService) Refresh(st *SessionToken) (string, *SessionToken, error) {
 	now := time.Now().Unix()
 	refreshed := &SessionToken{
-		SessionID: st.SessionID,
-		UserID:    st.UserID,
-		IssuedAt:  now,
-		ExpiresAt: st.ExpiresAt,
-		CreatedAt: st.CreatedAt,
+		SessionID:    st.SessionID,
+		UserID:       st.UserID,
+		IssuedAt:     now,
+		ExpiresAt:    st.ExpiresAt,
+		CreatedAt:    st.CreatedAt,
+		TokenVersion: st.TokenVersion,
 	}
 	token, err := s.encode(refreshed)
 	if err != nil {

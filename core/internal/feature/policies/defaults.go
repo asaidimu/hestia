@@ -17,23 +17,6 @@ func DefaultOperations() []Operation {
 	}
 }
 
-func DefaultPolicyBindings() []Policy {
-	return []Policy{
-		{OperationName: "system:policies:operation:get", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:get", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:validate", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:operation:list", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:list", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:policy:list", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:policy:create", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:policy:update", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:create", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:update", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:rule:delete", RuleName: "administrator", Enabled: true, Protected: true},
-		{OperationName: "system:policies:reload", RuleName: "administrator", Enabled: true, Protected: true},
-	}
-}
-
 func DefaultRules() []PolicyRule {
 	return []PolicyRule{
 		{Name: "public", RuleType: "simple", Syntax: "cel", Expression: "true", Description: "Public access — no authentication required"},

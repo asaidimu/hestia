@@ -37,6 +37,23 @@ var Plain = []Migration{
 	{UUID: "019f75c6-e69d-7208-8842-5dce61ad774a", Collection: "_operation_policy_", From: "1.0.1", To: "2.0.0", File: "019f75c6-e69d-7208-8842-5dce61ad774a__operation_policy__major.go", Plan: _operation_policy__1_0_1_to_2_0_0},
 	{UUID: "019f75c8-408b-7c11-abf4-1825265b90df", Collection: "_iam_rule_", From: "1.0.1", To: "2.0.0", File: "019f75c8-408b-7c11-abf4-1825265b90df__iam_rule__major.go", Plan: _iam_rule__1_0_1_to_2_0_0},
 	{UUID: "019f75c8-408b-7e6a-b578-d84da72a0d9a", Collection: "_operation_policy_", From: "2.0.0", To: "3.0.0", File: "019f75c8-408b-7e6a-b578-d84da72a0d9a__operation_policy__major.go", Plan: _operation_policy__2_0_0_to_3_0_0},
+	{UUID: "019f9310-ed56-7eb6-807e-81be55140444", Collection: "_user_", From: "2.0.0", To: "2.1.0", File: "019f9310-ed56-7eb6-807e-81be55140444__user__minor.go", Plan: _user__2_0_0_to_2_1_0},
+	{UUID: "019f9323-56fe-73d5-a793-d79b67aa06fa", Collection: "_notification_", From: "0.0.0", To: "1.0.0", File: "019f9323-56fe-73d5-a793-d79b67aa06fa__notification__major.go", Plan: _notification__0_0_0_to_1_0_0},
+	{UUID: "019f9323-56fe-7544-b198-d610be5d9add", Collection: "_settings_", From: "0.0.0", To: "1.0.0", File: "019f9323-56fe-7544-b198-d610be5d9add__settings__major.go", Plan: _settings__0_0_0_to_1_0_0},
+	{UUID: "019f9323-56fe-7619-858e-f68942042149", Collection: "_tenant_", From: "0.0.0", To: "1.0.0", File: "019f9323-56fe-7619-858e-f68942042149__tenant__major.go", Plan: _tenant__0_0_0_to_1_0_0},
+	{UUID: "019f9323-56fe-7700-af05-953e31ebb894", Collection: "_user_", From: "2.1.0", To: "3.0.0", File: "019f9323-56fe-7700-af05-953e31ebb894__user__major.go", Plan: _user__2_1_0_to_3_0_0},
+	{UUID: "019f9324-6da7-7b7d-93b1-8a1a68401d10", Collection: "_notification_", From: "1.0.0", To: "2.0.0", File: "019f9324-6da7-7b7d-93b1-8a1a68401d10__notification__major.go", Plan: _notification__1_0_0_to_2_0_0},
+	{UUID: "019f9324-6da7-7d87-8bfb-f9a4958e9025", Collection: "_settings_", From: "1.0.0", To: "2.0.0", File: "019f9324-6da7-7d87-8bfb-f9a4958e9025__settings__major.go", Plan: _settings__1_0_0_to_2_0_0},
+	{UUID: "019f9324-6da7-7eb2-985c-982787e0e196", Collection: "_tenant_", From: "1.0.0", To: "2.0.0", File: "019f9324-6da7-7eb2-985c-982787e0e196__tenant__major.go", Plan: _tenant__1_0_0_to_2_0_0},
+	{UUID: "019f9326-020b-71cc-a994-0b76c1634c78", Collection: "_notification_", From: "2.0.0", To: "3.0.0", File: "019f9326-020b-71cc-a994-0b76c1634c78__notification__major.go", Plan: _notification__2_0_0_to_3_0_0},
+	{UUID: "019f9326-020b-737e-9a67-5a3856713549", Collection: "_settings_", From: "2.0.0", To: "3.0.0", File: "019f9326-020b-737e-9a67-5a3856713549__settings__major.go", Plan: _settings__2_0_0_to_3_0_0},
+	{UUID: "019f9326-020b-7468-8812-e16bf62e4bad", Collection: "_tenant_", From: "2.0.0", To: "3.0.0", File: "019f9326-020b-7468-8812-e16bf62e4bad__tenant__major.go", Plan: _tenant__2_0_0_to_3_0_0},
+	{UUID: "019f9326-020b-75aa-976d-d3b3e0eb165e", Collection: "_user_", From: "3.0.0", To: "4.0.0", File: "019f9326-020b-75aa-976d-d3b3e0eb165e__user__major.go", Plan: _user__3_0_0_to_4_0_0},
+	{UUID: "019f9330-596f-74c0-ba58-1110fa07faab", Collection: "_user_", From: "4.0.0", To: "5.0.0", File: "019f9330-596f-74c0-ba58-1110fa07faab__user__major.go", Plan: _user__4_0_0_to_5_0_0},
+	{UUID: "019f933c-9e1f-7f36-b529-c7a9955b946d", Collection: "_tenant_", From: "3.0.0", To: "3.1.0", File: "019f933c-9e1f-7f36-b529-c7a9955b946d__tenant__minor.go", Plan: _tenant__3_0_0_to_3_1_0},
+	{UUID: "019f936c-1b9c-754a-a7b7-2b5ac0cf07c3", Collection: "_operation_policy_", From: "3.0.0", To: "3.1.0", File: "019f936c-1b9c-754a-a7b7-2b5ac0cf07c3__operation_policy__minor.go", Plan: _operation_policy__3_0_0_to_3_1_0},
+	{UUID: "019f985a-db88-7816-9689-29298ebd14d3", Collection: "_notification_", From: "3.0.0", To: "3.1.0", File: "019f985a-db88-7816-9689-29298ebd14d3__notification__minor.go", Plan: _notification__3_0_0_to_3_1_0},
+	{UUID: "019f985a-db89-73b3-99c1-68c1411c459c", Collection: "_user_", From: "5.0.0", To: "5.1.0", File: "019f985a-db89-73b3-99c1-68c1411c459c__user__minor.go", Plan: _user__5_0_0_to_5_1_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.

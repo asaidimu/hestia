@@ -23,10 +23,18 @@ describe("health", () => {
 })
 
 describe("auth", () => {
+  it("is not authenticated before login", async () => {
+    expect(await container.authenticated()).toBe(false)
+  })
+
   it("logs in as admin", async () => {
     const result = await container.auth.login("admin@test.local", "password123")
     expect(result.user.email).toBe("admin@test.local")
     expect(result.user.permissions).toContain("administrator")
+  })
+
+  it("is authenticated after login", async () => {
+    expect(await container.authenticated()).toBe(true)
   })
 
   it("rejects wrong password", async () => {

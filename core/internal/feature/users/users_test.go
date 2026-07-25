@@ -20,7 +20,7 @@ func TestGetUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "get@test.com", "password123", "Get User")
+	doc, err := model.Register(ctx, "get@test.com", "password123", "Get User", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestUpdateUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "update@test.com", "password123", "Original Name")
+	doc, err := model.Register(ctx, "update@test.com", "password123", "Original Name", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestChangePasswordHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User")
+	doc, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestDeleteUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "delete@test.com", "password123", "Delete User")
+	doc, err := model.Register(ctx, "delete@test.com", "password123", "Delete User", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}

@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"context"
@@ -48,6 +48,24 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 				return Response{Status: 401}, runtime.ErrUnauthorized
 			}
 
+			// Session revocation check — ensure token_version matches the current user's
+			if o.userModel != nil {
+				user, err := o.userModel.GetActiveByID(ctx, info.UserID)
+				if err != nil {
+					if action != nil {
+						action.Clear = true
+					}
+					return Response{Status: 401}, runtime.ErrUnauthorized
+				}
+				currentVersion, _ := user.GetInt("token_version")
+				if info.TokenVersion != currentVersion {
+					if action != nil {
+						action.Clear = true
+					}
+					return Response{Status: 401}, runtime.ErrUnauthorized
+				}
+			}
+
 			// Sliding window — refresh cookie
 			if elapsed > int64(o.refreshTTL.Seconds()) {
 				if _, skip := o.noRefreshOps[req.Operation]; !skip {
@@ -76,10 +94,8 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 		return o.authenticated(ctx, ident, next, req)
 	}
 
-	// Default to anonymous
-	ctx = identity.ContextWithClaims(ctx, &identity.Claims{})
-	ctx = addAuditContext(ctx, &identity.Claims{})
-	return next(ctx, req)
+	// No auth provided — use anonymous identity; policy engine handles enforcement
+	return o.authenticated(ctx, nil, next, req)
 }
 
 func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Identity {
@@ -93,6 +109,7 @@ func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Ide
 	}
 
 	userEmail, _ := user.GetString("email")
+	tenantID, _ := user.GetString("tenant_id")
 	perms := []string{}
 	if rawPerms, err := user.GetStringArray("permissions"); err == nil {
 		perms = rawPerms
@@ -103,6 +120,7 @@ func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Ide
 		Properties: map[string]any{
 			"user_id":     userID,
 			"email":       userEmail,
+			"tenant_id":   tenantID,
 			"permissions": perms,
 			"token_type":  "session",
 		},
@@ -116,6 +134,7 @@ func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next
 		claims = &identity.Claims{
 			UserID:    getStringProp(props, "user_id"),
 			Email:     getStringProp(props, "email"),
+			TenantID:  getStringProp(props, "tenant_id"),
 			Scopes:    ident.Permissions,
 			TokenType: getStringProp(props, "token_type"),
 		}
@@ -138,7 +157,7 @@ func getStringProp(props map[string]any, key string) string {
 func addAuditContext(ctx context.Context, claims *identity.Claims) context.Context {
 	actorID := claims.UserID
 	if actorID == "" {
-		actorID = "anonymous"
+		actorID = "unknown"
 	}
 
 	actorType := runtime.ActorTypeUser
@@ -148,21 +167,6 @@ func addAuditContext(ctx context.Context, claims *identity.Claims) context.Conte
 	case "api_key":
 		actorType = runtime.ActorTypeService
 		authMethod = runtime.AuthMethodAPIKey
-	case "":
-		ident, ok := iam.GetIdentity(ctx)
-		if ok {
-			props, _ := ident.Properties.(map[string]any)
-			if v, _ := props["system"].(string); v == "http" {
-				actorType = runtime.ActorTypeSystem
-				authMethod = runtime.AuthMethodServiceAccount
-			} else {
-				actorType = runtime.ActorTypeAnonymous
-				authMethod = runtime.AuthMethodNone
-			}
-		} else {
-			actorType = runtime.ActorTypeAnonymous
-			authMethod = runtime.AuthMethodNone
-		}
 	}
 
 	return runtime.ContextWithAuditIdentity(ctx, actorID, actorType, authMethod)

@@ -27,6 +27,7 @@ func ContextWithClaims(ctx context.Context, claims *Claims) context.Context {
 		"email":       claims.Email,
 		"permissions": perms,
 		"token_type":  claims.TokenType,
+		"tenant_id":   claims.TenantID,
 	}
 	if claims.Operations != nil {
 		props["operations"] = claims.Operations

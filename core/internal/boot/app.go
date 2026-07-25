@@ -12,6 +12,8 @@ import (
 
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/internal/feature"
 	"github.com/asaidimu/hestia/core/migrations"
 )
@@ -31,6 +33,7 @@ type Application struct {
 	Disp               *runtime.LocalDispatcher
 	Interfaces      []runtime.Interface
 	Registrations      []abstract.MessageRegistration
+	Modules            []abstract.Module
 	systemMod          *feature.SystemModule
 }
 
@@ -65,7 +68,12 @@ func (a *Application) Dispatcher() *runtime.LocalDispatcher {
 
 func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	ctx := context.Background()
-	for _, mod := range modules {
+
+	// Topological sort by Dependencies using Kahn's algorithm
+	sorted := topoSort(modules)
+	a.Modules = append(a.Modules, sorted...)
+
+	for _, mod := range sorted {
 		if err := mod.Setup(ctx, a.PersistenceManager.Persistence()); err != nil {
 			return fmt.Errorf("module %s setup: %w", mod.Name(), err)
 		}
@@ -76,9 +84,10 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 				}
 
 				if err := a.Disp.RegisterHandler(mr.Name, mr.Handler, runtime.HandlerInfo{
-					Name:        mr.Name,
-					Description: mr.Description,
-					Enabled:     mr.Enabled,
+					Name:          mr.Name,
+					Description:   mr.Description,
+					Enabled:       mr.Enabled,
+					BootstrapSafe: mr.BootstrapSafe,
 				}); err != nil {
 					a.Loggers.File.Warn("Failed to register handler", zap.String("module", mod.Name()), zap.String("name", mr.Name), zap.Error(err))
 				}
@@ -97,11 +106,83 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	return nil
 }
 
+// topoSort returns modules sorted by Dependencies using Kahn's algorithm.
+func topoSort(modules []abstract.Module) []abstract.Module {
+	byName := make(map[string]abstract.Module, len(modules))
+	inDegree := make(map[string]int, len(modules))
+	deps := make(map[string][]string, len(modules))
+
+	for _, m := range modules {
+		byName[m.Name()] = m
+		inDegree[m.Name()] = 0
+	}
+
+	for _, m := range modules {
+		for _, dep := range m.Dependencies() {
+			deps[dep] = append(deps[dep], m.Name())
+		}
+	}
+
+	// Count how many deps each module still needs satisfied
+	for _, m := range modules {
+		for _, dep := range m.Dependencies() {
+			if _, ok := byName[dep]; ok {
+				inDegree[m.Name()]++
+			}
+		}
+	}
+
+	var queue []string
+	for _, m := range modules {
+		if inDegree[m.Name()] == 0 {
+			queue = append(queue, m.Name())
+		}
+	}
+
+	var sorted []abstract.Module
+	for len(queue) > 0 {
+		name := queue[0]
+		queue = queue[1:]
+		if m, ok := byName[name]; ok {
+			sorted = append(sorted, m)
+		}
+		for _, dependent := range deps[name] {
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				queue = append(queue, dependent)
+			}
+		}
+	}
+
+	// Append any modules not reached (cycle or missing dep) at the end
+	for _, m := range modules {
+		found := false
+		for _, s := range sorted {
+			if s.Name() == m.Name() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			sorted = append(sorted, m)
+		}
+	}
+
+	return sorted
+}
+
 func (a *Application) AddInterface(o runtime.Interface) {
 	a.Interfaces = append(a.Interfaces, o)
 }
 
 func (a *Application) Start() {
+	ctx := context.Background()
+	for _, m := range a.Modules {
+		if err := m.Start(ctx); err != nil {
+			a.Loggers.File.Error("module start failed", zap.String("module", m.Name()), zap.Error(err))
+		}
+	}
+
 	bootstrapped := false
 	if a.systemMod != nil {
 		bootstrapped = a.systemMod.Bootstrapped()
@@ -119,6 +200,15 @@ func (a *Application) RestartAll(bootstrapped bool) {
 
 func (a *Application) Shutdown(ctx context.Context) error {
 	var lastErr error
+
+	// Stop modules in reverse dependency order
+	for i := len(a.Modules) - 1; i >= 0; i-- {
+		if err := a.Modules[i].Stop(ctx); err != nil {
+			a.Loggers.File.Error("module stop failed", zap.String("module", a.Modules[i].Name()), zap.Error(err))
+			lastErr = err
+		}
+	}
+
 	for _, o := range a.Interfaces {
 		if err := o.Shutdown(ctx); err != nil {
 			lastErr = err
@@ -168,7 +258,7 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 	})
 	a.RegisterModules(mod)
 
-	rpcIface, cliIface := BuildInterfaces(a, version, nil)
+	rpcIface, cliIface := BuildInterfaces(a, version, httpapi.ConfigFromRuntime(cfg), cli.Config{})
 	a.Interfaces = nil
 	a.AddInterface(rpcIface)
 	a.AddInterface(cliIface)

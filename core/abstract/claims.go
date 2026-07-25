@@ -5,6 +5,7 @@ import "time"
 type Claims struct {
 	UserID     string   `json:"user_id"`
 	Email      string   `json:"email"`
+	TenantID   string   `json:"tenant_id"`
 	Scopes     []string `json:"permissions"`
 	Operations []string `json:"operations,omitempty"`
 	TokenType  string   `json:"token_type"`
@@ -13,11 +14,12 @@ type Claims struct {
 }
 
 type SessionInfo struct {
-	SessionID string
-	UserID    string
-	IssuedAt  int64
-	ExpiresAt int64
-	CreatedAt int64
+	SessionID    string
+	UserID       string
+	IssuedAt     int64
+	ExpiresAt    int64
+	CreatedAt    int64
+	TokenVersion int
 }
 
 type CredentialsProvider interface {

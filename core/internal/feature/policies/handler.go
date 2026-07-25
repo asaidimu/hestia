@@ -9,6 +9,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 
+	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/registration"
 )
@@ -187,11 +188,8 @@ func NewCreateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		b, _ := json.Marshal(created)
-		var m map[string]any
-		json.Unmarshal(b, &m)
 		return &registration.Result{
-			Document: data.MustNewDocument(m, ctx),
+			Document: data.MustNewDocument(util.StructToMap(created), ctx),
 		}, nil
 	}
 }
@@ -228,11 +226,8 @@ func NewUpdateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		b, _ := json.Marshal(updated)
-		var m map[string]any
-		json.Unmarshal(b, &m)
 		return &registration.Result{
-			Document: data.MustNewDocument(m, ctx),
+			Document: data.MustNewDocument(util.StructToMap(updated), ctx),
 		}, nil
 	}
 }
@@ -246,11 +241,8 @@ func NewGetRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		b, _ := json.Marshal(rule)
-		var m map[string]any
-		json.Unmarshal(b, &m)
 		return &registration.Result{
-			Document: data.MustNewDocument(m, ctx),
+			Document: data.MustNewDocument(util.StructToMap(rule), ctx),
 		}, nil
 	}
 }
@@ -264,10 +256,7 @@ func NewListRulesHandler(policyModel *PolicyModel) runtime.MessageHandler {
 
 		items := make([]map[string]any, 0, len(rules))
 		for _, rule := range rules {
-			b, _ := json.Marshal(rule)
-			var m map[string]any
-			json.Unmarshal(b, &m)
-			items = append(items, m)
+			items = append(items, util.StructToMap(rule))
 		}
 		return &registration.Result{
 			Document: data.MustNewDocument(map[string]any{"rules": items}, ctx),

@@ -47,9 +47,9 @@ var userRegisterInputJSON = []byte(`{
 		"user_register_payload": {
 			"name": "User Register Payload",
 			"fields": {
-				"username": { "name": "username", "description": "Desired username", "type": "string" },
-				"password": { "name": "password", "description": "Desired password", "type": "string" },
-				"display_name": { "name": "display_name", "description": "Display name for the user", "type": "string" }
+				"username": { "name": "username", "description": "Desired username", "type": "string", "required": true },
+				"password": { "name": "password", "description": "Desired password", "type": "string", "required": true },
+				"display_name": { "name": "display_name", "description": "Display name for the user", "type": "string", "required": true }
 			}
 		}
 	}
@@ -71,8 +71,8 @@ var userLoginInputJSON = []byte(`{
 		"user_login_payload": {
 			"name": "User Login Payload",
 			"fields": {
-				"username": { "name": "username", "description": "The user's username", "type": "string" },
-				"password": { "name": "password", "description": "The user's password", "type": "string" }
+				"username": { "name": "username", "description": "The user's username", "type": "string", "required": true },
+				"password": { "name": "password", "description": "The user's password", "type": "string", "required": true }
 			}
 		}
 	}
@@ -285,8 +285,8 @@ var userChangePasswordInputJSON = []byte(`{
 		"change_password_payload": {
 			"name": "ChangePasswordPayload",
 			"fields": {
-				"current": { "name": "current", "description": "Current password", "type": "string" },
-				"new": { "name": "new", "description": "New password", "type": "string" }
+				"current": { "name": "current", "description": "Current password", "type": "string", "required": true },
+				"new": { "name": "new", "description": "New password", "type": "string", "required": true }
 			}
 		}
 	}

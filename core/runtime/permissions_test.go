@@ -9,6 +9,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/registration"
 )
 
@@ -23,6 +24,13 @@ func (m testMessage) Context() context.Context            { return m.ctx }
 func (m testMessage) Input() *data.Document               { return data.MustNewDocument(nil, m.ctx) }
 func (m testMessage) InputChannel() <-chan *data.Document   { return nil }
 func (m testMessage) BlobInputChannel() <-chan registration.Blob { return nil }
+func (m testMessage) TenantID() string   { return abstract.GetTenantID(m.ctx) }
+func (m testMessage) TraceID() string    { return abstract.GetTraceID(m.ctx) }
+func (m testMessage) RequestID() string  { return abstract.GetRequestID(m.ctx) }
+func (m testMessage) SourceIP() string   { return abstract.GetSourceIP(m.ctx) }
+func (m testMessage) UserAgent() string  { return abstract.GetUserAgent(m.ctx) }
+func (m testMessage) ResourceID() string { return abstract.GetResourceID(m.ctx) }
+func (m testMessage) SessionID() string  { return abstract.GetSessionID(m.ctx) }
 
 func anonymousContext() context.Context {
 	props := map[string]any{
@@ -86,8 +94,8 @@ func TestSecureDispatcher_AnonymousDeniedForAdminScope(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected ErrAccessDenied for anonymous user on admin-scoped query, got nil")
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("expected access denied error, got: %v", err)
+	if !strings.Contains(err.Error(), "AUTH_REQUIRED") {
+		t.Fatalf("expected auth required error, got: %v", err)
 	}
 }
 

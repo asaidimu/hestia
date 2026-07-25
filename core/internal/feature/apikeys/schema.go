@@ -65,7 +65,7 @@ var apiKeyCreateInputJSON = []byte(`{
 		"api_key_create_payload": {
 			"name": "APIKeyCreatePayload",
 			"fields": {
-				"name": { "name": "name", "description": "Display name for the key", "type": "string" },
+				"name": { "name": "name", "description": "Display name for the key", "type": "string", "required": true },
 				"environment": { "name": "environment", "description": "Environment restriction", "type": "string" },
 				"status": { "name": "status", "description": "Key status", "type": "string" },
 				"limits": { "name": "limits", "description": "Rate limits configuration", "type": "record" },

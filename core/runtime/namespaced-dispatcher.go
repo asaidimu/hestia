@@ -16,6 +16,10 @@ func NewNamespacedDispatcher(prefix string, next Dispatcher, hydrator func(Messa
 	return &NamespacedDispatcher{prefix: prefix, next: next, hydrator: hydrator}
 }
 
+func (d *NamespacedDispatcher) Wrap(next Dispatcher) Dispatcher {
+	return &NamespacedDispatcher{prefix: d.prefix, next: next, hydrator: d.hydrator}
+}
+
 func (d *NamespacedDispatcher) Send(msg Message) (*registration.Result, error) {
 	if !strings.HasPrefix(msg.Name(), d.prefix) {
 		return d.next.Send(msg)

@@ -3,7 +3,7 @@ package hestia
 import (
 	"context"
 	"fmt"
-	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -15,8 +15,10 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/schema"
-	"github.com/asaidimu/hestia/core/interface/api"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/internal/boot"
+	"github.com/asaidimu/hestia/core/internal/feature/users"
 )
 
 func projectName(projectName string) string {
@@ -26,18 +28,16 @@ func projectName(projectName string) string {
 	return "hestia"
 }
 
-// SystemModule provides access to system-level services.
-// Use with caution — direct access bypasses normal API safety guarantees.
-// Prefer Application-level methods when available.
 type SystemModule interface {
 	DispatcherChain(next runtime.Dispatcher) runtime.Dispatcher
 	CredentialsProvider() abstract.CredentialsProvider
 	Bootstrapped() bool
 	AdminUserID() string
 	AdminEmail() string
+	UserModel() *users.UserModel
 }
 
-type Middleware = api.Middleware
+type Middleware = httpapi.Middleware
 type Module = abstract.Module
 type Capability = abstract.Capability
 type MessageRegistration = abstract.MessageRegistration
@@ -71,6 +71,50 @@ func (a *Application) Dispatcher() runtime.Dispatcher        { return a.inner.Di
 func (a *Application) SystemModule() SystemModule            { return a.inner.SystemModule() }
 func (a *Application) Registrations() []abstract.MessageRegistration { return a.inner.Registrations }
 func (a *Application) RegisterModules(m ...Module) error     { return a.inner.RegisterModules(m...) }
+
+func (a *Application) NewHTTPInterface(cfg httpapi.Config) runtime.Interface {
+	mod := a.inner.SystemModule()
+	chain := mod.DispatcherChain(a.inner.Dispatcher())
+	return httpapi.New(httpapi.Options{
+		Dispatcher:          chain,
+		InternalDispatcher:  a.inner.Dispatcher(),
+		CredentialsProvider: mod.CredentialsProvider(),
+		Logger:              a.inner.Loggers.File,
+		Addr:                cfg.Addr(),
+		Registrations:       a.inner.Registrations,
+		CookieConfig:        cfg.CookieConfig,
+		SessionTTL:          cfg.SessionTTL,
+		IdleTTL:             cfg.IdleTTL,
+		RefreshTTL:          cfg.RefreshTTL,
+		APIPrefix:           cfg.APIPrefix,
+		StaticFS:            cfg.StaticFS,
+		UserModel:           mod.UserModel(),
+		Middleware:          cfg.Middleware,
+		AllowedOrigins:      cfg.AllowedOrigins,
+	})
+}
+
+func (a *Application) NewCLIInterface(cfg cli.Config) runtime.Interface {
+	mod := a.inner.SystemModule()
+	chain := mod.DispatcherChain(a.inner.Dispatcher())
+	stdin := cfg.Stdin
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	stdout := cfg.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	return cli.New(cli.Options{
+		Dispatcher:  chain,
+		Logger:      a.inner.Loggers.File,
+		AdminUserID: mod.AdminUserID(),
+		AdminEmail:  mod.AdminEmail(),
+		Version:     cfg.Version,
+		Stdin:       stdin,
+		Stdout:      stdout,
+	})
+}
 func (a *Application) Start() error {
 	if sysMod := a.inner.SystemModule(); sysMod != nil {
 		if err := sysMod.SeedPolicies(context.Background()); err != nil {
@@ -90,100 +134,44 @@ func (a *Application) SeedPolicies() error {
 }
 
 type SetupConfig struct {
-	// Port is the HTTP server port (0 means DefaultPort / 8090).
-	Port int
-	// SessionSecret is the signing key for JWT tokens.
-	// Falls back to SESSION_SECRET / JWT_SECRET env vars.
-	SessionSecret string
-	// DataDir is the directory for DB, logs, and blob storage.
-	// Falls back to XDG_DATA_HOME/<ProjectName> / ~/.local/share/<ProjectName>.
-	DataDir  string
-	DBPath   string
-	LogPath  string
-	BlobsDir string
-	// ProjectName is used for the data directory sub-path and DB filename.
-	ProjectName string
-	// Version is baked into the binary at build time via -ldflags.
-	Version string
-
-	// BcryptCost is the cost factor for password hashing (default 12).
-	BcryptCost int
-	// SessionTTL is the absolute session lifetime (default 8h).
-	SessionTTL time.Duration
-	// IdleTTL is the max idle time before session expiry (default 30m).
-	IdleTTL time.Duration
-	// RefreshTTL is the idle threshold for cookie refresh (default 15m).
-	RefreshTTL time.Duration
-	// ForceBootstrapped skips the bootstrap flow.
+	SessionSecret   string
+	DataDir         string
+	DBPath          string
+	LogPath         string
+	BlobsDir        string
+	ProjectName     string
+	Version         string
+	BcryptCost      int
+	SessionTTL      time.Duration
+	IdleTTL         time.Duration
+	RefreshTTL      time.Duration
 	ForceBootstrapped bool
+	LogMaxSize      int
+	LogMaxAge       int
+	LogMaxBackups   int
+	AdminEmail      string
+	AdminPassword   string
 
-	// Log rotation (defaults: MaxSize=100MB, MaxAge=30d, MaxBackups=5).
-	LogMaxSize    int
-	LogMaxAge     int
-	LogMaxBackups int
+	Modules          []Module
+	DispatcherChainFunc  func(chain abstract.ChainEditor)
+	Interfaces       []func(runtime.Dispatcher) runtime.Interface
+	BuildInterfaces  func(app *Application) []runtime.Interface
 
-	// Admin credentials for the initial seed.
-	AdminEmail    string
-	AdminPassword string
-
-	// APIPrefix is the URL prefix for all API routes (default "/api").
-	APIPrefix string
-	// StaticFS serves static files / SPA at the root path.
-	StaticFS fs.FS
-
-	// Cookie settings
-	CookieDomain      string
-	CookieSecure      *bool
-	CookieHTTPOnly    *bool
-	CookieSameSite    abstract.SameSite
-	CookieSessionName string
-	CookieSessionPath string
-
-	// Modules registered with the application.
-	Modules   []Module
-	// Middlewares applied to every API request.
-	Middlewares  []Middleware
-	// DispatcherHooks wrap the dispatcher chain.
-	DispatcherHooks []func(abstract.Dispatcher) abstract.Dispatcher
-	// Interfaces register custom runtime interfaces.
-	Interfaces []func(runtime.Dispatcher) runtime.Interface
-
-	// OnBootstrapped is called after the system is bootstrapped.
 	OnBootstrapped func()
-	// OnReset is called after a full system reset.
-	OnReset func()
-	// Migrate is a user-provided migration function.
-	Migrate func(ctx context.Context, p base.Persistence) error
+	OnReset        func()
+	Migrate        func(ctx context.Context, p base.Persistence) error
 
-	// PersistenceFactory gives full control over persistence setup.
-	// Receives an anansi.SetupConfig and returns a base.Persistence.
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
-	// Flags to disable built-in interfaces.
-	DisableRPC bool
-	DisableCLI bool
-
-	// Logger overrides the default zap logger.
 	Logger *zap.Logger
 }
 
-func Setup(cfg SetupConfig) (*Application, error) {
-	if cfg.ProjectName != "" {
-		boot.ProjectName = cfg.ProjectName
-	}
+func (cfg SetupConfig) applyTo(conf *runtime.Config) {
+	pn := projectName(cfg.ProjectName)
 
-	conf, err := boot.NewConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.Port > 0 {
-		conf.Port = cfg.Port
-	}
 	if cfg.SessionSecret != "" {
 		conf.SessionSecret = cfg.SessionSecret
 	}
-	pn := projectName(cfg.ProjectName)
 	if cfg.DataDir != "" {
 		conf.DataDir = cfg.DataDir
 		if cfg.DBPath == "" {
@@ -232,36 +220,28 @@ func Setup(cfg SetupConfig) (*Application, error) {
 	if cfg.AdminPassword != "" {
 		conf.AdminPassword = cfg.AdminPassword
 	}
-	if cfg.APIPrefix != "" {
-		conf.APIPrefix = cfg.APIPrefix
-	}
-	if cfg.StaticFS != nil {
-		conf.StaticFS = cfg.StaticFS
-	}
 	if cfg.PersistenceFactory != nil {
 		conf.PersistenceFactory = cfg.PersistenceFactory
 	}
-	if cfg.CookieDomain != "" {
-		conf.CookieConfig.Domain = cfg.CookieDomain
+}
+
+func Setup(cfg SetupConfig) (*Application, error) {
+	if cfg.ProjectName != "" {
+		boot.ProjectName = cfg.ProjectName
 	}
-	if cfg.CookieSecure != nil {
-		conf.CookieConfig.Secure = *cfg.CookieSecure
+
+	pn := projectName(cfg.ProjectName)
+	conf, err := runtime.LoadConfig(pn)
+	if err != nil {
+		return nil, err
 	}
-	if cfg.CookieHTTPOnly != nil {
-		conf.CookieConfig.HTTPOnly = *cfg.CookieHTTPOnly
-	}
-	if cfg.CookieSameSite != 0 {
-		conf.CookieConfig.SameSite = cfg.CookieSameSite
-	}
-	if cfg.CookieSessionName != "" {
-		conf.CookieConfig.SessionName = cfg.CookieSessionName
-	}
-	if cfg.CookieSessionPath != "" {
-		conf.CookieConfig.SessionPath = cfg.CookieSessionPath
+	cfg.applyTo(conf)
+	if err != nil {
+		return nil, err
 	}
 
 	if conf.SessionSecret == "" {
-		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret, SESSION_SECRET, or JWT_SECRET env var")
+		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret or SESSION_SECRET env var")
 	}
 
 	forceBootstrapped := cfg.ForceBootstrapped || conf.ForceBootstrapped
@@ -287,9 +267,9 @@ func Setup(cfg SetupConfig) (*Application, error) {
 				wrapReset()
 			}
 		},
-		ForceBootstrapped: forceBootstrapped,
-		Logger:            cfg.Logger,
-		DispatcherHooks:   cfg.DispatcherHooks,
+		ForceBootstrapped:   forceBootstrapped,
+		Logger:              cfg.Logger,
+		DispatcherChainFunc: cfg.DispatcherChainFunc,
 	}
 
 	application, err := boot.BuildApp(conf, opts)
@@ -311,17 +291,18 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		}
 	}
 
-	if !cfg.DisableRPC || !cfg.DisableCLI {
-		rpc, cli := boot.BuildInterfaces(application, cfg.Version, cfg.Middlewares)
-		if !cfg.DisableRPC {
-			application.AddInterface(rpc)
+	appWrapper := &Application{inner: application}
+
+	if cfg.BuildInterfaces != nil {
+		for _, i := range cfg.BuildInterfaces(appWrapper) {
+			application.AddInterface(i)
 		}
-		if !cfg.DisableCLI {
-			application.AddInterface(cli)
+	} else {
+		application.AddInterface(appWrapper.NewHTTPInterface(httpapi.ConfigFromRuntime(conf)))
+		application.AddInterface(appWrapper.NewCLIInterface(cli.Config{Version: cfg.Version}))
+		for _, fn := range cfg.Interfaces {
+			application.AddInterface(fn(application.Dispatcher()))
 		}
-	}
-	for _, fn := range cfg.Interfaces {
-		application.AddInterface(fn(application.Dispatcher()))
 	}
 
 	return &Application{inner: application}, nil

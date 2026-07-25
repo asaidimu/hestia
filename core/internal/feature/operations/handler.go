@@ -7,7 +7,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
 	"github.com/asaidimu/hestia/core/registration"
-	"github.com/asaidimu/hestia/core/interface/api"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	corepkg "github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
 )
@@ -35,12 +35,12 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiP
 		docs := make(data.DocumentSet, 0, len(regs))
 		for _, r := range regs {
 
-			method := api.IntentToHTTPMethod(r.Intent)
-			httpPath := api.DeriveRoute(r.Name, r.Input.Arguments)
+			method := httpapi.IntentToHTTPMethod(r.Intent)
+			httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments)
 			if apiPrefix != "" {
 				httpPath = apiPrefix + httpPath
 			}
-			pattern := method + " " + api.IntentToHTTPPath(r.Intent, httpPath)
+			pattern := method + " " + httpapi.IntentToHTTPPath(r.Intent, httpPath)
 			doc := data.MustNewDocument(map[string]any{
 				"name":           r.Name,
 				"description":    r.Description,
@@ -50,7 +50,7 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiP
 				"internal":       r.Internal,
 				"http": map[string]string{
 					"method":  method,
-					"route":   api.IntentToHTTPPath(r.Intent, httpPath),
+					"route":   httpapi.IntentToHTTPPath(r.Intent, httpPath),
 					"pattern": pattern,
 				},
 			}, ctx)

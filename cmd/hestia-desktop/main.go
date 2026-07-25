@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/asaidimu/hestia/core"
+	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/utils/wails"
 
 	wailsruntime "github.com/wailsapp/wails/v2"
@@ -12,8 +13,9 @@ import (
 
 func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
-		DisableRPC: true,
-		DisableCLI: true,
+		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
+			return nil
+		},
 	})
 	if err != nil {
 		log.Fatal(err)

@@ -12,6 +12,7 @@ import (
 
 	bserrors "github.com/asaidimu/blobs/errors"
 
+	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/registration"
 )
@@ -252,7 +253,7 @@ func NewUpdateBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 		}
 
 		return &registration.Result{
-			Document: mustDoc(blobMetaToMap(meta), ctx),
+			Document: mustDoc(util.StructToMap(*meta), ctx),
 		}, nil
 	}
 }
@@ -272,21 +273,6 @@ func NewDeleteBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 
 		return &registration.Result{}, nil
 	}
-}
-
-func blobMetaToMap(m *runtime.BlobMeta) map[string]any {
-	out := map[string]any{
-		"key":          m.Key,
-		"namespace_id": m.NamespaceID,
-		"content_type": m.ContentType,
-		"size":         m.Size,
-		"created_at":   m.CreatedAt,
-		"updated_at":   m.UpdatedAt,
-	}
-	if len(m.Custom) > 0 {
-		out["custom"] = m.Custom
-	}
-	return out
 }
 
 func wrapErr(err error, code, msg string) *common.SystemError {
@@ -331,7 +317,7 @@ func BlobOps() []BlobOp { return blobOps }
 
 func SeedNamespaceOperations(ctx context.Context, policyOp OperationPolicyStore, nsID string) error {
 	for _, op := range blobOps {
-		opName := "blob." + nsID + "." + op.Suffix
+		opName := "system:blobs:" + nsID + ":" + op.Suffix
 		if err := policyOp.EnsureOperation(ctx, opName, op.RuleKey, op.Intent, op.Desc+" in "+nsID); err != nil {
 			return fmt.Errorf("register operation %s: %w", opName, err)
 		}
@@ -352,7 +338,7 @@ func RegisterBlobHandlers(registry runtime.Registry, svc runtime.BlobStore, nsID
 		{"update", NewUpdateBlobHandler(svc)},
 	}
 	for _, e := range entries {
-		name := "blob." + nsID + "." + e.suffix
+		name := "system:blobs:" + nsID + ":" + e.suffix
 		if err := registry.RegisterHandler(name, e.handler, runtime.HandlerInfo{
 			Name:        name,
 			Description: fmt.Sprintf("%s in namespace %q", blobOpDesc(e.suffix), nsID),
@@ -366,7 +352,7 @@ func RegisterBlobHandlers(registry runtime.Registry, svc runtime.BlobStore, nsID
 
 func UnregisterBlobHandlers(registry runtime.Registry, nsID string) {
 	for _, op := range blobOps {
-		registry.DeleteHandler("blob." + nsID + "." + op.Suffix)
+		registry.DeleteHandler("system:blobs:" + nsID + ":" + op.Suffix)
 	}
 }
 

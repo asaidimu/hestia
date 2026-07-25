@@ -8,7 +8,9 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-iam/v2/iam"
+	"go.uber.org/zap"
 
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/registration"
 )
 
@@ -25,10 +27,11 @@ const (
 	AuditUserAgentKey    auditCtxKey = "audit.user_agent"
 	AuditRequestIDKey    auditCtxKey = "audit.request_id"
 	AuditResourceIDKey   auditCtxKey = "audit.resource_id"
+	TenantIDKey          auditCtxKey = "tenant_id"
 )
 
 func ContextWithAuditResourceID(ctx context.Context, resourceID string) context.Context {
-	return context.WithValue(ctx, AuditResourceIDKey, resourceID)
+	return abstract.ContextWithResourceID(ctx, resourceID)
 }
 
 func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType ActorType, authMethod AuthMethod) context.Context {
@@ -39,27 +42,30 @@ func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType Act
 }
 
 func ContextWithAuditTransport(ctx context.Context, sourceIP, userAgent, requestID string) context.Context {
-	ctx = context.WithValue(ctx, AuditSourceIPKey, sourceIP)
-	ctx = context.WithValue(ctx, AuditUserAgentKey, userAgent)
-	ctx = context.WithValue(ctx, AuditRequestIDKey, requestID)
+	ctx = abstract.ContextWithSourceIP(ctx, sourceIP)
+	ctx = abstract.ContextWithUserAgent(ctx, userAgent)
+	ctx = abstract.ContextWithRequestID(ctx, requestID)
 	return ctx
 }
 
 func ContextWithTraceID(ctx context.Context, traceID string) context.Context {
-	return context.WithValue(ctx, AuditTraceIDKey, traceID)
+	return abstract.ContextWithTraceID(ctx, traceID)
 }
 
-func ContextWithAuditOnBehalfOf(ctx context.Context, onBehalfOfID string) context.Context {
-	return context.WithValue(ctx, AuditOnBehalfOfIDKey, onBehalfOfID)
+func ContextWithTenantID(ctx context.Context, tenantID string) context.Context {
+	return abstract.ContextWithTenantID(ctx, tenantID)
+}
+
+func GetTenantID(ctx context.Context) string {
+	return abstract.GetTenantID(ctx)
 }
 
 func ContextWithAuditSessionID(ctx context.Context, sessionID string) context.Context {
-	return context.WithValue(ctx, AuditSessionIDKey, sessionID)
+	return abstract.ContextWithSessionID(ctx, sessionID)
 }
 
 func GetTraceID(ctx context.Context) string {
-	v, _ := ctx.Value(AuditTraceIDKey).(string)
-	return v
+	return abstract.GetTraceID(ctx)
 }
 
 func deriveOperation(msgName string) Operation {
@@ -116,10 +122,54 @@ func deriveActorType(ctx context.Context) ActorType {
 type AuditDispatcher struct {
 	next      Dispatcher
 	persister AuditPersister
+	logger    *zap.Logger
+	buffer    *AuditBuffer
 }
 
 func NewAuditDispatcher(next Dispatcher, persister AuditPersister) *AuditDispatcher {
-	return &AuditDispatcher{next: next, persister: persister}
+	return &AuditDispatcher{
+		next:      next,
+		persister: persister,
+	}
+}
+
+func NewAuditDispatcherWithLogger(next Dispatcher, persister AuditPersister, logger *zap.Logger) *AuditDispatcher {
+	return &AuditDispatcher{
+		next:      next,
+		persister: persister,
+		logger:    logger,
+	}
+}
+
+func (d *AuditDispatcher) Wrap(next Dispatcher) Dispatcher {
+	return &AuditDispatcher{
+		next:      next,
+		persister: d.persister,
+		logger:    d.logger,
+		buffer:    d.buffer,
+	}
+}
+
+// Buffer returns the shared audit buffer, initialising it on first call.
+func (d *AuditDispatcher) Buffer() *AuditBuffer {
+	if d.buffer == nil {
+		d.buffer = NewAuditBuffer(d.persister, d.logger)
+	}
+	return d.buffer
+}
+
+// Sync blocks until all queued audit entries are flushed.
+func (d *AuditDispatcher) Sync() {
+	if d.buffer != nil {
+		d.buffer.Sync()
+	}
+}
+
+// Close flushes and stops the audit buffer.
+func (d *AuditDispatcher) Close() {
+	if d.buffer != nil {
+		d.buffer.Close()
+	}
 }
 
 func (d *AuditDispatcher) Send(msg Message) (*registration.Result, error) {
@@ -133,7 +183,6 @@ func (d *AuditDispatcher) Send(msg Message) (*registration.Result, error) {
 }
 
 func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerErr error, latency time.Duration) {
-	ctx := msg.Context()
 	now := time.Now().UTC()
 
 	entry := AuditEntry{
@@ -146,40 +195,27 @@ func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerE
 		Status:       AuditStatusSuccess,
 		LatencyMs:    latency.Milliseconds(),
 		ServiceName:  "hestia",
+		RequestID:    msg.RequestID(),
+		TraceID:      msg.TraceID(),
+		SessionID:    msg.SessionID(),
+		SourceIP:     msg.SourceIP(),
+		UserAgent:    msg.UserAgent(),
+		ResourceID:   msg.ResourceID(),
 	}
 
-	if v, _ := ctx.Value(AuditRequestIDKey).(string); v != "" {
-		entry.RequestID = v
-	}
-	if v, _ := ctx.Value(AuditActorIDKey).(string); v != "" {
+	if v, _ := msg.Context().Value(AuditActorIDKey).(string); v != "" {
 		entry.ActorID = v
 	}
-	if v, _ := ctx.Value(AuditActorTypeKey).(ActorType); v != "" {
+	if v, _ := msg.Context().Value(AuditActorTypeKey).(ActorType); v != "" {
 		entry.ActorType = v
 	} else {
-		entry.ActorType = deriveActorType(ctx)
+		entry.ActorType = deriveActorType(msg.Context())
 	}
-	if v, _ := ctx.Value(AuditAuthMethodKey).(AuthMethod); v != "" {
+	if v, _ := msg.Context().Value(AuditAuthMethodKey).(AuthMethod); v != "" {
 		entry.AuthMethod = v
 	}
-	if v, _ := ctx.Value(AuditTraceIDKey).(string); v != "" {
-		entry.TraceID = v
-	}
-	if v, _ := ctx.Value(AuditOnBehalfOfIDKey).(string); v != "" {
+	if v, _ := msg.Context().Value(AuditOnBehalfOfIDKey).(string); v != "" {
 		entry.OnBehalfOfID = v
-	}
-	if v, _ := ctx.Value(AuditSessionIDKey).(string); v != "" {
-		entry.SessionID = v
-	}
-	if v, _ := ctx.Value(AuditSourceIPKey).(string); v != "" {
-		entry.SourceIP = v
-	}
-	if v, _ := ctx.Value(AuditUserAgentKey).(string); v != "" {
-		entry.UserAgent = v
-	}
-
-	if v, _ := ctx.Value(AuditResourceIDKey).(string); v != "" {
-		entry.ResourceID = v
 	}
 
 	switch {
@@ -193,8 +229,5 @@ func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerE
 		}
 	}
 
-	if err := d.persister.Insert(ctx, entry); err != nil {
-		// Persistence failure is non-fatal; swallow to avoid cascading
-		// failures down the dispatch chain.
-	}
+	d.Buffer().Write(msg.Context(), entry)
 }

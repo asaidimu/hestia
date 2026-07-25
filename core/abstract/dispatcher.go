@@ -16,10 +16,11 @@ const (
 )
 
 type HandlerInfo struct {
-	Name        string     `json:"name"`
-	IntentType  IntentType `json:"intent_type"`
-	Description string     `json:"description"`
-	Enabled     bool       `json:"enabled"`
+	Name          string     `json:"name"`
+	IntentType    IntentType `json:"intent_type"`
+	Description   string     `json:"description"`
+	Enabled       bool       `json:"enabled"`
+	BootstrapSafe bool       `json:"bootstrap_safe"`
 }
 
 type Registry interface {

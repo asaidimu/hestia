@@ -30,23 +30,13 @@ function okResponse<T>(data: T): ApiResponse<T> {
   return { success: true, status: 200, data, raw: new Response(), headers: new Headers() }
 }
 
-function mockDocsResponse() {
-  return okResponse({
-    data: [
-      { name: "system:policies:policy:update", http: { method: "PATCH", route: "/system/policies/policy/{name}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { name: { name: "name", type: "string", required: true } } } } } },
-      { name: "system:collections:document:query", http: { method: "POST", route: "/system/collections/document/{name}/query" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { name: { name: "name", type: "string", required: true } } } } } },
-      { name: "system:policies:policy:list", http: { method: "GET", route: "/system/policies/policy" }, input: {} },
-    ],
-  })
-}
-
 describe("HestiaPolicies", () => {
   let policies: HestiaPolicies
   let raw: any
 
   beforeEach(() => {
     const provider = makeProvider()
-    const client = new HttpTransport("http://test.local", "/api", provider)
+    const client = new HttpTransport("http://test.local", "/api")
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
     raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
@@ -55,7 +45,6 @@ describe("HestiaPolicies", () => {
 
   describe("setEnabled", () => {
     it("sends PATCH with enabled:false and preserves all fields in response", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.patch.mockResolvedValueOnce(
         okResponse({
           data: {
@@ -78,7 +67,6 @@ describe("HestiaPolicies", () => {
     })
 
     it("sends PATCH with enabled:true", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.patch.mockResolvedValueOnce(
         okResponse({
           data: {
@@ -99,7 +87,6 @@ describe("HestiaPolicies", () => {
 
   describe("query", () => {
     it("maps raw doc fields (operation, rule) to Policy fields", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: [
@@ -125,7 +112,6 @@ describe("HestiaPolicies", () => {
     })
 
     it("defaults ruleName to empty string when rule field is missing", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: [
@@ -148,7 +134,6 @@ describe("HestiaPolicies", () => {
 
   describe("list", () => {
     it("returns policies from server response", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.get.mockResolvedValueOnce(
         okResponse({
           data: {

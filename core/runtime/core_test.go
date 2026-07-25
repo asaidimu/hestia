@@ -240,6 +240,7 @@ func TestAuditDispatcher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
+	disp.Sync()
 	if len(persister.entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(persister.entries))
 	}
@@ -273,6 +274,7 @@ func TestAuditDispatcherError(t *testing.T) {
 	ctx = ContextWithAuditTransport(ctx, "10.0.0.1", "curl", "req-1")
 	msg := testMessage{name: "test:fail", ctx: ctx}
 	disp.Send(msg)
+	disp.Sync()
 
 	if len(persister.entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(persister.entries))
@@ -361,8 +363,8 @@ func TestSecureDispatcherWithPermissionManager(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for anonymous, got nil")
 	}
-	if !strings.Contains(err.Error(), "access denied") {
-		t.Fatalf("expected access denied error, got: %v", err)
+	if !strings.Contains(err.Error(), "AUTH_REQUIRED") {
+		t.Fatalf("expected auth required error, got: %v", err)
 	}
 }
 

@@ -22,13 +22,11 @@ func main() {
 }
 ```
 
-Set `JWT_SECRET` and run:
-
 ```bash
-JWT_SECRET=my-secret go run main.go
+go run main.go
 ```
 
-That starts a full server on `:8090` with auth, users, API keys, policies, blobs, audit logging, collection management, and a CLI.
+Set `SESSION_SECRET` env var to configure the session signing key, or use `SetupConfig.SessionSecret` in code. That starts a full server on `:8090` with auth, users, API keys, policies, blobs, audit logging, collection management, and a CLI.
 
 ## Install
 
@@ -50,26 +48,24 @@ go install github.com/asaidimu/hestia/cmd/hestia@latest
 
 | Var | Default | Required | Description |
 |---|---|---|---|
-| `JWT_SECRET` | — | **yes** | HMAC-SHA256 signing key (any length) |
-| `PORT` | `:8090` | no | Listen address (must include colon; `:0` for random) |
-| `APP_DATA_DIR` | `~/.local/share/anansi` | no | All persistent state (DB, logs, blobs) |
-| `DB_PATH` | `<data_dir>/anansi.db` | no | SQLite file path; `:memory:` for in-memory |
+| `SESSION_SECRET` | — | **yes** | HMAC-SHA256 signing key (any length) |
+| `PORT` | `8090` | no | HTTP port |
+| `APP_DATA_DIR` | `~/.local/share/<project>` | no | All persistent state (DB, logs, blobs) |
+| `DB_PATH` | `<data_dir>/<project>.db` | no | SQLite file path; `:memory:` for in-memory |
 | `BCRYPT_COST` | `12` | no | Password hashing cost (4–31) |
-| `JWT_ACCESS_TTL` | `15m` | no | Access token lifetime (Go duration) |
-| `JWT_REFRESH_TTL` | `168h` (7d) | no | Refresh token lifetime |
-| `JWT_RESET_TTL` | `5m` | no | Password reset token lifetime |
+| `SESSION_TTL` | `8h` | no | Absolute session lifetime |
+| `SESSION_IDLE_TTL` | `30m` | no | Session idle timeout |
+| `SESSION_REFRESH_TTL` | `15m` | no | Sliding-window cookie refresh threshold |
 | `BLOBS_DIR` | `<data_dir>/blobs` | no | Blob file storage root |
-| `LOGS_DIR` | `<data_dir>` | no | Structured JSON log output (disabled if empty) |
+| `LOG_PATH` | `<data_dir>/server.log` | no | Log file path |
 | `LOG_MAX_SIZE` | `100` | no | Log rotation size (MB) |
 | `LOG_MAX_AGE` | `30` | no | Log retention (days) |
 | `LOG_MAX_BACKUPS` | `5` | no | Max old log files kept |
 | `COOKIE_DOMAIN` | `""` | no | Cookie domain restriction |
 | `COOKIE_SECURE` | `true` | no | Require HTTPS for cookies |
 | `COOKIE_SAMESITE` | `strict` | no | `strict`, `lax`, or `none` |
-| `ACCESS_COOKIE_NAME` | `access_token` | no | Access token cookie name |
-| `ACCESS_COOKIE_PATH` | `/` | no | Access token cookie path |
-| `REFRESH_COOKIE_NAME` | `refresh_token` | no | Refresh token cookie name |
-| `REFRESH_COOKIE_PATH` | `/api/auth/session` | no | Refresh token cookie path |
+| `SESSION_COOKIE_NAME` | `session` | no | Session cookie name |
+| `SESSION_COOKIE_PATH` | `/` | no | Session cookie path |
 
 ### Programmatic Config
 
@@ -77,15 +73,15 @@ The `core.Config` struct (in `github.com/asaidimu/hestia/internal/core`) exposes
 
 ```go
 type Config struct {
-    Port              string            // ":8090"
+    Port              int               // 8090
     DataDir           string            // persistent state root
-    DBPath            string            // "file:...?cache=shared&_fk=1" for SQLite
-    JWTSecret         string            // required
+    DBPath            string            // SQLite file
+    SessionSecret     string            // required
     BlobsDir          string            // file storage
     BcryptCost        int               // 12
-    AccessTokenTTL    time.Duration     // 15m
-    RefreshTokenTTL   time.Duration     // 168h
-    ResetTokenTTL     time.Duration     // 5m
+    SessionTTL        time.Duration     // 8h
+    IdleTTL           time.Duration     // 30m
+    RefreshTTL        time.Duration     // 15m
     AdminEmail        string            // override random seed email
     AdminPassword     string            // override random seed password
     ForceBootstrapped bool              // skip bootstrap flow
@@ -104,9 +100,9 @@ Pass a `*core.Config` directly via `SetupConfig.Config` to bypass env-var loadin
 ```go
 hestia.Run(hestia.SetupConfig{
     Config: &core.Config{
-        Port:      ":8080",
-        JWTSecret: "my-secret",
-        DBPath:    ":memory:",
+        Port:          8080,
+        SessionSecret: "my-secret",
+        DBPath:        ":memory:",
     },
 })
 ```
@@ -260,7 +256,7 @@ HTTP ─▶ Transport ─▶ authMiddleware ─▶ routeClosure ─▶ Dispatche
                                              └───────────────────────┘
 ```
 
-1. **Auth middleware** tries: Bearer JWT → access cookie → API key → anonymous
+1. **Auth middleware** tries: session cookie → API key → anonymous
 2. **Route closure** builds `{arguments, modifiers, payload}` from the HTTP request
 3. **Dispatcher chain** layers on security, blob routing, audit logging
 4. **Handler** executes business logic, returns `*Result` with `Kind` discriminant

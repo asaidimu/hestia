@@ -5,6 +5,7 @@ export interface UserData {
   name: string
   verified: boolean
   permissions: string[]
+  tenant_id: string
   deleted?: string | null
 }
 

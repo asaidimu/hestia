@@ -14,7 +14,6 @@ var (
 
 func logQueryInputSchema() *definition.Schema     { return _logQueryInput }
 func logQueryOutputSchema() *definition.Schema    { return _logQueryOutput }
-func logEntryOutputSchema() *definition.Schema    { return _logQueryOutput }
 func logStreamInputSchema() *definition.Schema    { return _logStreamInput }
 func logStreamOutputSchema() *definition.Schema   { return _logStreamOutput }
 

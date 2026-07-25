@@ -7,6 +7,7 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 
+	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/registration"
 )
@@ -148,7 +149,7 @@ func NewUserCreateDocumentHandler(users *UserModel) runtime.MessageHandler {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "email, password, and name are required")
 		}
 
-		d, err := users.Register(ctx, req.Email, req.Password, req.Name)
+		d, err := users.Register(ctx, req.Email, req.Password, req.Name, runtime.GetTenantID(ctx))
 		if err != nil {
 			return nil, err
 		}
@@ -182,19 +183,7 @@ func NewUserUpdateDocumentHandler(users *UserModel) runtime.MessageHandler {
 			return nil, common.NewSystemError("PARSE_DOCUMENT", fmt.Sprintf("invalid JSON: %s", err.Error()))
 		}
 
-		fields := map[string]any{}
-		if req.Name != nil {
-			fields["name"] = *req.Name
-		}
-		if req.Email != nil {
-			fields["email"] = *req.Email
-		}
-		if req.Permissions != nil {
-			fields["permissions"] = req.Permissions
-		}
-		if req.Verified != nil {
-			fields["verified"] = *req.Verified
-		}
+		fields := util.StructToMap(req)
 		if len(fields) == 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "no fields to update")
 		}

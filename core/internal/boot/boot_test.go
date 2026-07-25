@@ -138,81 +138,12 @@ func TestNewConfigCustom(t *testing.T) {
 
 func TestNewConfigMissingSessionSecret(t *testing.T) {
 	os.Unsetenv("SESSION_SECRET")
-	os.Unsetenv("JWT_SECRET")
 	cfg, err := NewConfig()
 	if err != nil {
 		t.Fatalf("NewConfig() error: %v", err)
 	}
 	if cfg.SessionSecret != "" {
 		t.Errorf("SessionSecret = %q, want empty", cfg.SessionSecret)
-	}
-}
-
-func TestNewConfigFallsBackToJWTSecret(t *testing.T) {
-	os.Unsetenv("SESSION_SECRET")
-	t.Setenv("JWT_SECRET", "fallback-secret")
-	cfg, err := NewConfig()
-	if err != nil {
-		t.Fatalf("NewConfig() error with JWT_SECRET fallback: %v", err)
-	}
-	if cfg.SessionSecret != "fallback-secret" {
-		t.Errorf("SessionSecret = %q, want %q", cfg.SessionSecret, "fallback-secret")
-	}
-}
-
-func TestEnvOrString(t *testing.T) {
-	t.Setenv("TEST_STR_KEY", "hello")
-	if got := envOrString("TEST_STR_KEY", "default"); got != "hello" {
-		t.Errorf("envOrString = %q, want %q", got, "hello")
-	}
-
-	os.Unsetenv("TEST_STR_KEY_2")
-	if got := envOrString("TEST_STR_KEY_2", "fallback"); got != "fallback" {
-		t.Errorf("envOrString = %q, want %q", got, "fallback")
-	}
-}
-
-func TestEnvOrBool(t *testing.T) {
-	t.Setenv("TEST_BOOL_TRUE", "true")
-	if got := envOrBool("TEST_BOOL_TRUE", false); got != true {
-		t.Error("envOrBool(\"true\") = false, want true")
-	}
-
-	t.Setenv("TEST_BOOL_FALSE", "false")
-	if got := envOrBool("TEST_BOOL_FALSE", true); got != false {
-		t.Error("envOrBool(\"false\") = true, want false")
-	}
-
-	t.Setenv("TEST_BOOL_1", "1")
-	if got := envOrBool("TEST_BOOL_1", false); got != true {
-		t.Error("envOrBool(\"1\") = false, want true")
-	}
-
-	t.Setenv("TEST_BOOL_0", "0")
-	if got := envOrBool("TEST_BOOL_0", true); got != false {
-		t.Error("envOrBool(\"0\") = true, want false")
-	}
-
-	os.Unsetenv("TEST_BOOL_DEFAULT")
-	if got := envOrBool("TEST_BOOL_DEFAULT", true); got != true {
-		t.Error("envOrBool(unset) = false, want true")
-	}
-}
-
-func TestEnvDuration(t *testing.T) {
-	t.Setenv("TEST_DUR", "5m")
-	if got := envDuration("TEST_DUR", 0); got != 5*time.Minute {
-		t.Errorf("envDuration = %v, want 5m", got)
-	}
-
-	t.Setenv("TEST_DUR_HOURS", "2h")
-	if got := envDuration("TEST_DUR_HOURS", 0); got != 2*time.Hour {
-		t.Errorf("envDuration = %v, want 2h", got)
-	}
-
-	os.Unsetenv("TEST_DUR_DEFAULT")
-	if got := envDuration("TEST_DUR_DEFAULT", 30*time.Second); got != 30*time.Second {
-		t.Errorf("envDuration = %v, want 30s", got)
 	}
 }
 

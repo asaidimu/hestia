@@ -39,27 +39,3 @@ func MustFromJSON(data []byte) *definition.Schema {
 	}
 	return s
 }
-
-func LoadFromSubdirs(fsys fs.FS, pattern string) ([]*definition.Schema, error) {
-	entries, err := fs.Glob(fsys, pattern)
-	if err != nil {
-		return nil, fmt.Errorf("list schema files: %w", err)
-	}
-
-	schemas := make([]*definition.Schema, 0, len(entries))
-	for _, entry := range entries {
-		data, err := fs.ReadFile(fsys, entry)
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", entry, err)
-		}
-
-		s, err := definition.FromJSON(data)
-		if err != nil {
-			return nil, fmt.Errorf("parse %s: %w", filepath.Base(entry), err)
-		}
-
-		schemas = append(schemas, s)
-	}
-
-	return schemas, nil
-}

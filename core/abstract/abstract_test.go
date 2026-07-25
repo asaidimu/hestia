@@ -159,7 +159,7 @@ func TestNewBlobChannelResult(t *testing.T) {
 	}
 }
 
-type testModule struct{}
+type testModule struct{ BaseModule }
 
 func (m *testModule) Name() string                                                      { return "test" }
 func (m *testModule) Setup(_ context.Context, _ base.Persistence) error { return nil }

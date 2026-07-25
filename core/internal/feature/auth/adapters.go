@@ -3,6 +3,10 @@ package auth
 import (
 	"context"
 
+	"go.uber.org/zap"
+
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
+
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/identity"
@@ -10,41 +14,49 @@ import (
 
 type APIKeyAuthenticator struct {
 	apiKeyModel  *apikeys.APIKeyModel
-	userModel    *users.UserModel
+	liveUsers    collection.LiveCollection[*users.UserClaims]
 	ephemeralKey string
 	adminUserID  string
 	adminEmail   string
+	logger       *zap.Logger
 }
 
-func NewAPIKeyAuthenticator(apiKeyModel *apikeys.APIKeyModel, userModel *users.UserModel, ephemeralKey, adminUserID, adminEmail string) *APIKeyAuthenticator {
+func NewAPIKeyAuthenticator(apiKeyModel *apikeys.APIKeyModel, liveUsers collection.LiveCollection[*users.UserClaims], ephemeralKey, adminUserID, adminEmail string, logger *zap.Logger) *APIKeyAuthenticator {
 	return &APIKeyAuthenticator{
 		apiKeyModel:  apiKeyModel,
-		userModel:    userModel,
+		liveUsers:    liveUsers,
 		ephemeralKey: ephemeralKey,
 		adminUserID:  adminUserID,
 		adminEmail:   adminEmail,
+		logger:       logger,
 	}
 }
 
-func (a *APIKeyAuthenticator) loadUserScopes(ctx context.Context, userID string) []string {
-	if userID == "" {
+func (a *APIKeyAuthenticator) loadUserClaims(ctx context.Context, userID string) *users.UserClaims {
+	if userID == "" || a.liveUsers == nil {
 		return nil
 	}
-	doc, err := a.userModel.GetByID(ctx, userID)
-	if err != nil {
+	claims, ok := a.liveUsers.Get(userID)
+	if !ok {
 		return nil
 	}
-	perms, _ := doc.GetStringArray("permissions")
-	return perms
+	return claims
 }
 
 func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*identity.Claims, error) {
 	if a.ephemeralKey != "" && key == a.ephemeralKey {
-		scopes := a.loadUserScopes(ctx, a.adminUserID)
+		a.logger.Warn("ephemeral API key used for authentication",
+			zap.String("admin_user_id", a.adminUserID),
+			zap.String("admin_email", a.adminEmail),
+		)
+		uc := a.loadUserClaims(ctx, a.adminUserID)
+		scopes := a.adminScopes(uc)
+		tenantID := a.adminTenant(uc)
 		return &identity.Claims{
-			UserID: a.adminUserID,
-			Email:  a.adminEmail,
-			Scopes: scopes,
+			UserID:   a.adminUserID,
+			Email:    a.adminEmail,
+			Scopes:   scopes,
+			TenantID: tenantID,
 		}, nil
 	}
 
@@ -56,6 +68,24 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*id
 	// API keys don't store permission scopes — they inherit the owning user's
 	// current permissions at authentication time. This ensures permission
 	// changes are reflected immediately without key rotation.
-	claims.Scopes = a.loadUserScopes(ctx, claims.UserID)
+	uc := a.loadUserClaims(ctx, claims.UserID)
+	if uc != nil {
+		claims.Scopes = uc.Permissions
+		claims.TenantID = uc.TenantID
+	}
 	return claims, nil
+}
+
+func (a *APIKeyAuthenticator) adminScopes(uc *users.UserClaims) []string {
+	if uc != nil {
+		return uc.Permissions
+	}
+	return nil
+}
+
+func (a *APIKeyAuthenticator) adminTenant(uc *users.UserClaims) string {
+	if uc != nil {
+		return uc.TenantID
+	}
+	return ""
 }

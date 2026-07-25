@@ -97,7 +97,7 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 			{"document.delete", "administrator", "COMMAND", "Delete a document from " + name},
 		}
 		for _, op := range ops {
-			opName := "collection." + name + "." + op.suffix
+			opName := "system:collections:" + name + ":" + op.suffix
 			if err := policyOp.EnsureOperation(ctx, opName, op.ruleKey, op.intent, op.desc); err != nil {
 				return nil, wrapErr(err, "ENSURE_OPERATION", fmt.Sprintf("register operation %s", opName))
 			}
@@ -133,9 +133,9 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 			return nil, fmt.Errorf("collection %q is a system collection and cannot be deleted", name)
 		}
 
-		docSuffixes := []string{"document.create", "document.read", "document.update", "document.delete"}
-		for _, s := range docSuffixes {
-			registry.DeleteHandler("collection." + name + "." + s)
+	docSuffixes := []string{"document.create", "document.read", "document.update", "document.delete"}
+	for _, s := range docSuffixes {
+		registry.DeleteHandler("system:collections:" + name + ":" + s)
 		}
 
 		if _, err := persist.Delete(ctx, name); err != nil {
@@ -144,7 +144,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 
 		suffixes := []string{"read", "write", "delete", "document.create", "document.read", "document.update", "document.delete"}
 		for _, s := range suffixes {
-			opName := "collection." + name + "." + s
+			opName := "system:collections:" + name + ":" + s
 			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
 				logger.Warn("Failed to delete operation", zap.String("operation", opName), zap.Error(err))
 			}
@@ -288,16 +288,16 @@ func RegisterDocumentHandlers(r runtime.Registry, persist persistence.Persistenc
 	docUpdInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Update a document in %q", name), Enabled: true}
 	docDelInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Delete a document from %q", name), Enabled: true}
 
-	if err := r.RegisterHandler("collection."+name+".document.create", createHandler, docCmdInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document.create", createHandler, docCmdInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("collection."+name+".document.read", getHandler, docQryInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document.read", getHandler, docQryInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("collection."+name+".document.update", updateHandler, docUpdInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document.update", updateHandler, docUpdInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("collection."+name+".document.delete", deleteHandler, docDelInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document.delete", deleteHandler, docDelInfo); err != nil {
 		return err
 	}
 

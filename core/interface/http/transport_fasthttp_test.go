@@ -1,4 +1,4 @@
-package httpserver
+package http
 
 import (
 	"context"
@@ -58,16 +58,78 @@ func TestCORS(t *testing.T) {
 		return abstract.Response{Status: 200, Body: "ok"}, nil
 	})
 
-	// Direct CORS header test using the transport's serveHTTP
 	ctx := newCtx("OPTIONS", "/test")
+	ctx.Request.Header.Set("Origin", "http://example.com")
+	ctx.Request.Header.Set("Host", "example.com")
 	transport.serveHTTP(ctx)
 
 	if string(ctx.Response.Header.Peek("Access-Control-Allow-Origin")) == "" {
 		t.Error("CORS headers not set on OPTIONS")
 	}
+	if string(ctx.Response.Header.Peek("Access-Control-Allow-Credentials")) != "true" {
+		t.Error("expected Allow-Credentials for same-origin request")
+	}
 	if ctx.Response.StatusCode() != fasthttp.StatusNoContent {
 		t.Errorf("status = %d, want 204", ctx.Response.StatusCode())
 	}
+}
+
+func TestCORSAllowlist(t *testing.T) {
+	transport := NewTransport(TransportOptions{
+		Addr:           ":0",
+		AllowedOrigins: []string{"https://trusted.example.com"},
+	})
+	transport.Handle("GET /test", func(ctx2 context.Context, req abstract.Request) (abstract.Response, error) {
+		return abstract.Response{Status: 200, Body: "ok"}, nil
+	})
+
+	t.Run("allowed cross-origin without credentials", func(t *testing.T) {
+		ctx := newCtx("GET", "/test")
+		ctx.Request.Header.Set("Origin", "https://trusted.example.com")
+		ctx.Request.Header.Set("Host", "api.hestia.local")
+		transport.serveHTTP(ctx)
+
+		origin := string(ctx.Response.Header.Peek("Access-Control-Allow-Origin"))
+		if origin != "https://trusted.example.com" {
+			t.Errorf("origin = %q, want https://trusted.example.com", origin)
+		}
+		if string(ctx.Response.Header.Peek("Access-Control-Allow-Credentials")) == "true" {
+			t.Error("should not set credentials for cross-origin even when allowed")
+		}
+	})
+
+	t.Run("blocked origin", func(t *testing.T) {
+		ctx := newCtx("GET", "/test")
+		ctx.Request.Header.Set("Origin", "https://evil.example.com")
+		transport.serveHTTP(ctx)
+
+		if string(ctx.Response.Header.Peek("Access-Control-Allow-Origin")) != "" {
+			t.Error("should not set CORS for blocked origin")
+		}
+	})
+
+	t.Run("dynamic add and remove", func(t *testing.T) {
+		cl := transport.CORSAllowlist()
+		cl.Add("https://dynamic.example.com")
+
+		ctx := newCtx("GET", "/test")
+		ctx.Request.Header.Set("Origin", "https://dynamic.example.com")
+		ctx.Request.Header.Set("Host", "api.hestia.local")
+		transport.serveHTTP(ctx)
+
+		if string(ctx.Response.Header.Peek("Access-Control-Allow-Origin")) != "https://dynamic.example.com" {
+			t.Error("should allow dynamically added origin")
+		}
+
+		cl.Remove("https://dynamic.example.com")
+		ctx2 := newCtx("GET", "/test")
+		ctx2.Request.Header.Set("Origin", "https://dynamic.example.com")
+		transport.serveHTTP(ctx2)
+
+		if string(ctx2.Response.Header.Peek("Access-Control-Allow-Origin")) != "" {
+			t.Error("should block removed origin")
+		}
+	})
 }
 
 func TestCorrelationID(t *testing.T) {
@@ -173,7 +235,7 @@ func TestWriteError(t *testing.T) {
 	})
 }
 
-func TestCodeToStatus(t *testing.T) {
+func TestCodeToStatusFn(t *testing.T) {
 	tests := []struct {
 		code string
 		want int

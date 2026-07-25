@@ -7,7 +7,8 @@ import (
 
 	"github.com/asaidimu/hestia/core"
 	"github.com/asaidimu/hestia/core/identity"
-	"github.com/asaidimu/hestia/core/interface/api"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -19,25 +20,32 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	app, err := hestia.Setup(hestia.SetupConfig{
-		Port:              8070,
 		DataDir:           tmpDir,
 		DBPath:            ":memory:",
 		SessionSecret:     "test-secret-do-not-use-in-production",
 		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		Middlewares: []hestia.Middleware{
-			func(ctx context.Context, req api.Request, next api.HandlerFunc) (api.Response, error) {
-				claims := &identity.Claims{
-					UserID:    "auth_disabled",
-					Email:     "admin@test.local",
-					Scopes:    []string{"administrator"},
-					TokenType: "system",
-				}
-				ctx = identity.ContextWithClaims(ctx, claims)
-				ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, runtime.ActorTypeUser, runtime.AuthMethodPassword)
-				return next(ctx, req)
-			},
+		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
+			return []runtime.Interface{
+				app.NewHTTPInterface(httpapi.Config{
+					Port: 8070,
+					Middleware: []httpapi.Middleware{
+						func(ctx context.Context, req httpapi.Request, next httpapi.HandlerFunc) (httpapi.Response, error) {
+							claims := &identity.Claims{
+								UserID:    "auth_disabled",
+								Email:     "admin@test.local",
+								Scopes:    []string{"administrator"},
+								TokenType: "system",
+							}
+							ctx = identity.ContextWithClaims(ctx, claims)
+							ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, runtime.ActorTypeUser, runtime.AuthMethodPassword)
+							return next(ctx, req)
+						},
+					},
+				}),
+				app.NewCLIInterface(cli.Config{}),
+			}
 		},
 	})
 	if err != nil {

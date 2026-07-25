@@ -24,7 +24,31 @@ type Module interface {
 	Name() string
 	Setup(ctx context.Context, persist base.Persistence) error
 	Capabilities() []Capability
+
+	// Dependencies returns the names of modules that must be set up
+	// before this one. Used for topological ordering of module init.
+	Dependencies() []string
+
+	// Start is called after all modules are set up, in dependency order.
+	Start(ctx context.Context) error
+
+	// Stop is called on graceful shutdown, in reverse dependency order.
+	Stop(ctx context.Context) error
+
+	// Health returns module-specific health data. Nil means healthy
+	// with no additional detail. An error signals degraded health.
+	Health(ctx context.Context) any
 }
+
+// BaseModule provides no-op defaults for Dependencies, Start, Stop, and
+// Health so that simple modules only need to implement Name, Setup, and
+// Capabilities.
+type BaseModule struct{}
+
+func (BaseModule) Dependencies() []string                    { return nil }
+func (BaseModule) Start(_ context.Context) error              { return nil }
+func (BaseModule) Stop(_ context.Context) error               { return nil }
+func (BaseModule) Health(_ context.Context) any               { return nil }
 
 type Capability struct {
 	Name     string

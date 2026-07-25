@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/asaidimu/hestia/core/identity"
+	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -148,30 +149,7 @@ func (m *APIKeyModel) Update(ctx context.Context, keyID, userID string, req *Upd
 		return nil, fmt.Errorf("access api_key collection: %w", err)
 	}
 
-	setFields := map[string]any{}
-	if req.Name != nil {
-		setFields["name"] = *req.Name
-	}
-	if req.Operations != nil {
-		setFields["operations"] = req.Operations
-	}
-	if req.Status != nil {
-		setFields["status"] = *req.Status
-	}
-	if req.Expiry != nil {
-		setFields["expiry"] = *req.Expiry
-	}
-	if req.Limits != nil {
-		setFields["limits"] = req.Limits
-	}
-	if req.IP != nil {
-		setFields["ip"] = req.IP
-	}
-	if req.Environment != nil {
-		setFields["environment"] = *req.Environment
-	}
-
-	setDoc := data.Patch(setFields).Document(ctx)
+	setDoc := data.Patch(util.StructToMap(*req)).Document(ctx)
 	result, err := col.Update(ctx, &base.CollectionUpdate{
 		Set:            setDoc,
 		Filter:         query.NewQueryBuilder().Where(data.DocumentIDField).Eq(keyID).Where("userId").Eq(userID).Build().Filters,

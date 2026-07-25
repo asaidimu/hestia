@@ -8,6 +8,8 @@ type Registry = abstract.Registry
 type MessageHandler = abstract.MessageHandler
 type HandlerInfo = abstract.HandlerInfo
 type IntentType = abstract.IntentType
+type DispatcherLink = abstract.DispatcherLink
+type ChainEditor = abstract.ChainEditor
 
 const (
 	IntentTypeCommand IntentType = abstract.IntentTypeCommand

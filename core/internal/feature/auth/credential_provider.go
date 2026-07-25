@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -15,28 +16,39 @@ import (
 )
 
 type credentialProvider struct {
-	sessionSvc *SessionService
-	secret     []byte
+	sessionSvc      *SessionService
+	secret          []byte
+	getUserVersion  func(ctx context.Context, userID string) (int, error)
 }
 
 func NewCredentialsProvider(sessionSvc *SessionService, resetSecret string) abstract.CredentialsProvider {
+	return NewCredentialsProviderWithVersion(sessionSvc, resetSecret, nil)
+}
+
+func NewCredentialsProviderWithVersion(sessionSvc *SessionService, resetSecret string, getUserVersion func(ctx context.Context, userID string) (int, error)) abstract.CredentialsProvider {
+	if getUserVersion == nil {
+		getUserVersion = func(_ context.Context, _ string) (int, error) { return 0, nil }
+	}
 	return &credentialProvider{
-		sessionSvc: sessionSvc,
-		secret:     []byte(resetSecret),
+		sessionSvc:     sessionSvc,
+		secret:         []byte(resetSecret),
+		getUserVersion: getUserVersion,
 	}
 }
 
 func (p *credentialProvider) CreateSession(userID string, ttl time.Duration) (string, *abstract.SessionInfo, error) {
-	token, st, err := p.sessionSvc.Create(userID, ttl)
+	tokenVersion, _ := p.getUserVersion(context.Background(), userID)
+	token, st, err := p.sessionSvc.Create(userID, ttl, tokenVersion)
 	if err != nil {
 		return "", nil, err
 	}
 	return token, &abstract.SessionInfo{
-		SessionID: st.SessionID,
-		UserID:    st.UserID,
-		IssuedAt:  st.IssuedAt,
-		ExpiresAt: st.ExpiresAt,
-		CreatedAt: st.CreatedAt,
+		SessionID:    st.SessionID,
+		UserID:       st.UserID,
+		IssuedAt:     st.IssuedAt,
+		ExpiresAt:    st.ExpiresAt,
+		CreatedAt:    st.CreatedAt,
+		TokenVersion: st.TokenVersion,
 	}, nil
 }
 
@@ -46,21 +58,23 @@ func (p *credentialProvider) ValidateSession(tokenString string) (*abstract.Sess
 		return nil, err
 	}
 	return &abstract.SessionInfo{
-		SessionID: st.SessionID,
-		UserID:    st.UserID,
-		IssuedAt:  st.IssuedAt,
-		ExpiresAt: st.ExpiresAt,
-		CreatedAt: st.CreatedAt,
+		SessionID:    st.SessionID,
+		UserID:       st.UserID,
+		IssuedAt:     st.IssuedAt,
+		ExpiresAt:    st.ExpiresAt,
+		CreatedAt:    st.CreatedAt,
+		TokenVersion: st.TokenVersion,
 	}, nil
 }
 
 func (p *credentialProvider) RefreshSession(info *abstract.SessionInfo) (string, error) {
 	st := &SessionToken{
-		SessionID: info.SessionID,
-		UserID:    info.UserID,
-		IssuedAt:  info.IssuedAt,
-		ExpiresAt: info.ExpiresAt,
-		CreatedAt: info.CreatedAt,
+		SessionID:    info.SessionID,
+		UserID:       info.UserID,
+		IssuedAt:     info.IssuedAt,
+		ExpiresAt:    info.ExpiresAt,
+		CreatedAt:    info.CreatedAt,
+		TokenVersion: info.TokenVersion,
 	}
 	token, _, err := p.sessionSvc.Refresh(st)
 	if err != nil {
@@ -75,7 +89,7 @@ func (p *credentialProvider) IssueResetToken(userID string) (string, error) {
 	payload := fmt.Sprintf("%s:%d:%s", userID, exp, uuid.Must(uuid.NewV7()).String())
 	mac := hmac.New(sha256.New, p.secret)
 	mac.Write([]byte(payload))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:10])
+	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:16])
 	encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
 	return encoded + "." + sig, nil
 }
@@ -98,7 +112,7 @@ func (p *credentialProvider) ValidateResetToken(tokenString string) (string, err
 
 	mac := hmac.New(sha256.New, p.secret)
 	mac.Write(payload)
-	expected := mac.Sum(nil)[:10]
+	expected := mac.Sum(nil)[:16]
 	if !hmac.Equal(sig, expected) {
 		return "", fmt.Errorf("invalid token signature")
 	}

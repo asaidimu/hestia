@@ -65,13 +65,11 @@ When updating the database schema, strictly adhere to the following workflow:
 
 2. **Preview Changes:** Validate and preview the migration by running:
 ```bash
-anansi schema migrate --dry-run
+anansi migrate generate --dry-run
 
 ```
 
-
 3. **Generate Migration:** Finalize and generate the required migration files by running:
 ```bash
-anansi schema migrate
-
+anansi migrate generate
 ```

@@ -26,6 +26,13 @@ func (m testMessage) Context() context.Context                 { return m.ctx }
 func (m testMessage) Input() *data.Document                    { return nil }
 func (m testMessage) InputChannel() <-chan *data.Document      { return nil }
 func (m testMessage) BlobInputChannel() <-chan registration.Blob { return nil }
+func (m testMessage) TenantID() string   { return "" }
+func (m testMessage) TraceID() string    { return "" }
+func (m testMessage) RequestID() string  { return "" }
+func (m testMessage) SourceIP() string   { return "" }
+func (m testMessage) UserAgent() string  { return "" }
+func (m testMessage) ResourceID() string { return "" }
+func (m testMessage) SessionID() string  { return "" }
 
 type mockPersister struct {
 	entries []runtime.AuditEntry
@@ -81,6 +88,7 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 
 	msg := testMessage{name: "test:panic", ctx: adminContext()}
 	result, err := audit.Send(msg)
+	audit.Sync()
 
 	if err == nil {
 		t.Fatal("expected error from panicking handler, got nil")

@@ -19,7 +19,7 @@ func TestUserModelRegisterAndGet(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "alice@example.com", "p4ssw0rd", "Alice")
+	doc, err := model.Register(ctx, "alice@example.com", "p4ssw0rd", "Alice", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestUserModelUpdate(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "bob@example.com", "p4ssw0rd", "Bob")
+	doc, err := model.Register(ctx, "bob@example.com", "p4ssw0rd", "Bob", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestUserModelPassword(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "carol@example.com", "first-pass", "Carol")
+	doc, err := model.Register(ctx, "carol@example.com", "first-pass", "Carol", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestUserModelSoftDelete(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "dave@example.com", "p4ssw0rd", "Dave")
+	doc, err := model.Register(ctx, "dave@example.com", "p4ssw0rd", "Dave", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestUserModelHardDelete(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "eve@example.com", "p4ssw0rd", "Eve")
+	doc, err := model.Register(ctx, "eve@example.com", "p4ssw0rd", "Eve", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -164,8 +164,8 @@ func TestUserModelList(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc1, _ := model.Register(ctx, "fay@example.com", "p4ss", "Fay")
-	doc2, _ := model.Register(ctx, "gia@example.com", "p4ss", "Gia")
+	doc1, _ := model.Register(ctx, "fay@example.com", "p4ss", "Fay", "public")
+	doc2, _ := model.Register(ctx, "gia@example.com", "p4ss", "Gia", "public")
 
 	docs, total, err := model.List(ctx, 0, 10)
 	if err != nil {
@@ -189,7 +189,7 @@ func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 	userModel := users.NewUserModel(p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
-	userDoc, err := userModel.Register(ctx, "hank@example.com", "p4ss", "Hank")
+	userDoc, err := userModel.Register(ctx, "hank@example.com", "p4ss", "Hank", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestAPIKeyModelDelete(t *testing.T) {
 	userModel := users.NewUserModel(p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
-	userDoc, err := userModel.Register(ctx, "iris@example.com", "p4ss", "Iris")
+	userDoc, err := userModel.Register(ctx, "iris@example.com", "p4ss", "Iris", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -389,7 +389,7 @@ func TestAPIKeyModelRotate(t *testing.T) {
 	userModel := users.NewUserModel(p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
-	userDoc, err := userModel.Register(ctx, "jake@example.com", "p4ss", "Jake")
+	userDoc, err := userModel.Register(ctx, "jake@example.com", "p4ss", "Jake", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -425,7 +425,7 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 	userModel := users.NewUserModel(p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
-	userDoc, err := userModel.Register(ctx, "kay@example.com", "p4ss", "Kay")
+	userDoc, err := userModel.Register(ctx, "kay@example.com", "p4ss", "Kay", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -461,7 +461,7 @@ func TestAPIKeyModelUpdate(t *testing.T) {
 	userModel := users.NewUserModel(p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
-	userDoc, err := userModel.Register(ctx, "lia@example.com", "p4ss", "Lia")
+	userDoc, err := userModel.Register(ctx, "lia@example.com", "p4ss", "Lia", "public")
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}

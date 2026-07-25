@@ -8,6 +8,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
+
+	"github.com/asaidimu/hestia/core/internal/util"
 )
 
 const (
@@ -60,10 +62,13 @@ type PolicyRule struct {
 
 // Policy binds an operation to a rule.
 // Persisted in _operation_policy_ collection. 1:1 with an operation.
+// key is a composite of tenant_id + ":" + operationName for multi-tenant lookups.
 type Policy struct {
 	ID            string `json:"id"`
 	OperationName string `json:"operationName"`
 	RuleName      string `json:"ruleName"`
+	TenantID      string `json:"tenantID"`
+	Key           string `json:"key"`
 	Enabled       bool   `json:"enabled"`
 	Protected     bool   `json:"protected"`
 }
@@ -147,23 +152,17 @@ func (m *PolicyModel) GetRule(ctx context.Context, name string) (PolicyRule, err
 }
 
 func (m *PolicyModel) CreateRule(ctx context.Context, rule PolicyRule) (PolicyRule, error) {
-	var rulesJSON string
+	fields := util.StructToMap(rule)
+	delete(fields, "id")
+
 	if rule.Rules != nil {
 		b, err := json.Marshal(rule.Rules)
 		if err != nil {
 			return PolicyRule{}, ErrMarshalRuleNode.WithCause(err)
 		}
-		rulesJSON = string(b)
-	}
-
-	fields := map[string]any{
-		"name":        rule.Name,
-		"ruleType":    rule.RuleType,
-		"syntax":      rule.Syntax,
-		"expression":  rule.Expression,
-		"rules":       rulesJSON,
-		"description": rule.Description,
-		"protected":   rule.Protected,
+		fields["rules"] = string(b)
+	} else {
+		fields["rules"] = ""
 	}
 
 	doc, err := data.NewDocument(fields, ctx)
@@ -191,23 +190,17 @@ func (m *PolicyModel) UpdateRule(ctx context.Context, name string, updates Polic
 
 	docID := existing.Data[0].ID()
 
-	var rulesJSON string
+	fields := util.StructToMap(updates)
+	delete(fields, "id")
+
 	if updates.Rules != nil {
 		b, err := json.Marshal(updates.Rules)
 		if err != nil {
 			return PolicyRule{}, ErrMarshalRuleNode.WithCause(err)
 		}
-		rulesJSON = string(b)
-	}
-
-	fields := map[string]any{
-		"name":        updates.Name,
-		"ruleType":    updates.RuleType,
-		"syntax":      updates.Syntax,
-		"expression":  updates.Expression,
-		"rules":       rulesJSON,
-		"description": updates.Description,
-		"protected":   updates.Protected,
+		fields["rules"] = string(b)
+	} else {
+		fields["rules"] = ""
 	}
 
 	setDoc := data.Patch(fields).Document(ctx)
@@ -273,10 +266,19 @@ func (m *PolicyModel) ListPolicies(ctx context.Context) ([]Policy, error) {
 }
 
 func (m *PolicyModel) GetPolicyForOperation(ctx context.Context, operationName string) (Policy, error) {
-	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
+	// Try composite key first (new format), fall back to operation field (old format).
+	compositeKey := ":" + operationName
+	q := query.NewQueryBuilder().Where("key").Eq(compositeKey).Build()
 	result, err := m.policyColl.Read(ctx, &q)
 	if err != nil {
 		return Policy{}, common.NewSystemError("GET_POLICY").WithCause(err)
+	}
+	if result.Count == 0 {
+		q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
+		result, err = m.policyColl.Read(ctx, &q)
+		if err != nil {
+			return Policy{}, common.NewSystemError("GET_POLICY").WithCause(err)
+		}
 	}
 	if result.Count == 0 {
 		return Policy{}, ErrPolicyNotFound.WithOperation("GetPolicyForOperation").WithMessagef("no policy for operation %q", operationName)
@@ -285,7 +287,8 @@ func (m *PolicyModel) GetPolicyForOperation(ctx context.Context, operationName s
 }
 
 func (m *PolicyModel) CreatePolicy(ctx context.Context, p Policy) (Policy, error) {
-	q := query.NewQueryBuilder().Where("operation").Eq(p.OperationName).Build()
+	compositeKey := p.TenantID + ":" + p.OperationName
+	q := query.NewQueryBuilder().Where("key").Eq(compositeKey).Build()
 	existing, err := m.policyColl.Read(ctx, &q)
 	if err != nil {
 		return Policy{}, common.NewSystemError("CHECK_EXISTING_POLICY").WithCause(err)
@@ -297,8 +300,12 @@ func (m *PolicyModel) CreatePolicy(ctx context.Context, p Policy) (Policy, error
 	fields := map[string]any{
 		"operation": p.OperationName,
 		"rule":      p.RuleName,
-		"enabled":       p.Enabled,
-		"protected":     p.Protected,
+		"enabled":   p.Enabled,
+		"protected": p.Protected,
+		"key":       compositeKey,
+	}
+	if p.TenantID != "" {
+		fields["tenant_id"] = p.TenantID
 	}
 
 	doc, err := data.NewDocument(fields, ctx)
@@ -377,11 +384,15 @@ func docToPolicy(doc *data.Document) (Policy, error) {
 	}
 	enabled, _ := doc.GetBool("enabled")
 	protected, _ := doc.GetBool("protected")
+	tenantID, _ := doc.GetString("tenant_id")
+	key, _ := doc.GetString("key")
 
 	return Policy{
 		ID:            doc.ID(),
 		OperationName: operationName,
 		RuleName:      ruleName,
+		TenantID:      tenantID,
+		Key:           key,
 		Enabled:       enabled,
 		Protected:     protected,
 	}, nil

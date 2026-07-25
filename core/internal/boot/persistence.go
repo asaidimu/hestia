@@ -44,35 +44,37 @@ func traceIDMetadataProvider() data.MetadataProviderConfig {
 	}
 }
 
+func docFactoryConfig() data.DocumentFactoryConfig {
+	return data.DocumentFactoryConfig{
+		Providers: []data.MetadataProviderConfig{traceIDMetadataProvider()},
+		GlobalSanitizer: &data.FieldMaskConfig{
+			DefaultPolicy: data.MaskPreserve,
+			Fields: map[string]data.MaskedFieldPolicy{
+				"hash": data.MaskRedact,
+			},
+			Patterns: []data.PatternRule{
+				data.MustCompilePattern(`(?i)password`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)hash`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)secret`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)token`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)api[_-]?key`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)credential`, data.MaskRedact),
+				data.MustCompilePattern(`(?i)auth`, data.MaskHash),
+			},
+		},
+	}
+}
+
 func NewPersistenceManager(cfg *runtime.Config, logger *zap.Logger) (*PersistenceManager, error) {
 	var p base.Persistence
 	var icloser func()
 
 	if cfg.PersistenceFactory != nil {
-		setupCfg := anansi.SetupConfig{
-			Logger: logger,
-			DocumentFactoryConfig: data.DocumentFactoryConfig{
-				Providers: []data.MetadataProviderConfig{traceIDMetadataProvider()},
-				GlobalSanitizer: &data.FieldMaskConfig{
-					DefaultPolicy: data.MaskPreserve,
-					Fields: map[string]data.MaskedFieldPolicy{
-						"hash": data.MaskRedact,
-					},
-					Patterns: []data.PatternRule{
-						data.MustCompilePattern(`(?i)password`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)hash`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)secret`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)token`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)api[_-]?key`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)credential`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)auth`, data.MaskHash),
-					},
-				},
-			},
-		}
-
 		var err error
-		p, err = cfg.PersistenceFactory(&setupCfg)
+		p, err = cfg.PersistenceFactory(&anansi.SetupConfig{
+			Logger:                logger,
+			DocumentFactoryConfig: docFactoryConfig(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("persistence factory: %w", err)
 		}
@@ -105,32 +107,13 @@ func NewPersistenceManager(cfg *runtime.Config, logger *zap.Logger) (*Persistenc
 			LiveOnly: true,
 		})
 
-		setupCfg := anansi.SetupConfig{
-			Interactor: interactor,
-			Logger:     logger,
-			EventBus:   bus,
-			DocumentFactoryConfig: data.DocumentFactoryConfig{
-				Providers: []data.MetadataProviderConfig{traceIDMetadataProvider()},
-				GlobalSanitizer: &data.FieldMaskConfig{
-					DefaultPolicy: data.MaskPreserve,
-					Fields: map[string]data.MaskedFieldPolicy{
-						"hash": data.MaskRedact,
-					},
-					Patterns: []data.PatternRule{
-						data.MustCompilePattern(`(?i)password`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)hash`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)secret`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)token`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)api[_-]?key`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)credential`, data.MaskRedact),
-						data.MustCompilePattern(`(?i)auth`, data.MaskHash),
-					},
-				},
-			},
-			Schemas: nil,
-		}
-
-		p, err = anansi.Setup(setupCfg)
+		p, err = anansi.Setup(anansi.SetupConfig{
+			Interactor:            interactor,
+			Logger:                logger,
+			EventBus:              bus,
+			DocumentFactoryConfig: docFactoryConfig(),
+			Schemas:               nil,
+		})
 		if err != nil {
 			icloser()
 			return nil, fmt.Errorf("failed to setup Anansi: %w", err)

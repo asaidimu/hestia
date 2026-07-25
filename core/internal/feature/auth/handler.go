@@ -66,7 +66,9 @@ func NewRegisterHandler(users *users.UserModel) runtime.MessageHandler {
 		password, _ := body["password"].(string)
 		name, _ := body["name"].(string)
 
-		user, err := users.Register(ctx, email, password, name)
+		tenantID, _ := body["tenant_id"].(string)
+
+		user, err := users.Register(ctx, email, password, name, tenantID)
 		if err != nil {
 			return nil, err
 		}

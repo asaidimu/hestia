@@ -44,7 +44,7 @@ console.log(`Found ${users.length} users`)
 |---|---|---|
 | `PORT` | `8070` | HTTP server port |
 | `DATA_DIR` | `./data` | Persistence directory |
-| `JWT_SECRET` | auto-generated | JWT signing key |
+| `SESSION_SECRET` | auto-generated | Session signing key |
 | `ADMIN_EMAIL` | `admin@test.local` | Initial admin email |
 | `ADMIN_PASSWORD` | `password123` | Initial admin password |
 

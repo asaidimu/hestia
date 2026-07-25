@@ -11,7 +11,6 @@ var version = "dev"
 
 func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
-		Port:          9090,
 		Version:       version,
 		SessionSecret: "my-test-secret",
 	})
@@ -28,6 +27,5 @@ func main() {
 	}
 	defer app.Close()
 
-	os.Stdout.Sync()
 	select {}
 }

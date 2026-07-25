@@ -6,11 +6,13 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/asaidimu/hestia/core"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/interface/cli"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 //go:embed static
@@ -18,10 +20,10 @@ var staticFiles embed.FS
 
 func main() {
 	port := 8080
-	if p := os.Getenv("PORT"); p != "" {
-		if n, err := strconv.Atoi(p); err == nil {
-			port = n
-		}
+	// Allow PORT env override (LoadConfig in runtime also handles this)
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		panic(err)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "hestia-docs-*")
@@ -30,21 +32,23 @@ func main() {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	staticFS, err := fs.Sub(staticFiles, "static")
-	if err != nil {
-		panic(err)
-	}
-
 	app, err := hestia.Setup(hestia.SetupConfig{
-		Port:              port,
 		DataDir:           tmpDir,
 		DBPath:            ":memory:",
 		SessionSecret:     "docs-secret-do-not-use-in-production",
 		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		StaticFS:          staticFS,
-		APIPrefix:         "/api",
+		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
+			return []runtime.Interface{
+				app.NewHTTPInterface(httpapi.Config{
+					Port:      port,
+					APIPrefix: "/api",
+					StaticFS:  staticFS,
+				}),
+				app.NewCLIInterface(cli.Config{}),
+			}
+		},
 	})
 	if err != nil {
 		panic(err)

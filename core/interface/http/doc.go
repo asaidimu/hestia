@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"context"
@@ -46,27 +46,4 @@ func BuildInputDocument(ctx context.Context, input runtime.Input, pathParams map
 	}
 
 	return doc
-}
-
-// SanitizeToMap returns a sanitized map representation of doc.
-func SanitizeToMap(doc *data.Document) map[string]any {
-	if doc == nil {
-		return nil
-	}
-	sane, _ := doc.Sanitize()
-	if sane == nil {
-		return nil
-	}
-	return sane.ToMap()
-}
-
-// SanitizeAll returns sanitized map representations for all documents.
-func SanitizeAll(docs data.DocumentSet) []any {
-	items := make([]any, 0, len(docs))
-	for _, d := range docs {
-		if m := SanitizeToMap(d); m != nil {
-			items = append(items, m)
-		}
-	}
-	return items
 }

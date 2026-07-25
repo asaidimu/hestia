@@ -11,9 +11,10 @@ var _ Dispatcher = (*LocalDispatcher)(nil)
 var _ Registry = (*LocalDispatcher)(nil)
 
 type handlerEntry struct {
-	fn          MessageHandler
-	description string
-	enabled     bool
+	fn            MessageHandler
+	description   string
+	enabled       bool
+	bootstrapSafe bool
 }
 
 type LocalDispatcher struct {
@@ -49,7 +50,7 @@ func (d *LocalDispatcher) RegisterHandler(name string, handler MessageHandler, i
 	if _, exists := d.handlers[name]; exists {
 		return fmt.Errorf("handler already registered: %s", name)
 	}
-	d.handlers[name] = handlerEntry{fn: handler, description: info.Description, enabled: info.Enabled}
+	d.handlers[name] = handlerEntry{fn: handler, description: info.Description, enabled: info.Enabled, bootstrapSafe: info.BootstrapSafe}
 	return nil
 }
 
@@ -69,9 +70,10 @@ func (d *LocalDispatcher) ListHandlers() []HandlerInfo {
 	result := make([]HandlerInfo, 0, len(d.handlers))
 	for name, entry := range d.handlers {
 		result = append(result, HandlerInfo{
-			Name:        name,
-			Description: entry.description,
-			Enabled:     entry.enabled,
+			Name:          name,
+			Description:   entry.description,
+			Enabled:       entry.enabled,
+			BootstrapSafe: entry.bootstrapSafe,
 		})
 	}
 	return result
@@ -87,6 +89,16 @@ func (d *LocalDispatcher) SetHandlerEnabled(name string, enabled bool) error {
 	entry.enabled = enabled
 	d.handlers[name] = entry
 	return nil
+}
+
+func (d *LocalDispatcher) IsHandlerBootstrapSafe(name string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	entry, ok := d.handlers[name]
+	if !ok {
+		return false
+	}
+	return entry.bootstrapSafe
 }
 
 func (d *LocalDispatcher) DeleteHandler(name string) error {

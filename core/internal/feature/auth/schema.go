@@ -42,9 +42,9 @@ var registerInputJSON = []byte(`{
 		"register_payload": {
 			"name": "RegisterPayload",
 			"fields": {
-				"email": { "name": "email", "description": "User email address", "type": "string" },
-				"password": { "name": "password", "description": "User password", "type": "string" },
-				"name": { "name": "name", "description": "User display name", "type": "string" }
+				"email": { "name": "email", "description": "User email address", "type": "string", "required": true },
+				"password": { "name": "password", "description": "User password", "type": "string", "required": true },
+				"name": { "name": "name", "description": "User display name", "type": "string", "required": true }
 			}
 		}
 	}
@@ -90,8 +90,8 @@ var loginInputJSON = []byte(`{
 		"login_payload": {
 			"name": "LoginPayload",
 			"fields": {
-				"email": { "name": "email", "description": "User email address", "type": "string" },
-				"password": { "name": "password", "description": "User password", "type": "string" }
+				"email": { "name": "email", "description": "User email address", "type": "string", "required": true },
+				"password": { "name": "password", "description": "User password", "type": "string", "required": true }
 			}
 		}
 	}
@@ -135,7 +135,7 @@ var passwordResetInputJSON = []byte(`{
 		"password_reset_payload": {
 			"name": "PasswordResetPayload",
 			"fields": {
-				"email": { "name": "email", "description": "Account email address", "type": "string" }
+				"email": { "name": "email", "description": "Account email address", "type": "string", "required": true }
 			}
 		}
 	}
@@ -156,8 +156,8 @@ var passwordConfirmInputJSON = []byte(`{
 		"password_confirm_payload": {
 			"name": "PasswordConfirmPayload",
 			"fields": {
-				"token": { "name": "token", "description": "Reset token", "type": "string" },
-				"password": { "name": "password", "description": "New password", "type": "string" }
+				"token": { "name": "token", "description": "Reset token", "type": "string", "required": true },
+				"password": { "name": "password", "description": "New password", "type": "string", "required": true }
 			}
 		}
 	}
@@ -178,8 +178,8 @@ var bootstrapPasswordInputJSON = []byte(`{
 		"bootstrap_password_payload": {
 			"name": "BootstrapPasswordPayload",
 			"fields": {
-				"email": { "name": "email", "description": "New admin email", "type": "string" },
-				"password": { "name": "password", "description": "New admin password", "type": "string" }
+				"email": { "name": "email", "description": "New admin email", "type": "string", "required": true },
+				"password": { "name": "password", "description": "New admin password", "type": "string", "required": true }
 			}
 		}
 	}

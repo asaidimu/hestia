@@ -17,7 +17,7 @@ export class HestiaAuth {
       "system:auth:session:create",
       { payload: { email, password } },
     );
-    this.provider.setIdentity(res.data.data.user);
+    await this.provider.setIdentity(res.data.data.user);
     return res.data.data;
   }
 

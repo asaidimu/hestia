@@ -61,6 +61,40 @@ func NewGetAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 	}
 }
 
+func extractStrings(v any) []string {
+	switch arr := v.(type) {
+	case []string:
+		return arr
+	case []any:
+		out := make([]string, 0, len(arr))
+		for _, item := range arr {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+func stringFromMap(m map[string]any, key string) string {
+	v, _ := m[key].(string)
+	return v
+}
+
+func mapFromMap(m map[string]any, key string) map[string]any {
+	v, _ := m[key].(map[string]any)
+	return v
+}
+
+func ptrStringFromMap(m map[string]any, key string) *string {
+	v, ok := m[key].(string)
+	if !ok || v == "" {
+		return nil
+	}
+	return &v
+}
+
 func NewCreateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
 		doc := msg.Input()
@@ -69,39 +103,19 @@ func NewCreateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 			userID = claims.UserID
 		}
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		name, _ := body["name"].(string)
+
+		req := &CreateKeyRequest{
+			Name:        stringFromMap(body, "name"),
+			Environment: stringFromMap(body, "environment"),
+			Expiry:      stringFromMap(body, "expiry"),
+			Operations:  extractStrings(body["operations"]),
+			Limits:      mapFromMap(body, "limits"),
+			IP:          mapFromMap(body, "ip"),
+		}
 
 		generated, err := keys.Generate()
 		if err != nil {
 			return nil, fmt.Errorf("generate key: %w", err)
-		}
-
-		req := &CreateKeyRequest{
-			Name: name,
-		}
-		if v, ok := body["environment"]; ok {
-			req.Environment, _ = v.(string)
-		}
-		if v, ok := body["operations"]; ok {
-			switch arr := v.(type) {
-			case []string:
-				req.Operations = arr
-			case []any:
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						req.Operations = append(req.Operations, s)
-					}
-				}
-			}
-		}
-		if v, ok := body["expiry"]; ok {
-			req.Expiry, _ = v.(string)
-		}
-		if v, ok := body["limits"]; ok {
-			req.Limits, _ = v.(map[string]any)
-		}
-		if v, ok := body["ip"]; ok {
-			req.IP, _ = v.(map[string]any)
 		}
 
 		d, err := keys.Create(ctx, generated, userID, req)
@@ -128,40 +142,14 @@ func NewUpdateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 		keyID, _ := doc.GetOr("arguments.key_id", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
 
-		var req UpdateKeyRequest
-		if v, exists := body["name"]; exists {
-			s := v.(string)
-			req.Name = &s
-		}
-		if v, exists := body["status"]; exists {
-			s := v.(string)
-			req.Status = &s
-		}
-		if v, exists := body["expiry"]; exists {
-			s := v.(string)
-			req.Expiry = &s
-		}
-		if v, exists := body["environment"]; exists {
-			s := v.(string)
-			req.Environment = &s
-		}
-		if v, exists := body["operations"]; exists {
-			switch arr := v.(type) {
-			case []string:
-				req.Operations = arr
-			case []any:
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						req.Operations = append(req.Operations, s)
-					}
-				}
-			}
-		}
-		if v, exists := body["limits"]; exists {
-			req.Limits, _ = v.(map[string]any)
-		}
-		if v, exists := body["ip"]; exists {
-			req.IP, _ = v.(map[string]any)
+		req := UpdateKeyRequest{
+			Name:        ptrStringFromMap(body, "name"),
+			Status:      ptrStringFromMap(body, "status"),
+			Expiry:      ptrStringFromMap(body, "expiry"),
+			Environment: ptrStringFromMap(body, "environment"),
+			Operations:  extractStrings(body["operations"]),
+			Limits:      mapFromMap(body, "limits"),
+			IP:          mapFromMap(body, "ip"),
 		}
 
 		d, err := keys.Update(ctx, keyID, userID, &req)

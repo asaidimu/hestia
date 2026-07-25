@@ -42,39 +42,6 @@ func GoDefaultRules() iam.FunctionRuleSet {
 	return rules
 }
 
-// CompileRules compiles a list of PolicyRule records into a FunctionRuleSet.
-// Simple rules are compiled via ac.CompileCELRule.
-// Composite rules are compiled by recursively resolving refs and compiling CEL leaves,
-// then composing them into a single FunctionRule closure.
-// Simples are compiled first so composites can reference them.
-func CompileRules(ac iam.AccessController, dbRules []PolicyRule) (iam.FunctionRuleSet, error) {
-	fnRules := make(iam.FunctionRuleSet)
-
-	for _, r := range dbRules {
-		if r.RuleType == "composite" {
-			continue
-		}
-		fn, err := ac.CompileCELRule(r.Expression)
-		if err != nil {
-			return nil, fmt.Errorf("compile rule %q: %w", r.Name, err)
-		}
-		fnRules[r.Name] = fn
-	}
-
-	for _, r := range dbRules {
-		if r.RuleType != "composite" {
-			continue
-		}
-		fn, err := compileCompositeNode(r.Rules, fnRules, ac)
-		if err != nil {
-			return nil, fmt.Errorf("compile composite rule %q: %w", r.Name, err)
-		}
-		fnRules[r.Name] = fn
-	}
-
-	return fnRules, nil
-}
-
 func compileCompositeNode(node *RuleNode, compiled iam.FunctionRuleSet, ac iam.AccessController) (iam.FunctionRule, error) {
 	if node == nil {
 		return nil, fmt.Errorf("nil rule node")
@@ -107,51 +74,60 @@ func compileCompositeNode(node *RuleNode, compiled iam.FunctionRuleSet, ac iam.A
 	return combineRules(node.Operator, fns), nil
 }
 
+func combineAll(fns []iam.FunctionRule) iam.FunctionRule {
+	return func(req iam.AccessRequest) bool {
+		for _, fn := range fns {
+			if !fn(req) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func combineAny(fns []iam.FunctionRule) iam.FunctionRule {
+	return func(req iam.AccessRequest) bool {
+		for _, fn := range fns {
+			if fn(req) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func combineNot(fns []iam.FunctionRule) iam.FunctionRule {
+	return func(req iam.AccessRequest) bool {
+		if len(fns) == 0 {
+			return true
+		}
+		return !fns[0](req)
+	}
+}
+
+func combineXOR(fns []iam.FunctionRule) iam.FunctionRule {
+	return func(req iam.AccessRequest) bool {
+		var count int
+		for _, fn := range fns {
+			if fn(req) {
+				count++
+			}
+		}
+		return count == 1
+	}
+}
+
 func combineRules(op string, fns []iam.FunctionRule) iam.FunctionRule {
 	switch op {
 	case "AND":
-		return func(req iam.AccessRequest) bool {
-			for _, fn := range fns {
-				if !fn(req) {
-					return false
-				}
-			}
-			return true
-		}
+		return combineAll(fns)
 	case "OR":
-		return func(req iam.AccessRequest) bool {
-			for _, fn := range fns {
-				if fn(req) {
-					return true
-				}
-			}
-			return false
-		}
+		return combineAny(fns)
 	case "NOT":
-		return func(req iam.AccessRequest) bool {
-			if len(fns) == 0 {
-				return true
-			}
-			return !fns[0](req)
-		}
+		return combineNot(fns)
 	case "XOR":
-		return func(req iam.AccessRequest) bool {
-			var count int
-			for _, fn := range fns {
-				if fn(req) {
-					count++
-				}
-			}
-			return count == 1
-		}
+		return combineXOR(fns)
 	default:
-		return func(req iam.AccessRequest) bool {
-			for _, fn := range fns {
-				if !fn(req) {
-					return false
-				}
-			}
-			return true
-		}
+		return combineAll(fns)
 	}
 }

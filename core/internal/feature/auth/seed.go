@@ -22,6 +22,7 @@ type SeedAdminOptions struct {
 	Email            string
 	Password         string
 	ForceBootstrapped bool
+	TenantID         string
 }
 
 func SeedAdmin(ctx context.Context, userModel *users.UserModel, seedModel *operations.SeedModel, logger *zap.Logger, opts ...SeedAdminOptions) (adminID string, adminEmail string, bootstrapped bool, err error) {
@@ -70,7 +71,12 @@ func SeedAdmin(ctx context.Context, userModel *users.UserModel, seedModel *opera
 
 	adminEmail = email
 
-	doc, err := userModel.Register(ctx, email, password, "System Administrator", "administrator")
+	tenantID := opt.TenantID
+	if tenantID == "" {
+		tenantID = "root"
+	}
+
+	doc, err := userModel.Register(ctx, email, password, "System Administrator", tenantID, "administrator")
 	if err != nil {
 		return "", "", false, fmt.Errorf("create admin user: %w", err)
 	}

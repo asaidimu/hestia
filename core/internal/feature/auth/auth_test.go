@@ -6,12 +6,16 @@ import (
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
+	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
+	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 type testMessage struct {
@@ -26,13 +30,28 @@ func (m testMessage) Context() context.Context                 { return m.ctx }
 func (m testMessage) Input() *data.Document                    { return m.input }
 func (m testMessage) InputChannel() <-chan *data.Document      { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob   { return nil }
+func (m testMessage) TenantID() string   { return "" }
+func (m testMessage) TraceID() string    { return "" }
+func (m testMessage) RequestID() string  { return "" }
+func (m testMessage) SourceIP() string   { return "" }
+func (m testMessage) UserAgent() string  { return "" }
+func (m testMessage) ResourceID() string { return "" }
+func (m testMessage) SessionID() string  { return "" }
 
 func TestRegisterHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	userModel := users.NewUserModel(p)
-	handler := auth.NewRegisterHandler(userModel)
+	tenantModel := tenants.NewTenantModel(p)
 
 	ctx := context.Background()
+	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	if err != nil {
+		t.Fatalf("tenantModel.Create failed: %v", err)
+	}
+	tenantID := tenant.ID()
+	ctx = runtime.ContextWithTenantID(ctx, tenantID)
+
+	handler := auth.NewRegisterHandler(userModel)
 	input := data.MustNewDocument(map[string]any{
 		"payload": map[string]any{
 			"email":    "test@example.com",
@@ -61,11 +80,18 @@ func TestRegisterHandler(t *testing.T) {
 func TestCreateSessionHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	userModel := users.NewUserModel(p)
+	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
 
 	ctx := context.Background()
-	_, err := userModel.Register(ctx, "test@example.com", "secret123", "Test User")
+	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	if err != nil {
+		t.Fatalf("tenantModel.Create failed: %v", err)
+	}
+	tenantID := tenant.ID()
+
+	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID)
 	if err != nil {
 		t.Fatalf("userModel.Register failed: %v", err)
 	}
@@ -94,7 +120,7 @@ func TestCreateSessionHandler(t *testing.T) {
 func TestSessionService(t *testing.T) {
 	svc := auth.NewSessionService("test-secret")
 
-	token, st, err := svc.Create("user-1", 7*24*time.Hour)
+	token, st, err := svc.Create("user-1", 7*24*time.Hour, 0)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -103,6 +129,9 @@ func TestSessionService(t *testing.T) {
 	}
 	if st.UserID != "user-1" {
 		t.Errorf("UserID = %q, want %q", st.UserID, "user-1")
+	}
+	if st.TokenVersion != 0 {
+		t.Errorf("TokenVersion = %d, want 0", st.TokenVersion)
 	}
 
 	validated, err := svc.Validate(token)
@@ -118,13 +147,16 @@ func TestSessionService(t *testing.T) {
 	if validated.ExpiresAt <= validated.IssuedAt {
 		t.Error("ExpiresAt should be after IssuedAt")
 	}
+	if validated.TokenVersion != 0 {
+		t.Errorf("TokenVersion after validate = %d, want 0", validated.TokenVersion)
+	}
 }
 
 func TestSessionService_InvalidSignature(t *testing.T) {
 	svc := auth.NewSessionService("test-secret")
 	otherSvc := auth.NewSessionService("different-secret")
 
-	token, _, err := svc.Create("user-1", 7*24*time.Hour)
+	token, _, err := svc.Create("user-1", 7*24*time.Hour, 0)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -138,7 +170,7 @@ func TestSessionService_InvalidSignature(t *testing.T) {
 func TestSessionService_Refresh(t *testing.T) {
 	svc := auth.NewSessionService("test-secret")
 
-	token, st, err := svc.Create("user-1", 7*24*time.Hour)
+	token, st, err := svc.Create("user-1", 7*24*time.Hour, 0)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -174,12 +206,62 @@ func TestSessionService_Refresh(t *testing.T) {
 	}
 }
 
+func TestSessionService_TokenVersion(t *testing.T) {
+	svc := auth.NewSessionService("test-secret")
+
+	t.Run("create with version embeds and preserves version", func(t *testing.T) {
+		token, st, err := svc.Create("user-2", 7*24*time.Hour, 42)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		if st.TokenVersion != 42 {
+			t.Errorf("TokenVersion = %d, want 42", st.TokenVersion)
+		}
+
+		validated, err := svc.Validate(token)
+		if err != nil {
+			t.Fatalf("Validate failed: %v", err)
+		}
+		if validated.TokenVersion != 42 {
+			t.Errorf("validated TokenVersion = %d, want 42", validated.TokenVersion)
+		}
+	})
+
+	t.Run("refresh preserves version", func(t *testing.T) {
+		_, st, err := svc.Create("user-2", 7*24*time.Hour, 7)
+		if err != nil {
+			t.Fatalf("Create failed: %v", err)
+		}
+		_, refreshed, err := svc.Refresh(st)
+		if err != nil {
+			t.Fatalf("Refresh failed: %v", err)
+		}
+		if refreshed.TokenVersion != 7 {
+			t.Errorf("refreshed TokenVersion = %d, want 7", refreshed.TokenVersion)
+		}
+	})
+}
+
 func TestNewAPIKeyAuthenticator(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
 	apiKeyModel := apikeys.NewAPIKeyModel(p)
 
-	a := auth.NewAPIKeyAuthenticator(apiKeyModel, userModel, "ephemeral-key", "admin-1", "admin@example.com")
+	userColl, err := p.Collection(context.Background(), "_user_")
+	if err != nil {
+		t.Fatalf("open _user_ collection: %v", err)
+	}
+	liveUsers, err := collection.NewLiveRepository(context.Background(), collection.LiveRepositoryOptions[*users.UserClaims]{
+		Collection: userColl,
+		Processor:  &users.UserClaimsDocProcessor{},
+		QueryKey:   "_id_",
+		AutoLoad:   false,
+	})
+	if err != nil {
+		t.Fatalf("create live user claims: %v", err)
+	}
+	t.Cleanup(func() { liveUsers.Close() })
+
+	a := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop())
 	if a == nil {
 		t.Fatal("NewAPIKeyAuthenticator returned nil")
 	}

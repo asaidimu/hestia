@@ -1,4 +1,4 @@
-package api
+package http
 
 import (
 	"context"
@@ -71,6 +71,7 @@ func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 		"user_id":     claims.UserID,
 		"email":       claims.Email,
 		"permissions": perms,
+		"tenant_id":   claims.TenantID,
 		"token_type":  claims.TokenType,
 		"token_id":    claims.TokenID,
 		"expires_at":  claims.ExpiresAt,
@@ -84,34 +85,13 @@ func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 	}
 }
 
-func identityToClaims(id *iam.Identity) *abstract.Claims {
-	if id == nil {
-		return &abstract.Claims{}
-	}
-	props, _ := id.Properties.(map[string]any)
-	userID, _ := props["user_id"].(string)
-	email, _ := props["email"].(string)
-	tokenType, _ := props["token_type"].(string)
-	tokenID, _ := props["token_id"].(string)
-	expiresAt, _ := props["expires_at"].(int64)
-	rawOps, _ := props["operations"].([]string)
-	return &abstract.Claims{
-		UserID:     userID,
-		Email:      email,
-		Scopes:     id.Permissions,
-		Operations: rawOps,
-		TokenType:  tokenType,
-		TokenID:    tokenID,
-		ExpiresAt:  expiresAt,
-	}
-}
-
 func extractClaims(doc *data.Document) *identity.Claims {
 	if doc == nil {
 		return &identity.Claims{}
 	}
 	userID, _ := doc.GetOr("user_id", "").(string)
 	email, _ := doc.GetOr("email", "").(string)
+	tenantID, _ := doc.GetOr("tenant_id", "").(string)
 	perms, _ := doc.GetOr("permissions", []string{}).([]string)
 	tokenType, _ := doc.GetOr("token_type", "").(string)
 	tokenID, _ := doc.GetOr("token_id", "").(string)
@@ -119,6 +99,7 @@ func extractClaims(doc *data.Document) *identity.Claims {
 	return &identity.Claims{
 		UserID:    userID,
 		Email:     email,
+		TenantID:  tenantID,
 		Scopes:    perms,
 		TokenType: tokenType,
 		TokenID:   tokenID,

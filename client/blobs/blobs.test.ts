@@ -43,19 +43,6 @@ function notFoundResponse(): ApiResponse<never> {
   }
 }
 
-function mockDocsResponse() {
-  return okResponse({
-    data: [
-      { name: "system:blobs:blob:upload", http: { method: "POST", route: "/system/blobs/blob/{ns}/{key}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true }, key: { name: "key", type: "string", required: true } } } } } },
-      { name: "system:blobs:blob:head", http: { method: "POST", route: "/system/blobs/blob/{ns}/{key}/query" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true }, key: { name: "key", type: "string", required: true } } } } } },
-      { name: "system:blobs:blob:list", http: { method: "POST", route: "/system/blobs/blob/{ns}/query" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true } } } } } },
-      { name: "system:blobs:blob:update", http: { method: "PATCH", route: "/system/blobs/blob/{ns}/{key}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true }, key: { name: "key", type: "string", required: true } } } } } },
-      { name: "system:blobs:blob:delete", http: { method: "DELETE", route: "/system/blobs/blob/{ns}/{key}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true }, key: { name: "key", type: "string", required: true } } } } } },
-      { name: "system:blobs:blob:download", http: { method: "GET", route: "/system/blobs/blob/{ns}/{key}" }, input: { fields: { arguments: { schema: { id: "argSchema" } } }, schemas: { argSchema: { fields: { ns: { name: "ns", type: "string", required: true }, key: { name: "key", type: "string", required: true } } } } } },
-    ],
-  })
-}
-
 describe("BlobNamespace", () => {
   let client: HttpTransport
   let raw: any
@@ -63,7 +50,7 @@ describe("BlobNamespace", () => {
 
   beforeEach(() => {
     const provider = makeProvider()
-    client = new HttpTransport("http://test.local", "/api", provider)
+    client = new HttpTransport("http://test.local", "/api")
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
     raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
@@ -73,7 +60,6 @@ describe("BlobNamespace", () => {
   describe("upload", () => {
     it("sends POST with blob body and returns document", async () => {
       const file = new File(["hello"], "hello.txt", { type: "text/plain" })
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: { key: "abc", name: "hello.txt", size: 5, content_type: "text/plain", bucket: "test-bucket", created_at: 1000 },
@@ -92,7 +78,6 @@ describe("BlobNamespace", () => {
 
   describe("read", () => {
     it("fetches metadata by key via head endpoint", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: { key: "b1", namespace_id: "test-bucket", content_type: "application/pdf", size: 100, created_at: "2026-01-01T00:00:00Z" },
@@ -105,7 +90,6 @@ describe("BlobNamespace", () => {
     })
 
     it("returns undefined on not found", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(notFoundResponse())
 
       const result = await ns.read("missing")
@@ -115,7 +99,6 @@ describe("BlobNamespace", () => {
 
   describe("find", () => {
     it("POSTs a query and returns mapped documents", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.post.mockResolvedValueOnce(
         okResponse({
           data: { blobs: [{ key: "b1", name: "doc.pdf", size: 100, content_type: "application/pdf", bucket: "test-bucket", created_at: 1000 }] },
@@ -130,7 +113,6 @@ describe("BlobNamespace", () => {
 
   describe("update", () => {
     it("sends PATCH with key in path and custom data", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.patch.mockResolvedValueOnce(
         okResponse({
           data: { key: "b1", name: "renamed.pdf", size: 100, content_type: "application/pdf", bucket: "test-bucket", created_at: 1000 },
@@ -148,7 +130,6 @@ describe("BlobNamespace", () => {
 
   describe("delete", () => {
     it("sends DELETE with key in path", async () => {
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.delete.mockResolvedValueOnce(okResponse({}))
 
       await ns.delete("b1")
@@ -158,7 +139,6 @@ describe("BlobNamespace", () => {
   describe("download", () => {
     it("fetches blob with blob responseType", async () => {
       const blob = new Blob(["content"], { type: "application/pdf" })
-      raw.get.mockResolvedValueOnce(mockDocsResponse())
       raw.get.mockResolvedValueOnce(
         { success: true, status: 200, data: blob, raw: new Response(), headers: new Headers() } as ApiResponse<Blob>,
       )
@@ -177,7 +157,7 @@ describe("HestiaBlobClient", () => {
 
   beforeEach(() => {
     const provider = makeProvider()
-    client = new HttpTransport("http://test.local", "/api", provider)
+    client = new HttpTransport("http://test.local", "/api")
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
     raw = mock.results[mock.results.length - 1]!.value
     vi.clearAllMocks()
@@ -191,7 +171,7 @@ describe("HestiaBlobClient", () => {
     })
 
     it("composes download url from custom baseUrl and prefix", () => {
-      const customClient = new HttpTransport("http://other.local:9090", "/prefix", makeProvider())
+      const customClient = new HttpTransport("http://other.local:9090", "/prefix")
       const customBlobs = new HestiaBlobClient(customClient, "/prefix")
       const url = customBlobs.blob("custom", "x")
       expect(url).toBe("http://other.local:9090/prefix/system/blobs/blob/custom/x")
@@ -210,7 +190,7 @@ describe("HestiaBlobClient", () => {
 describe("HttpTransport URL composition", () => {
   it("combines baseUrl, prefix and path", async () => {
     const provider = makeProvider()
-    const client = new HttpTransport("http://example.com", "/v2", provider)
+    const client = new HttpTransport("http://example.com", "/v2")
     const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
     const raw = mock.results[mock.results.length - 1]!.value
 
@@ -225,7 +205,7 @@ describe("HttpTransport stream", () => {
 
   beforeEach(() => {
     const provider = makeProvider()
-    client = new HttpTransport("http://test.local", "/api", provider)
+    client = new HttpTransport("http://test.local", "/api")
     vi.clearAllMocks()
   })
 

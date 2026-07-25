@@ -8,7 +8,7 @@ import "context"
 // to the external caller.
 //
 // Built-in implementations:
-//   - api.Interface  — HTTP/RPC transport (routes → messages → HTTP responses)
+//   - http.Interface  — HTTP/RPC transport (routes → messages → HTTP responses)
 //   - cli.Interface  — CLI flag parser (flags → bootstrap messages → stdout)
 //
 // Custom implementations follow the same pattern: receive external input,

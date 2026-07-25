@@ -24,10 +24,28 @@ func NewLivePermissionManager(livePolicies collection.LiveCollection[*Policy], o
 }
 
 func (m *LivePermissionManager) Resolve(msg runtime.Message) (string, bool, error) {
-	policy, ok := m.livePolicies.Get(msg.Name())
+	tenantID := runtime.GetTenantID(msg.Context())
+
+	// Try tenant-specific policy first (composite key).
+	if tenantID != "" {
+		compositeKey := tenantID + ":" + msg.Name()
+		policy, ok := m.livePolicies.Get(compositeKey)
+		if ok && policy != nil {
+			return policy.RuleName, policy.Enabled, nil
+		}
+	}
+
+	// Fall back to global policy (composite key with empty tenant prefix, or
+	// legacy document keyed by operation name only).
+	policy, ok := m.livePolicies.Get(":" + msg.Name())
 	if ok && policy != nil {
 		return policy.RuleName, policy.Enabled, nil
 	}
+	policy, ok = m.livePolicies.Get(msg.Name())
+	if ok && policy != nil {
+		return policy.RuleName, policy.Enabled, nil
+	}
+
 	for _, d := range m.onEmpty {
 		if d.OperationName == msg.Name() {
 			return d.RuleName, d.Enabled, nil
@@ -50,13 +68,14 @@ func (m *LivePermissionManager) ListCapabilities() []runtime.CapabilityMetadata 
 		})
 	}
 	for _, k := range m.livePolicies.Keys() {
-		if seen[k] {
-			continue
-		}
 		policy, ok := m.livePolicies.Get(k)
 		if !ok || policy == nil {
 			continue
 		}
+		if seen[policy.OperationName] {
+			continue
+		}
+		seen[policy.OperationName] = true
 		result = append(result, runtime.CapabilityMetadata{
 			Name:        policy.OperationName,
 			Scope:       policy.RuleName,

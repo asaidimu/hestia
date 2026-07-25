@@ -8,17 +8,10 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/internal/feature"
-	"github.com/asaidimu/hestia/core/interface/api"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/migrations"
 )
-
-func listenAddr(port int) string {
-	if port <= 0 {
-		port = runtime.DefaultPort
-	}
-	return fmt.Sprintf(":%d", port)
-}
 
 func BuildApp(cfg *runtime.Config, opts abstract.SystemOptions) (*Application, error) {
 	application := Create(cfg)
@@ -43,26 +36,36 @@ func BuildApp(cfg *runtime.Config, opts abstract.SystemOptions) (*Application, e
 	return application, nil
 }
 
-func BuildInterfaces(a *Application, version string, middlewares []api.Middleware) (*api.Interface, *cli.Interface) {
+func BuildInterfaces(a *Application, version string, apiCfg httpapi.Config, cliCfg cli.Config) (*httpapi.Interface, *cli.Interface) {
 	mod := a.SystemModule()
 	chain := mod.DispatcherChain(a.Dispatcher())
 
-	rpcOrch := api.New(api.Options{
+	rpcOrch := httpapi.New(httpapi.Options{
 		Dispatcher:          chain,
 		InternalDispatcher:  a.Dispatcher(),
 		CredentialsProvider: mod.CredentialsProvider(),
 		Logger:              a.Loggers.File,
-		Addr:                listenAddr(a.Config.Port),
+		Addr:                apiCfg.Addr(),
 		Registrations:       a.Registrations,
-		CookieConfig:        a.Config.CookieConfig,
-		SessionTTL:          a.Config.SessionTTL,
-		IdleTTL:             a.Config.IdleTTL,
-		RefreshTTL:          a.Config.RefreshTTL,
-		APIPrefix:           a.Config.APIPrefix,
-		StaticFS:            a.Config.StaticFS,
+		CookieConfig:        apiCfg.CookieConfig,
+		SessionTTL:          apiCfg.SessionTTL,
+		IdleTTL:             apiCfg.IdleTTL,
+		RefreshTTL:          apiCfg.RefreshTTL,
+		APIPrefix:           apiCfg.APIPrefix,
+		StaticFS:            apiCfg.StaticFS,
 		UserModel:           mod.UserModel(),
-		Middleware:          middlewares,
+		Middleware:          apiCfg.Middleware,
+		AllowedOrigins:      apiCfg.AllowedOrigins,
 	})
+
+	stdin := cliCfg.Stdin
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	stdout := cliCfg.Stdout
+	if stdout == nil {
+		stdout = os.Stdout
+	}
 
 	cliOrch := cli.New(cli.Options{
 		Dispatcher:  chain,
@@ -70,8 +73,8 @@ func BuildInterfaces(a *Application, version string, middlewares []api.Middlewar
 		AdminUserID: mod.AdminUserID(),
 		AdminEmail:  mod.AdminEmail(),
 		Version:     version,
-		Stdin:       os.Stdin,
-		Stdout:      os.Stdout,
+		Stdin:       stdin,
+		Stdout:      stdout,
 	})
 
 	return rpcOrch, cliOrch

@@ -1,4 +1,4 @@
-package httpserver
+package http
 
 import (
 	"bufio"
@@ -10,6 +10,7 @@ import (
 	"mime"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -31,6 +32,55 @@ type TransportOptions struct {
 	Logger    Logger
 	APIPrefix string
 	StaticFS  fs.FS
+	AllowedOrigins []string
+}
+
+// CORSAllowlist manages allowed origins for CORS, safe for concurrent use.
+type CORSAllowlist struct {
+	mu      sync.RWMutex
+	origins []string
+}
+
+func NewCORSAllowlist(origins []string) *CORSAllowlist {
+	cp := make([]string, len(origins))
+	copy(cp, origins)
+	return &CORSAllowlist{origins: cp}
+}
+
+func (c *CORSAllowlist) Allowed(origin string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, o := range c.origins {
+		if o == origin {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *CORSAllowlist) Add(origin string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.origins = append(c.origins, origin)
+}
+
+func (c *CORSAllowlist) Remove(origin string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i, o := range c.origins {
+		if o == origin {
+			c.origins = append(c.origins[:i], c.origins[i+1:]...)
+			return
+		}
+	}
+}
+
+func (c *CORSAllowlist) List() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	cp := make([]string, len(c.origins))
+	copy(cp, c.origins)
+	return cp
 }
 
 type HTTPTransport struct {
@@ -39,32 +89,40 @@ type HTTPTransport struct {
 	apiPrefix string
 	staticFS  fs.FS
 	server    *fasthttp.Server
-	routes    []routeEntry
-}
-
-type routeEntry struct {
-	method  string
-	prefix  string
-	handler abstract.Handler
+	router    *pathTrie
+	corsList  *CORSAllowlist
 }
 
 func NewTransport(opts TransportOptions) *HTTPTransport {
+	ac := opts.AllowedOrigins
+	if ac == nil {
+		ac = defaultAllowedOrigins()
+	}
 	return &HTTPTransport{
 		addr:      opts.Addr,
 		logger:    opts.Logger,
 		apiPrefix: opts.APIPrefix,
 		staticFS:  opts.StaticFS,
+		router:    newPathTrie(),
+		corsList:  NewCORSAllowlist(ac),
 	}
+}
+
+func defaultAllowedOrigins() []string {
+	return []string{}
+}
+
+func (t *HTTPTransport) SetAllowedOrigins(origins []string) {
+	t.corsList = NewCORSAllowlist(origins)
+}
+
+func (t *HTTPTransport) CORSAllowlist() *CORSAllowlist {
+	return t.corsList
 }
 
 func (t *HTTPTransport) Handle(pattern string, handler abstract.Handler) {
 	method, path := splitPattern(pattern)
-	for _, r := range t.routes {
-		if r.method == method && r.prefix == path {
-			panic(fmt.Sprintf("duplicate route registration: %s %s", method, path))
-		}
-	}
-	t.routes = append(t.routes, routeEntry{method: method, prefix: path, handler: handler})
+	t.router.insert(method, path, handler)
 }
 
 func (t *HTTPTransport) Start() error {
@@ -82,7 +140,7 @@ func (t *HTTPTransport) Shutdown(ctx context.Context) error {
 }
 
 func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
-	cors(ctx)
+	t.cors(ctx)
 	if string(ctx.Method()) == "OPTIONS" {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
 		return
@@ -93,22 +151,15 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 	method := string(ctx.Method())
 	path := string(ctx.Path())
 
-	for _, route := range t.routes {
-		if route.method != "" && route.method != method {
-			continue
-		}
-		params := ExtractPathParams(route.prefix, path)
-		if params == nil && route.prefix != path {
-			continue
-		}
-
+	handler, params, ok := t.router.lookup(method, path)
+	if ok {
 		cookies := make(map[string]string)
 		ctx.Request.Header.VisitAllCookie(func(k, v []byte) {
 			cookies[string(k)] = string(v)
 		})
 
 		req := abstract.Request{
-			Operation:  route.method + " " + route.prefix,
+			Operation:  method + " " + path,
 			Body:       ctx.Request.Body(),
 			PathParams: params,
 			Query:      queryArgsToMap(ctx.QueryArgs()),
@@ -118,7 +169,7 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 			UserAgent:  string(ctx.UserAgent()),
 			RequestID:  string(ctx.Request.Header.Peek("X-Request-ID")),
 		}
-		resp, err := route.handler(ctx, req)
+		resp, err := handler(ctx, req)
 		if err != nil {
 			t.writeError(ctx, err, resp.Cookies)
 			return
@@ -143,16 +194,27 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 	})
 }
 
-func cors(ctx *fasthttp.RequestCtx) {
-	origin := ctx.Request.Header.Peek("Origin")
-	if len(origin) == 0 {
-		origin = []byte("*")
+func (t *HTTPTransport) cors(ctx *fasthttp.RequestCtx) {
+	origin := string(ctx.Request.Header.Peek("Origin"))
+	if origin == "" {
+		return
 	}
-	ctx.Response.Header.Set("Access-Control-Allow-Origin", string(origin))
+
+	host := string(ctx.Request.Header.Peek("Host"))
+	sameOrigin := host != "" && (origin == "http://"+host || origin == "https://"+host)
+
+	allowed := sameOrigin || t.corsList.Allowed(origin)
+	if !allowed {
+		return
+	}
+
+	ctx.Response.Header.Set("Access-Control-Allow-Origin", origin)
 	ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 	ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, x-api-key")
-	ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
 	ctx.Response.Header.Set("Vary", "Origin")
+	if sameOrigin {
+		ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
+	}
 }
 
 func correlationID(ctx *fasthttp.RequestCtx) {
@@ -167,6 +229,20 @@ func correlationID(ctx *fasthttp.RequestCtx) {
 	ctx.Request.Header.Set("X-Request-ID", string(id))
 }
 
+// ── Response envelope types ─────────────────────────────────────────────────
+
+type responseMeta struct {
+	Timestamp string `json:"timestamp"`
+	RequestID string `json:"request,omitempty"`
+	Page      any    `json:"page,omitempty"`
+}
+
+type responseErrorBody struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Details any    `json:"details,omitempty"`
+}
+
 // ── Response writing ───────────────────────────────────────────────────────
 
 func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Response) {
@@ -175,16 +251,7 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 	}
 
 	for _, c := range resp.Cookies {
-		fc := fasthttp.Cookie{}
-		fc.SetKey(c.Name)
-		fc.SetValue(c.Value)
-		fc.SetPath(c.Path)
-		fc.SetDomain(c.Domain)
-		fc.SetMaxAge(c.MaxAge)
-		fc.SetSecure(c.Secure)
-		fc.SetHTTPOnly(c.HTTPOnly)
-		fc.SetSameSite(mapSameSite(c.SameSite))
-		ctx.Response.Header.SetCookie(&fc)
+		ctx.Response.Header.SetCookie(toFasthttpCookie(c))
 	}
 
 	for k, vals := range resp.Headers {
@@ -232,17 +299,18 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 		return
 	}
 
-	meta := map[string]any{
-		"timestamp": time.Now().Format(time.RFC3339),
-		"request":   ctx.Request.Header.Peek("X-Request-ID"),
-	}
-	if resp.Page != nil {
-		meta["page"] = resp.Page
+	meta := responseMeta{
+		Timestamp: time.Now().Format(time.RFC3339),
+		RequestID: string(ctx.Request.Header.Peek("X-Request-ID")),
+		Page:      resp.Page,
 	}
 
-	json.NewEncoder(ctx).Encode(map[string]any{
-		"data":     resp.Body,
-		"metadata": meta,
+	json.NewEncoder(ctx).Encode(struct {
+		Data     any          `json:"data,omitempty"`
+		Metadata responseMeta `json:"metadata"`
+	}{
+		Data:     resp.Body,
+		Metadata: meta,
 	})
 }
 
@@ -250,16 +318,7 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies 
 	ctx.SetContentType("application/json")
 
 	for _, c := range cookies {
-		fc := fasthttp.Cookie{}
-		fc.SetKey(c.Name)
-		fc.SetValue(c.Value)
-		fc.SetPath(c.Path)
-		fc.SetDomain(c.Domain)
-		fc.SetMaxAge(c.MaxAge)
-		fc.SetSecure(c.Secure)
-		fc.SetHTTPOnly(c.HTTPOnly)
-		fc.SetSameSite(mapSameSite(c.SameSite))
-		ctx.Response.Header.SetCookie(&fc)
+		ctx.Response.Header.SetCookie(toFasthttpCookie(c))
 	}
 
 	status := fasthttp.StatusInternalServerError
@@ -273,17 +332,22 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies 
 
 	issue := sysErr.ToIssue()
 
+	meta := responseMeta{
+		Timestamp: time.Now().Format(time.RFC3339),
+		RequestID: string(ctx.Request.Header.Peek("X-Request-ID")),
+	}
+
 	ctx.SetStatusCode(status)
-	json.NewEncoder(ctx).Encode(map[string]any{
-		"error": map[string]any{
-			"code":    issue.Code,
-			"message": issue.Message,
-			"details": issue.Cause,
+	json.NewEncoder(ctx).Encode(struct {
+		Error    responseErrorBody `json:"error"`
+		Metadata responseMeta      `json:"metadata"`
+	}{
+		Error: responseErrorBody{
+			Code:    issue.Code,
+			Message: issue.Message,
+			Details: issue.Cause,
 		},
-		"metadata": map[string]any{
-			"timestamp": time.Now().Format(time.RFC3339),
-			"request":   ctx.Request.Header.Peek("X-Request-ID"),
-		},
+		Metadata: meta,
 	})
 }
 
@@ -454,4 +518,8 @@ func codeToStatusFn(code string) int {
 
 func systemErrorToStatus(err *common.SystemError) int {
 	return codeToStatusFn(err.Code)
+}
+
+func SystemErrorToStatus(err *common.SystemError) int {
+	return systemErrorToStatus(err)
 }

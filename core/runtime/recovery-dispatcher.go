@@ -8,6 +8,27 @@ import (
 	"go.uber.org/zap"
 )
 
+// PanicError wraps a recovered panic value and its stack for
+// upstream classification. Upstream handlers can detect it via
+// errors.As or errors.Is.
+type PanicError struct {
+	Recovered any
+	Stack     []byte
+}
+
+func (e *PanicError) Error() string {
+	return fmt.Sprintf("panic: %v", e.Recovered)
+}
+
+// Unwrap returns the recovered value if it was an error, allowing
+// errors.Is / errors.As to reach the original cause.
+func (e *PanicError) Unwrap() error {
+	if err, ok := e.Recovered.(error); ok {
+		return err
+	}
+	return nil
+}
+
 type RecoveryDispatcher struct {
 	next   Dispatcher
 	logger *zap.Logger
@@ -15,6 +36,10 @@ type RecoveryDispatcher struct {
 
 func NewRecoveryDispatcher(next Dispatcher, logger *zap.Logger) *RecoveryDispatcher {
 	return &RecoveryDispatcher{next: next, logger: logger}
+}
+
+func (d *RecoveryDispatcher) Wrap(next Dispatcher) Dispatcher {
+	return &RecoveryDispatcher{next: next, logger: d.logger}
 }
 
 func (d *RecoveryDispatcher) Send(msg Message) (res *registration.Result, err error) {
@@ -27,7 +52,7 @@ func (d *RecoveryDispatcher) Send(msg Message) (res *registration.Result, err er
 				zap.Any("panic", r),
 				zap.ByteString("stack", stack[:n]),
 			)
-			err = fmt.Errorf("panic: %v", r)
+			err = &PanicError{Recovered: r, Stack: stack[:n]}
 		}
 	}()
 	return d.next.Send(msg)

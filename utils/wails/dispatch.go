@@ -17,8 +17,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/identity"
-	"github.com/asaidimu/hestia/core/interface/api"
-	httpserver "github.com/asaidimu/hestia/core/interface/api/http"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/registration"
 	"github.com/asaidimu/hestia/core/runtime"
 )
@@ -33,8 +32,8 @@ type Request struct {
 }
 
 type Response struct {
-	Data   map[string]any `json:"data"`
-	Status int            `json:"status"`
+	Data   any `json:"data"`
+	Status int `json:"status"`
 }
 
 type Options struct {
@@ -133,8 +132,11 @@ func (a *Adapter) Login(email, password string) (map[string]any, error) {
 	a.claims = claims
 	a.mu.Unlock()
 
-	if m := api.SanitizeToMap(result.Document); m != nil {
-		return m, nil
+	if result.Document != nil {
+		sane, _ := result.Document.Sanitize()
+		if sane != nil {
+			return sane.ToMap(), nil
+		}
 	}
 	return map[string]any{}, nil
 }
@@ -217,6 +219,12 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 
 	ctx = a.authenticatedContext(ctx, claims)
 
+	if schema := a.lookupSchema(req.Name); schema != nil {
+		if issues, ok := runtime.ValidateInputDocument(schema, doc); !ok {
+			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
+		}
+	}
+
 	msg := abstract.NewMessage(req.Name, ctx, doc)
 	result, err := a.opts.Dispatcher.Send(msg)
 	if err != nil {
@@ -224,7 +232,7 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 		code := "INTERNAL_ERROR"
 		var sysErr *common.SystemError
 		if errors.As(err, &sysErr) {
-			status = api.SystemErrorToStatus(sysErr)
+			status = httpapi.SystemErrorToStatus(sysErr)
 			code = sysErr.Code
 		}
 		return Response{
@@ -262,19 +270,28 @@ func (a *Adapter) buildRoutes() {
 			continue
 		}
 
-		httpMethod := api.IntentToHTTPMethod(reg.Intent)
-		httpPath := api.DeriveRoute(reg.Name, reg.Input.Arguments)
+		httpMethod := httpapi.IntentToHTTPMethod(reg.Intent)
+		httpPath := httpapi.DeriveRoute(reg.Name, reg.Input.Arguments)
 		httpPath = a.prefix + httpPath
 
 		a.routes = append(a.routes, routeEntry{
 			method: httpMethod,
-			path:   api.IntentToHTTPPath(reg.Intent, httpPath),
+			path:   httpapi.IntentToHTTPPath(reg.Intent, httpPath),
 			name:   reg.Name,
 			intent: reg.Intent,
 			input:  reg.Input,
 			output: reg.Output,
 		})
 	}
+}
+
+func (a *Adapter) lookupSchema(name string) *definition.Schema {
+	for _, reg := range a.opts.Registrations {
+		if reg.Name == name {
+			return reg.Input.Schema
+		}
+	}
+	return nil
 }
 
 func (a *Adapter) resolveClaims(ctx context.Context, userID string) *identity.Claims {
@@ -335,7 +352,7 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if route.method != "" && route.method != r.Method {
 			continue
 		}
-		params := httpserver.ExtractPathParams(route.path, r.URL.Path)
+		params := httpapi.ExtractPathParams(route.path, r.URL.Path)
 		if params == nil && route.path != r.URL.Path {
 			continue
 		}
@@ -382,6 +399,11 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		doc := buildDoc(ctx, r, params, route.input)
 
+		if issues, ok := runtime.ValidateInputDocument(route.input.Schema, doc); !ok {
+			writeError(w, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues))
+			return
+		}
+
 		msg := abstract.NewMessage(route.name, ctx, doc)
 		result, err := a.opts.Dispatcher.Send(msg)
 		if err != nil {
@@ -407,16 +429,29 @@ func buildResponse(result *registration.Result) Response {
 
 	switch {
 	case result.Document != nil:
-		resp.Data = map[string]any{"data": api.SanitizeToMap(result.Document), "metadata": meta}
+		sane, _ := result.Document.Sanitize()
+		resp.Data = map[string]any{"data": sane, "metadata": meta}
 
 	case result.Documents != nil:
-		resp.Data = map[string]any{"data": api.SanitizeAll(result.Documents), "metadata": meta}
+		items := make([]*data.Document, 0, len(result.Documents))
+		for _, d := range result.Documents {
+			if sane, _ := d.Sanitize(); sane != nil {
+				items = append(items, sane)
+			}
+		}
+		resp.Data = map[string]any{"data": items, "metadata": meta}
 
 	case result.Page != nil:
 		if p := result.Page.Pagination; p != nil {
 			meta["page"] = p
 		}
-		resp.Data = map[string]any{"data": api.SanitizeAll(result.Page.Documents), "metadata": meta}
+		items := make([]*data.Document, 0, len(result.Page.Documents))
+		for _, d := range result.Page.Documents {
+			if sane, _ := d.Sanitize(); sane != nil {
+				items = append(items, sane)
+			}
+		}
+		resp.Data = map[string]any{"data": items, "metadata": meta}
 
 	default:
 		resp.Data = map[string]any{"data": nil, "metadata": meta}
@@ -430,7 +465,7 @@ func buildDoc(ctx context.Context, r *http.Request, pathParams map[string]string
 	if r.Body != nil {
 		body, _ = io.ReadAll(r.Body)
 	}
-	return api.BuildInputDocument(ctx, input, pathParams, r.URL.Query(), body)
+	return httpapi.BuildInputDocument(ctx, input, pathParams, r.URL.Query(), body)
 }
 
 func writeResult(w http.ResponseWriter, result *registration.Result, _ registration.Verb) {
@@ -457,17 +492,30 @@ func writeResult(w http.ResponseWriter, result *registration.Result, _ registrat
 
 	switch {
 	case result.Document != nil:
-		json.NewEncoder(w).Encode(map[string]any{"data": api.SanitizeToMap(result.Document), "metadata": map[string]any{}})
+		sane, _ := result.Document.Sanitize()
+		json.NewEncoder(w).Encode(map[string]any{"data": sane, "metadata": map[string]any{}})
 
 	case result.Documents != nil:
-		json.NewEncoder(w).Encode(map[string]any{"data": api.SanitizeAll(result.Documents), "metadata": map[string]any{}})
+		items := make([]*data.Document, 0, len(result.Documents))
+		for _, d := range result.Documents {
+			if sane, _ := d.Sanitize(); sane != nil {
+				items = append(items, sane)
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"data": items, "metadata": map[string]any{}})
 
 	case result.Page != nil:
 		meta := map[string]any{}
 		if p := result.Page.Pagination; p != nil {
 			meta["page"] = p
 		}
-		json.NewEncoder(w).Encode(map[string]any{"data": api.SanitizeAll(result.Page.Documents), "metadata": meta})
+		items := make([]*data.Document, 0, len(result.Page.Documents))
+		for _, d := range result.Page.Documents {
+			if sane, _ := d.Sanitize(); sane != nil {
+				items = append(items, sane)
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"data": items, "metadata": meta})
 
 	default:
 		json.NewEncoder(w).Encode(map[string]any{"data": nil, "metadata": map[string]any{}})
@@ -482,7 +530,7 @@ func writeError(w http.ResponseWriter, err error) {
 	var sysErr *common.SystemError
 	if errors.As(err, &sysErr) {
 		code = sysErr.Code
-		status = api.SystemErrorToStatus(sysErr)
+		status = httpapi.SystemErrorToStatus(sysErr)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
