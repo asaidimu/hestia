@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/asaidimu/hestia/compare/v1.2.3...v1.3.0) (2026-07-25)
+
+
+### Features
+
+* **core:** refactor persistence and multi-tenancy support ([4783c52](https://github.com/asaidimu/hestia/commit/4783c524efbd3911c288ac16d449a8aefde9a21c))
+
 ## [1.2.3](https://github.com/asaidimu/hestia/compare/v1.2.2...v1.2.3) (2026-07-22)
 
 
