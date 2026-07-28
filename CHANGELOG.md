@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/asaidimu/hestia/compare/v1.3.0...v1.4.0) (2026-07-28)
+
+
+### Features
+
+* **core:** refactor messaging and add notification/scheduler systems ([6b70dc9](https://github.com/asaidimu/hestia/commit/6b70dc928a8fdc33ece60be322f2fffbb404403e))
+
 # [1.3.0](https://github.com/asaidimu/hestia/compare/v1.2.3...v1.3.0) (2026-07-25)
 
 
