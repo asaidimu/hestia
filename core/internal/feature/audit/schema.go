@@ -2,14 +2,14 @@ package audit
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_logQueryInput    = schema.MustFromJSON(logQueryInputJSON)
-	_logQueryOutput   = schema.MustFromJSON(logQueryOutputJSON)
-	_logStreamInput   = schema.MustFromJSON(logStreamInputJSON)
-	_logStreamOutput  = schema.MustFromJSON(logStreamOutputJSON)
+	_logQueryInput    = dispatch.MustFromJSON(logQueryInputJSON)
+	_logQueryOutput   = dispatch.MustFromJSON(logQueryOutputJSON)
+	_logStreamInput   = dispatch.MustFromJSON(logStreamInputJSON)
+	_logStreamOutput  = dispatch.MustFromJSON(logStreamOutputJSON)
 )
 
 func logQueryInputSchema() *definition.Schema     { return _logQueryInput }

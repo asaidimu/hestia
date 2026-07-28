@@ -7,14 +7,14 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/identity"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
 func testMsg(name string, input *data.Document) abstract.Message {
-	return abstract.NewMessage(name, context.Background(), input)
+	return dispatch.NewMessage(name, context.Background(), input)
 }
 
 func TestListAPIKeysHandler(t *testing.T) {
@@ -83,7 +83,7 @@ func TestGetAPIKeyHandler(t *testing.T) {
 }
 
 func TestCreateAPIKeyHandler(t *testing.T) {
-	ctx := identity.ContextWithClaims(context.Background(), &runtime.Claims{UserID: "test-user"})
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
 	p := testutil.NewPersistence(t)
 	model := apikeys.NewAPIKeyModel(p)
 
@@ -91,7 +91,7 @@ func TestCreateAPIKeyHandler(t *testing.T) {
 	input := data.MustNewDocument(map[string]any{
 		"payload": map[string]any{"name": "new-key"},
 	}, ctx)
-	msg := abstract.NewMessage("create", ctx, input)
+	msg := dispatch.NewMessage("create", ctx, input)
 	result, err := handler(ctx, msg)
 	if err != nil {
 		t.Fatalf("create handler: %v", err)
@@ -123,12 +123,12 @@ func TestDeleteAPIKeyHandler(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	claimsCtx := identity.ContextWithClaims(context.Background(), &runtime.Claims{UserID: "test-user"})
+	claimsCtx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
 	handler := apikeys.NewDeleteAPIKeyHandler(model)
 	input := data.MustNewDocument(map[string]any{
 		"arguments": map[string]any{"key_id": doc.ID()},
 	}, claimsCtx)
-	msg := abstract.NewMessage("delete", claimsCtx, input)
+	msg := dispatch.NewMessage("delete", claimsCtx, input)
 	result, err := handler(claimsCtx, msg)
 	if err != nil {
 		t.Fatalf("delete handler: %v", err)

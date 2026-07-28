@@ -1,47 +1,9 @@
 package abstract
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/asaidimu/go-anansi/v8/core/data"
-	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 )
-
-func TestMustNewID(t *testing.T) {
-	id := MustNewID()
-	if id == "" {
-		t.Fatal("MustNewID returned empty string")
-	}
-	if len(id) != 36 {
-		t.Fatalf("MustNewID returned %q (len %d), want 36-char UUID", id, len(id))
-	}
-}
-
-func TestNewMessage(t *testing.T) {
-	ctx := context.Background()
-	doc := &data.Document{}
-	msg := NewMessage("test.msg", ctx, doc)
-	if msg.ID() == "" {
-		t.Fatal("NewMessage ID is empty")
-	}
-	if msg.Name() != "test.msg" {
-		t.Fatalf("Name = %q, want %q", msg.Name(), "test.msg")
-	}
-	if msg.Context() != ctx {
-		t.Fatal("Context mismatch")
-	}
-	if msg.Input() != doc {
-		t.Fatal("Input mismatch")
-	}
-	if msg.InputChannel() != nil {
-		t.Fatal("InputChannel should be nil")
-	}
-	if msg.BlobInputChannel() != nil {
-		t.Fatal("BlobInputChannel should be nil")
-	}
-}
 
 func TestVerbString(t *testing.T) {
 	tests := []struct {
@@ -91,82 +53,6 @@ func TestVerbJSONUnmarshal(t *testing.T) {
 	if v != Read {
 		t.Errorf("unmarshal UNKNOWN changed value to %d, want %d", v, Read)
 	}
-}
-
-func TestNewDocumentResult(t *testing.T) {
-	doc := &data.Document{}
-	r := NewDocumentResult(doc)
-	if r.Kind != ResultKindDocument {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindDocument)
-	}
-	if r.Document != doc {
-		t.Error("Document field mismatch")
-	}
-}
-
-func TestNewDocumentsResult(t *testing.T) {
-	docs := data.DocumentSet{&data.Document{}}
-	r := NewDocumentsResult(docs)
-	if r.Kind != ResultKindDocuments {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindDocuments)
-	}
-	if len(r.Documents) != 1 {
-		t.Errorf("len(Documents) = %d, want 1", len(r.Documents))
-	}
-}
-
-func TestNewPageResult(t *testing.T) {
-	page := &Page{Documents: data.DocumentSet{}, Pagination: nil}
-	r := NewPageResult(page)
-	if r.Kind != ResultKindPage {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindPage)
-	}
-	if r.Page != page {
-		t.Error("Page field mismatch")
-	}
-}
-
-func TestNewBlobResult(t *testing.T) {
-	blob := Blob{Data: []byte("hello"), ContentType: "text/plain"}
-	r := NewBlobResult(blob)
-	if r.Kind != ResultKindBlob {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindBlob)
-	}
-	if string(r.Blob.Data) != "hello" || r.Blob.ContentType != "text/plain" {
-		t.Error("Blob field mismatch")
-	}
-}
-
-func TestNewDocumentChannelResult(t *testing.T) {
-	ch := make(chan *data.Document)
-	r := NewDocumentChannelResult(ch)
-	if r.Kind != ResultKindDocumentChannel {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindDocumentChannel)
-	}
-	if r.DocumentChannel != ch {
-		t.Error("DocumentChannel field mismatch")
-	}
-}
-
-func TestNewBlobChannelResult(t *testing.T) {
-	ch := make(chan Blob)
-	r := NewBlobChannelResult(ch)
-	if r.Kind != ResultKindBlobChannel {
-		t.Errorf("Kind = %d, want %d", r.Kind, ResultKindBlobChannel)
-	}
-	if r.BlobChannel != ch {
-		t.Error("BlobChannel field mismatch")
-	}
-}
-
-type testModule struct{ BaseModule }
-
-func (m *testModule) Name() string                                                      { return "test" }
-func (m *testModule) Setup(_ context.Context, _ base.Persistence) error { return nil }
-func (m *testModule) Capabilities() []Capability                                         { return nil }
-
-func TestModuleInterface(t *testing.T) {
-	var _ Module = (*testModule)(nil)
 }
 
 func TestCapabilityStruct(t *testing.T) {

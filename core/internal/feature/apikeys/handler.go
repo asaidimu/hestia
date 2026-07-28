@@ -7,17 +7,16 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
-	"github.com/asaidimu/hestia/core/identity"
+	"github.com/asaidimu/hestia/core/abstract"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
-func NewListAPIKeysHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListAPIKeysHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 		if userID == "" {
-			if claims, ok := identity.ClaimsFromContext(ctx); ok {
+			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				userID = claims.UserID
 			}
 		}
@@ -27,16 +26,16 @@ func NewListAPIKeysHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{Documents: docs}, nil
+		return &abstract.Result{Documents: docs}, nil
 	}
 }
 
-func NewGetAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewGetAPIKeyHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 		if userID == "" {
-			if claims, ok := identity.ClaimsFromContext(ctx); ok {
+			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				userID = claims.UserID
 			}
 		}
@@ -57,7 +56,7 @@ func NewGetAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 			}
 		}
 
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
@@ -95,11 +94,11 @@ func ptrStringFromMap(m map[string]any, key string) *string {
 	return &v
 }
 
-func NewCreateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCreateAPIKeyHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID := ""
-		if claims, ok := identity.ClaimsFromContext(ctx); ok {
+		if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 			userID = claims.UserID
 		}
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -128,15 +127,15 @@ func NewCreateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, err
 		}
 		sane.Set("key", generated.FullKey)
-		return &registration.Result{Document: sane}, nil
+		return &abstract.Result{Document: sane}, nil
 	}
 }
 
-func NewUpdateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUpdateAPIKeyHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID := ""
-		if claims, ok := identity.ClaimsFromContext(ctx); ok {
+		if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 			userID = claims.UserID
 		}
 		keyID, _ := doc.GetOr("arguments.key_id", "").(string)
@@ -156,15 +155,15 @@ func NewUpdateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewDeleteAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeleteAPIKeyHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID := ""
-		if claims, ok := identity.ClaimsFromContext(ctx); ok {
+		if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 			userID = claims.UserID
 		}
 		keyID, _ := doc.GetOr("arguments.key_id", "").(string)
@@ -172,15 +171,15 @@ func NewDeleteAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 		if err := keys.Delete(ctx, keyID, userID); err != nil {
 			return nil, err
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewRotateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewRotateAPIKeyHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID := ""
-		if claims, ok := identity.ClaimsFromContext(ctx); ok {
+		if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 			userID = claims.UserID
 		}
 		keyID, _ := doc.GetOr("arguments.key_id", "").(string)
@@ -190,12 +189,12 @@ func NewRotateAPIKeyHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, err
 		}
 		d.Set("key", generated.FullKey)
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewAPIKeyCreateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewAPIKeyCreateDocumentHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		bodyRaw := doc.GetOr("payload", nil)
 
@@ -207,7 +206,7 @@ func NewAPIKeyCreateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, common.NewSystemError("DOCUMENT_REQUIRED", "request body must be a valid JSON document")
 		}
 
-		claims, ok := identity.ClaimsFromContext(ctx)
+		claims, ok := runtimecontext.ClaimsFromContext(ctx)
 		if !ok {
 			return nil, common.NewSystemError("AUTH_REQUIRED", "authentication context missing")
 		}
@@ -232,12 +231,12 @@ func NewAPIKeyCreateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
 		}
 
 		d.Set("key", generated.FullKey)
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewAPIKeyUpdateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewAPIKeyUpdateDocumentHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		documentID, _ := doc.GetOr("document_id", "").(string)
 		bodyRaw := doc.GetOr("body", nil)
@@ -250,7 +249,7 @@ func NewAPIKeyUpdateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, common.NewSystemError("DOCUMENT_REQUIRED", "request body must be a valid JSON document")
 		}
 
-		claims, ok := identity.ClaimsFromContext(ctx)
+		claims, ok := runtimecontext.ClaimsFromContext(ctx)
 		if !ok {
 			return nil, common.NewSystemError("AUTH_REQUIRED", "authentication context missing")
 		}
@@ -266,16 +265,16 @@ func NewAPIKeyUpdateDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewAPIKeyDeleteDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewAPIKeyDeleteDocumentHandler(keys *APIKeyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		documentID, _ := doc.GetOr("document_id", "").(string)
 
-		claims, ok := identity.ClaimsFromContext(ctx)
+		claims, ok := runtimecontext.ClaimsFromContext(ctx)
 		if !ok {
 			return nil, common.NewSystemError("AUTH_REQUIRED", "authentication context missing")
 		}
@@ -284,6 +283,6 @@ func NewAPIKeyDeleteDocumentHandler(keys *APIKeyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }

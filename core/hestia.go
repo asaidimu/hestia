@@ -14,7 +14,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/internal/boot"
@@ -29,7 +29,7 @@ func projectName(projectName string) string {
 }
 
 type SystemModule interface {
-	DispatcherChain(next runtime.Dispatcher) runtime.Dispatcher
+	DispatcherChain(next abstract.Dispatcher) abstract.Dispatcher
 	CredentialsProvider() abstract.CredentialsProvider
 	Bootstrapped() bool
 	AdminUserID() string
@@ -59,16 +59,23 @@ const (
 )
 
 func MustFromJSON(data []byte) *definition.Schema {
-	return schema.MustFromJSON(data)
+	return dispatch.MustFromJSON(data)
 }
 
 type Application struct {
 	inner *boot.Application
 }
 
-func (a *Application) Persistence() base.Persistence         { return a.inner.Persistence() }
-func (a *Application) Dispatcher() runtime.Dispatcher        { return a.inner.Dispatcher() }
-func (a *Application) SystemModule() SystemModule            { return a.inner.SystemModule() }
+func (a *Application) Persistence() base.Persistence {
+	return a.inner.Persistence()
+}
+func (a *Application) Dispatcher() abstract.Dispatcher        { return a.inner.Dispatcher() }
+func (a *Application) SystemModule() SystemModule {
+	if a.inner.SystemModule() == nil {
+		return nil
+	}
+	return a.inner.SystemModule()
+}
 func (a *Application) Registrations() []abstract.MessageRegistration { return a.inner.Registrations }
 func (a *Application) RegisterModules(m ...Module) error     { return a.inner.RegisterModules(m...) }
 
@@ -151,10 +158,12 @@ type SetupConfig struct {
 	LogMaxBackups   int
 	AdminEmail      string
 	AdminPassword   string
+	Mailer          runtime.MailerConfig
+	AppURL          string
 
 	Modules          []Module
 	DispatcherChainFunc  func(chain abstract.ChainEditor)
-	Interfaces       []func(runtime.Dispatcher) runtime.Interface
+	Interfaces       []func(abstract.Dispatcher) runtime.Interface
 	BuildInterfaces  func(app *Application) []runtime.Interface
 
 	OnBootstrapped func()
@@ -163,7 +172,8 @@ type SetupConfig struct {
 
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
-	Logger *zap.Logger
+	Bootstrap *bool
+	Logger    *zap.Logger
 }
 
 func (cfg SetupConfig) applyTo(conf *runtime.Config) {
@@ -220,6 +230,12 @@ func (cfg SetupConfig) applyTo(conf *runtime.Config) {
 	if cfg.AdminPassword != "" {
 		conf.AdminPassword = cfg.AdminPassword
 	}
+	if cfg.Mailer.SMTPHost != "" {
+		conf.Mailer = cfg.Mailer
+	}
+	if cfg.AppURL != "" {
+		conf.AppURL = cfg.AppURL
+	}
 	if cfg.PersistenceFactory != nil {
 		conf.PersistenceFactory = cfg.PersistenceFactory
 	}
@@ -236,35 +252,37 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		return nil, err
 	}
 	cfg.applyTo(conf)
-	if err != nil {
-		return nil, err
-	}
 
 	if conf.SessionSecret == "" {
 		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret or SESSION_SECRET env var")
 	}
 
+	// Phase 1: wiring — no I/O
+	application := boot.New(conf)
+	appWrapper := &Application{inner: application}
+
+	bootstrap := true
+	if cfg.Bootstrap != nil {
+		bootstrap = *cfg.Bootstrap
+	}
+	if !bootstrap {
+		return appWrapper, nil
+	}
+
+	// Phase 2: boot — persistence, migrations, module hydration
 	forceBootstrapped := cfg.ForceBootstrapped || conf.ForceBootstrapped
 
-	var app *boot.Application
-	wrapBootstrapped := cfg.OnBootstrapped
-	wrapReset := cfg.OnReset
-
-	opts := abstract.SystemOptions{
+	opts := dispatch.SystemOptions{
 		OnBootstrapped: func() {
-			if app != nil {
-				app.RestartAll(true)
-			}
-			if wrapBootstrapped != nil {
-				wrapBootstrapped()
+			application.RestartAll(true)
+			if cfg.OnBootstrapped != nil {
+				cfg.OnBootstrapped()
 			}
 		},
 		OnReset: func() {
-			if app != nil {
-				app.Reset(conf, cfg.Version)
-			}
-			if wrapReset != nil {
-				wrapReset()
+			application.Reset(conf, cfg.Version)
+			if cfg.OnReset != nil {
+				cfg.OnReset()
 			}
 		},
 		ForceBootstrapped:   forceBootstrapped,
@@ -272,11 +290,10 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		DispatcherChainFunc: cfg.DispatcherChainFunc,
 	}
 
-	application, err := boot.BuildApp(conf, opts)
-	if err != nil {
+	if err := application.Boot(context.Background(), opts); err != nil {
+		application.Close()
 		return nil, err
 	}
-	app = application
 
 	if cfg.Migrate != nil {
 		if err := cfg.Migrate(context.Background(), application.Persistence()); err != nil {
@@ -291,8 +308,6 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		}
 	}
 
-	appWrapper := &Application{inner: application}
-
 	if cfg.BuildInterfaces != nil {
 		for _, i := range cfg.BuildInterfaces(appWrapper) {
 			application.AddInterface(i)
@@ -305,5 +320,5 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		}
 	}
 
-	return &Application{inner: application}, nil
+	return appWrapper, nil
 }

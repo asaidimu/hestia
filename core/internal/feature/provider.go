@@ -2,6 +2,7 @@ package feature
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
@@ -10,7 +11,9 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
-	blobutil "github.com/asaidimu/hestia/core/blobstore"
+	"github.com/asaidimu/hestia/core/runtime/notification"
+	"github.com/asaidimu/hestia/core/runtime/scheduler"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
@@ -18,10 +21,11 @@ import (
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
 	"github.com/asaidimu/hestia/core/internal/feature/operations"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
+	"github.com/asaidimu/hestia/core/internal/feature/notifications"
+	"github.com/asaidimu/hestia/core/internal/feature/schedules"
 	"github.com/asaidimu/hestia/core/internal/feature/settings"
 	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
-	"github.com/asaidimu/hestia/core/internal/feature/notifications"
 )
 
 // ProviderSet groups all feature models and runtime state that were
@@ -34,14 +38,18 @@ type ProviderSet struct {
 
 	Users        *users.UserModel
 	APIKeys      *apikeys.APIKeyModel
-	Policies     *policies.PolicyModel
-	Seed         *operations.SeedModel
-	Audit        *audit.AuditModel
-	Tenants      *tenants.TenantModel
-	Settings     *settings.SettingsModel
-	Notifications *notifications.NotificationModel
+	Policies         *policies.PolicyModel
+	Seed             *operations.SeedModel
+	Audit            *audit.AuditModel
+	Tenants          *tenants.TenantModel
+	Settings         *settings.SettingsModel
+	Notifications    *notifications.NotificationModel
+	Schedules        *schedules.ScheduleModel
 
 	BlobSvc      *blobutil.Service
+	Notifier     abstract.Notifier
+	Scheduler    *scheduler.Scheduler
+	AppURL       string
 	CredProv     abstract.CredentialsProvider
 	PolicyBridge *policies.PolicyStoreAdapter
 	PermMgr      runtime.ReloadablePermissionManager
@@ -77,7 +85,77 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	ps.Audit = audit.NewAuditModel(ps.Persist)
 	ps.Tenants = tenants.NewTenantModel(ps.Persist)
 	ps.Settings = settings.NewSettingsModel(ps.Persist)
+
 	ps.Notifications = notifications.NewNotificationModel(ps.Persist)
+	ps.Schedules = schedules.NewScheduleModel(ps.Persist)
+
+	ps.Scheduler = scheduler.New(ps.Logger)
+	ps.Scheduler.Register("notifications:cleanup", "@every 1h", func(ctx context.Context) error {
+		deleted, err := ps.Notifications.DeleteExpired(ctx)
+		if err != nil {
+			ps.Logger.Warn("cleanup: expired notifications failed", zap.Error(err))
+		} else {
+			ps.Logger.Debug("cleanup: deleted expired notifications", zap.Int("count", deleted))
+		}
+		return nil
+	})
+
+	ps.Notifier = notification.New()
+	ps.Notifier.RegisterChannel(notification.NewInAppChannel(ps.Persist))
+	if cfg := ps.Config.Mailer; cfg.SMTPHost != "" {
+		m, err := runtime.NewMailer(cfg)
+		if err != nil {
+			return fmt.Errorf("init mailer: %w", err)
+		}
+		ps.Notifier.RegisterChannel(notification.NewEmailChannel(m))
+	}
+	ps.AppURL = ps.Config.AppURL
+
+	ps.Scheduler.Register("schedules:dispatch", "@every 30s", func(ctx context.Context) error {
+		due, err := ps.Schedules.FindDue(ctx)
+		if err != nil {
+			ps.Logger.Warn("schedules: find due failed", zap.Error(err))
+			return nil
+		}
+		for _, doc := range due {
+			id, _ := doc.GetString("_id")
+			userID, _ := doc.GetString("user_id")
+			template, _ := doc.GetString("type")
+			tenantID, _ := doc.GetString("tenant_id")
+
+			dataMap := make(map[string]any)
+			if raw, err := doc.Get("data"); err == nil && raw != nil {
+				if m, ok := raw.(map[string]any); ok {
+					dataMap = m
+				}
+			}
+
+			var channels []abstract.ChannelType
+			channelStr, _ := doc.GetString("channel")
+			switch channelStr {
+			case "email":
+				channels = []abstract.ChannelType{abstract.ChannelEmail}
+			case "in_app":
+				channels = []abstract.ChannelType{abstract.ChannelInApp}
+			default:
+				channels = []abstract.ChannelType{abstract.ChannelEmail, abstract.ChannelInApp}
+			}
+
+			err := ps.Notifier.Send(ctx, abstract.Notification{
+				TenantID: tenantID,
+				Recipient: abstract.Recipient{UserID: userID},
+				Template: template,
+				Data:     dataMap,
+				Channels: channels,
+			})
+
+			if markErr := ps.Schedules.MarkSent(ctx, id, err); markErr != nil {
+				ps.Logger.Warn("schedules: mark sent failed", zap.String("id", id), zap.Error(markErr))
+			}
+		}
+		return nil
+	})
+
 	return nil
 }
 
@@ -104,6 +182,9 @@ func (ps *ProviderSet) CollectRegistrations(
 		CredentialsProvider: ps.CredProv,
 		APIKeyAuth:          apiKeyAuth,
 		AdminUserID:         adminUserID,
+		SessionTTL:          ps.Config.SessionTTL,
+		Notifier:            ps.Notifier,
+		AppURL:              ps.AppURL,
 	})...)
 
 	all = append(all, blobs.Registrations(blobs.Dependencies{
@@ -128,6 +209,19 @@ func (ps *ProviderSet) CollectRegistrations(
 		AuditModel:    ps.Audit,
 		Persist:       ps.Persist,
 		Registrations: &allRegs,
+		Scheduler:     ps.Scheduler,
+	})...)
+
+	all = append(all, notifications.Registrations(notifications.Dependencies{
+		NotificationModel: ps.Notifications,
+	})...)
+
+	all = append(all, schedules.Registrations(schedules.Dependencies{
+		ScheduleModel: ps.Schedules,
+	})...)
+
+	all = append(all, settings.Registrations(settings.Dependencies{
+		SettingsModel: ps.Settings,
 	})...)
 
 	all = append(all, policies.Registrations(policies.Dependencies{

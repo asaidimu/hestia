@@ -11,8 +11,9 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
+	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
 type testMessage struct {
@@ -25,7 +26,7 @@ func (m testMessage) Name() string                            { return m.name }
 func (m testMessage) Context() context.Context                 { return m.ctx }
 func (m testMessage) Input() *data.Document                    { return nil }
 func (m testMessage) InputChannel() <-chan *data.Document      { return nil }
-func (m testMessage) BlobInputChannel() <-chan registration.Blob { return nil }
+func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m testMessage) TenantID() string   { return "" }
 func (m testMessage) TraceID() string    { return "" }
 func (m testMessage) RequestID() string  { return "" }
@@ -35,10 +36,10 @@ func (m testMessage) ResourceID() string { return "" }
 func (m testMessage) SessionID() string  { return "" }
 
 type mockPersister struct {
-	entries []runtime.AuditEntry
+	entries []audit.AuditEntry
 }
 
-func (m *mockPersister) Insert(_ context.Context, entry runtime.AuditEntry) error {
+func (m *mockPersister) Insert(_ context.Context, entry audit.AuditEntry) error {
 	m.entries = append(m.entries, entry)
 	return nil
 }
@@ -60,10 +61,10 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	t.Parallel()
 
 	local := runtime.NewLocalDispatcher()
-	handler := func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		panic("handler panic: something went wrong")
 	}
-	if err := local.RegisterHandler("test:panic", handler, runtime.HandlerInfo{
+	if err := local.RegisterHandler("test:panic", handler, abstract.HandlerInfo{
 		Name: "test:panic", Description: "a handler that panics", Enabled: true,
 	}); err != nil {
 		t.Fatalf("RegisterHandler failed: %v", err)
@@ -84,11 +85,11 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	recovery := runtime.NewRecoveryDispatcher(secure, zap.NewNop())
 
 	persister := &mockPersister{}
-	audit := runtime.NewAuditDispatcher(recovery, persister)
+	auditDisp := runtime.NewAuditDispatcher(recovery, persister)
 
 	msg := testMessage{name: "test:panic", ctx: adminContext()}
-	result, err := audit.Send(msg)
-	audit.Sync()
+	result, err := auditDisp.Send(msg)
+	auditDisp.Sync()
 
 	if err == nil {
 		t.Fatal("expected error from panicking handler, got nil")
@@ -107,7 +108,7 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	if entry.EventName != "test:panic" {
 		t.Fatalf("expected EventName 'test:panic', got %q", entry.EventName)
 	}
-	if entry.Status != runtime.AuditStatusError {
+	if entry.Status != audit.AuditStatusError {
 		t.Fatalf("expected Status 'error', got %q", entry.Status)
 	}
 }

@@ -17,9 +17,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/identity"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	module "github.com/asaidimu/hestia/core/runtime/module"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime"
-	blobutil "github.com/asaidimu/hestia/core/blobstore"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
@@ -28,9 +30,9 @@ import (
 )
 
 type SystemModule struct {
-	abstract.BaseModule
+	module.BaseModule
 
-	opts     abstract.SystemOptions
+	opts     dispatch.SystemOptions
 	cfg      *runtime.Config
 	disp     *runtime.LocalDispatcher
 	providers *ProviderSet
@@ -42,7 +44,7 @@ type SystemModule struct {
 	messages     []abstract.MessageRegistration
 }
 
-func New(cfg *runtime.Config, disp *runtime.LocalDispatcher, opts abstract.SystemOptions) *SystemModule {
+func New(cfg *runtime.Config, disp *runtime.LocalDispatcher, opts dispatch.SystemOptions) *SystemModule {
 	return &SystemModule{
 		opts: opts,
 		cfg:  cfg,
@@ -58,6 +60,12 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 	if err := m.providers.InitModels(ctx); err != nil {
 		return fmt.Errorf("init models: %w", err)
 	}
+
+	emailCh := m.cfg.Mailer.SMTPHost != ""
+	fmt.Printf("[mailer] host=%q port=%d auth=%q from=%q from_name=%q app_url=%q email_channel=%v\n",
+		m.cfg.Mailer.SMTPHost, m.cfg.Mailer.SMTPPort, m.cfg.Mailer.SMTPAuthType,
+		m.cfg.Mailer.FromAddress, m.cfg.Mailer.FromName, m.cfg.AppURL,
+		emailCh)
 
 	sessionSvc := auth.NewSessionService(m.cfg.SessionSecret)
 	resetSecret := m.cfg.SessionSecret + ":reset"
@@ -334,12 +342,12 @@ func (m *SystemModule) registerExistingDocumentHandlers(ctx context.Context) err
 	return nil
 }
 
-func (m *SystemModule) DispatcherChain(next runtime.Dispatcher) runtime.Dispatcher {
+func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispatcher {
 	chain := runtime.NewDispatcherChain(
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
 		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
-			if claims, ok := identity.ClaimsFromContext(ctx); ok {
+			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				return claims.TenantID
 			}
 			return ""
@@ -362,11 +370,13 @@ func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider { retu
 func (m *SystemModule) UserModel() *users.UserModel                   { return m.providers.Users }
 
 func (m *SystemModule) Start(ctx context.Context) error {
-	m.opts.Logger.Info("system module started")
+	m.providers.Scheduler.Start()
+	m.opts.Logger.Info("system module started", zap.Stringer("scheduler", m.providers.Scheduler))
 	return nil
 }
 
 func (m *SystemModule) Stop(ctx context.Context) error {
+	m.providers.Scheduler.Stop()
 	m.opts.Logger.Info("system module stopped")
 	return nil
 }

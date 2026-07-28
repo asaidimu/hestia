@@ -8,12 +8,11 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
-	corepkg "github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
-func logStreamHandler(persist base.Persistence) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+func logStreamHandler(persist base.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		docCh := make(chan *data.Document, 64)
 
 		col, err := persist.Collection(ctx, auditCollectionName)
@@ -70,6 +69,6 @@ func logStreamHandler(persist base.Persistence) corepkg.MessageHandler {
 			col.Unsubscribe(ctx, subID)
 		}()
 
-		return &registration.Result{DocumentChannel: docCh}, nil
+		return &abstract.Result{DocumentChannel: docCh}, nil
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/abstract"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
@@ -41,24 +42,53 @@ func (a *Application) SystemModule() *feature.SystemModule { return a.systemMod 
 
 func (a *Application) SetSystemModule(m *feature.SystemModule) { a.systemMod = m }
 
-func Create(cfg *runtime.Config) *Application {
+func New(cfg *runtime.Config) *Application {
 	loggers := NewLoggers(cfg)
 	loggers.Stdout.Banner()
 
-	pm, err := NewPersistenceManager(cfg, loggers.File)
-	if err != nil {
-		loggers.File.Fatal("Failed to setup persistence manager", zap.Error(err))
-	}
-
 	return &Application{
-		Config:             cfg,
-		Loggers:            loggers,
-		PersistenceManager: pm,
-		Disp:               runtime.NewLocalDispatcher(),
+		Config:  cfg,
+		Loggers: loggers,
+		Disp:    runtime.NewLocalDispatcher(),
 	}
 }
 
+func (a *Application) Boot(ctx context.Context, opts dispatch.SystemOptions) error {
+	if opts.Logger == nil {
+		opts.Logger = a.Loggers.File
+	}
+
+	pm, err := NewPersistenceManager(a.Config, a.Loggers.File)
+	if err != nil {
+		return fmt.Errorf("persistence manager: %w", err)
+	}
+	a.PersistenceManager = pm
+
+	if err := migrations.Apply(ctx, a.Persistence()); err != nil {
+		return fmt.Errorf("migrations: %w", err)
+	}
+
+	mod := feature.New(a.Config, a.Dispatcher(), opts)
+	if err := a.RegisterModules(mod); err != nil {
+		return err
+	}
+	a.SetSystemModule(mod)
+	return nil
+}
+
+// Create is kept for backwards compatibility. Prefer New + Boot.
+func Create(cfg *runtime.Config) *Application {
+	app := New(cfg)
+	if err := app.Boot(context.Background(), dispatch.SystemOptions{Logger: app.Loggers.File}); err != nil {
+		app.Loggers.File.Fatal("Failed to boot application", zap.Error(err))
+	}
+	return app
+}
+
 func (a *Application) Persistence() base.Persistence {
+	if a.PersistenceManager == nil {
+		return nil
+	}
 	return a.PersistenceManager.Persistence()
 }
 
@@ -70,7 +100,10 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	ctx := context.Background()
 
 	// Topological sort by Dependencies using Kahn's algorithm
-	sorted := topoSort(modules)
+	sorted, err := topoSort(modules)
+	if err != nil {
+		return fmt.Errorf("module dependency sort: %w", err)
+	}
 	a.Modules = append(a.Modules, sorted...)
 
 	for _, mod := range sorted {
@@ -83,7 +116,7 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 					a.Loggers.File.Warn("Message name grammar violation", zap.String("module", mod.Name()), zap.String("name", mr.Name), zap.Error(err))
 				}
 
-				if err := a.Disp.RegisterHandler(mr.Name, mr.Handler, runtime.HandlerInfo{
+				if err := a.Disp.RegisterHandler(mr.Name, mr.Handler, abstract.HandlerInfo{
 					Name:          mr.Name,
 					Description:   mr.Description,
 					Enabled:       mr.Enabled,
@@ -93,7 +126,7 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 				}
 
 				if mr.Input.Schema != nil {
-					if issues, ok := runtime.ValidateInputSchema(mr.Input.Schema); !ok && len(issues) > 0 {
+					if issues, ok := dispatch.ValidateInputSchema(mr.Input.Schema); !ok && len(issues) > 0 {
 						return fmt.Errorf("module %s message %q input schema validation failed: %w", mod.Name(), mr.Name, common.NewSystemError("invalid input schema").WithIssues(issues))
 					}
 				}
@@ -107,7 +140,8 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 }
 
 // topoSort returns modules sorted by Dependencies using Kahn's algorithm.
-func topoSort(modules []abstract.Module) []abstract.Module {
+// Returns an error if a cycle or missing dependency is detected.
+func topoSort(modules []abstract.Module) ([]abstract.Module, error) {
 	byName := make(map[string]abstract.Module, len(modules))
 	inDegree := make(map[string]int, len(modules))
 	deps := make(map[string][]string, len(modules))
@@ -123,7 +157,6 @@ func topoSort(modules []abstract.Module) []abstract.Module {
 		}
 	}
 
-	// Count how many deps each module still needs satisfied
 	for _, m := range modules {
 		for _, dep := range m.Dependencies() {
 			if _, ok := byName[dep]; ok {
@@ -154,21 +187,24 @@ func topoSort(modules []abstract.Module) []abstract.Module {
 		}
 	}
 
-	// Append any modules not reached (cycle or missing dep) at the end
-	for _, m := range modules {
-		found := false
-		for _, s := range sorted {
-			if s.Name() == m.Name() {
-				found = true
-				break
+	if len(sorted) != len(modules) {
+		unresolved := make([]string, 0)
+		for _, m := range modules {
+			found := false
+			for _, s := range sorted {
+				if s.Name() == m.Name() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				unresolved = append(unresolved, m.Name())
 			}
 		}
-		if !found {
-			sorted = append(sorted, m)
-		}
+		return nil, fmt.Errorf("circular or missing dependency detected for modules: %v", unresolved)
 	}
 
-	return sorted
+	return sorted, nil
 }
 
 func (a *Application) AddInterface(o runtime.Interface) {
@@ -219,13 +255,17 @@ func (a *Application) Shutdown(ctx context.Context) error {
 
 func (a *Application) Close() {
 	_ = a.Loggers.File.Sync()
-	_ = a.PersistenceManager.Close()
+	if a.PersistenceManager != nil {
+		_ = a.PersistenceManager.Close()
+	}
 	_ = a.Loggers.Close()
 }
 
 func (a *Application) Reset(cfg *runtime.Config, version string) {
 	_ = a.Loggers.File.Sync()
-	_ = a.PersistenceManager.Close()
+	if a.PersistenceManager != nil {
+		_ = a.PersistenceManager.Close()
+	}
 	_ = a.Loggers.Close()
 
 	if err := os.RemoveAll(a.Config.DataDir); err != nil {
@@ -237,18 +277,23 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 		return
 	}
 
-	newApp := Create(cfg)
+	newApp := New(cfg)
 	a.Config = newApp.Config
 	a.Loggers = newApp.Loggers
-	a.PersistenceManager = newApp.PersistenceManager
 	a.Disp = newApp.Disp
 
+	pm, err := NewPersistenceManager(cfg, a.Loggers.File)
+	if err != nil {
+		a.Loggers.File.Fatal("Failed to setup persistence manager on reset", zap.Error(err))
+	}
+	a.PersistenceManager = pm
+
 	if err := migrations.Apply(context.Background(), a.PersistenceManager.Persistence()); err != nil {
-		newApp.Loggers.File.Fatal("Failed to apply migrations on reset", zap.Error(err))
+		a.Loggers.File.Fatal("Failed to apply migrations on reset", zap.Error(err))
 	}
 
-	mod := feature.New(cfg, a.Dispatcher(), abstract.SystemOptions{
-		Logger:            newApp.Loggers.File,
+	mod := feature.New(cfg, a.Dispatcher(), dispatch.SystemOptions{
+		Logger:            a.Loggers.File,
 		AdminEmail:        cfg.AdminEmail,
 		AdminPassword:     cfg.AdminPassword,
 		ForceBootstrapped: cfg.ForceBootstrapped,
@@ -257,6 +302,7 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 		},
 	})
 	a.RegisterModules(mod)
+	a.SetSystemModule(mod)
 
 	rpcIface, cliIface := BuildInterfaces(a, version, httpapi.ConfigFromRuntime(cfg), cli.Config{})
 	a.Interfaces = nil

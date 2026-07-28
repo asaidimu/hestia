@@ -2,25 +2,26 @@ package operations
 
 import (
 	"context"
+	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	corepkg "github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 )
 
-func NewHeartbeatHandler() corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+func NewHeartbeatHandler() abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewSystemStatusHandler(bootstrapped func() bool) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
-		return &registration.Result{
+func NewSystemStatusHandler(bootstrapped func() bool) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"ok":           true,
 				"bootstrapped": bootstrapped(),
@@ -29,8 +30,8 @@ func NewSystemStatusHandler(bootstrapped func() bool) corepkg.MessageHandler {
 	}
 }
 
-func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiPrefix string) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiPrefix string) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		regs := *registrations
 		docs := make(data.DocumentSet, 0, len(regs))
 		for _, r := range regs {
@@ -62,56 +63,74 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiP
 			}
 			docs = append(docs, doc)
 		}
-		return &registration.Result{Documents: docs}, nil
+		return &abstract.Result{Documents: docs}, nil
 	}
 }
 
-func NewLogAccessHandler(model *audit.AuditModel) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+func NewLogAccessHandler(model *audit.AuditModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		entry := extractAuditEntry(msg.Input())
 		if err := model.Insert(ctx, entry); err != nil {
 			return nil, err
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewMarkBootstrappedHandler(onBootstrapped func()) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+func NewMarkBootstrappedHandler(onBootstrapped func()) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		if onBootstrapped != nil {
 			go onBootstrapped()
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewResetHandler(onReset func()) corepkg.MessageHandler {
-	return func(ctx context.Context, msg corepkg.Message) (*registration.Result, error) {
+func NewResetHandler(onReset func()) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		if onReset != nil {
 			go onReset()
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func extractAuditEntry(doc *data.Document) corepkg.AuditEntry {
-	return corepkg.AuditEntry{
+func NewSchedulerListHandler(sched *scheduler.Scheduler) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		jobs := sched.List()
+		docs := make(data.DocumentSet, 0, len(jobs))
+		for _, j := range jobs {
+			docs = append(docs, data.MustNewDocument(map[string]any{
+				"name":   j.Name,
+				"expr":   j.Expr,
+				"next":   j.Next.Format(time.RFC3339),
+				"prev":   j.Prev.Format(time.RFC3339),
+				"paused": j.Paused,
+				"tags":   j.Tags,
+			}, ctx))
+		}
+		return &abstract.Result{Documents: docs}, nil
+	}
+}
+
+func extractAuditEntry(doc *data.Document) auditdomain.AuditEntry {
+	return auditdomain.AuditEntry{
 		EventID:      getStr(doc, "event_id"),
 		OccurredAt:   getStr(doc, "occurred_at"),
 		RecordedAt:   getStr(doc, "recorded_at"),
 		TraceID:      getStr(doc, "trace_id"),
 		RequestID:    getStr(doc, "request_id"),
 		ActorID:      getStr(doc, "actor_id"),
-		ActorType:    corepkg.ActorType(getStr(doc, "actor_type")),
+		ActorType:    auditdomain.ActorType(getStr(doc, "actor_type")),
 		OnBehalfOfID: getStr(doc, "on_behalf_of_id"),
-		AuthMethod:   corepkg.AuthMethod(getStr(doc, "auth_method")),
+		AuthMethod:   auditdomain.AuthMethod(getStr(doc, "auth_method")),
 		SessionID:    getStr(doc, "session_id"),
-		Operation:    corepkg.Operation(getStr(doc, "operation")),
+		Operation:    auditdomain.Operation(getStr(doc, "operation")),
 		ResourceType: getStr(doc, "resource_type"),
 		ResourceID:   getStr(doc, "resource_id"),
 		EventName:    getStr(doc, "event_name"),
-		Status:       corepkg.AuditStatus(getStr(doc, "status")),
-		Severity:     corepkg.Severity(getStr(doc, "severity")),
+		Status:       auditdomain.AuditStatus(getStr(doc, "status")),
+		Severity:     auditdomain.Severity(getStr(doc, "severity")),
 		ErrorCode:    getStr(doc, "error_code"),
 		ErrorMessage: getStr(doc, "error_message"),
 		LatencyMs:    getInt64(doc, "latency_ms"),

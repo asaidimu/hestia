@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 	"go.uber.org/zap"
 )
 
@@ -30,19 +30,19 @@ func (e *PanicError) Unwrap() error {
 }
 
 type RecoveryDispatcher struct {
-	next   Dispatcher
+	next   abstract.Dispatcher
 	logger *zap.Logger
 }
 
-func NewRecoveryDispatcher(next Dispatcher, logger *zap.Logger) *RecoveryDispatcher {
+func NewRecoveryDispatcher(next abstract.Dispatcher, logger *zap.Logger) *RecoveryDispatcher {
 	return &RecoveryDispatcher{next: next, logger: logger}
 }
 
-func (d *RecoveryDispatcher) Wrap(next Dispatcher) Dispatcher {
+func (d *RecoveryDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &RecoveryDispatcher{next: next, logger: d.logger}
 }
 
-func (d *RecoveryDispatcher) Send(msg Message) (res *registration.Result, err error) {
+func (d *RecoveryDispatcher) Send(msg abstract.Message) (res *abstract.Result, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			stack := make([]byte, 4096)
@@ -58,4 +58,4 @@ func (d *RecoveryDispatcher) Send(msg Message) (res *registration.Result, err er
 	return d.next.Send(msg)
 }
 
-var _ Dispatcher = (*RecoveryDispatcher)(nil)
+var _ abstract.Dispatcher = (*RecoveryDispatcher)(nil)

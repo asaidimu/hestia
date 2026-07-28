@@ -10,7 +10,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/internal/feature/users"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 type cookieAction struct {
@@ -25,8 +25,8 @@ const cookieActionKey contextKey = "cookie_action"
 type Middleware func(ctx context.Context, req Request, next handlerFunc) (Response, error)
 
 type Options struct {
-	Dispatcher         runtime.Dispatcher
-	InternalDispatcher  runtime.Dispatcher
+	Dispatcher         abstract.Dispatcher
+	InternalDispatcher  abstract.Dispatcher
 	CredentialsProvider abstract.CredentialsProvider
 	Logger             *zap.Logger
 	Addr               string
@@ -37,7 +37,7 @@ type Options struct {
 	RefreshTTL         time.Duration
 	APIPrefix          string
 	StaticFS           fs.FS
-	UserModel          *users.UserModel
+	UserModel          abstract.UserResolver
 	Middleware         []Middleware
 	NoRefreshCommands  []string
 	AllowedOrigins     []string
@@ -46,11 +46,11 @@ type Options struct {
 type Interface struct {
 	opts           Options
 	trans          Transport
-	disp           runtime.Dispatcher
-	internalDisp   runtime.Dispatcher
+	disp           abstract.Dispatcher
+	internalDisp   abstract.Dispatcher
 	identityProv   iam.IdentityProvider
 	credProv       abstract.CredentialsProvider
-	userModel      *users.UserModel
+	userModel      abstract.UserResolver
 	bootstrapped   bool
 	regs           []abstract.MessageRegistration
 	cookieCfg      runtime.CookieConfig
@@ -176,7 +176,7 @@ func (o *Interface) wrap(fn handlerFunc) Handler {
 		action := &cookieAction{}
 		ctx = context.WithValue(ctx, cookieActionKey, action)
 		ctx = runtime.ContextWithAuditTransport(ctx, req.ClientIP, req.UserAgent, req.RequestID)
-		ctx = runtime.ContextWithTraceID(ctx, req.RequestID)
+		ctx = runtimecontext.ContextWithTraceID(ctx, req.RequestID)
 		resp, err = chain(ctx, req)
 
 		if action.SetToken != "" {

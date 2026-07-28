@@ -8,9 +8,9 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/transport"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 const (
@@ -62,23 +62,23 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
 		doc := buildDoc(ctx, req, reg.Input)
 
-		if issues, ok := runtime.ValidateInputDocument(reg.Input.Schema, doc); !ok {
+		if issues, ok := dispatch.ValidateInputDocument(reg.Input.Schema, doc); !ok {
 			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
 		}
 
 		if reg.Input.ResourceIDField != "" {
 			if rid, ok := doc.GetOr("arguments."+reg.Input.ResourceIDField, "").(string); ok && rid != "" {
-				ctx = runtime.ContextWithAuditResourceID(ctx, rid)
+				ctx = runtimecontext.ContextWithResourceID(ctx, rid)
 			}
 		}
 
 		idempotencyKey := ""
 		if keys := req.Headers["Idempotency-Key"]; len(keys) > 0 && keys[0] != "" {
 			idempotencyKey = keys[0]
-			ctx = runtime.ContextWithTraceID(ctx, idempotencyKey)
+			ctx = runtimecontext.ContextWithTraceID(ctx, idempotencyKey)
 		}
 
-		result, err := transport.Dispatch(o.disp, transport.Input{
+		result, err := dispatch.Dispatch(o.disp, dispatch.DispatchInput{
 			Name:    reg.Name,
 			Context: ctx,
 			ID:      idempotencyKey,
@@ -99,7 +99,7 @@ func buildDoc(ctx context.Context, req Request, input runtime.Input) *data.Docum
 	return BuildInputDocument(ctx, input, req.PathParams, req.Query, req.Body)
 }
 
-func serializeResponse(result *registration.Result, output *definition.Schema, intent registration.Verb, httpPath string) Response {
+func serializeResponse(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) Response {
 	if result == nil {
 		return emptyResponse(intent)
 	}
@@ -145,19 +145,19 @@ func streamChannel[T any](src <-chan T, transform func(T) any) (Response, bool) 
 	return Response{Status: statusOK, Body: StreamBody(streamCh)}, true
 }
 
-func serializeStreamResult(result *registration.Result) (Response, bool) {
+func serializeStreamResult(result *abstract.Result) (Response, bool) {
 	if resp, ok := streamChannel(result.DocumentChannel, func(d *data.Document) any {
 		sane, _ := d.Sanitize()
 		return sane
 	}); ok {
 		return resp, true
 	}
-	return streamChannel(result.BlobChannel, func(b registration.Blob) any {
+	return streamChannel(result.BlobChannel, func(b abstract.Blob) any {
 		return map[string]any{"data": b.Data, "content_type": b.ContentType}
 	})
 }
 
-func blobResponse(blob registration.Blob) Response {
+func blobResponse(blob abstract.Blob) Response {
 	return Response{
 		Status:  statusOK,
 		Body:    blob.Data,
@@ -177,26 +177,26 @@ func drainChannelResponse(docCh <-chan *data.Document) Response {
 	return Response{Status: statusOK, Body: map[string]any{"items": docs}}
 }
 
-func emptyResponse(intent registration.Verb) Response {
+func emptyResponse(intent abstract.Verb) Response {
 	status := statusOK
-	if intent == registration.Create {
+	if intent == abstract.Create {
 		status = statusCreated
 	}
-	if intent == registration.Delete {
+	if intent == abstract.Delete {
 		status = statusNoContent
 	}
 	return Response{Status: status}
 }
 
-func createStatus(intent registration.Verb) int {
-	if intent == registration.Create {
+func createStatus(intent abstract.Verb) int {
+	if intent == abstract.Create {
 		return statusCreated
 	}
 	return statusOK
 }
 
-func locationHeader(intent registration.Verb, doc *data.Document, httpPath string) map[string][]string {
-	if intent != registration.Create {
+func locationHeader(intent abstract.Verb, doc *data.Document, httpPath string) map[string][]string {
+	if intent != abstract.Create {
 		return nil
 	}
 	if id := doc.ID(); id != "" {
@@ -214,7 +214,7 @@ func fieldExists(output *definition.Schema, name string) bool {
 	return false
 }
 
-func serializeOutputField(result *registration.Result, output *definition.Schema, intent registration.Verb, httpPath string) (Response, bool) {
+func serializeOutputField(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) (Response, bool) {
 	status := createStatus(intent)
 
 	if result.Document != nil && fieldExists(output, "document") {
@@ -250,14 +250,14 @@ func serializeOutputField(result *registration.Result, output *definition.Schema
 	return Response{}, false
 }
 
-func extractSessionToken(result *registration.Result) string {
+func extractSessionToken(result *abstract.Result) string {
 	if result == nil {
 		return ""
 	}
 	return result.SessionToken
 }
 
-func (o *Interface) attachCookieToResponse(resp Response, result *registration.Result, name string) Response {
+func (o *Interface) attachCookieToResponse(resp Response, result *abstract.Result, name string) Response {
 	switch name {
 	case msgSessionCreate:
 		token := extractSessionToken(result)

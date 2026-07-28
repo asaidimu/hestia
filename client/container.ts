@@ -16,6 +16,8 @@ import { HestiaPolicies } from "./system/policies/store";
 import { HestiaRules } from "./system/rules/store";
 import { HestiaBlobClient } from "./blobs/store";
 import { HestiaCapabilities } from "./system/capabilities/store";
+import { HestiaNotificationStore } from "./system/notifications/store";
+import { HestiaSettingStore } from "./system/settings/store";
 
 export interface HestiaConfig {
   baseUrl: string;
@@ -40,6 +42,8 @@ export class HestiaClient {
   readonly collections: HestiaCollections;
   readonly blobs: HestiaBlobClient;
   readonly capabilities: HestiaCapabilities
+  readonly notifications: HestiaNotificationStore;
+  readonly settings: HestiaSettingStore;
   private tokenProvider: IdentityProvider;
 
   private onAuthStateChanged?: () => void;
@@ -91,6 +95,8 @@ export class HestiaClient {
     this.collections = new HestiaCollections(this.client);
     this.blobs = new HestiaBlobClient(this.client, apiPrefix);
     this.capabilities = new HestiaCapabilities(this.client)
+    this.notifications = new HestiaNotificationStore(this.client)
+    this.settings = new HestiaSettingStore(this.client)
   }
 
   onAuthStateChange(callback: () => void) {

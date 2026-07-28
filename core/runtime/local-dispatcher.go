@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
-var _ Dispatcher = (*LocalDispatcher)(nil)
-var _ Registry = (*LocalDispatcher)(nil)
+var _ abstract.Dispatcher = (*LocalDispatcher)(nil)
+var _ abstract.Registry = (*LocalDispatcher)(nil)
 
 type handlerEntry struct {
-	fn            MessageHandler
+	fn            abstract.MessageHandler
 	description   string
 	enabled       bool
 	bootstrapSafe bool
@@ -28,7 +28,7 @@ func NewLocalDispatcher() *LocalDispatcher {
 	}
 }
 
-func (d *LocalDispatcher) Send(msg Message) (*registration.Result, error) {
+func (d *LocalDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	if msg.Context() == nil {
 		return nil, fmt.Errorf("message %s has nil context", msg.Name())
 	}
@@ -44,7 +44,7 @@ func (d *LocalDispatcher) Send(msg Message) (*registration.Result, error) {
 	return entry.fn(msg.Context(), msg)
 }
 
-func (d *LocalDispatcher) RegisterHandler(name string, handler MessageHandler, info HandlerInfo) error {
+func (d *LocalDispatcher) RegisterHandler(name string, handler abstract.MessageHandler, info abstract.HandlerInfo) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, exists := d.handlers[name]; exists {
@@ -54,7 +54,7 @@ func (d *LocalDispatcher) RegisterHandler(name string, handler MessageHandler, i
 	return nil
 }
 
-func (d *LocalDispatcher) GetHandler(name string) (MessageHandler, error) {
+func (d *LocalDispatcher) GetHandler(name string) (abstract.MessageHandler, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	entry, ok := d.handlers[name]
@@ -64,12 +64,12 @@ func (d *LocalDispatcher) GetHandler(name string) (MessageHandler, error) {
 	return entry.fn, nil
 }
 
-func (d *LocalDispatcher) ListHandlers() []HandlerInfo {
+func (d *LocalDispatcher) ListHandlers() []abstract.HandlerInfo {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	result := make([]HandlerInfo, 0, len(d.handlers))
+	result := make([]abstract.HandlerInfo, 0, len(d.handlers))
 	for name, entry := range d.handlers {
-		result = append(result, HandlerInfo{
+		result = append(result, abstract.HandlerInfo{
 			Name:          name,
 			Description:   entry.description,
 			Enabled:       entry.enabled,

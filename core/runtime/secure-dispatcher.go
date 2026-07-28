@@ -7,7 +7,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-iam/v2/iam"
 
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 func stringSlice(v any) ([]string, bool) {
@@ -27,20 +27,20 @@ func stringSlice(v any) ([]string, bool) {
 }
 
 type SecureDispatcher struct {
-	next    Dispatcher
+	next    abstract.Dispatcher
 	permMgr PermissionManager
 	ac      iam.AccessController
 }
 
-func NewSecureDispatcher(next Dispatcher, permMgr PermissionManager, ac iam.AccessController) *SecureDispatcher {
+func NewSecureDispatcher(next abstract.Dispatcher, permMgr PermissionManager, ac iam.AccessController) *SecureDispatcher {
 	return &SecureDispatcher{next: next, permMgr: permMgr, ac: ac}
 }
 
-func (d *SecureDispatcher) Wrap(next Dispatcher) Dispatcher {
+func (d *SecureDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &SecureDispatcher{next: next, permMgr: d.permMgr, ac: d.ac}
 }
 
-func (d *SecureDispatcher) Send(msg Message) (*registration.Result, error) {
+func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	if !IsSystemIdentity(msg.Context()) {
 		// API key operation-name gate: if the IAM identity carries an
 		// "operations" property (set by ContextWithClaims for API key
@@ -78,7 +78,7 @@ func (d *SecureDispatcher) Send(msg Message) (*registration.Result, error) {
 			})
 		}
 		var resource any
-		if ex, ok := msg.(ResourceContextExtractor); ok {
+		if ex, ok := msg.(abstract.ResourceContextExtractor); ok {
 			resource = ex.ResourceContext()
 		}
 		can := d.ac.Can(msg.Context(), ruleKey, resource, nil)
@@ -112,4 +112,4 @@ func isAnonymous(ctx context.Context) bool {
 	return uid == ""
 }
 
-var _ Dispatcher = (*SecureDispatcher)(nil)
+var _ abstract.Dispatcher = (*SecureDispatcher)(nil)

@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 // BootstrapDispatcher gates message dispatch behind the bootstrapping
@@ -11,24 +11,24 @@ import (
 // allowed through. This ensures all interface types (HTTP, CLI, Wails)
 // enforce the same pre-bootstrap restrictions uniformly.
 type BootstrapDispatcher struct {
-	next        Dispatcher
+	next        abstract.Dispatcher
 	registry    interface{ IsHandlerBootstrapSafe(name string) bool }
 	bootstrapped func() bool
 }
 
-func NewBootstrapDispatcher(next Dispatcher, registry interface{ IsHandlerBootstrapSafe(name string) bool }, bootstrapped func() bool) *BootstrapDispatcher {
+func NewBootstrapDispatcher(next abstract.Dispatcher, registry interface{ IsHandlerBootstrapSafe(name string) bool }, bootstrapped func() bool) *BootstrapDispatcher {
 	return &BootstrapDispatcher{next: next, registry: registry, bootstrapped: bootstrapped}
 }
 
-func (d *BootstrapDispatcher) Wrap(next Dispatcher) Dispatcher {
+func (d *BootstrapDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &BootstrapDispatcher{next: next, registry: d.registry, bootstrapped: d.bootstrapped}
 }
 
-func (d *BootstrapDispatcher) Send(msg Message) (*registration.Result, error) {
+func (d *BootstrapDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	if !d.bootstrapped() && !d.registry.IsHandlerBootstrapSafe(msg.Name()) {
 		return nil, fmt.Errorf("handler %q is not available until the system is bootstrapped", msg.Name())
 	}
 	return d.next.Send(msg)
 }
 
-var _ Dispatcher = (*BootstrapDispatcher)(nil)
+var _ abstract.Dispatcher = (*BootstrapDispatcher)(nil)

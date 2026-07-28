@@ -144,3 +144,6 @@ tmp
 .readme.md
 schemas.lock.json.bak
 .env
+auth-test
+runtime.test
+cmd/test-server/test-server

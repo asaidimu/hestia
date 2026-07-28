@@ -16,8 +16,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/meta"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 type OperationPolicyStore interface {
@@ -38,8 +37,8 @@ func wrapErr(err error, code, msg string) *common.SystemError {
 	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
 }
 
-func NewCollectionCreateHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry runtime.Registry, logger *zap.Logger) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCollectionCreateHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		bodyRaw := doc.GetOr("payload", nil)
 		var schemaBytes []byte
@@ -91,10 +90,10 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 			{"read", "authenticated", "QUERY", "Query " + name + " collection"},
 			{"write", "authenticated", "COMMAND", "Write to " + name + " collection"},
 			{"delete", "authenticated", "COMMAND", "Delete from " + name + " collection"},
-			{"document.read", "authenticated", "QUERY", "Get a document from " + name},
-			{"document.create", "administrator", "COMMAND", "Create a document in " + name},
-			{"document.update", "administrator", "COMMAND", "Update a document in " + name},
-			{"document.delete", "administrator", "COMMAND", "Delete a document from " + name},
+			{"document:read", "authenticated", "QUERY", "Get a document from " + name},
+			{"document:create", "administrator", "COMMAND", "Create a document in " + name},
+			{"document:update", "administrator", "COMMAND", "Update a document in " + name},
+			{"document:delete", "administrator", "COMMAND", "Delete a document from " + name},
 		}
 		for _, op := range ops {
 			opName := "system:collections:" + name + ":" + op.suffix
@@ -113,7 +112,7 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 
 		metadata := created.Metadata(context.Background(), nil, false)
 		now := time.Now().UTC().Format(time.RFC3339)
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"name":    name,
 				"schema":  metadata.Schema,
@@ -124,8 +123,8 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 	}
 }
 
-func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry runtime.Registry, logger *zap.Logger) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -133,7 +132,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 			return nil, fmt.Errorf("collection %q is a system collection and cannot be deleted", name)
 		}
 
-	docSuffixes := []string{"document.create", "document.read", "document.update", "document.delete"}
+	docSuffixes := []string{"document:create", "document:read", "document:update", "document:delete"}
 	for _, s := range docSuffixes {
 		registry.DeleteHandler("system:collections:" + name + ":" + s)
 		}
@@ -142,7 +141,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 			return nil, fmt.Errorf("delete collection %q: %w", name, err)
 		}
 
-		suffixes := []string{"read", "write", "delete", "document.create", "document.read", "document.update", "document.delete"}
+		suffixes := []string{"read", "write", "delete", "document:create", "document:read", "document:update", "document:delete"}
 		for _, s := range suffixes {
 			opName := "system:collections:" + name + ":" + s
 			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
@@ -154,7 +153,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 			logger.Warn("Policy reload after collection delete failed", zap.String("collection", name), zap.Error(err))
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"name": name}, ctx),
 		}, nil
 	}
@@ -170,8 +169,8 @@ func isIAMProtectedCollection(name string) bool {
 	return ok
 }
 
-func NewDocumentCreateHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDocumentCreateHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -200,12 +199,12 @@ func NewDocumentCreateHandler(persist persistence.Persistence) runtime.MessageHa
 			return nil, fmt.Errorf("create document in %q: %w", name, err)
 		}
 
-		return &registration.Result{Document: created.Data}, nil
+		return &abstract.Result{Document: created.Data}, nil
 	}
 }
 
-func NewDocumentDeleteHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDocumentDeleteHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -229,12 +228,12 @@ func NewDocumentDeleteHandler(persist persistence.Persistence) runtime.MessageHa
 			return nil, fmt.Errorf("document %q not found in %q", documentID, name)
 		}
 
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewDocumentUpdateHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDocumentUpdateHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -273,31 +272,31 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) runtime.MessageHa
 			return nil, common.NewSystemError("DOCUMENT_NOT_FOUND", fmt.Sprintf("document %q not found in %q", documentID, name))
 		}
 
-		return &registration.Result{Document: result.Data[0]}, nil
+		return &abstract.Result{Document: result.Data[0]}, nil
 	}
 }
 
-func RegisterDocumentHandlers(r runtime.Registry, persist persistence.Persistence, name string) error {
+func RegisterDocumentHandlers(r abstract.Registry, persist persistence.Persistence, name string) error {
 	createHandler := NewDocumentCreateHandler(persist)
 	getHandler := NewDocumentGetHandler(persist)
 	updateHandler := NewDocumentUpdateHandler(persist)
 	deleteHandler := NewDocumentDeleteHandler(persist)
 
-	docCmdInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Create a document in %q", name), Enabled: true}
-	docQryInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Get a document from %q", name), Enabled: true}
-	docUpdInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Update a document in %q", name), Enabled: true}
-	docDelInfo := runtime.HandlerInfo{Description: fmt.Sprintf("Delete a document from %q", name), Enabled: true}
+	docCmdInfo := abstract.HandlerInfo{Description: fmt.Sprintf("Create a document in %q", name), Enabled: true}
+	docQryInfo := abstract.HandlerInfo{Description: fmt.Sprintf("Get a document from %q", name), Enabled: true}
+	docUpdInfo := abstract.HandlerInfo{Description: fmt.Sprintf("Update a document in %q", name), Enabled: true}
+	docDelInfo := abstract.HandlerInfo{Description: fmt.Sprintf("Delete a document from %q", name), Enabled: true}
 
-	if err := r.RegisterHandler("system:collections:"+name+":document.create", createHandler, docCmdInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document:create", createHandler, docCmdInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("system:collections:"+name+":document.read", getHandler, docQryInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document:read", getHandler, docQryInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("system:collections:"+name+":document.update", updateHandler, docUpdInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document:update", updateHandler, docUpdInfo); err != nil {
 		return err
 	}
-	if err := r.RegisterHandler("system:collections:"+name+":document.delete", deleteHandler, docDelInfo); err != nil {
+	if err := r.RegisterHandler("system:collections:"+name+":document:delete", deleteHandler, docDelInfo); err != nil {
 		return err
 	}
 

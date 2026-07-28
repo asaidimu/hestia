@@ -2,17 +2,17 @@ package apikeys
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_apiKeyListOutput  = schema.MustFromJSON(apiKeyListOutputJSON)
-	_apiKeyCreateInput = schema.MustFromJSON(apiKeyCreateInputJSON)
-	_apiKeyGetInput    = schema.MustFromJSON(apiKeyGetInputJSON)
-	_apiKeyUpdateInput = schema.MustFromJSON(apiKeyUpdateInputJSON)
-	_apiKeyDeleteInput = schema.MustFromJSON(apiKeyDeleteInputJSON)
-	_apiKeyRotateInput = schema.MustFromJSON(apiKeyRotateInputJSON)
-	_apiKeyOutput      = schema.MustFromJSON(apiKeyOutputJSON)
+	_apiKeyListOutput  = dispatch.MustFromJSON(apiKeyListOutputJSON)
+	_apiKeyCreateInput = dispatch.MustFromJSON(apiKeyCreateInputJSON)
+	_apiKeyGetInput    = dispatch.MustFromJSON(apiKeyGetInputJSON)
+	_apiKeyUpdateInput = dispatch.MustFromJSON(apiKeyUpdateInputJSON)
+	_apiKeyDeleteInput = dispatch.MustFromJSON(apiKeyDeleteInputJSON)
+	_apiKeyRotateInput = dispatch.MustFromJSON(apiKeyRotateInputJSON)
+	_apiKeyOutput      = dispatch.MustFromJSON(apiKeyOutputJSON)
 )
 
 func apiKeyListOutputSchema() *definition.Schema  { return _apiKeyListOutput }

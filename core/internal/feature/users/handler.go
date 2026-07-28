@@ -7,13 +7,14 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 
+	"github.com/asaidimu/hestia/core/abstract"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
-func NewGetUserHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewGetUserHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 
@@ -21,12 +22,12 @@ func NewGetUserHandler(users *UserModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewUpdateUserHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUpdateUserHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -55,6 +56,9 @@ func NewUpdateUserHandler(users *UserModel) runtime.MessageHandler {
 		if v, exists := body["verified"]; exists {
 			fields["verified"], _ = v.(bool)
 		}
+		if v, exists := body["data"]; exists {
+			fields["data"], _ = v.(map[string]any)
+		}
 		if len(fields) == 0 {
 			return nil, fmt.Errorf("no fields to update")
 		}
@@ -67,12 +71,12 @@ func NewUpdateUserHandler(users *UserModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewChangePasswordHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewChangePasswordHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -100,12 +104,12 @@ func NewChangePasswordHandler(users *UserModel) runtime.MessageHandler {
 		if err := users.ChangePassword(ctx, userID, newPassword); err != nil {
 			return nil, err
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewDeleteUserHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeleteUserHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
 		permanent, _ := doc.GetOr("modifiers.permanent", false).(bool)
@@ -119,12 +123,12 @@ func NewDeleteUserHandler(users *UserModel) runtime.MessageHandler {
 				return nil, err
 			}
 		}
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewUserCreateDocumentHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUserCreateDocumentHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		bodyRaw := doc.GetOr("payload", nil)
 
@@ -149,17 +153,18 @@ func NewUserCreateDocumentHandler(users *UserModel) runtime.MessageHandler {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "email, password, and name are required")
 		}
 
-		d, err := users.Register(ctx, req.Email, req.Password, req.Name, runtime.GetTenantID(ctx))
+		data, _ := body["data"].(map[string]any)
+		d, err := users.Register(ctx, req.Email, req.Password, req.Name, runtimecontext.GetTenantID(ctx), data)
 		if err != nil {
 			return nil, err
 		}
 
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }
 
-func NewUserUpdateDocumentHandler(users *UserModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUserUpdateDocumentHandler(users *UserModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		documentID, _ := doc.GetOr("arguments.document_id", "").(string)
 		bodyRaw := doc.GetOr("payload", nil)
@@ -173,10 +178,11 @@ func NewUserUpdateDocumentHandler(users *UserModel) runtime.MessageHandler {
 		}
 
 		var req struct {
-			Name        *string   `json:"name,omitempty"`
-			Email       *string   `json:"email,omitempty"`
-			Permissions []string  `json:"permissions,omitempty"`
-			Verified    *bool     `json:"verified,omitempty"`
+			Name        *string         `json:"name,omitempty"`
+			Email       *string         `json:"email,omitempty"`
+			Permissions []string        `json:"permissions,omitempty"`
+			Verified    *bool           `json:"verified,omitempty"`
+			Data        map[string]any  `json:"data,omitempty"`
 		}
 		b, _ := json.Marshal(body)
 		if err := json.Unmarshal(b, &req); err != nil {
@@ -197,6 +203,6 @@ func NewUserUpdateDocumentHandler(users *UserModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{Document: d}, nil
+		return &abstract.Result{Document: d}, nil
 	}
 }

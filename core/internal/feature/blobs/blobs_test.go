@@ -10,8 +10,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
-	"github.com/asaidimu/hestia/core/runtime"
 	"go.uber.org/zap"
 )
 
@@ -23,27 +23,27 @@ func TestMain(m *testing.M) {
 // ── mocks ────────────────────────────────────────────────────────────────────
 
 type mockBlobNamespace struct {
-	runtime.BlobNamespace
+	blobutil.BlobNamespace
 	headErr error
 	listErr error
-	listRes []runtime.BlobMeta
+	listRes []blobutil.BlobMeta
 }
 
-func (m mockBlobNamespace) Head(_ context.Context, _ string) (*runtime.BlobMeta, error) {
+func (m mockBlobNamespace) Head(_ context.Context, _ string) (*blobutil.BlobMeta, error) {
 	return nil, m.headErr
 }
 
-func (m mockBlobNamespace) List(_ context.Context, _ string, _ int) ([]runtime.BlobMeta, error) {
+func (m mockBlobNamespace) List(_ context.Context, _ string, _ int) ([]blobutil.BlobMeta, error) {
 	return m.listRes, m.listErr
 }
 
 type mockBlobStore struct {
-	runtime.BlobStore
+	blobutil.BlobStore
 	ns           mockBlobNamespace
 	namespaceErr error
 }
 
-func (m mockBlobStore) Namespace(_ string) runtime.BlobNamespace {
+func (m mockBlobStore) Namespace(_ string) blobutil.BlobNamespace {
 	return m.ns
 }
 
@@ -78,6 +78,12 @@ func TestDefaultOperations(t *testing.T) {
 		"system:blobs:namespace:list":   "administrator",
 		"system:blobs:namespace:create": "administrator",
 		"system:blobs:namespace:delete": "administrator",
+		"system:blobs:blob:list":        "administrator",
+		"system:blobs:blob:head":        "administrator",
+		"system:blobs:blob:upload":      "administrator",
+		"system:blobs:blob:download":    "administrator",
+		"system:blobs:blob:delete":      "administrator",
+		"system:blobs:blob:update":      "administrator",
 	}
 
 	if len(ops) != len(expected) {
@@ -149,7 +155,7 @@ func TestMustDoc(t *testing.T) {
 
 	store := mockBlobStore{
 		ns: mockBlobNamespace{
-			listRes: []runtime.BlobMeta{
+			listRes: []blobutil.BlobMeta{
 				{Key: "a.txt", NamespaceID: "ns1", ContentType: "text/plain", Size: 10},
 			},
 		},

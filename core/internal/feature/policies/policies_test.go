@@ -11,7 +11,6 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -39,7 +38,7 @@ func (m testMessage) UserAgent() string  { return "" }
 func (m testMessage) ResourceID() string { return "" }
 func (m testMessage) SessionID() string  { return "" }
 
-var _ runtime.Message = testMessage{}
+var _ abstract.Message = testMessage{}
 
 func openCollections(t *testing.T, p base.Persistence) (base.Collection, base.Collection) {
 	t.Helper()
@@ -255,7 +254,7 @@ func TestDefaultRules(t *testing.T) {
 }
 
 type testMsg struct {
-	runtime.Message
+	abstract.Message
 	input *data.Document
 }
 

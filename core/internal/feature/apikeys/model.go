@@ -12,7 +12,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/query"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/asaidimu/hestia/core/identity"
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 )
@@ -229,7 +229,7 @@ func (m *APIKeyModel) Rotate(ctx context.Context, keyID, userID string) (*Genera
 	return key, updateResult.Data[0], nil
 }
 
-func (m *APIKeyModel) ValidateKey(ctx context.Context, keyString string) (*identity.Claims, error) {
+func (m *APIKeyModel) ValidateKey(ctx context.Context, keyString string) (*abstract.Claims, error) {
 	if len(keyString) < prefixLength {
 		return nil, fmt.Errorf("invalid api key")
 	}
@@ -286,7 +286,7 @@ func (m *APIKeyModel) ValidateKey(ctx context.Context, keyString string) (*ident
 		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(doc.ID()).Build().Filters,
 	})
 
-	return &identity.Claims{
+	return &abstract.Claims{
 		UserID:     userID,
 		Operations: operations,
 		TokenType:  "api_key",

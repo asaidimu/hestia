@@ -60,6 +60,8 @@ type Config struct {
 	StaticFS           fs.FS
 	CookieConfig       CookieConfig
 	AllowedOrigins     []string
+	Mailer             MailerConfig
+	AppURL             string
 }
 
 type CookieConfig struct {
@@ -212,6 +214,31 @@ func LoadConfig(projectName string) (*Config, error) {
 	}
 	if b, ok := envBool("FORCE_BOOTSTRAPPED"); ok {
 		cfg.ForceBootstrapped = b
+	}
+
+	if v := os.Getenv("SMTP_HOST"); v != "" {
+		cfg.Mailer.SMTPHost = v
+	}
+	if n, ok := envInt("SMTP_PORT"); ok {
+		cfg.Mailer.SMTPPort = n
+	}
+	if v := os.Getenv("SMTP_USERNAME"); v != "" {
+		cfg.Mailer.SMTPUsername = v
+	}
+	if v := os.Getenv("SMTP_PASSWORD"); v != "" {
+		cfg.Mailer.SMTPPassword = v
+	}
+	if v := os.Getenv("SMTP_FROM"); v != "" {
+		cfg.Mailer.FromAddress = v
+	}
+	if v := os.Getenv("SMTP_FROM_NAME"); v != "" {
+		cfg.Mailer.FromName = v
+	}
+	if v := os.Getenv("SMTP_AUTH_TYPE"); v != "" {
+		cfg.Mailer.SMTPAuthType = v
+	}
+	if v := os.Getenv("APP_URL"); v != "" {
+		cfg.AppURL = v
 	}
 
 	return cfg, nil

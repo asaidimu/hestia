@@ -2,20 +2,32 @@ package auth_test
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime/quotedprintable"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/runtime/notification"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/internal/testutil"
-	"github.com/asaidimu/hestia/core/runtime"
 )
 
 type testMessage struct {
@@ -49,7 +61,7 @@ func TestRegisterHandler(t *testing.T) {
 		t.Fatalf("tenantModel.Create failed: %v", err)
 	}
 	tenantID := tenant.ID()
-	ctx = runtime.ContextWithTenantID(ctx, tenantID)
+	ctx = runtimecontext.ContextWithTenantID(ctx, tenantID)
 
 	handler := auth.NewRegisterHandler(userModel)
 	input := data.MustNewDocument(map[string]any{
@@ -91,7 +103,7 @@ func TestCreateSessionHandler(t *testing.T) {
 	}
 	tenantID := tenant.ID()
 
-	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID)
+	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
 	if err != nil {
 		t.Fatalf("userModel.Register failed: %v", err)
 	}
@@ -240,6 +252,326 @@ func TestSessionService_TokenVersion(t *testing.T) {
 			t.Errorf("refreshed TokenVersion = %d, want 7", refreshed.TokenVersion)
 		}
 	})
+}
+
+func TestPasswordResetHandler(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	userModel := users.NewUserModel(p)
+	tenantModel := tenants.NewTenantModel(p)
+	sessionSvc := auth.NewSessionService("test-secret")
+	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
+
+	ctx := context.Background()
+	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	if err != nil {
+		t.Fatalf("tenantModel.Create failed: %v", err)
+	}
+	tenantID := tenant.ID()
+
+	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
+	if err != nil {
+		t.Fatalf("userModel.Register failed: %v", err)
+	}
+
+	t.Run("existing email returns success with nil mailer", func(t *testing.T) {
+		handler := auth.NewPasswordResetHandler(userModel, credProv, nil, "")
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{"email": "test@example.com"},
+		}, ctx)
+		msg := testMessage{name: "password-reset", ctx: ctx, input: input}
+
+		result, err := handler(ctx, msg)
+		if err != nil {
+			t.Fatalf("PasswordResetHandler failed: %v", err)
+		}
+		if result == nil {
+			t.Fatal("PasswordResetHandler returned nil result")
+		}
+	})
+
+	t.Run("non-existent email returns success (no enumeration)", func(t *testing.T) {
+		handler := auth.NewPasswordResetHandler(userModel, credProv, nil, "")
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{"email": "nonexistent@example.com"},
+		}, ctx)
+		msg := testMessage{name: "password-reset", ctx: ctx, input: input}
+
+		result, err := handler(ctx, msg)
+		if err != nil {
+			t.Fatalf("PasswordResetHandler failed: %v", err)
+		}
+		if result == nil {
+			t.Fatal("PasswordResetHandler returned nil result")
+		}
+	})
+}
+
+func TestPasswordConfirmHandler(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	userModel := users.NewUserModel(p)
+	tenantModel := tenants.NewTenantModel(p)
+	sessionSvc := auth.NewSessionService("test-secret")
+	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
+
+	ctx := context.Background()
+	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	if err != nil {
+		t.Fatalf("tenantModel.Create failed: %v", err)
+	}
+	tenantID := tenant.ID()
+
+	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
+	if err != nil {
+		t.Fatalf("userModel.Register failed: %v", err)
+	}
+
+	t.Run("valid token resets password", func(t *testing.T) {
+		user, err := userModel.GetByEmail(ctx, "test@example.com")
+		if err != nil {
+			t.Fatalf("GetByEmail failed: %v", err)
+		}
+
+		token, err := credProv.IssueResetToken(user.ID())
+		if err != nil {
+			t.Fatalf("IssueResetToken failed: %v", err)
+		}
+
+		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{
+				"token":    token,
+				"password": "newpass456",
+			},
+		}, ctx)
+		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
+
+		result, err := handler(ctx, msg)
+		if err != nil {
+			t.Fatalf("PasswordConfirmHandler failed: %v", err)
+		}
+		if result == nil {
+			t.Fatal("PasswordConfirmHandler returned nil result")
+		}
+	})
+
+	t.Run("login with new password succeeds", func(t *testing.T) {
+		loginHandler := auth.NewCreateSessionHandler(userModel, credProv, 7*24*time.Hour)
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{
+				"email":    "test@example.com",
+				"password": "newpass456",
+			},
+		}, ctx)
+		msg := testMessage{name: "create-session", ctx: ctx, input: input}
+
+		result, err := loginHandler(ctx, msg)
+		if err != nil {
+			t.Fatalf("login with new password failed: %v", err)
+		}
+		if result == nil || result.SessionToken == "" {
+			t.Fatal("expected session token after password change")
+		}
+	})
+
+	t.Run("login with old password fails", func(t *testing.T) {
+		loginHandler := auth.NewCreateSessionHandler(userModel, credProv, 7*24*time.Hour)
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{
+				"email":    "test@example.com",
+				"password": "secret123",
+			},
+		}, ctx)
+		msg := testMessage{name: "create-session", ctx: ctx, input: input}
+
+		_, err := loginHandler(ctx, msg)
+		if err == nil {
+			t.Error("expected error when logging in with old password")
+		}
+	})
+
+	t.Run("expired token returns error", func(t *testing.T) {
+		user, err := userModel.GetByEmail(ctx, "test@example.com")
+		if err != nil {
+			t.Fatalf("GetByEmail failed: %v", err)
+		}
+
+		now := time.Now().Add(-10 * time.Minute)
+		exp := now.Add(5 * time.Minute).Unix()
+		payload := fmt.Sprintf("%s:%d:%s", user.ID(), exp, uuid.Must(uuid.NewV7()).String())
+		mac := hmac.New(sha256.New, []byte("test-secret:reset"))
+		mac.Write([]byte(payload))
+		sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:16])
+		encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
+		expiredToken := encoded + "." + sig
+
+		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{
+				"token":    expiredToken,
+				"password": "anotherpass",
+			},
+		}, ctx)
+		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
+
+		_, err = handler(ctx, msg)
+		if err == nil {
+			t.Error("expected error for expired token")
+		}
+	})
+
+	t.Run("invalid signature returns error", func(t *testing.T) {
+		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
+		input := data.MustNewDocument(map[string]any{
+			"payload": map[string]any{
+				"token":    "invalidsignature.token",
+				"password": "anotherpass",
+			},
+		}, ctx)
+		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
+
+		_, err := handler(ctx, msg)
+		if err == nil {
+			t.Error("expected error for invalid token signature")
+		}
+	})
+}
+
+func mailHogLive() bool {
+	resp, err := http.Get("http://localhost:8025/api/v2/messages")
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return true
+}
+
+func clearMailHog() {
+	req, _ := http.NewRequest("DELETE", "http://localhost:8025/api/v1/messages", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err == nil {
+		resp.Body.Close()
+	}
+}
+
+type mailHogMsg struct {
+	Content struct {
+		Headers struct {
+			To      []string `json:"To"`
+			Subject []string `json:"Subject"`
+		} `json:"Headers"`
+		Body string `json:"Body"`
+	} `json:"Content"`
+}
+
+type mailHogResp struct {
+	Total int           `json:"total"`
+	Items []mailHogMsg `json:"items"`
+}
+
+func pollMailHog(t *testing.T) mailHogMsg {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			t.Fatal("timed out waiting for MailHog message")
+		default:
+			resp, err := http.Get("http://localhost:8025/api/v2/messages")
+			if err != nil {
+				t.Fatalf("get MailHog: %v", err)
+			}
+			var mhr mailHogResp
+			if err := json.NewDecoder(resp.Body).Decode(&mhr); err != nil {
+				resp.Body.Close()
+				t.Fatalf("decode MailHog: %v", err)
+			}
+			resp.Body.Close()
+			if mhr.Total > 0 && len(mhr.Items) > 0 {
+				return mhr.Items[0]
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+}
+
+func decodeBody(qp string) string {
+	r := quotedprintable.NewReader(strings.NewReader(qp))
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return qp
+	}
+	return string(b)
+}
+
+func TestPasswordResetHandler_WithMailer(t *testing.T) {
+	if !mailHogLive() {
+		t.Skip("MailHog not running on localhost:1025")
+	}
+
+	p := testutil.NewPersistence(t)
+	userModel := users.NewUserModel(p)
+	tenantModel := tenants.NewTenantModel(p)
+	sessionSvc := auth.NewSessionService("test-secret")
+	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
+
+	ctx := context.Background()
+	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	if err != nil {
+		t.Fatalf("tenantModel.Create: %v", err)
+	}
+	tenantID := tenant.ID()
+
+	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
+	if err != nil {
+		t.Fatalf("userModel.Register: %v", err)
+	}
+
+	notifier := notification.New()
+	mailer, err := runtime.NewMailer(runtime.MailerConfig{
+		SMTPHost:     "localhost",
+		SMTPPort:     1025,
+		SMTPAuthType: "none",
+		FromAddress:  "noreply@test.local",
+		FromName:     "Test App",
+	})
+	if err != nil {
+		t.Fatalf("NewMailer: %v", err)
+	}
+	notifier.RegisterChannel(notification.NewEmailChannel(mailer))
+
+	clearMailHog()
+
+	handler := auth.NewPasswordResetHandler(userModel, credProv, notifier, "http://localhost:8070")
+	input := data.MustNewDocument(map[string]any{
+		"payload": map[string]any{"email": "test@example.com"},
+	}, ctx)
+	msg := testMessage{name: "password-reset", ctx: ctx, input: input}
+
+	result, err := handler(ctx, msg)
+	if err != nil {
+		t.Fatalf("PasswordResetHandler: %v", err)
+	}
+	if result == nil {
+		t.Fatal("nil result")
+	}
+
+	emailMsg := pollMailHog(t)
+
+	to := strings.Trim(emailMsg.Content.Headers.To[0], "<>")
+	if to != "test@example.com" {
+		t.Errorf("To = %q, want %q", to, "test@example.com")
+	}
+	if len(emailMsg.Content.Headers.Subject) == 0 || emailMsg.Content.Headers.Subject[0] != "Password Reset" {
+		t.Errorf("Subject = %v, want %q", emailMsg.Content.Headers.Subject, "Password Reset")
+	}
+
+	body := decodeBody(emailMsg.Content.Body)
+	if !strings.Contains(body, "http://localhost:8070/auth?token=") {
+		t.Errorf("body missing reset URL:\n%s", body)
+	}
+	if !strings.Contains(body, "expires in 5 minutes") {
+		t.Errorf("body missing expiry text:\n%s", body)
+	}
 }
 
 func TestNewAPIKeyAuthenticator(t *testing.T) {

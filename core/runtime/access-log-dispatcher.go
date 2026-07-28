@@ -11,7 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/registration"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 type auditCtxKey string
@@ -30,11 +31,7 @@ const (
 	TenantIDKey          auditCtxKey = "tenant_id"
 )
 
-func ContextWithAuditResourceID(ctx context.Context, resourceID string) context.Context {
-	return abstract.ContextWithResourceID(ctx, resourceID)
-}
-
-func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType ActorType, authMethod AuthMethod) context.Context {
+func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType audit.ActorType, authMethod audit.AuthMethod) context.Context {
 	ctx = context.WithValue(ctx, AuditActorIDKey, actorID)
 	ctx = context.WithValue(ctx, AuditActorTypeKey, actorType)
 	ctx = context.WithValue(ctx, AuditAuthMethodKey, authMethod)
@@ -42,57 +39,37 @@ func ContextWithAuditIdentity(ctx context.Context, actorID string, actorType Act
 }
 
 func ContextWithAuditTransport(ctx context.Context, sourceIP, userAgent, requestID string) context.Context {
-	ctx = abstract.ContextWithSourceIP(ctx, sourceIP)
-	ctx = abstract.ContextWithUserAgent(ctx, userAgent)
-	ctx = abstract.ContextWithRequestID(ctx, requestID)
+	ctx = runtimecontext.ContextWithSourceIP(ctx, sourceIP)
+	ctx = runtimecontext.ContextWithUserAgent(ctx, userAgent)
+	ctx = runtimecontext.ContextWithRequestID(ctx, requestID)
 	return ctx
 }
 
-func ContextWithTraceID(ctx context.Context, traceID string) context.Context {
-	return abstract.ContextWithTraceID(ctx, traceID)
-}
-
-func ContextWithTenantID(ctx context.Context, tenantID string) context.Context {
-	return abstract.ContextWithTenantID(ctx, tenantID)
-}
-
-func GetTenantID(ctx context.Context) string {
-	return abstract.GetTenantID(ctx)
-}
-
-func ContextWithAuditSessionID(ctx context.Context, sessionID string) context.Context {
-	return abstract.ContextWithSessionID(ctx, sessionID)
-}
-
-func GetTraceID(ctx context.Context) string {
-	return abstract.GetTraceID(ctx)
-}
-
-func deriveOperation(msgName string) Operation {
+func deriveOperation(msgName string) audit.Operation {
 	parts := strings.Split(msgName, ":")
 	if len(parts) == 0 {
-		return OperationOther
+		return audit.OperationOther
 	}
 	action := parts[len(parts)-1]
 	switch action {
 	case "create", "register", "upload":
-		return OperationCreate
+		return audit.OperationCreate
 	case "read", "get", "head", "list", "download", "query", "search":
-		return OperationRead
+		return audit.OperationRead
 	case "update", "set", "patch":
-		return OperationUpdate
+		return audit.OperationUpdate
 	case "delete", "remove", "clear":
-		return OperationDelete
+		return audit.OperationDelete
 	case "login", "authenticate":
-		return OperationLogin
+		return audit.OperationLogin
 	case "logout":
-		return OperationLogout
+		return audit.OperationLogout
 	case "grant":
-		return OperationGrant
+		return audit.OperationGrant
 	case "revoke":
-		return OperationRevoke
+		return audit.OperationRevoke
 	default:
-		return OperationExecute
+		return audit.OperationExecute
 	}
 }
 
@@ -104,36 +81,36 @@ func deriveResourceType(msgName string) string {
 	return "unknown"
 }
 
-func deriveActorType(ctx context.Context) ActorType {
+func deriveActorType(ctx context.Context) audit.ActorType {
 	ident, ok := iam.GetIdentity(ctx)
 	if !ok {
-		return ActorTypeAnonymous
+		return audit.ActorTypeAnonymous
 	}
 	props, _ := ident.Properties.(map[string]any)
 	if len(ident.Permissions) == 0 && len(props) == 0 {
-		return ActorTypeAnonymous
+		return audit.ActorTypeAnonymous
 	}
 	if v, _ := props["system"].(string); v == "http" {
-		return ActorTypeSystem
+		return audit.ActorTypeSystem
 	}
-	return ActorTypeUser
+	return audit.ActorTypeUser
 }
 
 type AuditDispatcher struct {
-	next      Dispatcher
-	persister AuditPersister
+	next      abstract.Dispatcher
+	persister audit.AuditPersister
 	logger    *zap.Logger
 	buffer    *AuditBuffer
 }
 
-func NewAuditDispatcher(next Dispatcher, persister AuditPersister) *AuditDispatcher {
+func NewAuditDispatcher(next abstract.Dispatcher, persister audit.AuditPersister) *AuditDispatcher {
 	return &AuditDispatcher{
 		next:      next,
 		persister: persister,
 	}
 }
 
-func NewAuditDispatcherWithLogger(next Dispatcher, persister AuditPersister, logger *zap.Logger) *AuditDispatcher {
+func NewAuditDispatcherWithLogger(next abstract.Dispatcher, persister audit.AuditPersister, logger *zap.Logger) *AuditDispatcher {
 	return &AuditDispatcher{
 		next:      next,
 		persister: persister,
@@ -141,7 +118,7 @@ func NewAuditDispatcherWithLogger(next Dispatcher, persister AuditPersister, log
 	}
 }
 
-func (d *AuditDispatcher) Wrap(next Dispatcher) Dispatcher {
+func (d *AuditDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &AuditDispatcher{
 		next:      next,
 		persister: d.persister,
@@ -172,7 +149,7 @@ func (d *AuditDispatcher) Close() {
 	}
 }
 
-func (d *AuditDispatcher) Send(msg Message) (*registration.Result, error) {
+func (d *AuditDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	start := time.Now()
 	result, err := d.next.Send(msg)
 	latency := time.Since(start)
@@ -182,17 +159,17 @@ func (d *AuditDispatcher) Send(msg Message) (*registration.Result, error) {
 	return result, err
 }
 
-func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerErr error, latency time.Duration) {
+func (d *AuditDispatcher) log(msg abstract.Message, result *abstract.Result, handlerErr error, latency time.Duration) {
 	now := time.Now().UTC()
 
-	entry := AuditEntry{
+	entry := audit.AuditEntry{
 		EventID:      now.Format("20060102150405") + "-" + msg.ID(),
 		OccurredAt:   now.Format(time.RFC3339Nano),
 		RecordedAt:   now.Format(time.RFC3339Nano),
 		EventName:    msg.Name(),
 		Operation:    deriveOperation(msg.Name()),
 		ResourceType: deriveResourceType(msg.Name()),
-		Status:       AuditStatusSuccess,
+		Status:       audit.AuditStatusSuccess,
 		LatencyMs:    latency.Milliseconds(),
 		ServiceName:  "hestia",
 		RequestID:    msg.RequestID(),
@@ -206,12 +183,12 @@ func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerE
 	if v, _ := msg.Context().Value(AuditActorIDKey).(string); v != "" {
 		entry.ActorID = v
 	}
-	if v, _ := msg.Context().Value(AuditActorTypeKey).(ActorType); v != "" {
+	if v, _ := msg.Context().Value(AuditActorTypeKey).(audit.ActorType); v != "" {
 		entry.ActorType = v
 	} else {
 		entry.ActorType = deriveActorType(msg.Context())
 	}
-	if v, _ := msg.Context().Value(AuditAuthMethodKey).(AuthMethod); v != "" {
+	if v, _ := msg.Context().Value(AuditAuthMethodKey).(audit.AuthMethod); v != "" {
 		entry.AuthMethod = v
 	}
 	if v, _ := msg.Context().Value(AuditOnBehalfOfIDKey).(string); v != "" {
@@ -220,11 +197,11 @@ func (d *AuditDispatcher) log(msg Message, result *registration.Result, handlerE
 
 	switch {
 	case handlerErr != nil:
-		entry.Status = AuditStatusError
+		entry.Status = audit.AuditStatusError
 		entry.ErrorMessage = handlerErr.Error()
 		var sysErr *common.SystemError
 		if errors.As(handlerErr, &sysErr) && sysErr.Code == "ERR_ACCESS_DENIED" {
-			entry.Status = AuditStatusDenied
+			entry.Status = audit.AuditStatusDenied
 			entry.ErrorCode = "ERR_ACCESS_DENIED"
 		}
 	}

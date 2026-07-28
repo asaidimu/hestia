@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 // AuditBuffer is a bounded ring buffer that decouples dispatch latency
@@ -16,8 +18,8 @@ import (
 // persister fails repeatedly, the circuit breaker opens and entries
 // are dropped with a fallback to stderr.
 type AuditBuffer struct {
-	entries   chan AuditEntry
-	persister AuditPersister
+	entries   chan audit.AuditEntry
+	persister audit.AuditPersister
 	logger    *zap.Logger
 
 	mu         sync.Mutex
@@ -30,14 +32,14 @@ type AuditBuffer struct {
 
 const defaultBufferSize = 4096
 
-func NewAuditBuffer(persister AuditPersister, logger *zap.Logger) *AuditBuffer {
+func NewAuditBuffer(persister audit.AuditPersister, logger *zap.Logger) *AuditBuffer {
 	return NewAuditBufferSize(persister, logger, defaultBufferSize)
 }
 
-func NewAuditBufferSize(persister AuditPersister, logger *zap.Logger, size int) *AuditBuffer {
+func NewAuditBufferSize(persister audit.AuditPersister, logger *zap.Logger, size int) *AuditBuffer {
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &AuditBuffer{
-		entries:    make(chan AuditEntry, size),
+		entries:    make(chan audit.AuditEntry, size),
 		persister:  persister,
 		logger:     logger,
 		flusherCtx: ctx,
@@ -50,7 +52,7 @@ func NewAuditBufferSize(persister AuditPersister, logger *zap.Logger, size int) 
 
 // Write enqueues an audit entry. Returns an error only if the buffer
 // is full and the circuit breaker has opened (best-effort).
-func (b *AuditBuffer) Write(ctx context.Context, entry AuditEntry) error {
+func (b *AuditBuffer) Write(ctx context.Context, entry audit.AuditEntry) error {
 	b.mu.Lock()
 	failed := b.failed
 	b.mu.Unlock()

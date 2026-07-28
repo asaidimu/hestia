@@ -16,9 +16,10 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/identity"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/registration"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -37,7 +38,7 @@ type Response struct {
 }
 
 type Options struct {
-	Dispatcher    runtime.Dispatcher
+	Dispatcher    abstract.Dispatcher
 	Internal      abstract.Dispatcher
 	CredProvider  abstract.CredentialsProvider
 	Registrations []abstract.MessageRegistration
@@ -57,7 +58,7 @@ type routeEntry struct {
 	method string
 	path   string
 	name   string
-	intent registration.Verb
+	intent abstract.Verb
 	input  abstract.Input
 	output *definition.Schema
 }
@@ -68,7 +69,7 @@ type Adapter struct {
 	mu           sync.RWMutex
 	sessionToken string
 	userID       string
-	claims       *identity.Claims
+	claims       *abstract.Claims
 
 	sourceIP string
 	agent    string
@@ -108,7 +109,7 @@ func (a *Adapter) Login(email, password string) (map[string]any, error) {
 	doc := data.MustNewDocument(map[string]any{}, ctx)
 	doc.Set("payload", map[string]any{"email": email, "password": password})
 
-	msg := abstract.NewMessage("system:auth:session:create", ctx, doc)
+	msg := dispatch.NewMessage("system:auth:session:create", ctx, doc)
 	result, err := a.opts.Internal.Send(msg)
 	if err != nil {
 		return nil, err
@@ -174,7 +175,7 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 
 	ctx := context.Background()
 
-	var claims *identity.Claims
+	var claims *abstract.Claims
 	if sessionToken != "" {
 		info, err := a.opts.CredProvider.ValidateSession(sessionToken)
 		if err == nil && info.ExpiresAt > time.Now().Unix() {
@@ -211,21 +212,21 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 	}
 
 	// Transport context (in-process, so use static descriptors)
-	traceID := abstract.MustNewID()
+	traceID := dispatch.MustNewID()
 	ctx = runtime.ContextWithAuditTransport(ctx, a.sourceIP, a.agent, traceID)
 
 	// Trace ID
-	ctx = runtime.ContextWithTraceID(ctx, traceID)
+	ctx = runtimecontext.ContextWithTraceID(ctx, traceID)
 
 	ctx = a.authenticatedContext(ctx, claims)
 
 	if schema := a.lookupSchema(req.Name); schema != nil {
-		if issues, ok := runtime.ValidateInputDocument(schema, doc); !ok {
+		if issues, ok := dispatch.ValidateInputDocument(schema, doc); !ok {
 			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
 		}
 	}
 
-	msg := abstract.NewMessage(req.Name, ctx, doc)
+	msg := dispatch.NewMessage(req.Name, ctx, doc)
 	result, err := a.opts.Dispatcher.Send(msg)
 	if err != nil {
 		status := 500
@@ -294,18 +295,18 @@ func (a *Adapter) lookupSchema(name string) *definition.Schema {
 	return nil
 }
 
-func (a *Adapter) resolveClaims(ctx context.Context, userID string) *identity.Claims {
+func (a *Adapter) resolveClaims(ctx context.Context, userID string) *abstract.Claims {
 	if userID == "" {
-		return &identity.Claims{}
+		return &abstract.Claims{}
 	}
 
 	doc := data.MustNewDocument(map[string]any{}, ctx)
 	doc.Set("arguments", map[string]any{"user_id": userID})
 
-	msg := abstract.NewMessage("system:users:user:get", ctx, doc)
+	msg := dispatch.NewMessage("system:users:user:get", ctx, doc)
 	result, err := a.opts.Internal.Send(msg)
 	if err != nil || result == nil || result.Document == nil {
-		return &identity.Claims{UserID: userID}
+		return &abstract.Claims{UserID: userID}
 	}
 
 	email, _ := result.Document.GetString("email")
@@ -314,7 +315,7 @@ func (a *Adapter) resolveClaims(ctx context.Context, userID string) *identity.Cl
 		perms = []string{}
 	}
 
-	return &identity.Claims{
+	return &abstract.Claims{
 		UserID:    userID,
 		Email:     email,
 		Scopes:    perms,
@@ -322,21 +323,21 @@ func (a *Adapter) resolveClaims(ctx context.Context, userID string) *identity.Cl
 	}
 }
 
-func (a *Adapter) authenticatedContext(ctx context.Context, claims *identity.Claims) context.Context {
+func (a *Adapter) authenticatedContext(ctx context.Context, claims *abstract.Claims) context.Context {
 	if claims == nil {
-		claims = &identity.Claims{}
+		claims = &abstract.Claims{}
 	}
-	ctx = identity.ContextWithClaims(ctx, claims)
+	ctx = runtimecontext.ContextWithClaims(ctx, claims)
 
 	if claims.UserID != "" {
-		ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, runtime.ActorTypeUser, runtime.AuthMethodPassword)
+		ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, audit.ActorTypeUser, audit.AuthMethodPassword)
 	}
 
 	a.mu.RLock()
 	token := a.sessionToken
 	a.mu.RUnlock()
 	if token != "" {
-		ctx = runtime.ContextWithAuditSessionID(ctx, token)
+		ctx = runtimecontext.ContextWithSessionID(ctx, token)
 	}
 
 	return ctx
@@ -366,18 +367,18 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		// Trace ID
 		traceID := reqID
 		if traceID == "" {
-			traceID = abstract.MustNewID()
+			traceID = dispatch.MustNewID()
 		}
-		ctx = runtime.ContextWithTraceID(ctx, traceID)
+		ctx = runtimecontext.ContextWithTraceID(ctx, traceID)
 
 		// Resource ID from route definition
 		if route.input.ResourceIDField != "" {
 			if rid, ok := params[route.input.ResourceIDField]; ok && rid != "" {
-				ctx = runtime.ContextWithAuditResourceID(ctx, rid)
+				ctx = runtimecontext.ContextWithResourceID(ctx, rid)
 			}
 		}
 
-		var claims *identity.Claims
+		var claims *abstract.Claims
 		if cookie, err := r.Cookie("session"); err == nil && cookie.Value != "" {
 			info, err := a.opts.CredProvider.ValidateSession(cookie.Value)
 			if err == nil && info.ExpiresAt > time.Now().Unix() {
@@ -399,12 +400,12 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		doc := buildDoc(ctx, r, params, route.input)
 
-		if issues, ok := runtime.ValidateInputDocument(route.input.Schema, doc); !ok {
+		if issues, ok := dispatch.ValidateInputDocument(route.input.Schema, doc); !ok {
 			writeError(w, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues))
 			return
 		}
 
-		msg := abstract.NewMessage(route.name, ctx, doc)
+		msg := dispatch.NewMessage(route.name, ctx, doc)
 		result, err := a.opts.Dispatcher.Send(msg)
 		if err != nil {
 			writeError(w, err)
@@ -418,7 +419,7 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func buildResponse(result *registration.Result) Response {
+func buildResponse(result *abstract.Result) Response {
 	meta := map[string]any{}
 	resp := Response{Status: 200}
 
@@ -468,7 +469,7 @@ func buildDoc(ctx context.Context, r *http.Request, pathParams map[string]string
 	return httpapi.BuildInputDocument(ctx, input, pathParams, r.URL.Query(), body)
 }
 
-func writeResult(w http.ResponseWriter, result *registration.Result, _ registration.Verb) {
+func writeResult(w http.ResponseWriter, result *abstract.Result, _ abstract.Verb) {
 	if result == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
@@ -39,14 +38,14 @@ func (m *mockTransport) Start() error   { return nil }
 func (m *mockTransport) Shutdown(_ context.Context) error { return nil }
 
 type mockDispatcher struct {
-	sendFn func(runtime.Message) (*registration.Result, error)
+	sendFn func(abstract.Message) (*abstract.Result, error)
 }
 
-func (m *mockDispatcher) Send(msg runtime.Message) (*registration.Result, error) {
+func (m *mockDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	if m.sendFn != nil {
 		return m.sendFn(msg)
 	}
-	return &registration.Result{}, nil
+	return &abstract.Result{}, nil
 }
 
 func TestBuildDoc_PathParams(t *testing.T) {
@@ -131,7 +130,7 @@ func TestBuildDoc_Modifiers(t *testing.T) {
 
 func TestSerializeResponse_Create(t *testing.T) {
 	doc := data.MustNewDocument(map[string]any{"email": "a@b.com"})
-	result := &registration.Result{Document: doc}
+	result := &abstract.Result{Document: doc}
 	output := &definition.Schema{
 		BaseSchema: definition.BaseSchema{
 			Fields: map[definition.FieldId]definition.Field{
@@ -139,14 +138,14 @@ func TestSerializeResponse_Create(t *testing.T) {
 			},
 		},
 	}
-	resp := serializeResponse(result, output, registration.Create, "/api/users")
+	resp := serializeResponse(result, output, abstract.Create, "/api/users")
 	if resp.Status != 201 {
 		t.Fatalf("expected 201, got %d", resp.Status)
 	}
 }
 
 func TestSerializeResponse_Delete(t *testing.T) {
-	resp := serializeResponse(nil, nil, registration.Delete, "")
+	resp := serializeResponse(nil, nil, abstract.Delete, "")
 	if resp.Status != 204 {
 		t.Fatalf("expected 204, got %d", resp.Status)
 	}
@@ -154,7 +153,7 @@ func TestSerializeResponse_Delete(t *testing.T) {
 
 func TestSerializeResponse_Read(t *testing.T) {
 	doc := data.MustNewDocument(map[string]any{"id": "abc"})
-	result := &registration.Result{Document: doc}
+	result := &abstract.Result{Document: doc}
 	output := &definition.Schema{
 		BaseSchema: definition.BaseSchema{
 			Fields: map[definition.FieldId]definition.Field{
@@ -162,20 +161,20 @@ func TestSerializeResponse_Read(t *testing.T) {
 			},
 		},
 	}
-	resp := serializeResponse(result, output, registration.Read, "")
+	resp := serializeResponse(result, output, abstract.Read, "")
 	if resp.Status != 200 {
 		t.Fatalf("expected 200, got %d", resp.Status)
 	}
 }
 
 func TestSerializeResponse_Blob(t *testing.T) {
-	result := &registration.Result{
-		Blob: registration.Blob{
+	result := &abstract.Result{
+		Blob: abstract.Blob{
 			Data:        []byte("blob-data"),
 			ContentType: "text/plain",
 		},
 	}
-	resp := serializeResponse(result, nil, registration.Read, "")
+	resp := serializeResponse(result, nil, abstract.Read, "")
 	if resp.Status != 200 {
 		t.Fatalf("expected 200, got %d", resp.Status)
 	}
@@ -191,10 +190,10 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 	mt := newMockTransport()
 	reg := abstract.MessageRegistration{
 		Name:    "test:user:profile:get",
-		Handler: func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
-			return &registration.Result{}, nil
+		Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+			return &abstract.Result{}, nil
 		},
-		Intent: registration.Read,
+		Intent: abstract.Read,
 		Input: runtime.Input{
 			Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
 		},
@@ -220,10 +219,10 @@ func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 	mt := newMockTransport()
 	reg := abstract.MessageRegistration{
 		Name:    "test:user:profile:query",
-		Handler: func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
-			return &registration.Result{}, nil
+		Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+			return &abstract.Result{}, nil
 		},
-		Intent: registration.Query,
+		Intent: abstract.Query,
 	}
 
 	orch := &Interface{

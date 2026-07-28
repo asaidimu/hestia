@@ -2,15 +2,16 @@ package operations
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_healthOutput        = schema.MustFromJSON(healthOutputJSON)
-	_documentationOutput = schema.MustFromJSON(documentationOutputJSON)
-	_capabilitiesOutput  = schema.MustFromJSON(capabilitiesOutputJSON)
-	_capabilityNameInput = schema.MustFromJSON(capabilityNameInputJSON)
-	_messageOutput       = schema.MustFromJSON(messageOutputJSON)
+	_healthOutput        = dispatch.MustFromJSON(healthOutputJSON)
+	_documentationOutput = dispatch.MustFromJSON(documentationOutputJSON)
+	_capabilitiesOutput  = dispatch.MustFromJSON(capabilitiesOutputJSON)
+	_capabilityNameInput = dispatch.MustFromJSON(capabilityNameInputJSON)
+	_messageOutput       = dispatch.MustFromJSON(messageOutputJSON)
+	_schedulerListOutput = dispatch.MustFromJSON(schedulerListOutputJSON)
 )
 
 func healthOutputSchema() *definition.Schema        { return _healthOutput }
@@ -18,6 +19,7 @@ func documentationOutputSchema() *definition.Schema  { return _documentationOutp
 func capabilitiesOutputSchema() *definition.Schema   { return _capabilitiesOutput }
 func capabilityNameInputSchema() *definition.Schema  { return _capabilityNameInput }
 func messageOutputSchema() *definition.Schema        { return _messageOutput }
+func schedulerListOutputSchema() *definition.Schema  { return _schedulerListOutput }
 
 var healthOutputJSON = []byte(`{
 	"name": "health",
@@ -161,5 +163,32 @@ var messageOutputJSON = []byte(`{
 	"version": "1.0.0",
 	"fields": {
 		"message": { "name": "message", "description": "Human-readable status message", "type": "string" }
+	}
+}`)
+
+var schedulerListOutputJSON = []byte(`{
+	"name": "scheduler_list",
+	"description": "List of registered scheduler jobs",
+	"version": "1.0.0",
+	"fields": {
+		"documents": {
+			"name": "documents",
+			"description": "Array of scheduler job info objects",
+			"type": "array",
+			"schema": { "id": "scheduler_job_info" }
+		}
+	},
+	"schemas": {
+		"scheduler_job_info": {
+			"name": "SchedulerJobInfo",
+			"fields": {
+				"name": { "name": "name", "description": "Job name", "type": "string" },
+				"expr": { "name": "expr", "description": "Cron expression", "type": "string" },
+				"next": { "name": "next", "description": "Next scheduled run time (RFC3339)", "type": "string" },
+				"prev": { "name": "prev", "description": "Previous run time (RFC3339)", "type": "string" },
+				"paused": { "name": "paused", "description": "Whether the job is paused", "type": "boolean" },
+				"tags": { "name": "tags", "description": "Job tags", "type": "array", "items": { "type": "string" } }
+			}
+		}
 	}
 }`)

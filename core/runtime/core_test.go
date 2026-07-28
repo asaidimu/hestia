@@ -8,7 +8,8 @@ import (
 
 	"github.com/asaidimu/go-iam/v2/iam"
 
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 func TestMapPermissionManager(t *testing.T) {
@@ -49,13 +50,13 @@ func TestLocalDispatcher(t *testing.T) {
 
 	var called bool
 	var gotName string
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		called = true
 		gotName = msg.Name()
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 
-	err := d.RegisterHandler("test:cmd", handler, HandlerInfo{
+	err := d.RegisterHandler("test:cmd", handler, abstract.HandlerInfo{
 		Name: "test:cmd", Description: "test", Enabled: true,
 	})
 	if err != nil {
@@ -79,7 +80,7 @@ func TestLocalDispatcher(t *testing.T) {
 		t.Fatal("expected error for unknown handler, got nil")
 	}
 
-	err = d.RegisterHandler("test:cmd", handler, HandlerInfo{Name: "test:cmd"})
+	err = d.RegisterHandler("test:cmd", handler, abstract.HandlerInfo{Name: "test:cmd"})
 	if err == nil {
 		t.Fatal("expected error for duplicate registration, got nil")
 	}
@@ -87,13 +88,13 @@ func TestLocalDispatcher(t *testing.T) {
 
 func TestLocalDispatcherListHandlers(t *testing.T) {
 	d := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
 
-	d.RegisterHandler("cmd:a", handler, HandlerInfo{Name: "cmd:a", Enabled: true})
-	d.RegisterHandler("cmd:b", handler, HandlerInfo{Name: "cmd:b", Enabled: false})
-	d.RegisterHandler("cmd:c", handler, HandlerInfo{Name: "cmd:c", Enabled: true})
+	d.RegisterHandler("cmd:a", handler, abstract.HandlerInfo{Name: "cmd:a", Enabled: true})
+	d.RegisterHandler("cmd:b", handler, abstract.HandlerInfo{Name: "cmd:b", Enabled: false})
+	d.RegisterHandler("cmd:c", handler, abstract.HandlerInfo{Name: "cmd:c", Enabled: true})
 
 	list := d.ListHandlers()
 	if len(list) != 3 {
@@ -113,11 +114,11 @@ func TestLocalDispatcherListHandlers(t *testing.T) {
 
 func TestLocalDispatcherSetEnabled(t *testing.T) {
 	d := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
 
-	d.RegisterHandler("test:cmd", handler, HandlerInfo{Name: "test:cmd", Enabled: true})
+	d.RegisterHandler("test:cmd", handler, abstract.HandlerInfo{Name: "test:cmd", Enabled: true})
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
 
@@ -152,11 +153,11 @@ func TestLocalDispatcherSetEnabled(t *testing.T) {
 
 func TestLocalDispatcherDelete(t *testing.T) {
 	d := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
 
-	d.RegisterHandler("test:cmd", handler, HandlerInfo{Name: "test:cmd", Enabled: true})
+	d.RegisterHandler("test:cmd", handler, abstract.HandlerInfo{Name: "test:cmd", Enabled: true})
 
 	_, err := d.GetHandler("test:cmd")
 	if err != nil {
@@ -215,10 +216,10 @@ func TestErrorSentinels(t *testing.T) {
 // ---- added tests ----
 
 type mockPersister struct {
-	entries []AuditEntry
+	entries []audit.AuditEntry
 }
 
-func (m *mockPersister) Insert(_ context.Context, entry AuditEntry) error {
+func (m *mockPersister) Insert(_ context.Context, entry audit.AuditEntry) error {
 	m.entries = append(m.entries, entry)
 	return nil
 }
@@ -226,10 +227,10 @@ func (m *mockPersister) Insert(_ context.Context, entry AuditEntry) error {
 func TestAuditDispatcher(t *testing.T) {
 	persister := &mockPersister{}
 	next := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
-	if err := next.RegisterHandler("test:cmd", handler, HandlerInfo{Name: "test:cmd", Enabled: true}); err != nil {
+	if err := next.RegisterHandler("test:cmd", handler, abstract.HandlerInfo{Name: "test:cmd", Enabled: true}); err != nil {
 		t.Fatalf("RegisterHandler failed: %v", err)
 	}
 
@@ -247,7 +248,7 @@ func TestAuditDispatcher(t *testing.T) {
 	if persister.entries[0].EventName != "test:cmd" {
 		t.Fatalf("expected EventName test:cmd, got %q", persister.entries[0].EventName)
 	}
-	if persister.entries[0].Status != AuditStatusSuccess {
+	if persister.entries[0].Status != audit.AuditStatusSuccess {
 		t.Fatalf("expected Status success, got %q", persister.entries[0].Status)
 	}
 	if persister.entries[0].LatencyMs < 0 {
@@ -261,16 +262,16 @@ func TestAuditDispatcher(t *testing.T) {
 func TestAuditDispatcherError(t *testing.T) {
 	persister := &mockPersister{}
 	next := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		return nil, ErrValidation
 	}
-	if err := next.RegisterHandler("test:fail", handler, HandlerInfo{Name: "test:fail", Enabled: true}); err != nil {
+	if err := next.RegisterHandler("test:fail", handler, abstract.HandlerInfo{Name: "test:fail", Enabled: true}); err != nil {
 		t.Fatalf("RegisterHandler failed: %v", err)
 	}
 
 	disp := NewAuditDispatcher(next, persister)
 
-	ctx := ContextWithAuditIdentity(context.Background(), "u1", ActorTypeUser, AuthMethodPassword)
+	ctx := ContextWithAuditIdentity(context.Background(), "u1", audit.ActorTypeUser, audit.AuthMethodPassword)
 	ctx = ContextWithAuditTransport(ctx, "10.0.0.1", "curl", "req-1")
 	msg := testMessage{name: "test:fail", ctx: ctx}
 	disp.Send(msg)
@@ -279,13 +280,13 @@ func TestAuditDispatcherError(t *testing.T) {
 	if len(persister.entries) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(persister.entries))
 	}
-	if persister.entries[0].Status != AuditStatusError {
+	if persister.entries[0].Status != audit.AuditStatusError {
 		t.Fatalf("expected Status Error, got %q", persister.entries[0].Status)
 	}
 	if persister.entries[0].ActorID != "u1" {
 		t.Fatalf("expected ActorID u1, got %q", persister.entries[0].ActorID)
 	}
-	if persister.entries[0].AuthMethod != AuthMethodPassword {
+	if persister.entries[0].AuthMethod != audit.AuthMethodPassword {
 		t.Fatalf("expected AuthMethod password, got %q", persister.entries[0].AuthMethod)
 	}
 	if persister.entries[0].RequestID != "req-1" {
@@ -298,14 +299,14 @@ func TestAuditDispatcherError(t *testing.T) {
 
 func TestNamespacedDispatcher(t *testing.T) {
 	next := NewLocalDispatcher()
-	handler := func(ctx context.Context, msg Message) (*registration.Result, error) {
-		return &registration.Result{}, nil
+	handler := func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		return &abstract.Result{}, nil
 	}
-	next.RegisterHandler("blobs:put", handler, HandlerInfo{Name: "blobs:put", Enabled: true})
-	next.RegisterHandler("other:cmd", handler, HandlerInfo{Name: "other:cmd", Enabled: true})
+	next.RegisterHandler("blobs:put", handler, abstract.HandlerInfo{Name: "blobs:put", Enabled: true})
+	next.RegisterHandler("other:cmd", handler, abstract.HandlerInfo{Name: "other:cmd", Enabled: true})
 
 	var hydrated bool
-	hydrator := func(msg Message) (Message, error) {
+	hydrator := func(msg abstract.Message) (abstract.Message, error) {
 		hydrated = true
 		return msg, nil
 	}
@@ -332,7 +333,7 @@ func TestNamespacedDispatcher(t *testing.T) {
 
 func TestNamespacedDispatcherHydratorError(t *testing.T) {
 	next := NewLocalDispatcher()
-	disp := NewNamespacedDispatcher("err:", next, func(msg Message) (Message, error) {
+	disp := NewNamespacedDispatcher("err:", next, func(msg abstract.Message) (abstract.Message, error) {
 		return nil, ErrValidation
 	})
 
@@ -382,7 +383,7 @@ func TestSecureDispatcherWithPermissionManagerUnregisteredScope(t *testing.T) {
 }
 
 func TestContextWithAuditIdentity(t *testing.T) {
-	ctx := ContextWithAuditIdentity(context.Background(), "user1", ActorTypeUser, AuthMethodPassword)
+	ctx := ContextWithAuditIdentity(context.Background(), "user1", audit.ActorTypeUser, audit.AuthMethodPassword)
 
 	actorID, ok := ctx.Value(AuditActorIDKey).(string)
 	if !ok {
@@ -392,17 +393,17 @@ func TestContextWithAuditIdentity(t *testing.T) {
 		t.Fatalf("expected actorID user1, got %q", actorID)
 	}
 
-	actorType, ok := ctx.Value(AuditActorTypeKey).(ActorType)
+	actorType, ok := ctx.Value(AuditActorTypeKey).(audit.ActorType)
 	if !ok {
-		t.Fatal("expected ActorType in context")
+		t.Fatal("expected audit.ActorType in context")
 	}
-	if actorType != ActorTypeUser {
-		t.Fatalf("expected ActorType user, got %q", actorType)
+	if actorType != audit.ActorTypeUser {
+		t.Fatalf("expected audit.ActorType user, got %q", actorType)
 	}
 }
 
 func TestContextWithAuditIdentityEmpty(t *testing.T) {
-	ctx := ContextWithAuditIdentity(context.Background(), "", ActorTypeUser, AuthMethodPassword)
+	ctx := ContextWithAuditIdentity(context.Background(), "", audit.ActorTypeUser, audit.AuthMethodPassword)
 
 	actorID, _ := ctx.Value(AuditActorIDKey).(string)
 	if actorID != "" {

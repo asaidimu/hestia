@@ -4,17 +4,19 @@ import (
 	"context"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
+
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 type CapabilityMetadata struct {
-	Name        string     `json:"name"`
-	Type        IntentType `json:"type"`
-	Scope       string     `json:"scope"`
-	Description string     `json:"description"`
+	Name        string            `json:"name"`
+	Type        abstract.IntentType `json:"type"`
+	Scope       string            `json:"scope"`
+	Description string            `json:"description"`
 }
 
 type PermissionManager interface {
-	Resolve(msg Message) (ruleKey string, enabled bool, err error)
+	Resolve(msg abstract.Message) (ruleKey string, enabled bool, err error)
 	ListCapabilities() []CapabilityMetadata
 }
 
@@ -44,7 +46,7 @@ func (m *MapPermissionManager) RegisterScope(name, scope, description string) {
 	}
 }
 
-func (m *MapPermissionManager) Resolve(msg Message) (string, bool, error) {
+func (m *MapPermissionManager) Resolve(msg abstract.Message) (string, bool, error) {
 	scope, ok := m.scopes[msg.Name()]
 	if !ok {
 		return "", false, ErrPermissionNotRegistered.WithOperation(msg.Name()).WithIssue(common.Issue{

@@ -13,8 +13,9 @@ import (
 	bserrors "github.com/asaidimu/blobs/errors"
 
 	"github.com/asaidimu/hestia/core/internal/util"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
 type OperationPolicyStore interface {
@@ -27,8 +28,8 @@ type OperationPolicyStore interface {
 	ReloadPolicies(ctx context.Context) error
 }
 
-func NewListNamespacesHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		namespaces, err := svc.ListNamespaces(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list namespaces: %w", err)
@@ -43,12 +44,12 @@ func NewListNamespacesHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			}
 		}
 
-		return &registration.Result{Document: mustDoc(map[string]any{"namespaces": docs}, ctx)}, nil
+		return &abstract.Result{Document: mustDoc(map[string]any{"namespaces": docs}, ctx)}, nil
 	}
 }
 
-func NewCreateNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicyStore, registry runtime.Registry) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyStore, registry abstract.Registry) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
 		displayName, _ := body["display_name"].(string)
 
@@ -60,9 +61,9 @@ func NewCreateNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicySt
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
 		}
 
-		var opts []runtime.NamespaceOption
+		var opts []blobutil.NamespaceOption
 		if public, ok := body["public"].(bool); ok && public {
-			opts = append(opts, runtime.WithPublic(true))
+			opts = append(opts, blobutil.WithPublic(true))
 		}
 
 		if err := svc.CreateNamespace(ctx, nsID, displayName, opts...); err != nil {
@@ -77,7 +78,7 @@ func NewCreateNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicySt
 			return nil, fmt.Errorf("register blob handlers: %w", err)
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: mustDoc(map[string]any{
 				"id":           nsID,
 				"display_name": displayName,
@@ -87,8 +88,8 @@ func NewCreateNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicySt
 	}
 }
 
-func NewDeleteNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicyStore, registry runtime.Registry) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyStore, registry abstract.Registry) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		if nsID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
@@ -97,7 +98,7 @@ func NewDeleteNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicySt
 		UnregisterBlobHandlers(registry, nsID)
 
 		for _, op := range blobOps {
-			opName := "blob." + nsID + "." + op.Suffix
+			opName := "system:blobs:" + nsID + ":" + op.Suffix
 			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
 				return nil, fmt.Errorf("delete operation %s: %w", opName, err)
 			}
@@ -111,12 +112,12 @@ func NewDeleteNamespaceHandler(svc runtime.BlobStore, policyOp OperationPolicySt
 			return nil, fmt.Errorf("delete namespace: %w", err)
 		}
 
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
-func NewListBlobsHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListBlobsHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		if nsID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
@@ -147,12 +148,12 @@ func NewListBlobsHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			}
 		}
 
-		return &registration.Result{Document: mustDoc(map[string]any{"blobs": items}, ctx)}, nil
+		return &abstract.Result{Document: mustDoc(map[string]any{"blobs": items}, ctx)}, nil
 	}
 }
 
-func NewHeadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewHeadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 
@@ -161,7 +162,7 @@ func NewHeadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			return nil, mapBlobError(err)
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: mustDoc(map[string]any{
 				"key":          meta.Key,
 				"namespace_id": meta.NamespaceID,
@@ -173,8 +174,8 @@ func NewHeadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 	}
 }
 
-func NewUploadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 		contentType, _ := msg.Input().GetOr("content_type", "").(string)
@@ -190,7 +191,7 @@ func NewUploadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			return nil, mapBlobError(err)
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: mustDoc(map[string]any{
 				"key":          meta.Key,
 				"namespace_id": meta.NamespaceID,
@@ -202,8 +203,8 @@ func NewUploadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 	}
 }
 
-func NewDownloadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDownloadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 
@@ -223,8 +224,8 @@ func NewDownloadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			return nil, fmt.Errorf("read blob: %w", err)
 		}
 
-		return &registration.Result{
-			Blob: registration.Blob{
+		return &abstract.Result{
+			Blob: abstract.Blob{
 				Data:        data,
 				ContentType: meta.ContentType,
 			},
@@ -232,8 +233,8 @@ func NewDownloadBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 	}
 }
 
-func NewUpdateBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUpdateBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 
@@ -252,14 +253,14 @@ func NewUpdateBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			return nil, mapBlobError(err)
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: mustDoc(util.StructToMap(*meta), ctx),
 		}, nil
 	}
 }
 
-func NewDeleteBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeleteBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
 
@@ -271,7 +272,7 @@ func NewDeleteBlobHandler(svc runtime.BlobStore) runtime.MessageHandler {
 			return nil, mapBlobError(err)
 		}
 
-		return &registration.Result{}, nil
+		return &abstract.Result{}, nil
 	}
 }
 
@@ -325,10 +326,10 @@ func SeedNamespaceOperations(ctx context.Context, policyOp OperationPolicyStore,
 	return policyOp.ReloadPolicies(ctx)
 }
 
-func RegisterBlobHandlers(registry runtime.Registry, svc runtime.BlobStore, nsID string) error {
+func RegisterBlobHandlers(registry abstract.Registry, svc blobutil.BlobStore, nsID string) error {
 	entries := []struct {
 		suffix  string
-		handler runtime.MessageHandler
+		handler abstract.MessageHandler
 	}{
 		{"list", NewListBlobsHandler(svc)},
 		{"head", NewHeadBlobHandler(svc)},
@@ -339,7 +340,7 @@ func RegisterBlobHandlers(registry runtime.Registry, svc runtime.BlobStore, nsID
 	}
 	for _, e := range entries {
 		name := "system:blobs:" + nsID + ":" + e.suffix
-		if err := registry.RegisterHandler(name, e.handler, runtime.HandlerInfo{
+		if err := registry.RegisterHandler(name, e.handler, abstract.HandlerInfo{
 			Name:        name,
 			Description: fmt.Sprintf("%s in namespace %q", blobOpDesc(e.suffix), nsID),
 			Enabled:     true,
@@ -350,7 +351,7 @@ func RegisterBlobHandlers(registry runtime.Registry, svc runtime.BlobStore, nsID
 	return nil
 }
 
-func UnregisterBlobHandlers(registry runtime.Registry, nsID string) {
+func UnregisterBlobHandlers(registry abstract.Registry, nsID string) {
 	for _, op := range blobOps {
 		registry.DeleteHandler("system:blobs:" + nsID + ":" + op.Suffix)
 	}

@@ -40,16 +40,6 @@ type Module interface {
 	Health(ctx context.Context) any
 }
 
-// BaseModule provides no-op defaults for Dependencies, Start, Stop, and
-// Health so that simple modules only need to implement Name, Setup, and
-// Capabilities.
-type BaseModule struct{}
-
-func (BaseModule) Dependencies() []string                    { return nil }
-func (BaseModule) Start(_ context.Context) error              { return nil }
-func (BaseModule) Stop(_ context.Context) error               { return nil }
-func (BaseModule) Health(_ context.Context) any               { return nil }
-
 type Capability struct {
 	Name     string
 	Messages []MessageRegistration

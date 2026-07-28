@@ -7,6 +7,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 
+	"github.com/asaidimu/hestia/core/abstract"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -23,8 +25,8 @@ func NewLivePermissionManager(livePolicies collection.LiveCollection[*Policy], o
 	return &LivePermissionManager{livePolicies: livePolicies, onEmpty: onEmpty}
 }
 
-func (m *LivePermissionManager) Resolve(msg runtime.Message) (string, bool, error) {
-	tenantID := runtime.GetTenantID(msg.Context())
+func (m *LivePermissionManager) Resolve(msg abstract.Message) (string, bool, error) {
+	tenantID := runtimecontext.GetTenantID(msg.Context())
 
 	// Try tenant-specific policy first (composite key).
 	if tenantID != "" {

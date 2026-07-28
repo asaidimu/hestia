@@ -6,12 +6,14 @@ import (
 
 	"github.com/asaidimu/go-iam/v2/iam"
 
+	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/identity"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 func (o *Interface) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
-	if claims, ok := identity.ClaimsFromContext(ctx); ok && claims.UserID != "" {
+	if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok && claims.UserID != "" {
 		return next(ctx, req)
 	}
 
@@ -128,10 +130,10 @@ func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Ide
 }
 
 func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next handlerFunc, req Request) (Response, error) {
-	var claims *identity.Claims
+	var claims *abstract.Claims
 	if ident != nil {
 		props, _ := ident.Properties.(map[string]any)
-		claims = &identity.Claims{
+		claims = &abstract.Claims{
 			UserID:    getStringProp(props, "user_id"),
 			Email:     getStringProp(props, "email"),
 			TenantID:  getStringProp(props, "tenant_id"),
@@ -139,9 +141,9 @@ func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next
 			TokenType: getStringProp(props, "token_type"),
 		}
 	} else {
-		claims = &identity.Claims{}
+		claims = &abstract.Claims{}
 	}
-	ctx = identity.ContextWithClaims(ctx, claims)
+	ctx = runtimecontext.ContextWithClaims(ctx, claims)
 	ctx = addAuditContext(ctx, claims)
 	return next(ctx, req)
 }
@@ -154,19 +156,19 @@ func getStringProp(props map[string]any, key string) string {
 	return v
 }
 
-func addAuditContext(ctx context.Context, claims *identity.Claims) context.Context {
+func addAuditContext(ctx context.Context, claims *abstract.Claims) context.Context {
 	actorID := claims.UserID
 	if actorID == "" {
 		actorID = "unknown"
 	}
 
-	actorType := runtime.ActorTypeUser
-	authMethod := runtime.AuthMethodPassword
+	actorType := audit.ActorTypeUser
+	authMethod := audit.AuthMethodPassword
 
 	switch claims.TokenType {
 	case "api_key":
-		actorType = runtime.ActorTypeService
-		authMethod = runtime.AuthMethodAPIKey
+		actorType = audit.ActorTypeService
+		authMethod = audit.AuthMethodAPIKey
 	}
 
 	return runtime.ContextWithAuditIdentity(ctx, actorID, actorType, authMethod)

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
 func DeriveRoute(name string, arguments []abstract.ArgDef) string {
@@ -17,33 +16,33 @@ func DeriveRoute(name string, arguments []abstract.ArgDef) string {
 	return path
 }
 
-func IntentToHTTPMethod(verb registration.Verb) string {
+func IntentToHTTPMethod(verb abstract.Verb) string {
 	switch verb {
-	case registration.Create:
+	case abstract.Create:
 		return "POST"
-	case registration.Read:
+	case abstract.Read:
 		return "GET"
-	case registration.Update:
+	case abstract.Update:
 		return "PATCH"
-	case registration.Delete:
+	case abstract.Delete:
 		return "DELETE"
-	case registration.Query:
+	case abstract.Query:
 		return "POST"
-	case registration.Stream:
+	case abstract.Stream:
 		return "GET"
-	case registration.Check:
+	case abstract.Check:
 		return "POST"
 	}
 	return "GET"
 }
 
-func IntentToHTTPPath(verb registration.Verb, path string) string {
+func IntentToHTTPPath(verb abstract.Verb, path string) string {
 	switch verb {
-	case registration.Query:
+	case abstract.Query:
 		return path + "/query"
-	case registration.Stream:
+	case abstract.Stream:
 		return path + "/stream"
-	case registration.Check:
+	case abstract.Check:
 		return path + "/check"
 	}
 	return path

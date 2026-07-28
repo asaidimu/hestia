@@ -9,8 +9,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/internal/util"
-	"github.com/asaidimu/hestia/core/runtime"
 )
 
 const auditCollectionName = "_audit_log_"
@@ -27,7 +27,7 @@ func (m *AuditModel) collection(ctx context.Context) (base.Collection, error) {
 	return m.persistence.Collection(ctx, auditCollectionName)
 }
 
-func (m *AuditModel) Insert(ctx context.Context, entry runtime.AuditEntry) error {
+func (m *AuditModel) Insert(ctx context.Context, entry auditdomain.AuditEntry) error {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return fmt.Errorf("access audit_log collection: %w", err)
@@ -55,4 +55,4 @@ func (m *AuditModel) Insert(ctx context.Context, entry runtime.AuditEntry) error
 	}
 	return nil
 }
-var _ runtime.AuditPersister = (*AuditModel)(nil)
+var _ auditdomain.AuditPersister = (*AuditModel)(nil)

@@ -2,19 +2,19 @@ package blobs
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_nsInput          = schema.MustFromJSON(nsInputJSON)
-	_nsCreateInput    = schema.MustFromJSON(nsCreateInputJSON)
-	_blobKeyInput     = schema.MustFromJSON(blobKeyInputJSON)
-	_blobListInput    = schema.MustFromJSON(blobListInputJSON)
-	_nsListOutput     = schema.MustFromJSON(nsListOutputJSON)
-	_nsOutput         = schema.MustFromJSON(nsOutputJSON)
-	_blobListOutput   = schema.MustFromJSON(blobListOutputJSON)
-	_blobMetaOutput   = schema.MustFromJSON(blobMetaOutputJSON)
-	_blobUpdateInput  = schema.MustFromJSON(blobUpdateInputJSON)
+	_nsInput          = dispatch.MustFromJSON(nsInputJSON)
+	_nsCreateInput    = dispatch.MustFromJSON(nsCreateInputJSON)
+	_blobKeyInput     = dispatch.MustFromJSON(blobKeyInputJSON)
+	_blobListInput    = dispatch.MustFromJSON(blobListInputJSON)
+	_nsListOutput     = dispatch.MustFromJSON(nsListOutputJSON)
+	_nsOutput         = dispatch.MustFromJSON(nsOutputJSON)
+	_blobListOutput   = dispatch.MustFromJSON(blobListOutputJSON)
+	_blobMetaOutput   = dispatch.MustFromJSON(blobMetaOutputJSON)
+	_blobUpdateInput  = dispatch.MustFromJSON(blobUpdateInputJSON)
 )
 
 func nsInputSchema() *definition.Schema           { return _nsInput }

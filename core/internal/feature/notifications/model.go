@@ -2,175 +2,147 @@ package notifications
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
-	"github.com/asaidimu/go-anansi/v8/core/utils"
 )
 
-const notificationCollectionName = "_notification_"
+const (
+	collectionName     = "_notifications_"
+	readTTL            = 30 * 24 * time.Hour
+)
 
 type NotificationModel struct {
-	persistence base.Persistence
+	persist base.Persistence
 }
 
-func NewNotificationModel(persistence base.Persistence) *NotificationModel {
-	return &NotificationModel{persistence: persistence}
+func NewNotificationModel(persist base.Persistence) *NotificationModel {
+	return &NotificationModel{persist: persist}
 }
 
 func (m *NotificationModel) collection(ctx context.Context) (base.Collection, error) {
-	return m.persistence.Collection(ctx, notificationCollectionName)
+	return m.persist.Collection(ctx, collectionName)
 }
 
-type Notification struct {
-	ID         string
-	TenantID   string
-	UserID     string
-	Type       string
-	Title      string
-	Body       string
-	Link       string
-	Read       bool
-	ReadAt     int64
-	Metadata   map[string]any
-}
-
-func docToNotification(doc *data.Document) *Notification {
-	n := &Notification{
-		ID:       doc.ID(),
-		TenantID: mustString(doc, "tenant_id"),
-		UserID:   mustString(doc, "user_id"),
-		Type:     mustString(doc, "type"),
-		Title:    mustString(doc, "title"),
-		Body:     mustString(doc, "body"),
-		Link:     mustString(doc, "link"),
+func (m *NotificationModel) filterExpired(docs []*data.Document) []*data.Document {
+	now := time.Now().UnixMilli()
+	filtered := make([]*data.Document, 0, len(docs))
+	for _, d := range docs {
+		expiresAt, err := d.Get("expires_at")
+		if err != nil || expiresAt == nil {
+			filtered = append(filtered, d)
+			continue
+		}
+		exp, ok := expiresAt.(int64)
+		if !ok {
+			filtered = append(filtered, d)
+			continue
+		}
+		if exp > now {
+			filtered = append(filtered, d)
+		}
 	}
-	read, _ := doc.GetBool("read")
-	n.Read = read
-	readAt, _ := doc.GetInt("read_at")
-	n.ReadAt = int64(readAt)
-	if m, err := doc.Get("metadata"); err == nil && m != nil {
-		n.Metadata, _ = m.(map[string]any)
-	}
-	return n
+	return filtered
 }
 
-func mustString(doc *data.Document, field string) string {
-	s, _ := doc.GetString(field)
-	return s
-}
-
-func (m *NotificationModel) Create(ctx context.Context, tenantID, userID, typ, title, body, link string, metadata map[string]any) (*Notification, error) {
+func (m *NotificationModel) List(ctx context.Context, userID, tenantID string, limit, offset int) ([]*data.Document, error) {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, err
 	}
-	fields := map[string]any{
-		"user_id":  userID,
-		"type":     typ,
-		"title":    title,
-		"body":     body,
-		"link":     link,
-		"read":     false,
-		"metadata": metadata,
-	}
-	if tenantID != "" {
-		fields["tenant_id"] = tenantID
-	}
-	doc := data.MustNewDocument(fields)
-	result, err := col.CreateOne(ctx, doc)
-	if err != nil {
-		return nil, fmt.Errorf("create notification: %w", err)
-	}
-	return docToNotification(result.Data), nil
-}
 
-func (m *NotificationModel) queryBuilder(tenantID string) *query.QueryBuilder {
-	b := query.NewQueryBuilder()
+	qb := query.NewQueryBuilder().Where("user_id").Eq(userID).OrderByDesc("created_at")
 	if tenantID != "" {
-		b = b.Where("tenant_id").Eq(tenantID)
+		qb = qb.Where("tenant_id").Eq(tenantID)
 	}
-	return b
-}
+	if limit > 0 {
+		qb = qb.Limit(limit)
+	}
+	if offset > 0 {
+		qb = qb.Offset(offset)
+	}
 
-func (m *NotificationModel) List(ctx context.Context, tenantID, userID string, offset, limit int) ([]*Notification, int, error) {
-	col, err := m.collection(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
-	q := m.queryBuilder(tenantID).Where("user_id").Eq(userID).Build()
-	q.Pagination = &query.PaginationOptions{
-		Type:         query.PaginationTypeOffset,
-		Offset:       &offset,
-		Limit:        limit,
-		IncludeTotal: utils.PrimitivePtr(true),
-	}
+	q := qb.Build()
 	result, err := col.Read(ctx, &q)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	out := make([]*Notification, result.Count)
-	for i, doc := range result.Data {
-		out[i] = docToNotification(doc)
-	}
-	total := 0
-	if result.Total != nil {
-		total = *result.Total
-	}
-	return out, total, nil
+	return m.filterExpired(result.Data), nil
 }
 
-func (m *NotificationModel) UnreadCount(ctx context.Context, tenantID, userID string) (int, error) {
+func (m *NotificationModel) CountUnread(ctx context.Context, userID, tenantID string) (int, error) {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return 0, err
 	}
-	q := m.queryBuilder(tenantID).Where("user_id").Eq(userID).Where("read").Eq(false).Build()
+
+	qb := query.NewQueryBuilder().Where("user_id").Eq(userID).Where("read").Eq(false)
+	if tenantID != "" {
+		qb = qb.Where("tenant_id").Eq(tenantID)
+	}
+
+	q := qb.Build()
 	result, err := col.Read(ctx, &q)
 	if err != nil {
 		return 0, err
 	}
-	return result.Count, nil
+	unexpired := m.filterExpired(result.Data)
+	return len(unexpired), nil
 }
 
-func (m *NotificationModel) MarkRead(ctx context.Context, id, tenantID, userID string) error {
-	return m.markRead(ctx, id, tenantID, userID, true)
-}
-
-func (m *NotificationModel) MarkAllRead(ctx context.Context, tenantID, userID string) error {
+func (m *NotificationModel) MarkRead(ctx context.Context, notificationID string) error {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return err
 	}
-	now := time.Now().Unix()
+
+	q := query.NewQueryBuilder().Where("_id").Eq(notificationID).Build()
 	doc := data.Patch(map[string]any{
-		"read":    true,
-		"read_at": now,
+		"read":       true,
+		"expires_at": time.Now().Add(readTTL).UnixMilli(),
 	}).Document(ctx)
-	q := m.queryBuilder(tenantID).Where("user_id").Eq(userID).Where("read").Eq(false).Build()
 	_, err = col.Update(ctx, &base.CollectionUpdate{
-		Set: doc,
+		Set:    doc,
 		Filter: q.Filters,
 	})
 	return err
 }
 
-func (m *NotificationModel) markRead(ctx context.Context, id, tenantID, userID string, read bool) error {
+func (m *NotificationModel) MarkAllRead(ctx context.Context, userID, tenantID string) error {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return err
 	}
-	now := time.Now().Unix()
+
+	qb := query.NewQueryBuilder().Where("user_id").Eq(userID).Where("read").Eq(false)
+	if tenantID != "" {
+		qb = qb.Where("tenant_id").Eq(tenantID)
+	}
+
 	doc := data.Patch(map[string]any{
-		"read":    read,
-		"read_at": now,
+		"read":       true,
+		"expires_at": time.Now().Add(readTTL).UnixMilli(),
 	}).Document(ctx)
 	_, err = col.Update(ctx, &base.CollectionUpdate{
-		Set: doc,
-		Filter: m.queryBuilder(tenantID).Where(data.DocumentIDField).Eq(id).Where("user_id").Eq(userID).Build().Filters,
+		Set:    doc,
+		Filter: qb.Build().Filters,
 	})
 	return err
+}
+
+func (m *NotificationModel) DeleteExpired(ctx context.Context) (int, error) {
+	col, err := m.collection(ctx)
+	if err != nil {
+		return 0, err
+	}
+	q := query.NewQueryBuilder().
+		Where("expires_at").Lt(time.Now().UnixMilli()).
+		Build()
+	count, err := col.Delete(ctx, q.Filters, false)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

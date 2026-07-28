@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -33,14 +33,14 @@ func (m testMessage) UserAgent() string  { return "" }
 func (m testMessage) ResourceID() string { return "" }
 func (m testMessage) SessionID() string  { return "" }
 
-var _ runtime.Message = testMessage{}
+var _ abstract.Message = testMessage{}
 
 func TestMain(m *testing.M) {
 	_ = data.ConfigureDocumentFactory(data.DocumentFactoryConfig{}, zap.NewNop())
 	m.Run()
 }
 
-func queryHandler(p base.Persistence) runtime.MessageHandler {
+func queryHandler(p base.Persistence) abstract.MessageHandler {
 	regs := audit.Registrations(audit.Dependencies{Persist: p})
 	for _, reg := range regs {
 		if reg.Name == "system:audit:log:query" {
@@ -62,13 +62,13 @@ func TestAuditInsert(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := audit.NewAuditModel(p)
 
-	entry := runtime.AuditEntry{
+	entry := auditdomain.AuditEntry{
 		EventName:    "test:msg",
 		ActorID:      "user-1",
-		ActorType:    runtime.ActorTypeUser,
-		Operation:    runtime.OperationExecute,
+		ActorType:    auditdomain.ActorTypeUser,
+		Operation:    auditdomain.OperationExecute,
 		ResourceType: "test",
-		Status:       runtime.AuditStatusSuccess,
+		Status:       auditdomain.AuditStatusSuccess,
 		LatencyMs:    100,
 		ServiceName:  "hestia",
 	}
@@ -114,10 +114,10 @@ func TestAuditQueryHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := audit.NewAuditModel(p)
 
-	entries := []runtime.AuditEntry{
-		{EventName: "msg:1", ActorID: "user-a", ActorType: runtime.ActorTypeUser, Operation: runtime.OperationExecute, ResourceType: "test", Status: runtime.AuditStatusSuccess, LatencyMs: 10, ServiceName: "hestia"},
-		{EventName: "msg:2", ActorID: "user-b", ActorType: runtime.ActorTypeUser, Operation: runtime.OperationExecute, ResourceType: "test", Status: runtime.AuditStatusDenied, LatencyMs: 20, ServiceName: "hestia"},
-		{EventName: "msg:3", ActorID: "user-a", ActorType: runtime.ActorTypeUser, Operation: runtime.OperationExecute, ResourceType: "test", Status: runtime.AuditStatusSuccess, LatencyMs: 30, ServiceName: "hestia"},
+	entries := []auditdomain.AuditEntry{
+		{EventName: "msg:1", ActorID: "user-a", ActorType: auditdomain.ActorTypeUser, Operation: auditdomain.OperationExecute, ResourceType: "test", Status: auditdomain.AuditStatusSuccess, LatencyMs: 10, ServiceName: "hestia"},
+		{EventName: "msg:2", ActorID: "user-b", ActorType: auditdomain.ActorTypeUser, Operation: auditdomain.OperationExecute, ResourceType: "test", Status: auditdomain.AuditStatusDenied, LatencyMs: 20, ServiceName: "hestia"},
+		{EventName: "msg:3", ActorID: "user-a", ActorType: auditdomain.ActorTypeUser, Operation: auditdomain.OperationExecute, ResourceType: "test", Status: auditdomain.AuditStatusSuccess, LatencyMs: 30, ServiceName: "hestia"},
 	}
 	for _, e := range entries {
 		if err := model.Insert(ctx, e); err != nil {
@@ -149,13 +149,13 @@ func TestAuditQueryHandlerWithLimit(t *testing.T) {
 	model := audit.NewAuditModel(p)
 
 	for i := 0; i < 10; i++ {
-		entry := runtime.AuditEntry{
+		entry := auditdomain.AuditEntry{
 			EventName:    "test:msg",
 			ActorID:      "user-1",
-			ActorType:    runtime.ActorTypeUser,
-			Operation:    runtime.OperationExecute,
+			ActorType:    auditdomain.ActorTypeUser,
+			Operation:    auditdomain.OperationExecute,
 			ResourceType: "test",
-			Status:       runtime.AuditStatusSuccess,
+			Status:       auditdomain.AuditStatusSuccess,
 			LatencyMs:    int64(i),
 			ServiceName:  "hestia",
 		}

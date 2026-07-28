@@ -12,8 +12,7 @@ import (
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 func IsSystemCollection(name string) bool {
@@ -41,8 +40,8 @@ func (q QueryCommand) QueryName() string       { return "collections:document:qu
 func (q QueryCommand) Context() context.Context { return q.ctx }
 func (q QueryCommand) ResourceContext() any     { return map[string]any{"collection": q.Collection} }
 
-func NewCollectionListHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCollectionListHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		names, err := persist.ListCollections(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list collections: %w", err)
@@ -76,28 +75,28 @@ func NewCollectionListHandler(persist persistence.Persistence) runtime.MessageHa
 			}, ctx)) // is this really neccessary ?
 		}
 
-		return &registration.Result{
-			Page: &registration.Page{Documents: docs},
+		return &abstract.Result{
+			Page: &abstract.Page{Documents: docs},
 		}, nil
 	}
 }
 
-func NewCollectionGetHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCollectionGetHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
 		s, err := persist.Schema(ctx, name)
 		if err != nil {
-			return &registration.Result{}, nil
+			return &abstract.Result{}, nil
 		}
 		if s == nil {
-			return &registration.Result{}, nil
+			return &abstract.Result{}, nil
 		}
 
 		raw, _ := json.Marshal(s)
 		now := time.Now().UTC().Format(time.RFC3339)
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"name":    name,
 				"schema":  raw,
@@ -108,16 +107,16 @@ func NewCollectionGetHandler(persist persistence.Persistence) runtime.MessageHan
 	}
 }
 
-func NewNamedCollectionQueryHandler(collectionName string, persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewNamedCollectionQueryHandler(collectionName string, persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		doc.Set("arguments.name", collectionName)
 		return NewCollectionQueryHandler(persist)(ctx, msg)
 	}
 }
 
-func NewCollectionQueryHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCollectionQueryHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -163,8 +162,8 @@ func NewCollectionQueryHandler(persist persistence.Persistence) runtime.MessageH
 		for _, d := range result.Data {
 			docs = append(docs, d)
 		}
-		return &registration.Result{
-			Page: &registration.Page{
+		return &abstract.Result{
+			Page: &abstract.Page{
 				Documents:  docs,
 				Pagination: result.PaginationInfo,
 			},
@@ -172,8 +171,8 @@ func NewCollectionQueryHandler(persist persistence.Persistence) runtime.MessageH
 	}
 }
 
-func NewReadCollectionHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewReadCollectionHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("name", "").(string)
 
@@ -216,8 +215,8 @@ func NewReadCollectionHandler(persist persistence.Persistence) runtime.MessageHa
 		for _, d := range result.Data {
 			docs = append(docs, d)
 		}
-		return &registration.Result{
-			Page: &registration.Page{
+		return &abstract.Result{
+			Page: &abstract.Page{
 				Documents:  docs,
 				Pagination: result.PaginationInfo,
 			},
@@ -225,8 +224,8 @@ func NewReadCollectionHandler(persist persistence.Persistence) runtime.MessageHa
 	}
 }
 
-func NewDocumentGetHandler(persist persistence.Persistence) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDocumentGetHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 		documentID, _ := doc.GetOr("arguments.doc_id", "").(string)
@@ -243,9 +242,9 @@ func NewDocumentGetHandler(persist persistence.Persistence) runtime.MessageHandl
 		}
 
 		if result.Count == 0 {
-			return &registration.Result{}, nil
+			return &abstract.Result{}, nil
 		}
 
-		return &registration.Result{Document: result.Data[0]}, nil
+		return &abstract.Result{Document: result.Data[0]}, nil
 	}
 }

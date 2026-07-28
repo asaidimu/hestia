@@ -6,10 +6,12 @@ import (
 	"os"
 
 	"github.com/asaidimu/hestia/core"
-	"github.com/asaidimu/hestia/core/identity"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"github.com/asaidimu/hestia/core/abstract"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/runtime"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 func main() {
@@ -32,14 +34,14 @@ func main() {
 					Port: 8070,
 					Middleware: []httpapi.Middleware{
 						func(ctx context.Context, req httpapi.Request, next httpapi.HandlerFunc) (httpapi.Response, error) {
-							claims := &identity.Claims{
+							claims := &abstract.Claims{
 								UserID:    "auth_disabled",
 								Email:     "admin@test.local",
 								Scopes:    []string{"administrator"},
 								TokenType: "system",
 							}
-							ctx = identity.ContextWithClaims(ctx, claims)
-							ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, runtime.ActorTypeUser, runtime.AuthMethodPassword)
+							ctx = runtimecontext.ContextWithClaims(ctx, claims)
+							ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, auditdomain.ActorTypeUser, auditdomain.AuthMethodPassword)
 							return next(ctx, req)
 						},
 					},

@@ -10,7 +10,6 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -28,12 +27,12 @@ func (stubPolicyStore) ReloadPolicies(context.Context) error { return nil }
 
 type stubRegistry struct{}
 
-func (stubRegistry) RegisterHandler(string, runtime.MessageHandler, runtime.HandlerInfo) error {
+func (stubRegistry) RegisterHandler(string, abstract.MessageHandler, abstract.HandlerInfo) error {
 	return nil
 }
-func (stubRegistry) GetHandler(string) (runtime.MessageHandler, error) { return nil, nil }
+func (stubRegistry) GetHandler(string) (abstract.MessageHandler, error) { return nil, nil }
 func (stubRegistry) DeleteHandler(string) error                     { return nil }
-func (stubRegistry) ListHandlers() []runtime.HandlerInfo               { return nil }
+func (stubRegistry) ListHandlers() []abstract.HandlerInfo               { return nil }
 func (stubRegistry) SetHandlerEnabled(string, bool) error           { return nil }
 
 type testMessage struct {
@@ -56,7 +55,7 @@ func (m testMessage) UserAgent() string  { return "" }
 func (m testMessage) ResourceID() string { return "" }
 func (m testMessage) SessionID() string  { return "" }
 
-var _ runtime.Message = testMessage{}
+var _ abstract.Message = testMessage{}
 
 func TestIsSystemCollection(t *testing.T) {
 	tests := []struct {

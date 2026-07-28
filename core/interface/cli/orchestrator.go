@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -23,7 +24,7 @@ var systemIdentity = iam.Identity{
 }
 
 type Options struct {
-	Dispatcher  runtime.Dispatcher
+	Dispatcher  abstract.Dispatcher
 	Logger      *zap.Logger
 	AdminUserID string
 	AdminEmail  string
@@ -94,7 +95,7 @@ func (o *Interface) printHelp(fs *flag.FlagSet) {
 func (o *Interface) runBootstrap() {
 	ctx := iam.WithIdentity(context.Background(), systemIdentity)
 
-	statusMsg := abstract.NewMessage("system:core:health:check", ctx, data.MustNewDocument(nil, ctx))
+	statusMsg := dispatch.NewMessage("system:core:health:check", ctx, data.MustNewDocument(nil, ctx))
 	statusResult, err := o.opts.Dispatcher.Send(statusMsg)
 	if err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Failed to check system status: %v\n", err)
@@ -143,7 +144,7 @@ func (o *Interface) runBootstrap() {
 		os.Exit(1)
 	}
 
-	pwdMsg := abstract.NewMessage("system:auth:bootstrap:password:set", ctx, data.MustNewDocument(map[string]any{
+	pwdMsg := dispatch.NewMessage("system:auth:bootstrap:password:set", ctx, data.MustNewDocument(map[string]any{
 		"payload": map[string]any{"password": password, "email": email, "caller_id": o.opts.AdminUserID},
 	}, ctx))
 	if _, err := o.opts.Dispatcher.Send(pwdMsg); err != nil {
@@ -151,7 +152,7 @@ func (o *Interface) runBootstrap() {
 		os.Exit(1)
 	}
 
-	bsMsg := abstract.NewMessage("system:core:bootstrap:mark", ctx, data.MustNewDocument(nil, ctx))
+	bsMsg := dispatch.NewMessage("system:core:bootstrap:mark", ctx, data.MustNewDocument(nil, ctx))
 	if _, err := o.opts.Dispatcher.Send(bsMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Failed to mark bootstrapped: %v\n", err)
 		os.Exit(1)

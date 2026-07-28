@@ -2,37 +2,22 @@ package boot
 
 import (
 	"context"
-	"fmt"
 	"os"
 
-	"github.com/asaidimu/hestia/core/abstract"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/internal/feature"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
-	"github.com/asaidimu/hestia/core/migrations"
 )
 
-func BuildApp(cfg *runtime.Config, opts abstract.SystemOptions) (*Application, error) {
-	application := Create(cfg)
+func BuildApp(cfg *runtime.Config, opts dispatch.SystemOptions) (*Application, error) {
+	application := New(cfg)
 
-	if opts.Logger == nil {
-		opts.Logger = application.Loggers.File
-	}
-
-	if err := migrations.Apply(context.Background(), application.Persistence()); err != nil {
-		application.Close()
-		return nil, fmt.Errorf("migrations: %w", err)
-	}
-
-	mod := feature.New(cfg, application.Dispatcher(), opts)
-
-	if err := application.RegisterModules(mod); err != nil {
+	if err := application.Boot(context.Background(), opts); err != nil {
 		application.Close()
 		return nil, err
 	}
 
-	application.SetSystemModule(mod)
 	return application, nil
 }
 

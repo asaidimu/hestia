@@ -2,27 +2,27 @@ package policies
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_policyNameInput              = schema.MustFromJSON(policyNameInputJSON)
-	_policyOperationGetInput      = schema.MustFromJSON(policyOperationGetInputJSON)
-	_policyRuleGetInput           = schema.MustFromJSON(policyRuleGetInputJSON)
-	_policyRuleDeleteInput        = schema.MustFromJSON(policyRuleDeleteInputJSON)
-	_policyRuleCreateInput        = schema.MustFromJSON(policyRuleCreateInputJSON)
-	_policyRuleUpdateInput        = schema.MustFromJSON(policyRuleUpdateInputJSON)
-	_policyCreateInput            = schema.MustFromJSON(policyCreateInputJSON)
-	_policyUpdateInput            = schema.MustFromJSON(policyUpdateInputJSON)
-	_policyValidateInput          = schema.MustFromJSON(policyValidateInputJSON)
-	_policyValidateOutput         = schema.MustFromJSON(policyValidateOutputJSON)
-	_policyReloadOutput           = schema.MustFromJSON(policyReloadOutputJSON)
-	_policyOperationOutput        = schema.MustFromJSON(policyOperationOutputJSON)
-	_policyRuleOutput             = schema.MustFromJSON(policyRuleOutputJSON)
-	_policyOutput                 = schema.MustFromJSON(policyOutputJSON)
-	_policyListOperationsOutput   = schema.MustFromJSON(policyListOperationsOutputJSON)
-	_policyListRulesOutput        = schema.MustFromJSON(policyListRulesOutputJSON)
-	_policyListPoliciesOutput     = schema.MustFromJSON(policyListPoliciesOutputJSON)
+	_policyNameInput              = dispatch.MustFromJSON(policyNameInputJSON)
+	_policyOperationGetInput      = dispatch.MustFromJSON(policyOperationGetInputJSON)
+	_policyRuleGetInput           = dispatch.MustFromJSON(policyRuleGetInputJSON)
+	_policyRuleDeleteInput        = dispatch.MustFromJSON(policyRuleDeleteInputJSON)
+	_policyRuleCreateInput        = dispatch.MustFromJSON(policyRuleCreateInputJSON)
+	_policyRuleUpdateInput        = dispatch.MustFromJSON(policyRuleUpdateInputJSON)
+	_policyCreateInput            = dispatch.MustFromJSON(policyCreateInputJSON)
+	_policyUpdateInput            = dispatch.MustFromJSON(policyUpdateInputJSON)
+	_policyValidateInput          = dispatch.MustFromJSON(policyValidateInputJSON)
+	_policyValidateOutput         = dispatch.MustFromJSON(policyValidateOutputJSON)
+	_policyReloadOutput           = dispatch.MustFromJSON(policyReloadOutputJSON)
+	_policyOperationOutput        = dispatch.MustFromJSON(policyOperationOutputJSON)
+	_policyRuleOutput             = dispatch.MustFromJSON(policyRuleOutputJSON)
+	_policyOutput                 = dispatch.MustFromJSON(policyOutputJSON)
+	_policyListOperationsOutput   = dispatch.MustFromJSON(policyListOperationsOutputJSON)
+	_policyListRulesOutput        = dispatch.MustFromJSON(policyListRulesOutputJSON)
+	_policyListPoliciesOutput     = dispatch.MustFromJSON(policyListPoliciesOutputJSON)
 )
 
 func policyNameInputSchema() *definition.Schema               { return _policyNameInput }

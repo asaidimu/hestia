@@ -76,7 +76,7 @@ func SeedAdmin(ctx context.Context, userModel *users.UserModel, seedModel *opera
 		tenantID = "root"
 	}
 
-	doc, err := userModel.Register(ctx, email, password, "System Administrator", tenantID, "administrator")
+	doc, err := userModel.Register(ctx, email, password, "System Administrator", tenantID, nil, "administrator")
 	if err != nil {
 		return "", "", false, fmt.Errorf("create admin user: %w", err)
 	}

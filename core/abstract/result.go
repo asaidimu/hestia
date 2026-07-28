@@ -99,26 +99,4 @@ type Result struct {
 	SessionToken    string
 }
 
-func NewDocumentResult(doc *data.Document) *Result {
-	return &Result{Kind: ResultKindDocument, Document: doc}
-}
 
-func NewDocumentsResult(docs data.DocumentSet) *Result {
-	return &Result{Kind: ResultKindDocuments, Documents: docs}
-}
-
-func NewPageResult(page *Page) *Result {
-	return &Result{Kind: ResultKindPage, Page: page}
-}
-
-func NewBlobResult(blob Blob) *Result {
-	return &Result{Kind: ResultKindBlob, Blob: blob}
-}
-
-func NewDocumentChannelResult(ch <-chan *data.Document) *Result {
-	return &Result{Kind: ResultKindDocumentChannel, DocumentChannel: ch}
-}
-
-func NewBlobChannelResult(ch <-chan Blob) *Result {
-	return &Result{Kind: ResultKindBlobChannel, BlobChannel: ch}
-}

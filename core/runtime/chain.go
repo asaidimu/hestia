@@ -1,10 +1,12 @@
 package runtime
 
+import "github.com/asaidimu/hestia/core/abstract"
+
 // LinkEntry pairs a name with its DispatcherLink for position-based
 // insertion and removal.
 type LinkEntry struct {
 	Name string
-	Link DispatcherLink
+	Link abstract.DispatcherLink
 }
 
 // DispatcherChain is an ordered, mutable list of DispatcherLinks.
@@ -29,7 +31,7 @@ func NewDispatcherChain(entries ...LinkEntry) *DispatcherChain {
 
 // InsertBefore inserts link before the link named name.
 // It is a no-op if name is not found.
-func (c *DispatcherChain) InsertBefore(name string, link DispatcherLink) {
+func (c *DispatcherChain) InsertBefore(name string, link abstract.DispatcherLink) {
 	for i, l := range c.links {
 		if l.Name == name {
 			c.links = append(c.links[:i], append([]LinkEntry{{Link: link}}, c.links[i:]...)...)
@@ -40,7 +42,7 @@ func (c *DispatcherChain) InsertBefore(name string, link DispatcherLink) {
 
 // InsertAfter inserts link after the link named name.
 // It is a no-op if name is not found.
-func (c *DispatcherChain) InsertAfter(name string, link DispatcherLink) {
+func (c *DispatcherChain) InsertAfter(name string, link abstract.DispatcherLink) {
 	for i, l := range c.links {
 		if l.Name == name {
 			c.links = append(c.links[:i+1], append([]LinkEntry{{Link: link}}, c.links[i+1:]...)...)
@@ -64,7 +66,7 @@ func (c *DispatcherChain) Remove(name string) {
 // becomes the outermost wrapper, so the execution order is:
 //
 //	links[0] → links[1] → … → links[n-1] → base
-func (c *DispatcherChain) Build(base Dispatcher) Dispatcher {
+func (c *DispatcherChain) Build(base abstract.Dispatcher) abstract.Dispatcher {
 	d := base
 	for i := len(c.links) - 1; i >= 0; i-- {
 		d = c.links[i].Link.Wrap(d)

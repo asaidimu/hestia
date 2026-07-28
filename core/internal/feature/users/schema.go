@@ -2,21 +2,21 @@ package users
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_userRegisterInput       = schema.MustFromJSON(userRegisterInputJSON)
-	_userLoginInput          = schema.MustFromJSON(userLoginInputJSON)
-	_userQueryInput          = schema.MustFromJSON(userQueryInputJSON)
-	_userQueryOutput         = schema.MustFromJSON(userQueryOutputJSON)
-	_userOutput              = schema.MustFromJSON(userOutputJSON)
-	_userNameInput           = schema.MustFromJSON(userNameInputJSON)
-	_userUpdateInput         = schema.MustFromJSON(userUpdateInputJSON)
-	_userGetInput            = schema.MustFromJSON(userGetInputJSON)
-	_userChangePasswordInput = schema.MustFromJSON(userChangePasswordInputJSON)
-	_userDeleteInput         = schema.MustFromJSON(userDeleteInputJSON)
-	_messageOutput           = schema.MustFromJSON(messageOutputJSON)
+	_userRegisterInput       = dispatch.MustFromJSON(userRegisterInputJSON)
+	_userLoginInput          = dispatch.MustFromJSON(userLoginInputJSON)
+	_userQueryInput          = dispatch.MustFromJSON(userQueryInputJSON)
+	_userQueryOutput         = dispatch.MustFromJSON(userQueryOutputJSON)
+	_userOutput              = dispatch.MustFromJSON(userOutputJSON)
+	_userNameInput           = dispatch.MustFromJSON(userNameInputJSON)
+	_userUpdateInput         = dispatch.MustFromJSON(userUpdateInputJSON)
+	_userGetInput            = dispatch.MustFromJSON(userGetInputJSON)
+	_userChangePasswordInput = dispatch.MustFromJSON(userChangePasswordInputJSON)
+	_userDeleteInput         = dispatch.MustFromJSON(userDeleteInputJSON)
+	_messageOutput           = dispatch.MustFromJSON(messageOutputJSON)
 )
 
 func userRegisterInputSchema() *definition.Schema       { return _userRegisterInput }
@@ -232,7 +232,8 @@ var userUpdateInputJSON = []byte(`{
 			"name": "UserUpdatePayload",
 			"fields": {
 				"display_name": { "name": "display_name", "description": "New display name", "type": "string" },
-				"disabled": { "name": "disabled", "description": "Whether the user should be disabled", "type": "boolean" }
+				"disabled": { "name": "disabled", "description": "Whether the user should be disabled", "type": "boolean" },
+				"data": { "name": "data", "description": "Application-specific user data. Define its shape by extending the _user_ collection schema.", "type": "record" }
 			}
 		}
 	}

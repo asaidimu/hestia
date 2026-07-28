@@ -39,7 +39,7 @@ func (m *UserModel) collection(ctx context.Context) (base.Collection, error) {
 	return m.persistence.Collection(ctx, userCollectionName)
 }
 
-func (m *UserModel) Register(ctx context.Context, email, password, name, tenantID string, permissions ...string) (*data.Document, error) {
+func (m *UserModel) Register(ctx context.Context, email, password, name, tenantID string, userData map[string]any, permissions ...string) (*data.Document, error) {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("access user collection: %w", err)
@@ -73,6 +73,9 @@ func (m *UserModel) Register(ctx context.Context, email, password, name, tenantI
 	})
 	if tenantID != "" {
 		doc.Set("tenant_id", tenantID)
+	}
+	if userData != nil {
+		doc.Set("data", userData)
 	}
 
 	result, err := col.CreateOne(ctx, doc)

@@ -6,8 +6,11 @@ import (
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
+	"github.com/asaidimu/hestia/core/internal/feature/notifications"
 	"github.com/asaidimu/hestia/core/internal/feature/operations"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
+	"github.com/asaidimu/hestia/core/internal/feature/schedules"
+	"github.com/asaidimu/hestia/core/internal/feature/settings"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 )
 
@@ -36,6 +39,9 @@ var allKnownOperations = func() []policies.Operation {
 	all = append(all, collections.DefaultOperations()...)
 	all = append(all, operations.DefaultOperations()...)
 	all = append(all, policies.DefaultOperations()...)
+	all = append(all, notifications.DefaultOperations()...)
+	all = append(all, schedules.DefaultOperations()...)
+	all = append(all, settings.DefaultOperations()...)
 	all = append(all, users.DefaultOperations()...)
 	return all
 }()

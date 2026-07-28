@@ -1,6 +1,15 @@
 package abstract
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"github.com/asaidimu/go-anansi/v8/core/data"
+)
+
+type UserResolver interface {
+	GetActiveByID(ctx context.Context, userID string) (*data.Document, error)
+}
 
 type Claims struct {
 	UserID     string   `json:"user_id"`

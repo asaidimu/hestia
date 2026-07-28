@@ -13,6 +13,7 @@ import (
 	events "github.com/asaidimu/go-events/v2"
 	"go.uber.org/zap"
 
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -36,7 +37,7 @@ func traceIDMetadataProvider() data.MetadataProviderConfig {
 			},
 		},
 		Provider: func(ctx context.Context, doc *data.Document) (map[string]any, error) {
-			if traceID := runtime.GetTraceID(ctx); traceID != "" {
+			if traceID := runtimecontext.GetTraceID(ctx); traceID != "" {
 				return map[string]any{"trace_id": traceID}, nil
 			}
 			return nil, nil

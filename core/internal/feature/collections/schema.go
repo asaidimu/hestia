@@ -2,22 +2,22 @@ package collections
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_collectionListOutput       = schema.MustFromJSON(collectionListOutputJSON)
-	_collectionOutput           = schema.MustFromJSON(collectionOutputJSON)
-	_collectionQueryOutput      = schema.MustFromJSON(collectionQueryOutputJSON)
-	_collectionDocumentOutput   = schema.MustFromJSON(collectionDocumentOutputJSON)
-	_collectionGetInput         = schema.MustFromJSON(collectionGetInputJSON)
-	_collectionCreateInput      = schema.MustFromJSON(collectionCreateInputJSON)
-	_collectionDeleteInput      = schema.MustFromJSON(collectionDeleteInputJSON)
-	_collectionDocQueryInput    = schema.MustFromJSON(collectionDocQueryInputJSON)
-	_collectionDocCreateInput   = schema.MustFromJSON(collectionDocCreateInputJSON)
-	_collectionDocGetInput      = schema.MustFromJSON(collectionDocGetInputJSON)
-	_collectionDocUpdateInput   = schema.MustFromJSON(collectionDocUpdateInputJSON)
-	_collectionDocDeleteInput   = schema.MustFromJSON(collectionDocDeleteInputJSON)
+	_collectionListOutput       = dispatch.MustFromJSON(collectionListOutputJSON)
+	_collectionOutput           = dispatch.MustFromJSON(collectionOutputJSON)
+	_collectionQueryOutput      = dispatch.MustFromJSON(collectionQueryOutputJSON)
+	_collectionDocumentOutput   = dispatch.MustFromJSON(collectionDocumentOutputJSON)
+	_collectionGetInput         = dispatch.MustFromJSON(collectionGetInputJSON)
+	_collectionCreateInput      = dispatch.MustFromJSON(collectionCreateInputJSON)
+	_collectionDeleteInput      = dispatch.MustFromJSON(collectionDeleteInputJSON)
+	_collectionDocQueryInput    = dispatch.MustFromJSON(collectionDocQueryInputJSON)
+	_collectionDocCreateInput   = dispatch.MustFromJSON(collectionDocCreateInputJSON)
+	_collectionDocGetInput      = dispatch.MustFromJSON(collectionDocGetInputJSON)
+	_collectionDocUpdateInput   = dispatch.MustFromJSON(collectionDocUpdateInputJSON)
+	_collectionDocDeleteInput   = dispatch.MustFromJSON(collectionDocDeleteInputJSON)
 )
 
 func collectionListOutputSchema() *definition.Schema     { return _collectionListOutput }

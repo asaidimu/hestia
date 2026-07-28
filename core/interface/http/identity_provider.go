@@ -9,7 +9,7 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/identity"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 type hestiaIdentityProvider struct {
@@ -51,7 +51,7 @@ func (p *hestiaIdentityProvider) Deauthenticate(props any) (bool, error) {
 func (p *hestiaIdentityProvider) authenticateAPIKey(key string) (*iam.Identity, error) {
 	ctx := context.Background()
 
-	apiKeyMsg := abstract.NewMessage("system:auth:apikey:validate", ctx,
+	apiKeyMsg := dispatch.NewMessage("system:auth:apikey:validate", ctx,
 		data.MustNewDocument(map[string]any{"api_key": key}, ctx))
 	result, err := p.internalDisp.Send(apiKeyMsg)
 	if err != nil {
@@ -85,9 +85,9 @@ func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 	}
 }
 
-func extractClaims(doc *data.Document) *identity.Claims {
+func extractClaims(doc *data.Document) *abstract.Claims {
 	if doc == nil {
-		return &identity.Claims{}
+		return &abstract.Claims{}
 	}
 	userID, _ := doc.GetOr("user_id", "").(string)
 	email, _ := doc.GetOr("email", "").(string)
@@ -96,7 +96,7 @@ func extractClaims(doc *data.Document) *identity.Claims {
 	tokenType, _ := doc.GetOr("token_type", "").(string)
 	tokenID, _ := doc.GetOr("token_id", "").(string)
 	expiresAt, _ := doc.GetOr("expires_at", int64(0)).(int64)
-	return &identity.Claims{
+	return &abstract.Claims{
 		UserID:    userID,
 		Email:     email,
 		TenantID:  tenantID,

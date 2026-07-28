@@ -10,7 +10,7 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/registration"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 type testMessage struct {
@@ -23,14 +23,14 @@ func (m testMessage) Name() string                       { return m.name }
 func (m testMessage) Context() context.Context            { return m.ctx }
 func (m testMessage) Input() *data.Document               { return data.MustNewDocument(nil, m.ctx) }
 func (m testMessage) InputChannel() <-chan *data.Document   { return nil }
-func (m testMessage) BlobInputChannel() <-chan registration.Blob { return nil }
-func (m testMessage) TenantID() string   { return abstract.GetTenantID(m.ctx) }
-func (m testMessage) TraceID() string    { return abstract.GetTraceID(m.ctx) }
-func (m testMessage) RequestID() string  { return abstract.GetRequestID(m.ctx) }
-func (m testMessage) SourceIP() string   { return abstract.GetSourceIP(m.ctx) }
-func (m testMessage) UserAgent() string  { return abstract.GetUserAgent(m.ctx) }
-func (m testMessage) ResourceID() string { return abstract.GetResourceID(m.ctx) }
-func (m testMessage) SessionID() string  { return abstract.GetSessionID(m.ctx) }
+func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
+func (m testMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
+func (m testMessage) TraceID() string    { return runtimecontext.GetTraceID(m.ctx) }
+func (m testMessage) RequestID() string  { return runtimecontext.GetRequestID(m.ctx) }
+func (m testMessage) SourceIP() string   { return runtimecontext.GetSourceIP(m.ctx) }
+func (m testMessage) UserAgent() string  { return runtimecontext.GetUserAgent(m.ctx) }
+func (m testMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
+func (m testMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
 
 func anonymousContext() context.Context {
 	props := map[string]any{
@@ -159,6 +159,6 @@ func (d discarder) Write(p []byte) (int, error) { return len(p), nil }
 
 type noopDispatcher struct{}
 
-func (d noopDispatcher) Send(Message) (*registration.Result, error) { return &registration.Result{}, nil }
+func (d noopDispatcher) Send(abstract.Message) (*abstract.Result, error) { return &abstract.Result{}, nil }
 
-var _ Dispatcher = noopDispatcher{}
+var _ abstract.Dispatcher = noopDispatcher{}

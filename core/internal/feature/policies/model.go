@@ -368,7 +368,24 @@ func (m *PolicyModel) SetPolicyEnabled(ctx context.Context, operationName string
 }
 
 func (m *PolicyModel) DeletePolicy(ctx context.Context, operationName string) error {
-	return ErrPolicyDeleteForbidden.WithOperation("DeletePolicy").WithMessagef("cannot delete policy for operation %q; disable instead", operationName)
+	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
+	result, err := m.policyColl.Read(ctx, &q)
+	if err != nil {
+		return common.NewSystemError("QUERY_POLICY").WithCause(err)
+	}
+	if result.Count == 0 {
+		return ErrPolicyNotFound.WithOperation("DeletePolicy").WithMessagef("no policy for operation %q", operationName)
+	}
+
+	filter := query.NewQueryBuilder().Where(data.DocumentIDField).Eq(result.Data[0].ID()).Build().Filters
+	deleted, err := m.policyColl.Delete(ctx, filter, false)
+	if err != nil {
+		return common.NewSystemError("DELETE_POLICY").WithCause(err)
+	}
+	if deleted == 0 {
+		return ErrPolicyNotFound.WithOperation("DeletePolicy").WithMessagef("policy for operation %q not found", operationName)
+	}
+	return nil
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────

@@ -7,9 +7,9 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
-	"github.com/asaidimu/hestia/core/identity"
 )
 
 type APIKeyAuthenticator struct {
@@ -43,7 +43,7 @@ func (a *APIKeyAuthenticator) loadUserClaims(ctx context.Context, userID string)
 	return claims
 }
 
-func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*identity.Claims, error) {
+func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*abstract.Claims, error) {
 	if a.ephemeralKey != "" && key == a.ephemeralKey {
 		a.logger.Warn("ephemeral API key used for authentication",
 			zap.String("admin_user_id", a.adminUserID),
@@ -52,7 +52,7 @@ func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*id
 		uc := a.loadUserClaims(ctx, a.adminUserID)
 		scopes := a.adminScopes(uc)
 		tenantID := a.adminTenant(uc)
-		return &identity.Claims{
+		return &abstract.Claims{
 			UserID:   a.adminUserID,
 			Email:    a.adminEmail,
 			Scopes:   scopes,

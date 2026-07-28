@@ -6,7 +6,6 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
 func TestDeriveRoute(t *testing.T) {
@@ -19,16 +18,16 @@ func TestDeriveRoute(t *testing.T) {
 
 func TestIntentToHTTPMethod(t *testing.T) {
 	tests := []struct {
-		verb registration.Verb
+		verb abstract.Verb
 		want string
 	}{
-		{registration.Create, "POST"},
-		{registration.Read, "GET"},
-		{registration.Update, "PATCH"},
-		{registration.Delete, "DELETE"},
-		{registration.Query, "POST"},
-		{registration.Stream, "GET"},
-		{registration.Check, "POST"},
+		{abstract.Create, "POST"},
+		{abstract.Read, "GET"},
+		{abstract.Update, "PATCH"},
+		{abstract.Delete, "DELETE"},
+		{abstract.Query, "POST"},
+		{abstract.Stream, "GET"},
+		{abstract.Check, "POST"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.verb.String(), func(t *testing.T) {

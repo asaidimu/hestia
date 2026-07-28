@@ -6,13 +6,14 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
 func testMsg(name string, input *data.Document) abstract.Message {
-	return abstract.NewMessage(name, context.Background(), input)
+	return dispatch.NewMessage(name, context.Background(), input)
 }
 
 func TestGetUserHandler(t *testing.T) {
@@ -20,7 +21,7 @@ func TestGetUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "get@test.com", "password123", "Get User", "public")
+	doc, err := model.Register(ctx, "get@test.com", "password123", "Get User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -56,7 +57,7 @@ func TestUpdateUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "update@test.com", "password123", "Original Name", "public")
+	doc, err := model.Register(ctx, "update@test.com", "password123", "Original Name", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -88,7 +89,7 @@ func TestChangePasswordHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User", "public")
+	doc, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestDeleteUserHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
 
-	doc, err := model.Register(ctx, "delete@test.com", "password123", "Delete User", "public")
+	doc, err := model.Register(ctx, "delete@test.com", "password123", "Delete User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}

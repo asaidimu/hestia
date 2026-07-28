@@ -59,9 +59,9 @@ func (a *PolicyStoreAdapter) DeleteOperation(ctx context.Context, name string) e
 	return nil
 }
 
-// ForceDeleteOperation disables the policy (same as DeleteOperation — no forced deletion).
+// ForceDeleteOperation hard-deletes the policy for the given operation.
 func (a *PolicyStoreAdapter) ForceDeleteOperation(ctx context.Context, name string) error {
-	return a.DeleteOperation(ctx, name)
+	return a.policyModel.DeletePolicy(ctx, name)
 }
 
 func (a *PolicyStoreAdapter) EnsureRule(ctx context.Context, name, expr, description string) error {

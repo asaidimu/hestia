@@ -2,19 +2,19 @@ package auth
 
 import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"github.com/asaidimu/hestia/core/schema"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var (
-	_registerInput   = schema.MustFromJSON(registerInputJSON)
-	_userOutput      = schema.MustFromJSON(userOutputJSON)
-	_loginInput      = schema.MustFromJSON(loginInputJSON)
-	_loginOutput     = schema.MustFromJSON(loginOutputJSON)
-	_passwordReset   = schema.MustFromJSON(passwordResetInputJSON)
-	_passwordConfirm = schema.MustFromJSON(passwordConfirmInputJSON)
-	_bootstrapPwd    = schema.MustFromJSON(bootstrapPasswordInputJSON)
-	_messageOutput   = schema.MustFromJSON(messageOutputJSON)
-	_claimsOutput    = schema.MustFromJSON(claimsOutputJSON)
+	_registerInput   = dispatch.MustFromJSON(registerInputJSON)
+	_userOutput      = dispatch.MustFromJSON(userOutputJSON)
+	_loginInput      = dispatch.MustFromJSON(loginInputJSON)
+	_loginOutput     = dispatch.MustFromJSON(loginOutputJSON)
+	_passwordReset   = dispatch.MustFromJSON(passwordResetInputJSON)
+	_passwordConfirm = dispatch.MustFromJSON(passwordConfirmInputJSON)
+	_bootstrapPwd    = dispatch.MustFromJSON(bootstrapPasswordInputJSON)
+	_messageOutput   = dispatch.MustFromJSON(messageOutputJSON)
+	_claimsOutput    = dispatch.MustFromJSON(claimsOutputJSON)
 )
 
 func registerInputSchema() *definition.Schema        { return _registerInput }

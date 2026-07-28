@@ -9,13 +9,13 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/registration"
 )
 
-func NewGetOperationHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewGetOperationHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -23,7 +23,7 @@ func NewGetOperationHandler(policyModel *PolicyModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"name":        op.Name,
 				"description": op.Description,
@@ -33,8 +33,8 @@ func NewGetOperationHandler(policyModel *PolicyModel) runtime.MessageHandler {
 	}
 }
 
-func NewListOperationsHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListOperationsHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		ops, err := policyModel.ListOperations(ctx)
 		if err != nil {
 			return nil, err
@@ -48,14 +48,14 @@ func NewListOperationsHandler(policyModel *PolicyModel) runtime.MessageHandler {
 				"intentType":  op.IntentType,
 			})
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"operations": items}, ctx),
 		}, nil
 	}
 }
 
-func NewCreatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCreatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		operationName, _ := doc.GetOr("arguments.name", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -70,7 +70,7 @@ func NewCreatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"id":            created.ID,
 				"operationName": created.OperationName,
@@ -81,8 +81,8 @@ func NewCreatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
 	}
 }
 
-func NewUpdatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUpdatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		operationName, _ := doc.GetOr("arguments.name", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -116,7 +116,7 @@ func NewUpdatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
 			}
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"id":            updated.ID,
 				"operationName": updated.OperationName,
@@ -127,14 +127,14 @@ func NewUpdatePolicyHandler(policyModel *PolicyModel) runtime.MessageHandler {
 	}
 }
 
-func NewDeletePolicyHandler() runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeletePolicyHandler() abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		return nil, ErrPolicyDeleteForbidden.WithOperation("DeletePolicy")
 	}
 }
 
-func NewListPoliciesHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListPoliciesHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		policies, err := policyModel.ListPolicies(ctx)
 		if err != nil {
 			return nil, err
@@ -149,14 +149,14 @@ func NewListPoliciesHandler(policyModel *PolicyModel) runtime.MessageHandler {
 				"enabled":       p.Enabled,
 			})
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"policies": items}, ctx),
 		}, nil
 	}
 }
 
-func NewCreateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewCreateRuleHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -188,14 +188,14 @@ func NewCreateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(util.StructToMap(created), ctx),
 		}, nil
 	}
 }
 
-func NewUpdateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewUpdateRuleHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -226,14 +226,14 @@ func NewUpdateRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 			return nil, err
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(util.StructToMap(updated), ctx),
 		}, nil
 	}
 }
 
-func NewGetRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewGetRuleHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
@@ -241,14 +241,14 @@ func NewGetRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(util.StructToMap(rule), ctx),
 		}, nil
 	}
 }
 
-func NewListRulesHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewListRulesHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		rules, err := policyModel.ListRules(ctx)
 		if err != nil {
 			return nil, err
@@ -258,28 +258,28 @@ func NewListRulesHandler(policyModel *PolicyModel) runtime.MessageHandler {
 		for _, rule := range rules {
 			items = append(items, util.StructToMap(rule))
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"rules": items}, ctx),
 		}, nil
 	}
 }
 
-func NewDeleteRuleHandler(policyModel *PolicyModel) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewDeleteRuleHandler(policyModel *PolicyModel) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
 		if err := policyModel.DeleteRule(ctx, name); err != nil {
 			return nil, err
 		}
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"message": "deleted", "name": name}, ctx),
 		}, nil
 	}
 }
 
-func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		payload, _ := msg.Input().GetOr("payload", nil).(map[string]any)
 		if payload == nil {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "request body is required")
@@ -302,7 +302,7 @@ func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) runtime.Mes
 			var err error
 			fn, err = CompileCEL(rule)
 			if err != nil {
-				return &registration.Result{
+				return &abstract.Result{
 					Document: data.MustNewDocument(map[string]any{
 						"valid":  false,
 						"result": false,
@@ -319,7 +319,7 @@ func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) runtime.Mes
 			var err error
 			fn, err = compileValidateNode(&node, liveRules)
 			if err != nil {
-				return &registration.Result{
+				return &abstract.Result{
 					Document: data.MustNewDocument(map[string]any{
 						"valid":  false,
 						"result": false,
@@ -331,7 +331,7 @@ func NewValidateRuleHandler(liveRules iam.RuleSet[iam.FunctionRule]) runtime.Mes
 			return nil, common.NewSystemError("VALIDATION_ERROR", "rule must be a CEL string or a rule object")
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"valid":  true,
 				"result": fn(req),
@@ -371,8 +371,8 @@ func compileValidateNode(node *RuleNode, liveRules iam.RuleSet[iam.FunctionRule]
 	return combineRules(node.Operator, fns), nil
 }
 
-func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager runtime.ReloadablePermissionManager, liveRules iam.RuleSet[iam.FunctionRule]) runtime.MessageHandler {
-	return func(ctx context.Context, msg runtime.Message) (*registration.Result, error) {
+func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager runtime.ReloadablePermissionManager, liveRules iam.RuleSet[iam.FunctionRule]) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		if err := permManager.Reload(ctx); err != nil {
 			return nil, err
 		}
@@ -397,7 +397,7 @@ func NewReloadPoliciesHandler(policyModel *PolicyModel, permManager runtime.Relo
 			}
 		}
 
-		return &registration.Result{
+		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
 				"operations": len(permManager.ListCapabilities()),
 				"rules":      ruleCount,
