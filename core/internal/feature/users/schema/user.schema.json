@@ -5,7 +5,7 @@
     "019fad8b-d14f-735c-b5e7-8eb4fc6657d3": {
       "name": "disabled",
       "type": "integer",
-      "default": 0
+      "default": -1
     },
     "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
       "name": "permissions",

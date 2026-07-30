@@ -2,9 +2,8 @@ import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { type Transport } from "../../core/client";
 import { createPagedController } from "../../core/pager";
-import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
-import type { DocumentStore } from "../../core/types";
-import type { UpdateUserRequest, UserData } from "./types";
+import type { Document, DocumentStore, Page, PagedData, StoreEvent } from "../../core/types";
+import type { UserData } from "./types";
 
 export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, string, QueryDSL<UserData>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pagerOptions: any = {};

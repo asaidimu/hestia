@@ -147,3 +147,4 @@ schemas.lock.json.bak
 auth-test
 runtime.test
 cmd/test-server/test-server
+x.json

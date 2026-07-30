@@ -8,6 +8,6 @@
     "name_rules": [
       { "pattern": "^_(.+)_$", "prefix": "System" }
     ],
-    "scoped": true
+    "scoped": false
   }
 }

@@ -20,14 +20,14 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/runtime/notification"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"github.com/asaidimu/hestia/core/runtime/notification"
 )
 
 type testMessage struct {
@@ -36,19 +36,19 @@ type testMessage struct {
 	input *data.Document
 }
 
-func (m testMessage) ID() string                              { return "" }
-func (m testMessage) Name() string                            { return m.name }
-func (m testMessage) Context() context.Context                 { return m.ctx }
-func (m testMessage) Input() *data.Document                    { return m.input }
-func (m testMessage) InputChannel() <-chan *data.Document      { return nil }
-func (m testMessage) BlobInputChannel() <-chan abstract.Blob   { return nil }
-func (m testMessage) TenantID() string   { return "" }
-func (m testMessage) TraceID() string    { return "" }
-func (m testMessage) RequestID() string  { return "" }
-func (m testMessage) SourceIP() string   { return "" }
-func (m testMessage) UserAgent() string  { return "" }
-func (m testMessage) ResourceID() string { return "" }
-func (m testMessage) SessionID() string  { return "" }
+func (m testMessage) ID() string                             { return "" }
+func (m testMessage) Name() string                           { return m.name }
+func (m testMessage) Context() context.Context               { return m.ctx }
+func (m testMessage) Input() *data.Document                  { return m.input }
+func (m testMessage) InputChannel() <-chan *data.Document    { return nil }
+func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
+func (m testMessage) TenantID() string                       { return "" }
+func (m testMessage) TraceID() string                        { return "" }
+func (m testMessage) RequestID() string                      { return "" }
+func (m testMessage) SourceIP() string                       { return "" }
+func (m testMessage) UserAgent() string                      { return "" }
+func (m testMessage) ResourceID() string                     { return "" }
+func (m testMessage) SessionID() string                      { return "" }
 
 func TestRegisterHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
@@ -464,7 +464,7 @@ type mailHogMsg struct {
 }
 
 type mailHogResp struct {
-	Total int           `json:"total"`
+	Total int          `json:"total"`
 	Items []mailHogMsg `json:"items"`
 }
 

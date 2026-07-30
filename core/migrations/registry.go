@@ -59,6 +59,7 @@ var Plain = []Migration{
 	{UUID: "019fad8b-d158-7058-938d-80ad5dd0f3b7", Collection: "_user_", From: "5.2.0", To: "6.0.0", File: "019fad8b-d158-7058-938d-80ad5dd0f3b7__user__major.go", Plan: _user__5_2_0_to_6_0_0},
 	{UUID: "019fadae-0337-74e5-815c-003d2da91770", Collection: "_user_", From: "6.0.0", To: "7.0.0", File: "019fadae-0337-74e5-815c-003d2da91770__user__major.go", Plan: _user__6_0_0_to_7_0_0},
 	{UUID: "019fb1c5-82ad-7077-8e6f-9bc079961250", Collection: "_user_", From: "7.0.0", To: "8.0.0", File: "019fb1c5-82ad-7077-8e6f-9bc079961250__user__major.go", Plan: _user__7_0_0_to_8_0_0},
+	{UUID: "019fb34b-d90a-7c7f-b5de-7ff23d370997", Collection: "_user_", From: "8.0.0", To: "9.0.0", File: "019fb34b-d90a-7c7f-b5de-7ff23d370997__user__major.go", Plan: _user__8_0_0_to_9_0_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.

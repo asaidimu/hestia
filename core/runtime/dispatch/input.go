@@ -38,14 +38,19 @@ var InputMetaSchemaJSON = []byte(`{
 					"description": "Allowed field names",
 					"required": true,
 					"type": "enum",
-					"schema": { "type": "string", "values": ["arguments", "modifiers", "payload"] }
+					"schema": { "type": "string", "values": ["arguments", "modifiers", "payload", "_id_", "_metadata_"] }
 				},
 				"type": {
 					"name": "type",
 					"description": "Allowed field types",
 					"required": true,
 					"type": "enum",
-					"schema": { "type": "string", "values": ["object", "record"] }
+					"schema": { "type": "string", "values": ["object", "record", "string"] }
+				},
+				"required": {
+					"name": "required",
+					"description": "required flag",
+					"type": "boolean"
 				},
 				"description": {
 					"name": "description",
@@ -68,6 +73,16 @@ func MustFromJSON(data []byte) *definition.Schema {
 		panic(err)
 	}
 	return s
+}
+
+// SchemaFromType generates a meta-schema from any Go struct type using anansi
+// struct tags, then parses it into a *definition.Schema. Panics on error.
+func SchemaFromType[T any]() *definition.Schema {
+	b, err := data.SchemaFrom[T]()
+	if err != nil {
+		panic(err)
+	}
+	return MustFromJSON(b)
 }
 
 var inputMetaSchema = MustFromJSON(InputMetaSchemaJSON)

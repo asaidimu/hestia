@@ -16,10 +16,11 @@ import (
 
 func NewGetUserHandler(users *UserModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		userID, _ := doc.GetOr("arguments.user_id", "").(string)
-
-		d, err := users.GetByID(ctx, userID)
+		var input UserGetInput
+		if err := msg.Input().BindTo(&input); err != nil {
+			return nil, err
+		}
+		d, err := users.GetByID(ctx, input.UserID)
 		if err != nil {
 			return nil, err
 		}
@@ -29,64 +30,42 @@ func NewGetUserHandler(users *UserModel) abstract.MessageHandler {
 
 func NewUpdateUserHandler(users *UserModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		userID, _ := doc.GetOr("arguments.user_id", "").(string)
-		body, _ := doc.GetOr("payload", nil).(map[string]any)
+		var input UserUpdateInput
+		if err := msg.Input().BindTo(&input); err != nil {
+			return nil, err
+		}
 
-		fields := map[string]any{}
-		if v, exists := body["name"]; exists {
-			fields["name"], _ = v.(string)
+		patch, err := input.Payload.Patch()
+		if err != nil {
+			return nil, err
 		}
-		if v, exists := body["email"]; exists {
-			fields["email"], _ = v.(string)
-		}
-		if v, exists := body["permissions"]; exists {
-			switch arr := v.(type) {
-			case []string:
-				fields["permissions"] = arr
-			case []any:
-				perms := make([]string, 0, len(arr))
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						perms = append(perms, s)
-					}
-				}
-				fields["permissions"] = perms
-			}
-		}
-		if v, exists := body["verified"]; exists {
-			fields["verified"], _ = v.(bool)
-		}
-		if v, exists := body["data"]; exists {
-			fields["data"], _ = v.(map[string]any)
-		}
+		fields := patch.ToMap()
+
 		disabledChanged := false
-		if v, exists := body["disabled"]; exists {
-			switch val := v.(type) {
-			case float64:
-				if val != 0 {
-					fields["disabled"] = time.Now().Unix()
-				} else {
-					fields["disabled"] = int64(0)
-				}
-				disabledChanged = true
+		if disabledRaw, err := msg.Input().Get("payload.disabled"); err == nil {
+			disabledFloat, _ := disabledRaw.(float64)
+			if disabledFloat != 0 {
+				fields["disabled"] = time.Now().Unix()
+			} else {
+				fields["disabled"] = int64(0)
 			}
+			disabledChanged = true
 		}
+
 		if len(fields) == 0 {
 			return nil, fmt.Errorf("no fields to update")
 		}
 
-		if err := users.Update(ctx, userID, fields); err != nil {
+		if err := users.Update(ctx, input.UserID, fields); err != nil {
 			return nil, err
 		}
-
 		if disabledChanged {
-			if err := users.IncrementTokenVersion(ctx, userID); err != nil {
+			if err := users.IncrementTokenVersion(ctx, input.UserID); err != nil {
 				return nil, err
 			}
 		}
 
-		d, err := users.GetByID(ctx, userID)
+		d, err := users.GetByID(ctx, input.UserID)
 		if err != nil {
 			return nil, err
 		}
@@ -96,19 +75,18 @@ func NewUpdateUserHandler(users *UserModel) abstract.MessageHandler {
 
 func NewChangePasswordHandler(users *UserModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		userID, _ := doc.GetOr("arguments.user_id", "").(string)
-		body, _ := doc.GetOr("payload", nil).(map[string]any)
-		currentPassword, _ := body["current"].(string)
-		newPassword, _ := body["new"].(string)
+		var input UserChangePasswordInput
+		if err := msg.Input().BindTo(&input); err != nil {
+			return nil, err
+		}
 
-		d, err := users.GetByID(ctx, userID)
+		d, err := users.GetByID(ctx, input.UserID)
 		if err != nil {
 			return nil, runtime.ErrNotFound.WithOperation("change_password")
 		}
 
 		disabled, _ := d.GetInt("disabled")
-		if disabled != 0 {
+		if disabled >= 0 {
 			return nil, runtime.ErrUserDisabled.WithOperation("change_password")
 		}
 
@@ -117,11 +95,11 @@ func NewChangePasswordHandler(users *UserModel) abstract.MessageHandler {
 			return nil, fmt.Errorf("invalid user data")
 		}
 
-		if !runtime.CheckPassword(currentPassword, storedPassword) {
+		if !runtime.CheckPassword(input.Current, storedPassword) {
 			return nil, runtime.ErrInvalidCredentials.WithOperation("change_password")
 		}
 
-		if err := users.ChangePassword(ctx, userID, newPassword); err != nil {
+		if err := users.ChangePassword(ctx, input.UserID, input.New); err != nil {
 			return nil, err
 		}
 		return &abstract.Result{}, nil
@@ -130,10 +108,11 @@ func NewChangePasswordHandler(users *UserModel) abstract.MessageHandler {
 
 func NewDeleteUserHandler(users *UserModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		userID, _ := doc.GetOr("arguments.user_id", "").(string)
-
-		if err := users.Delete(ctx, userID); err != nil {
+		var input UserDeleteInput
+		if err := msg.Input().BindTo(&input); err != nil {
+			return nil, err
+		}
+		if err := users.Delete(ctx, input.UserID); err != nil {
 			return nil, err
 		}
 		return &abstract.Result{}, nil

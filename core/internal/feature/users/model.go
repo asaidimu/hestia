@@ -73,16 +73,13 @@ func (m *UserModel) Register(ctx context.Context, email, password, name, tenantI
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	if len(permissions) == 0 {
-		permissions = []string{"read:*"}
-	}
-
 	doc := data.MustNewDocument(map[string]any{
 		"email":         email,
 		"password":      hashed,
 		"name":          name,
 		"verified":      false,
 		"permissions":   permissions,
+		"disabled":      -1,
 		"token_version": 0,
 	})
 
@@ -106,7 +103,7 @@ func (m *UserModel) GetByEmail(ctx context.Context, email string) (*data.Documen
 		return nil, fmt.Errorf("access user collection: %w", err)
 	}
 
-	q := query.NewQueryBuilder().Where("email").Eq(email).Build()
+	q := query.NewQueryBuilder().Where("email").Eq(email).Where("disabled").Eq(-1).Build()
 	result, err := col.Read(ctx, &q)
 	if err != nil {
 		return nil, fmt.Errorf("query user by email: %w", err)
@@ -115,10 +112,6 @@ func (m *UserModel) GetByEmail(ctx context.Context, email string) (*data.Documen
 		return nil, fmt.Errorf("user not found")
 	}
 	doc := result.Data[0]
-	disabled, _ := doc.GetInt("disabled")
-	if disabled != 0 {
-		return nil, fmt.Errorf("user not found")
-	}
 
 	id := doc.ID()
 	if m.docCache != nil {
@@ -215,6 +208,7 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 
 	q := query.NewQueryBuilder().
 		Where(data.DocumentIDField).Eq(id).
+		Where("disabled").Eq(-1).
 		Build()
 
 	result, err := col.Read(ctx, &q)
@@ -225,10 +219,6 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 		return nil, fmt.Errorf("user not found")
 	}
 	doc := result.Data[0]
-	disabled, _ := doc.GetInt("disabled")
-	if disabled != 0 {
-		return nil, fmt.Errorf("user not found")
-	}
 	return doc, nil
 }
 
