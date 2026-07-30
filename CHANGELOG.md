@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/asaidimu/hestia/compare/v1.4.0...v1.4.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* start refactor of core system for more robust code ([45d8478](https://github.com/asaidimu/hestia/commit/45d8478c7c67fddde292ad25f46be9a69a75674a))
+
 # [1.4.0](https://github.com/asaidimu/hestia/compare/v1.3.0...v1.4.0) (2026-07-28)
 
 
