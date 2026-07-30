@@ -1,21 +1,21 @@
 # Policies API
 
-## operation
+## binding
 
 ### Get policy operation
 
-**`GET`** `/system/policies/operation/{name}`
+**`GET`** `/system/policies/binding/{name}`
 
 Get policy operation
 
-- **Handler:** `system:policies:operation:get`
+- **Handler:** `system:policies:binding:get`
 
 #### Request Body
 
 ```json
 {
   "version": "1.0.0",
-  "name": "policy_operation_get_input",
+  "name": "policy_binding_get_input",
   "description": "Policy operation name from path",
   "fields": {
     "arguments": {
@@ -46,7 +46,7 @@ Get policy operation
 ```json
 {
   "version": "1.0.0",
-  "name": "policy_operation_output",
+  "name": "policy_binding_output",
   "description": "Policy operation with intents and rule references",
   "fields": {
     "document": {
@@ -54,13 +54,13 @@ Get policy operation
       "description": "Policy operation document",
       "type": "object",
       "schema": {
-        "id": "policy_operation"
+        "id": "policy_binding"
       }
     }
   },
   "schemas": {
-    "policy_operation": {
-      "name": "PolicyOperation",
+    "policy_binding": {
+      "name": "PolicyBinding",
       "fields": {
         "description": {
           "name": "description",
@@ -69,7 +69,7 @@ Get policy operation
         },
         "intent_type": {
           "name": "intent_type",
-          "description": "Intent type for this operation",
+          "description": "Intent type for this binding",
           "type": "string"
         },
         "name": {
@@ -92,7 +92,7 @@ Get policy operation
 
 ### Create or update policy operation
 
-**`PATCH`** `/system/policies/operation/{name}`
+**`PATCH`** `/system/policies/binding/{name}`
 
 Create or update policy operation
 
@@ -103,7 +103,7 @@ Create or update policy operation
 ```json
 {
   "version": "1.0.0",
-  "name": "policy_operation_upsert_input",
+  "name": "policy_binding_upsert_input",
   "description": "Create or update a policy operation",
   "fields": {
     "arguments": {
@@ -132,7 +132,7 @@ Create or update policy operation
         },
         "intentType": {
           "name": "intentType",
-          "description": "Intent type for this operation",
+          "description": "Intent type for this binding",
           "type": "string"
         },
         "ruleKey": {
@@ -161,7 +161,7 @@ Create or update policy operation
 ```json
 {
   "version": "1.0.0",
-  "name": "policy_operation_output",
+  "name": "policy_binding_output",
   "description": "Policy operation with intents and rule references",
   "fields": {
     "document": {
@@ -169,13 +169,13 @@ Create or update policy operation
       "description": "Policy operation document",
       "type": "object",
       "schema": {
-        "id": "policy_operation"
+        "id": "policy_binding"
       }
     }
   },
   "schemas": {
-    "policy_operation": {
-      "name": "PolicyOperation",
+    "policy_binding": {
+      "name": "PolicyBinding",
       "fields": {
         "description": {
           "name": "description",
@@ -184,7 +184,7 @@ Create or update policy operation
         },
         "intent_type": {
           "name": "intent_type",
-          "description": "Intent type for this operation",
+          "description": "Intent type for this binding",
           "type": "string"
         },
         "name": {
@@ -207,7 +207,7 @@ Create or update policy operation
 
 ### Delete policy operation
 
-**`DELETE`** `/system/policies/operation/{name}`
+**`DELETE`** `/system/policies/binding/{name}`
 
 Delete policy operation
 
@@ -218,7 +218,7 @@ Delete policy operation
 ```json
 {
   "version": "1.0.0",
-  "name": "policy_operation_delete_input",
+  "name": "policy_binding_delete_input",
   "description": "Policy operation name from path",
   "fields": {
     "arguments": {

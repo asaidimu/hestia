@@ -46,6 +46,10 @@ export * from "./collections/types"
 export * from "./system/notifications/store"
 export * from "./system/notifications/types"
 
+// System: schedules
+export * from "./system/schedules/store"
+export * from "./system/schedules/types"
+
 // System: settings
 export * from "./system/settings/store"
 export * from "./system/settings/types"

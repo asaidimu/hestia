@@ -17,6 +17,7 @@ import { HestiaRules } from "./system/rules/store";
 import { HestiaBlobClient } from "./blobs/store";
 import { HestiaCapabilities } from "./system/capabilities/store";
 import { HestiaNotificationStore } from "./system/notifications/store";
+import { HestiaScheduleStore } from "./system/schedules/store";
 import { HestiaSettingStore } from "./system/settings/store";
 
 export interface HestiaConfig {
@@ -43,6 +44,7 @@ export class HestiaClient {
   readonly blobs: HestiaBlobClient;
   readonly capabilities: HestiaCapabilities
   readonly notifications: HestiaNotificationStore;
+  readonly schedules: HestiaScheduleStore;
   readonly settings: HestiaSettingStore;
   private tokenProvider: IdentityProvider;
 
@@ -96,6 +98,7 @@ export class HestiaClient {
     this.blobs = new HestiaBlobClient(this.client, apiPrefix);
     this.capabilities = new HestiaCapabilities(this.client)
     this.notifications = new HestiaNotificationStore(this.client)
+    this.schedules = new HestiaScheduleStore(this.client)
     this.settings = new HestiaSettingStore(this.client)
   }
 

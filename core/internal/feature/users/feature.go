@@ -4,9 +4,9 @@ import (
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
+	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/abstract"
 )
 
 type Dependencies struct {
@@ -22,6 +22,6 @@ func Registrations(deps Dependencies) []abstract.MessageRegistration {
 		}, Output: userOutputSchema()},
 		{Name: "system:users:user:update", Handler: NewUpdateUserHandler(deps.UserModel), Description: "Update user", Enabled: true, Intent: abstract.Update, Input: runtime.Input{Schema: userUpdateInputSchema(), Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}}, ResourceIDField: "user_id", Payload: definition.FieldTypeObject}, Output: userOutputSchema()},
 		{Name: "system:users:password:change", Handler: NewChangePasswordHandler(deps.UserModel), Description: "Change user password", Enabled: true, Intent: abstract.Update, Input: runtime.Input{Schema: userChangePasswordInputSchema(), Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}}, ResourceIDField: "user_id", Payload: definition.FieldTypeObject}, Output: messageOutputSchema()},
-		{Name: "system:users:user:delete", Handler: NewDeleteUserHandler(deps.UserModel), Description: "Delete user", Enabled: true, Intent: abstract.Delete, Input: runtime.Input{Schema: userDeleteInputSchema(), Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}}, ResourceIDField: "user_id", Modifiers: map[string]definition.FieldType{"permanent": definition.FieldTypeString}}},
+		{Name: "system:users:user:delete", Handler: NewDeleteUserHandler(deps.UserModel), Description: "Delete user", Enabled: true, Intent: abstract.Delete, Input: runtime.Input{Schema: userDeleteInputSchema(), Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}}, ResourceIDField: "user_id"}},
 	}
 }

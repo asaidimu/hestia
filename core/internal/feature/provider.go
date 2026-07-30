@@ -49,6 +49,7 @@ type ProviderSet struct {
 	BlobSvc      *blobutil.Service
 	Notifier     abstract.Notifier
 	Scheduler    *scheduler.Scheduler
+	LiveSchedule *schedules.LiveSchedule
 	AppURL       string
 	CredProv     abstract.CredentialsProvider
 	PolicyBridge *policies.PolicyStoreAdapter
@@ -100,61 +101,18 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 		return nil
 	})
 
-	ps.Notifier = notification.New()
-	ps.Notifier.RegisterChannel(notification.NewInAppChannel(ps.Persist))
+	resolver := notification.NewSettingsResolver(ps.Persist)
+
+	ps.Notifier = notification.New(resolver)
+	ps.Notifier.RegisterChannel(notification.NewInAppChannel(ps.Persist, resolver))
 	if cfg := ps.Config.Mailer; cfg.SMTPHost != "" {
 		m, err := runtime.NewMailer(cfg)
 		if err != nil {
 			return fmt.Errorf("init mailer: %w", err)
 		}
-		ps.Notifier.RegisterChannel(notification.NewEmailChannel(m))
+		ps.Notifier.RegisterChannel(notification.NewEmailChannel(m, resolver))
 	}
 	ps.AppURL = ps.Config.AppURL
-
-	ps.Scheduler.Register("schedules:dispatch", "@every 30s", func(ctx context.Context) error {
-		due, err := ps.Schedules.FindDue(ctx)
-		if err != nil {
-			ps.Logger.Warn("schedules: find due failed", zap.Error(err))
-			return nil
-		}
-		for _, doc := range due {
-			id, _ := doc.GetString("_id")
-			userID, _ := doc.GetString("user_id")
-			template, _ := doc.GetString("type")
-			tenantID, _ := doc.GetString("tenant_id")
-
-			dataMap := make(map[string]any)
-			if raw, err := doc.Get("data"); err == nil && raw != nil {
-				if m, ok := raw.(map[string]any); ok {
-					dataMap = m
-				}
-			}
-
-			var channels []abstract.ChannelType
-			channelStr, _ := doc.GetString("channel")
-			switch channelStr {
-			case "email":
-				channels = []abstract.ChannelType{abstract.ChannelEmail}
-			case "in_app":
-				channels = []abstract.ChannelType{abstract.ChannelInApp}
-			default:
-				channels = []abstract.ChannelType{abstract.ChannelEmail, abstract.ChannelInApp}
-			}
-
-			err := ps.Notifier.Send(ctx, abstract.Notification{
-				TenantID: tenantID,
-				Recipient: abstract.Recipient{UserID: userID},
-				Template: template,
-				Data:     dataMap,
-				Channels: channels,
-			})
-
-			if markErr := ps.Schedules.MarkSent(ctx, id, err); markErr != nil {
-				ps.Logger.Warn("schedules: mark sent failed", zap.String("id", id), zap.Error(markErr))
-			}
-		}
-		return nil
-	})
 
 	return nil
 }
@@ -181,6 +139,7 @@ func (ps *ProviderSet) CollectRegistrations(
 		UserModel:           ps.Users,
 		CredentialsProvider: ps.CredProv,
 		APIKeyAuth:          apiKeyAuth,
+		APIKeyModel:         ps.APIKeys,
 		AdminUserID:         adminUserID,
 		SessionTTL:          ps.Config.SessionTTL,
 		Notifier:            ps.Notifier,
@@ -218,6 +177,7 @@ func (ps *ProviderSet) CollectRegistrations(
 
 	all = append(all, schedules.Registrations(schedules.Dependencies{
 		ScheduleModel: ps.Schedules,
+		LiveSchedule:  ps.LiveSchedule,
 	})...)
 
 	all = append(all, settings.Registrations(settings.Dependencies{
@@ -238,3 +198,5 @@ func (ps *ProviderSet) CollectRegistrations(
 	allRegs = all
 	return all
 }
+
+

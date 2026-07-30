@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 func NewGetUserHandler(users *UserModel) abstract.MessageHandler {
@@ -59,12 +60,30 @@ func NewUpdateUserHandler(users *UserModel) abstract.MessageHandler {
 		if v, exists := body["data"]; exists {
 			fields["data"], _ = v.(map[string]any)
 		}
+		disabledChanged := false
+		if v, exists := body["disabled"]; exists {
+			switch val := v.(type) {
+			case float64:
+				if val != 0 {
+					fields["disabled"] = time.Now().Unix()
+				} else {
+					fields["disabled"] = int64(0)
+				}
+				disabledChanged = true
+			}
+		}
 		if len(fields) == 0 {
 			return nil, fmt.Errorf("no fields to update")
 		}
 
 		if err := users.Update(ctx, userID, fields); err != nil {
 			return nil, err
+		}
+
+		if disabledChanged {
+			if err := users.IncrementTokenVersion(ctx, userID); err != nil {
+				return nil, err
+			}
 		}
 
 		d, err := users.GetByID(ctx, userID)
@@ -88,8 +107,9 @@ func NewChangePasswordHandler(users *UserModel) abstract.MessageHandler {
 			return nil, runtime.ErrNotFound.WithOperation("change_password")
 		}
 
-		if users.IsDeleted(d) {
-			return nil, runtime.ErrUserDeleted.WithOperation("change_password")
+		disabled, _ := d.GetInt("disabled")
+		if disabled != 0 {
+			return nil, runtime.ErrUserDisabled.WithOperation("change_password")
 		}
 
 		storedPassword, err := d.GetString("password")
@@ -112,16 +132,9 @@ func NewDeleteUserHandler(users *UserModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		userID, _ := doc.GetOr("arguments.user_id", "").(string)
-		permanent, _ := doc.GetOr("modifiers.permanent", false).(bool)
 
-		if permanent {
-			if err := users.HardDelete(ctx, userID); err != nil {
-				return nil, err
-			}
-		} else {
-			if err := users.SoftDelete(ctx, userID); err != nil {
-				return nil, err
-			}
+		if err := users.Delete(ctx, userID); err != nil {
+			return nil, err
 		}
 		return &abstract.Result{}, nil
 	}
@@ -178,11 +191,11 @@ func NewUserUpdateDocumentHandler(users *UserModel) abstract.MessageHandler {
 		}
 
 		var req struct {
-			Name        *string         `json:"name,omitempty"`
-			Email       *string         `json:"email,omitempty"`
-			Permissions []string        `json:"permissions,omitempty"`
-			Verified    *bool           `json:"verified,omitempty"`
-			Data        map[string]any  `json:"data,omitempty"`
+			Name        *string        `json:"name,omitempty"`
+			Email       *string        `json:"email,omitempty"`
+			Permissions []string       `json:"permissions,omitempty"`
+			Verified    *bool          `json:"verified,omitempty"`
+			Data        map[string]any `json:"data,omitempty"`
 		}
 		b, _ := json.Marshal(body)
 		if err := json.Unmarshal(b, &req); err != nil {

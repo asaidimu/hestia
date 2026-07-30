@@ -150,11 +150,8 @@ func TestDeleteUserHandler(t *testing.T) {
 		t.Fatalf("DeleteUserHandler: %v", err)
 	}
 
-	doc, err = model.GetByID(ctx, userID)
-	if err != nil {
-		t.Fatalf("GetByID after soft delete: %v", err)
-	}
-	if !model.IsDeleted(doc) {
-		t.Error("expected user to be marked as deleted")
+	_, err = model.GetByID(ctx, userID)
+	if err == nil {
+		t.Error("expected GetByID to return error after delete")
 	}
 }

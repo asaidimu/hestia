@@ -5,6 +5,7 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
+	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
@@ -14,6 +15,7 @@ type Dependencies struct {
 	UserModel           *users.UserModel
 	CredentialsProvider abstract.CredentialsProvider
 	APIKeyAuth          *APIKeyAuthenticator
+	APIKeyModel         *apikeys.APIKeyModel
 	AdminUserID         string
 	SessionTTL          time.Duration
 	Notifier            abstract.Notifier
@@ -30,5 +32,6 @@ func Registrations(deps Dependencies) []abstract.MessageRegistration {
 		{Name: "system:auth:session:validate", Handler: NewValidateSessionHandler(deps.CredentialsProvider), Description: "Validate a session token", Enabled: true, Internal: true, Intent: abstract.Read, Output: claimsOutputSchema()},
 		{Name: "system:auth:apikey:validate", Handler: NewValidateAPIKeyHandler(deps.APIKeyAuth), Description: "Validate an API key", Enabled: true, Internal: true, Intent: abstract.Read, Output: claimsOutputSchema()},
 		{Name: "system:auth:bootstrap:password:set", Handler: NewSetBootstrapPasswordHandler(deps.UserModel, deps.AdminUserID), Description: "Set bootstrap admin password", Enabled: true, Intent: abstract.Update, BootstrapSafe: true, Input: runtime.Input{Schema: bootstrapPasswordInputSchema(), Payload: definition.FieldTypeObject}, Output: messageOutputSchema()},
+		{Name: "system:auth:token:elevate", Handler: NewElevateTokenHandler(deps.UserModel, deps.APIKeyModel), Description: "Issue an ephemeral API key for privilege elevation", Enabled: true, Intent: abstract.Create, Input: runtime.Input{Schema: elevateInputSchema(), Payload: definition.FieldTypeObject}, Output: elevateOutputSchema()},
 	}
 }

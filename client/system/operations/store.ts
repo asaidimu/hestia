@@ -1,15 +1,15 @@
 import { type Transport } from "../../core/client"
 import type { Document, Page } from "../../core/types"
-import type { Operation } from "./types"
+import type { Binding } from "./types"
 
 export class HestiaOperations {
   constructor(private client: Transport) {}
 
-  async list(): Promise<Page<Operation>> {
-    const res = await this.client.dispatch<{ data: { operations: Operation[] } }>(
-      "system:policies:operation:list",
+  async list(): Promise<Page<Binding>> {
+    const res = await this.client.dispatch<{ data: { bindings: Binding[] } }>(
+      "system:policies:binding:list",
     )
-    const items = res.data?.data?.operations ?? []
+    const items = res.data?.data?.bindings ?? []
     return {
       data: items.map(o => ({ data: o, metadata: {} })),
       loading: false,
@@ -18,10 +18,10 @@ export class HestiaOperations {
     }
   }
 
-  async read(name: string): Promise<Document<Operation> | undefined> {
+  async read(name: string): Promise<Document<Binding> | undefined> {
     try {
-      const res = await this.client.dispatch<{ data: Operation }>(
-        "system:policies:operation:get",
+      const res = await this.client.dispatch<{ data: Binding }>(
+        "system:policies:binding:get",
         { arguments: { name } },
       )
       if (!res.data?.data) return undefined

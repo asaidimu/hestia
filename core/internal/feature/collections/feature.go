@@ -13,7 +13,7 @@ type Dependencies struct {
 	Persist      persistence.Persistence
 	Registry     abstract.Registry
 	Logger       *zap.Logger
-	PolicyBridge OperationPolicyStore
+	PolicyBridge abstract.BindingPolicyStore
 }
 
 func Registrations(deps Dependencies) []abstract.MessageRegistration {

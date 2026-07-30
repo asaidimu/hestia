@@ -22,7 +22,7 @@ func _scheduled_messages__0_0_0_to_1_0_0() *base.MigrationPlan {
 	}
 	
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
-		panic("migrations: _scheduled_messages__0_0_0_to_1_0_0: implement transformer or remove this line")
+		return doc, nil
 	}
 	return m
 }

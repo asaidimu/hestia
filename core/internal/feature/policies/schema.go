@@ -6,8 +6,7 @@ import (
 )
 
 var (
-	_policyNameInput              = dispatch.MustFromJSON(policyNameInputJSON)
-	_policyOperationGetInput      = dispatch.MustFromJSON(policyOperationGetInputJSON)
+	_policyBindingGetInput       = dispatch.MustFromJSON(policyBindingGetInputJSON)
 	_policyRuleGetInput           = dispatch.MustFromJSON(policyRuleGetInputJSON)
 	_policyRuleDeleteInput        = dispatch.MustFromJSON(policyRuleDeleteInputJSON)
 	_policyRuleCreateInput        = dispatch.MustFromJSON(policyRuleCreateInputJSON)
@@ -17,16 +16,15 @@ var (
 	_policyValidateInput          = dispatch.MustFromJSON(policyValidateInputJSON)
 	_policyValidateOutput         = dispatch.MustFromJSON(policyValidateOutputJSON)
 	_policyReloadOutput           = dispatch.MustFromJSON(policyReloadOutputJSON)
-	_policyOperationOutput        = dispatch.MustFromJSON(policyOperationOutputJSON)
+	_policyBindingOutput         = dispatch.MustFromJSON(policyBindingOutputJSON)
 	_policyRuleOutput             = dispatch.MustFromJSON(policyRuleOutputJSON)
 	_policyOutput                 = dispatch.MustFromJSON(policyOutputJSON)
-	_policyListOperationsOutput   = dispatch.MustFromJSON(policyListOperationsOutputJSON)
+	_policyListBindingsOutput    = dispatch.MustFromJSON(policyListBindingsOutputJSON)
 	_policyListRulesOutput        = dispatch.MustFromJSON(policyListRulesOutputJSON)
 	_policyListPoliciesOutput     = dispatch.MustFromJSON(policyListPoliciesOutputJSON)
 )
 
-func policyNameInputSchema() *definition.Schema               { return _policyNameInput }
-func policyOperationGetInputSchema() *definition.Schema       { return _policyOperationGetInput }
+func policyBindingGetInputSchema() *definition.Schema        { return _policyBindingGetInput }
 func policyRuleGetInputSchema() *definition.Schema            { return _policyRuleGetInput }
 func policyRuleDeleteInputSchema() *definition.Schema         { return _policyRuleDeleteInput }
 func policyRuleCreateInputSchema() *definition.Schema         { return _policyRuleCreateInput }
@@ -36,35 +34,15 @@ func policyUpdateInputSchema() *definition.Schema                { return _polic
 func policyValidateInputSchema() *definition.Schema           { return _policyValidateInput }
 func policyValidateOutputSchema() *definition.Schema          { return _policyValidateOutput }
 func policyReloadOutputSchema() *definition.Schema            { return _policyReloadOutput }
-func policyOperationOutputSchema() *definition.Schema         { return _policyOperationOutput }
+func policyBindingOutputSchema() *definition.Schema          { return _policyBindingOutput }
 func policyRuleOutputSchema() *definition.Schema              { return _policyRuleOutput }
 func policyOutputSchema() *definition.Schema                  { return _policyOutput }
-func policyListOperationsOutputSchema() *definition.Schema    { return _policyListOperationsOutput }
+func policyListBindingsOutputSchema() *definition.Schema     { return _policyListBindingsOutput }
 func policyListRulesOutputSchema() *definition.Schema         { return _policyListRulesOutput }
 func policyListPoliciesOutputSchema() *definition.Schema      { return _policyListPoliciesOutput }
 
-var policyNameInputJSON = []byte(`{
-	"name": "policy_name_input",
-	"version": "1.0.0",
-	"fields": {
-		"arguments": {
-			"name": "arguments",
-			"type": "object",
-			"schema": { "id": "policy_name_arguments" }
-		}
-	},
-	"schemas": {
-		"policy_name_arguments": {
-			"name": "PolicyNameArguments",
-			"fields": {
-				"name": { "name": "name", "type": "string" }
-			}
-		}
-	}
-}`)
-
-var policyOperationGetInputJSON = []byte(`{
-	"name": "policy_operation_get_input",
+var policyBindingGetInputJSON = []byte(`{
+	"name": "policy_binding_get_input",
 	"version": "1.0.0",
 	"fields": {
 		"arguments": {
@@ -219,7 +197,34 @@ var policyCreateInputJSON = []byte(`{
 		"policy_create_payload": {
 			"name": "PolicyCreatePayload",
 			"fields": {
-				"ruleName": { "name": "ruleName", "type": "string" }
+				"ruleName": { "name": "ruleName", "type": "string" },
+				"rateLimit": { "name": "rateLimit", "type": "object", "schema": { "id": "rate_limit_config" } },
+				"throttle": { "name": "throttle", "type": "object", "schema": { "id": "throttle_config" } }
+			}
+		},
+		"rate_limit_config": {
+			"name": "RateLimitConfig",
+			"fields": {
+				"enabled": { "name": "enabled", "type": "boolean" },
+				"identity": { "name": "identity", "type": "string" },
+				"capacity": { "name": "capacity", "type": "integer" },
+				"refill": { "name": "refill", "type": "integer" },
+				"period": { "name": "period", "type": "integer" }
+			}
+		},
+		"throttle_config": {
+			"name": "ThrottleConfig",
+			"fields": {
+				"limit": { "name": "limit", "type": "integer" },
+				"window": { "name": "window", "type": "integer" },
+				"action": { "name": "action", "type": "object", "schema": { "id": "throttle_action" } }
+			}
+		},
+		"throttle_action": {
+			"name": "ThrottleAction",
+			"fields": {
+				"message": { "name": "message", "type": "string" },
+				"input": { "name": "input", "type": "record" }
 			}
 		}
 	}
@@ -251,7 +256,9 @@ var policyUpdateInputJSON = []byte(`{
 			"name": "PolicyUpdatePayload",
 			"fields": {
 				"ruleName": { "name": "ruleName", "type": "string" },
-				"enabled": { "name": "enabled", "type": "boolean" }
+				"enabled": { "name": "enabled", "type": "boolean" },
+				"rateLimit": { "name": "rateLimit", "type": "object", "schema": { "id": "rate_limit_config" } },
+				"throttle": { "name": "throttle", "type": "object", "schema": { "id": "throttle_config" } }
 			}
 		}
 	}
@@ -339,23 +346,22 @@ var policyReloadOutputJSON = []byte(`{
 	}
 }`)
 
-var policyOperationOutputJSON = []byte(`{
-	"name": "policy_operation_output",
+var policyBindingOutputJSON = []byte(`{
+	"name": "policy_binding_output",
 	"version": "1.0.0",
 	"fields": {
 		"document": {
 			"name": "document",
 			"type": "object",
-			"schema": { "id": "operation_info" }
+			"schema": { "id": "binding_info" }
 		}
 	},
 	"schemas": {
-		"operation_info": {
-			"name": "Operation",
+		"binding_info": {
+			"name": "Binding",
 			"fields": {
 				"name": { "name": "name", "type": "string" },
-				"description": { "name": "description", "type": "string" },
-				"intentType": { "name": "intentType", "type": "string" }
+				"description": { "name": "description", "type": "string" }
 			}
 		}
 	}
@@ -416,39 +422,40 @@ var policyOutputJSON = []byte(`{
 				"operationName": { "name": "operationName", "type": "string" },
 				"ruleName": { "name": "ruleName", "type": "string" },
 				"enabled": { "name": "enabled", "type": "boolean" },
-				"protected": { "name": "protected", "type": "boolean" }
+				"protected": { "name": "protected", "type": "boolean" },
+				"rateLimit": { "name": "rateLimit", "type": "object", "schema": { "id": "rate_limit_config" } },
+				"throttle": { "name": "throttle", "type": "object", "schema": { "id": "throttle_config" } }
 			}
 		}
 	}
 }`)
 
-var policyListOperationsOutputJSON = []byte(`{
-	"name": "policy_list_operations_output",
+var policyListBindingsOutputJSON = []byte(`{
+	"name": "policy_list_bindings_output",
 	"version": "1.0.0",
 	"fields": {
 		"document": {
 			"name": "document",
 			"type": "object",
-			"schema": { "id": "operation_list" }
+			"schema": { "id": "binding_list" }
 		}
 	},
 	"schemas": {
-		"operation_list": {
-			"name": "OperationList",
+		"binding_list": {
+			"name": "BindingList",
 			"fields": {
-				"operations": {
-					"name": "operations",
+				"bindings": {
+					"name": "bindings",
 					"type": "array",
-					"schema": { "id": "operation_info" }
+					"schema": { "id": "binding_info" }
 				}
 			}
 		},
-		"operation_info": {
-			"name": "Operation",
+		"binding_info": {
+			"name": "Binding",
 			"fields": {
 				"name": { "name": "name", "type": "string" },
-				"description": { "name": "description", "type": "string" },
-				"intentType": { "name": "intentType", "type": "string" }
+				"description": { "name": "description", "type": "string" }
 			}
 		}
 	}
@@ -529,7 +536,9 @@ var policyListPoliciesOutputJSON = []byte(`{
 				"operationName": { "name": "operationName", "type": "string" },
 				"ruleName": { "name": "ruleName", "type": "string" },
 				"enabled": { "name": "enabled", "type": "boolean" },
-				"protected": { "name": "protected", "type": "boolean" }
+				"protected": { "name": "protected", "type": "boolean" },
+				"rateLimit": { "name": "rateLimit", "type": "object", "schema": { "id": "rate_limit_config" } },
+				"throttle": { "name": "throttle", "type": "object", "schema": { "id": "throttle_config" } }
 			}
 		}
 	}

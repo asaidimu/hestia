@@ -61,14 +61,14 @@ func newTestModel(t *testing.T) *policies.PolicyModel {
 	return policies.NewPolicyModel(opColl, ruleColl, nil)
 }
 
-func TestDefaultOperations(t *testing.T) {
-	ops := policies.DefaultOperations()
-	if len(ops) == 0 {
-		t.Fatal("DefaultOperations returned empty list")
+func TestPolicyBindings(t *testing.T) {
+	bindings := policies.PolicyBindings()
+	if len(bindings) == 0 {
+		t.Fatal("PolicyBindings returned empty list")
 	}
-	for _, op := range ops {
-		if op.Name == "" {
-			t.Error("DefaultOperations contains an operation with empty Name")
+	for _, b := range bindings {
+		if b.Name == "" {
+			t.Error("PolicyBindings contains a binding with empty Name")
 		}
 	}
 }

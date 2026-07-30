@@ -26,6 +26,7 @@ import (
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
+	"github.com/asaidimu/hestia/core/internal/feature/schedules"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
 )
 
@@ -59,6 +60,11 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 
 	if err := m.providers.InitModels(ctx); err != nil {
 		return fmt.Errorf("init models: %w", err)
+	}
+
+	m.providers.LiveSchedule = schedules.NewLiveSchedule(m.providers.Schedules, m.providers.Scheduler, m.disp, m.opts.Logger)
+	if err := m.providers.LiveSchedule.Init(ctx); err != nil {
+		return fmt.Errorf("init live schedule: %w", err)
 	}
 
 	emailCh := m.cfg.Mailer.SMTPHost != ""
@@ -114,7 +120,7 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 		m.bootstrapCallback(), m.resetCallback(),
 		m.disp,
 	)
-	m.providers.Policies.SetKnownOps(collectAllKnownOperations())
+	m.providers.Policies.SetKnownBindings(collectAllPolicyBindings())
 
 	return nil
 }
@@ -146,11 +152,6 @@ func (m *SystemModule) Capabilities() []abstract.Capability {
 }
 
 func (m *SystemModule) seedData(ctx context.Context) error {
-	rootTenantID, err := m.seedTenants(ctx)
-	if err != nil {
-		return fmt.Errorf("seed tenants: %w", err)
-	}
-
 	adminEmail := m.opts.AdminEmail
 	if adminEmail == "" {
 		adminEmail = m.cfg.AdminEmail
@@ -159,19 +160,19 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 	if adminPassword == "" {
 		adminPassword = m.cfg.AdminPassword
 	}
-	adminID, adminEmail, bootstrapped, err := auth.SeedAdmin(ctx, m.providers.Users, m.providers.Seed, m.opts.Logger,
-		auth.SeedAdminOptions{
-			Email:             adminEmail,
-			Password:          adminPassword,
-			ForceBootstrapped: m.opts.ForceBootstrapped,
-			TenantID:          rootTenantID,
-		})
+
+	result, err := SeedAll(ctx, m.providers, SeedOptions{
+		AdminEmail:        adminEmail,
+		AdminPassword:     adminPassword,
+		ForceBootstrapped: m.opts.ForceBootstrapped,
+	})
 	if err != nil {
-		return fmt.Errorf("seed admin: %w", err)
+		return err
 	}
-	m.adminUserID = adminID
-	m.adminEmail = adminEmail
-	m.bootstrapped = bootstrapped
+
+	m.adminUserID = result.AdminUserID
+	m.adminEmail = result.AdminEmail
+	m.bootstrapped = result.Bootstrapped
 
 	if m.ephemeralKey == "" {
 		key := make([]byte, 16)
@@ -180,36 +181,7 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 		}
 	}
 
-	if !m.bootstrapped {
-		if err := policies.SeedPolicies(ctx, m.providers.Policies, allDefaultPolicyBindings); err != nil {
-			return fmt.Errorf("seed policies: %w", err)
-		}
-	}
-
 	return nil
-}
-
-func (m *SystemModule) seedTenants(ctx context.Context) (string, error) {
-	col, err := m.providers.Persist.Collection(ctx, "_tenant_")
-	if err != nil {
-		return "", fmt.Errorf("open tenant collection: %w", err)
-	}
-	allQuery := query.NewQueryBuilder().Build()
-	result, err := col.Read(ctx, &allQuery)
-	if err != nil {
-		return "", fmt.Errorf("list tenants: %w", err)
-	}
-	if result.Count > 0 {
-		return result.Data[0].ID(), nil
-	}
-
-	doc, err := m.providers.Tenants.Create(ctx, "Platform", "", nil)
-	if err != nil {
-		return "", fmt.Errorf("create tenant: %w", err)
-	}
-	tenantID := doc.ID()
-	m.opts.Logger.Info("seeded root tenant", zap.String("tenant_id", tenantID))
-	return tenantID, nil
 }
 
 func (m *SystemModule) initPermissions(ctx context.Context) error {
@@ -277,7 +249,7 @@ func (m *SystemModule) initUserClaimsCache(ctx context.Context) error {
 		return fmt.Errorf("open _user_ collection: %w", err)
 	}
 
-	live, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*users.UserClaims]{
+	claims, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*users.UserClaims]{
 		Collection: userColl,
 		Processor:  &users.UserClaimsDocProcessor{},
 		QueryKey:   "_id_",
@@ -285,22 +257,30 @@ func (m *SystemModule) initUserClaimsCache(ctx context.Context) error {
 		QueryFunc: func(key string) query.Query {
 			if key == "" {
 				return query.NewQueryBuilder().
-					Where("deleted").NotExists().
+					Where("disabled").Neq(0).
 					Build()
 			}
 			return query.NewQueryBuilder().
 				Where(data.DocumentIDField).Eq(key).
-				Where("deleted").NotExists().
+				Where("disabled").Neq(0).
 				Build()
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("create live user claims repository: %w", err)
 	}
-	m.providers.LiveUsers = live
-	if userColl, ok := live.(base.Collection); ok {
-		m.providers.Users.UseLiveCollection(userColl)
+	m.providers.LiveUsers = claims
+
+	docCache, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*data.Document]{
+		Collection: userColl,
+		Processor:  &users.IdentityDocProcessor{},
+		QueryKey:   "_id_",
+		AutoLoad:   false,
+	})
+	if err != nil {
+		return fmt.Errorf("create live user document cache: %w", err)
 	}
+	m.providers.Users.UseDocCache(docCache)
 	return nil
 }
 
@@ -312,7 +292,7 @@ func (m *SystemModule) registerExistingBlobHandlers(ctx context.Context) error {
 	for _, ns := range namespaces {
 		for _, op := range blobs.BlobOps() {
 			opName := "system:blobs:" + ns.ID + ":" + op.Suffix
-			if err := m.providers.PolicyBridge.EnsureOperation(ctx, opName, op.RuleKey, op.Intent, op.Desc+" in "+ns.ID); err != nil {
+			if err := m.providers.PolicyBridge.EnsureBinding(ctx, opName, op.RuleKey); err != nil {
 				return fmt.Errorf("seed operation %s: %w", opName, err)
 			}
 		}
@@ -343,9 +323,33 @@ func (m *SystemModule) registerExistingDocumentHandlers(ctx context.Context) err
 }
 
 func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispatcher {
+	rateLimitLookup := func(op string) *runtime.RateLimitPolicy {
+		if m.providers.LivePolicies == nil {
+			return nil
+		}
+		p, ok := m.providers.LivePolicies.Get(":" + op)
+		if !ok || p == nil {
+			return nil
+		}
+		return p.RateLimit
+	}
+
+	throttleLookup := func(op string) *runtime.ThrottlePolicy {
+		if m.providers.LivePolicies == nil {
+			return nil
+		}
+		p, ok := m.providers.LivePolicies.Get(":" + op)
+		if !ok || p == nil {
+			return nil
+		}
+		return p.Throttle
+	}
+
 	chain := runtime.NewDispatcherChain(
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
+		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup)},
+		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger)},
 		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
 			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				return claims.TenantID

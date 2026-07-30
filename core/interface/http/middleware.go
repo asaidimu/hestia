@@ -7,8 +7,8 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
@@ -79,17 +79,31 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 			}
 
 			ident := o.resolveIdentity(ctx, info.UserID)
+
+			// Check for API key elevation — if present, overlay elevated
+			// identity on the session, setting on_behalf_of_id for audit.
+			// A failed elevation is NOT silently ignored — it flows through
+			// as anonymous so the authorization dispatcher logs the denial.
+			if apiKey := o.extractAPIKey(req); apiKey != "" {
+				elevated, err := o.identityProv.Authenticate("api_key", apiKey)
+				if err != nil || elevated == nil {
+					ctx = context.WithValue(ctx, runtime.AuditOnBehalfOfIDKey, info.UserID)
+					return o.authenticated(ctx, nil, next, req)
+				}
+				ctx = context.WithValue(ctx, runtime.AuditOnBehalfOfIDKey, info.UserID)
+				props, _ := elevated.Properties.(map[string]any)
+				props["token_type"] = "elevated"
+				return o.authenticated(ctx, elevated, next, req)
+			}
+
 			return o.authenticated(ctx, ident, next, req)
 		}
 	}
 
-	// 2. Try API key
-	apiKey := req.Headers["X-Api-Key"]
-	if len(apiKey) == 0 {
-		apiKey = req.Headers["X-API-Key"]
-	}
-	if len(apiKey) > 0 && apiKey[0] != "" {
-		ident, err := o.identityProv.Authenticate("api_key", apiKey[0])
+	// 2. Try API key (standalone — no session)
+	apiKey := o.extractAPIKey(req)
+	if apiKey != "" {
+		ident, err := o.identityProv.Authenticate("api_key", apiKey)
 		if err != nil {
 			return Response{Status: 401}, runtime.ErrInvalidCredentials.WithCause(err)
 		}
@@ -156,6 +170,15 @@ func getStringProp(props map[string]any, key string) string {
 	return v
 }
 
+func (o *Interface) extractAPIKey(req Request) string {
+	for _, header := range []string{"X-Api-Key", "X-API-Key"} {
+		if vals := req.Headers[header]; len(vals) > 0 && vals[0] != "" {
+			return vals[0]
+		}
+	}
+	return ""
+}
+
 func addAuditContext(ctx context.Context, claims *abstract.Claims) context.Context {
 	actorID := claims.UserID
 	if actorID == "" {
@@ -168,6 +191,8 @@ func addAuditContext(ctx context.Context, claims *abstract.Claims) context.Conte
 	switch claims.TokenType {
 	case "api_key":
 		actorType = audit.ActorTypeService
+		authMethod = audit.AuthMethodAPIKey
+	case "elevated":
 		authMethod = audit.AuthMethodAPIKey
 	}
 

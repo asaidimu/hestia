@@ -52,6 +52,13 @@ func (s *Scheduler) Register(name, expr string, fn func(context.Context) error) 
 	s.logger.Info("scheduler: registered job", zap.String("name", name), zap.String("expr", expr))
 }
 
+func (s *Scheduler) Remove(name string) bool {
+	s.mu.Lock()
+	delete(s.exprs, name)
+	s.mu.Unlock()
+	return s.c.RemoveByName(name)
+}
+
 func (s *Scheduler) List() []JobInfo {
 	entries := s.c.Entries()
 	info := make([]JobInfo, 0, len(entries))

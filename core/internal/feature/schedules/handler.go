@@ -9,90 +9,130 @@ import (
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
-func NewCreateScheduleHandler(m *ScheduleModel) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		claims, ok := runtimecontext.ClaimsFromContext(ctx)
-		if !ok || claims.UserID == "" {
-			return nil, fmt.Errorf("unauthenticated")
-		}
-
-		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
-		if body == nil {
-			return nil, fmt.Errorf("payload is required")
-		}
-
-		userID, _ := body["user_id"].(string)
-		if userID == "" {
-			userID = claims.UserID
-		}
-
-		tenantID := runtimecontext.GetTenantID(ctx)
-
-		doc := data.MustNewDocument(body)
-		doc.Set("user_id", userID)
-		if tenantID != "" {
-			doc.Set("tenant_id", tenantID)
-		}
-		if _, ok := body["send_at"]; !ok {
-			return nil, fmt.Errorf("send_at is required")
-		}
-
-		id, err := m.Create(ctx, doc)
-		if err != nil {
-			return nil, err
-		}
-
-		return &abstract.Result{
-			Document: data.MustNewDocument(map[string]any{
-				"id":      id,
-				"message": "scheduled message created",
-			}),
-		}, nil
-	}
+type ScheduleHandlers struct {
+	model *ScheduleModel
+	live  *LiveSchedule
 }
 
-func NewListSchedulesHandler(m *ScheduleModel) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		tenantID := runtimecontext.GetTenantID(ctx)
-
-		docs, err := m.List(ctx, tenantID, 50, 0)
-		if err != nil {
-			return nil, err
-		}
-		return &abstract.Result{Documents: docs}, nil
-	}
+func NewScheduleHandlers(model *ScheduleModel, live *LiveSchedule) *ScheduleHandlers {
+	return &ScheduleHandlers{model: model, live: live}
 }
 
-func NewGetScheduleHandler(m *ScheduleModel) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		id, _ := doc.GetString("arguments.id")
-		if id == "" {
-			return nil, fmt.Errorf("id is required")
-		}
-
-		schedule, err := m.Get(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if schedule == nil {
-			return nil, fmt.Errorf("schedule not found")
-		}
-		return &abstract.Result{Document: schedule}, nil
+func (h *ScheduleHandlers) Create(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+	claims, ok := runtimecontext.ClaimsFromContext(ctx)
+	if !ok || claims.UserID == "" {
+		return nil, fmt.Errorf("unauthenticated")
 	}
+
+	body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
+	if body == nil {
+		return nil, fmt.Errorf("payload is required")
+	}
+
+	if _, ok := body["message"]; !ok {
+		return nil, fmt.Errorf("message is required")
+	}
+	if _, ok := body["cron"]; !ok {
+		return nil, fmt.Errorf("cron is required")
+	}
+
+	userID, _ := body["user_id"].(string)
+	if userID == "" {
+		userID = claims.UserID
+	}
+
+	tenantID := runtimecontext.GetTenantID(ctx)
+
+	doc := data.MustNewDocument(body)
+	doc.Set("user_id", userID)
+	if tenantID != "" {
+		doc.Set("tenant_id", tenantID)
+	}
+
+	saved, err := h.model.Create(ctx, doc)
+	if err != nil {
+		return nil, err
+	}
+
+	h.live.Register(ctx, saved)
+
+	return &abstract.Result{
+		Document: data.MustNewDocument(map[string]any{
+			"id":      saved.ID(),
+			"message": "schedule created",
+		}),
+	}, nil
 }
 
-func NewDeleteScheduleHandler(m *ScheduleModel) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		id, _ := doc.GetString("arguments.id")
-		if id == "" {
-			return nil, fmt.Errorf("id is required")
-		}
+func (h *ScheduleHandlers) List(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+	tenantID := runtimecontext.GetTenantID(ctx)
 
-		if err := m.Delete(ctx, id); err != nil {
-			return nil, err
-		}
-		return &abstract.Result{Document: data.MustNewDocument(map[string]any{"message": "deleted"})}, nil
+	docs, err := h.model.ListByTenant(ctx, tenantID, 50, 0)
+	if err != nil {
+		return nil, err
 	}
+	return &abstract.Result{Documents: docs}, nil
+}
+
+func (h *ScheduleHandlers) Get(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+	doc := msg.Input()
+	id, _ := doc.GetString("arguments.id")
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	schedule, err := h.model.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if schedule == nil {
+		return nil, fmt.Errorf("schedule not found")
+	}
+	return &abstract.Result{Document: schedule}, nil
+}
+
+func (h *ScheduleHandlers) Update(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+	doc := msg.Input()
+	id, _ := doc.GetString("arguments.id")
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	payload, _ := doc.GetOr("payload", nil).(map[string]any)
+	if payload == nil {
+		return nil, fmt.Errorf("payload is required")
+	}
+
+	h.live.UnregisterByID(ctx, id)
+	if err := h.model.Update(ctx, id, payload); err != nil {
+		return nil, err
+	}
+
+	saved, err := h.model.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, fmt.Errorf("schedule not found after update")
+	}
+
+	h.live.Register(ctx, saved)
+
+	return &abstract.Result{Document: data.MustNewDocument(map[string]any{"message": "updated"})}, nil
+}
+
+func (h *ScheduleHandlers) Delete(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+	doc := msg.Input()
+	id, _ := doc.GetString("arguments.id")
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	h.live.UnregisterByID(ctx, id)
+
+	if err := h.model.Delete(ctx, id); err != nil {
+		return nil, err
+	}
+
+	return &abstract.Result{Document: data.MustNewDocument(map[string]any{"message": "deleted"})}, nil
 }

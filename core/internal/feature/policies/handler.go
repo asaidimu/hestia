@@ -14,44 +14,129 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
-func NewGetOperationHandler(policyModel *PolicyModel) abstract.MessageHandler {
+func NewGetBindingHandler(policyModel *PolicyModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
-		op, err := policyModel.GetOperation(ctx, name)
+		b, err := policyModel.GetBinding(ctx, name)
 		if err != nil {
 			return nil, err
 		}
 		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{
-				"name":        op.Name,
-				"description": op.Description,
-				"intentType":  op.IntentType,
+				"name":        b.Name,
+				"description": b.Description,
 			}, ctx),
 		}, nil
 	}
 }
 
-func NewListOperationsHandler(policyModel *PolicyModel) abstract.MessageHandler {
+func NewListBindingsHandler(policyModel *PolicyModel) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		ops, err := policyModel.ListOperations(ctx)
+		bindings, err := policyModel.ListBindings(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		items := make([]map[string]any, 0, len(ops))
-		for _, op := range ops {
+		items := make([]map[string]any, 0, len(bindings))
+		for _, b := range bindings {
 			items = append(items, map[string]any{
-				"name":        op.Name,
-				"description": op.Description,
-				"intentType":  op.IntentType,
+				"name":        b.Name,
+				"description": b.Description,
 			})
 		}
 		return &abstract.Result{
-			Document: data.MustNewDocument(map[string]any{"operations": items}, ctx),
+			Document: data.MustNewDocument(map[string]any{"bindings": items}, ctx),
 		}, nil
 	}
+}
+
+func policyToMap(p Policy) map[string]any {
+	m := map[string]any{
+		"id":            p.ID,
+		"operationName": p.OperationName,
+		"ruleName":      p.RuleName,
+		"enabled":       p.Enabled,
+	}
+	if p.RateLimit != nil {
+		m["rateLimit"] = p.RateLimit
+	}
+	if p.Throttle != nil {
+		m["throttle"] = p.Throttle
+	}
+	return m
+}
+
+func parseRateLimit(body map[string]any) *runtime.RateLimitPolicy {
+	raw, ok := body["rateLimit"]
+	if !ok {
+		return nil
+	}
+	r, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	rl := &runtime.RateLimitPolicy{
+		Enabled:  getBool(r, "enabled"),
+		Identity: getString(r, "identity"),
+		Capacity: int64(getFloat(r, "capacity")),
+		Refill:   int64(getFloat(r, "refill")),
+		Period:   int64(getFloat(r, "period")),
+	}
+	if !rl.Enabled {
+		return nil
+	}
+	return rl
+}
+
+func parseThrottle(body map[string]any) *runtime.ThrottlePolicy {
+	raw, ok := body["throttle"]
+	if !ok {
+		return nil
+	}
+	t, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	tp := &runtime.ThrottlePolicy{
+		Limit:  int64(getFloat(t, "limit")),
+		Window: int64(getFloat(t, "window")),
+	}
+	if actionRaw, ok := t["action"].(map[string]any); ok {
+		tp.Action = &runtime.ThrottleActionPolicy{
+			Message: getString(actionRaw, "message"),
+			Input:   getMap(actionRaw, "input"),
+		}
+	}
+	return tp
+}
+
+func getString(m map[string]any, key string) string {
+	s, _ := m[key].(string)
+	return s
+}
+
+func getFloat(m map[string]any, key string) float64 {
+	switch v := m[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	}
+	return 0
+}
+
+func getBool(m map[string]any, key string) bool {
+	b, _ := m[key].(bool)
+	return b
+}
+
+func getMap(m map[string]any, key string) map[string]any {
+	v, _ := m[key].(map[string]any)
+	return v
 }
 
 func NewCreatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
@@ -65,18 +150,15 @@ func NewCreatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
 			OperationName: operationName,
 			RuleName:      ruleName,
 			Enabled:       true,
+			RateLimit:     parseRateLimit(body),
+			Throttle:      parseThrottle(body),
 		}
 		created, err := policyModel.CreatePolicy(ctx, p)
 		if err != nil {
 			return nil, err
 		}
 		return &abstract.Result{
-			Document: data.MustNewDocument(map[string]any{
-				"id":            created.ID,
-				"operationName": created.OperationName,
-				"ruleName":      created.RuleName,
-				"enabled":       created.Enabled,
-			}, ctx),
+			Document: data.MustNewDocument(policyToMap(created), ctx),
 		}, nil
 	}
 }
@@ -88,28 +170,38 @@ func NewUpdatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
 
 		var updated Policy
-		hasUpdate := false
+		var err error
 
 		if _, ok := body["ruleName"]; ok {
 			ruleName, _ := body["ruleName"].(string)
-			var err error
 			updated, err = policyModel.UpdatePolicyRule(ctx, operationName, ruleName)
 			if err != nil {
 				return nil, err
 			}
-			hasUpdate = true
 		}
 		if _, ok := body["enabled"]; ok {
 			enabled, _ := body["enabled"].(bool)
-			var err error
 			updated, err = policyModel.SetPolicyEnabled(ctx, operationName, enabled)
 			if err != nil {
 				return nil, err
 			}
-			hasUpdate = true
 		}
-		if !hasUpdate {
-			var err error
+
+		update := Policy{}
+		if _, ok := body["rateLimit"]; ok {
+			update.RateLimit = parseRateLimit(body)
+		}
+		if _, ok := body["throttle"]; ok {
+			update.Throttle = parseThrottle(body)
+		}
+		if update.RateLimit != nil || update.Throttle != nil {
+			updated, err = policyModel.UpdatePolicy(ctx, operationName, update)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if updated.ID == "" {
 			updated, err = policyModel.GetPolicyForOperation(ctx, operationName)
 			if err != nil {
 				return nil, err
@@ -117,19 +209,8 @@ func NewUpdatePolicyHandler(policyModel *PolicyModel) abstract.MessageHandler {
 		}
 
 		return &abstract.Result{
-			Document: data.MustNewDocument(map[string]any{
-				"id":            updated.ID,
-				"operationName": updated.OperationName,
-				"ruleName":      updated.RuleName,
-				"enabled":       updated.Enabled,
-			}, ctx),
+			Document: data.MustNewDocument(policyToMap(updated), ctx),
 		}, nil
-	}
-}
-
-func NewDeletePolicyHandler() abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		return nil, ErrPolicyDeleteForbidden.WithOperation("DeletePolicy")
 	}
 }
 
@@ -142,12 +223,7 @@ func NewListPoliciesHandler(policyModel *PolicyModel) abstract.MessageHandler {
 
 		items := make([]map[string]any, 0, len(policies))
 		for _, p := range policies {
-			items = append(items, map[string]any{
-				"id":            p.ID,
-				"operationName": p.OperationName,
-				"ruleName":      p.RuleName,
-				"enabled":       p.Enabled,
-			})
+			items = append(items, policyToMap(p))
 		}
 		return &abstract.Result{
 			Document: data.MustNewDocument(map[string]any{"policies": items}, ctx),

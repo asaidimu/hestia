@@ -97,6 +97,7 @@ type Result struct {
 	DocumentChannel <-chan *data.Document
 	BlobChannel     <-chan Blob
 	SessionToken    string
+	Metadata        map[string]any
 }
 
 

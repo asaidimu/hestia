@@ -54,6 +54,11 @@ var Plain = []Migration{
 	{UUID: "019fa758-299f-723f-945c-e7e34f8803ad", Collection: "_notifications_", From: "0.0.0", To: "1.0.0", File: "019fa758-299f-723f-945c-e7e34f8803ad__notifications__major.go", Plan: _notifications__0_0_0_to_1_0_0},
 	{UUID: "019fa76c-17fc-77a3-be47-511c79409677", Collection: "_notifications_", From: "1.0.0", To: "1.0.1", File: "019fa76c-17fc-77a3-be47-511c79409677__notifications__patch.go", Plan: _notifications__1_0_0_to_1_0_1},
 	{UUID: "019fa783-cc48-7efb-aa7c-5b2792d82132", Collection: "_scheduled_messages_", From: "0.0.0", To: "1.0.0", File: "019fa783-cc48-7efb-aa7c-5b2792d82132__scheduled_messages__major.go", Plan: _scheduled_messages__0_0_0_to_1_0_0},
+	{UUID: "019fa82b-e176-7b3c-af50-0985a5910cc0", Collection: "_operation_policy_", From: "3.1.0", To: "3.2.0", File: "019fa82b-e176-7b3c-af50-0985a5910cc0__operation_policy__minor.go", Plan: _operation_policy__3_1_0_to_3_2_0},
+	{UUID: "019face1-6091-7ade-b826-e99419b51c7f", Collection: "_scheduled_messages_", From: "1.0.0", To: "2.0.0", File: "019face1-6091-7ade-b826-e99419b51c7f__scheduled_messages__major.go", Plan: _scheduled_messages__1_0_0_to_2_0_0},
+	{UUID: "019fad8b-d158-7058-938d-80ad5dd0f3b7", Collection: "_user_", From: "5.2.0", To: "6.0.0", File: "019fad8b-d158-7058-938d-80ad5dd0f3b7__user__major.go", Plan: _user__5_2_0_to_6_0_0},
+	{UUID: "019fadae-0337-74e5-815c-003d2da91770", Collection: "_user_", From: "6.0.0", To: "7.0.0", File: "019fadae-0337-74e5-815c-003d2da91770__user__major.go", Plan: _user__6_0_0_to_7_0_0},
+	{UUID: "019fb1c5-82ad-7077-8e6f-9bc079961250", Collection: "_user_", From: "7.0.0", To: "8.0.0", File: "019fb1c5-82ad-7077-8e6f-9bc079961250__user__major.go", Plan: _user__7_0_0_to_8_0_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.

@@ -8,8 +8,8 @@ import (
 )
 
 func DeriveRoute(name string, arguments []abstract.ArgDef) string {
-	parts := strings.SplitN(name, ":", 4)
-	path := fmt.Sprintf("/%s/%s/%s", parts[0], parts[1], parts[2])
+	parts := strings.Split(name, ":")
+	path := "/" + strings.Join(parts, "/")
 	for _, arg := range arguments {
 		path += fmt.Sprintf("/{%s}", arg.Name)
 	}
@@ -37,13 +37,5 @@ func IntentToHTTPMethod(verb abstract.Verb) string {
 }
 
 func IntentToHTTPPath(verb abstract.Verb, path string) string {
-	switch verb {
-	case abstract.Query:
-		return path + "/query"
-	case abstract.Stream:
-		return path + "/stream"
-	case abstract.Check:
-		return path + "/check"
-	}
 	return path
 }

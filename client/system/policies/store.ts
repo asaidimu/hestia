@@ -9,9 +9,22 @@ import type {
     CreatePolicyRequest,
     UpdatePolicyRuleRequest,
     SetPolicyEnabledRequest,
+    UpdatePolicyRequest,
 } from "./types"
 
 const POLICY_COLLECTION = "_operation_policy_"
+
+function rawToPolicy(doc: any): Policy {
+    return {
+        id: doc._id_ ?? doc.id ?? "",
+        operationName: doc.operation ?? doc.operationName ?? "",
+        ruleName: doc.rule ?? doc.ruleName ?? "",
+        enabled: doc.enabled ?? true,
+        protected: doc.protected ?? false,
+        rateLimit: doc.rateLimit ?? undefined,
+        throttle: doc.throttle ?? undefined,
+    }
+}
 
 export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, string, QueryDSL<Policy>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pager: PagedData<Policy>
@@ -36,15 +49,10 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
     )
     const items = res.data?.data ?? []
     const pagination = res.data?.metadata?.page
-    const policies: Document<Policy>[] = items.map((doc: any) => ({
-      _id_: doc._id_,
-      _metadata_: doc._metadata_,
-      id: doc._id_,
-      operationName: doc.operation ?? "",
-      ruleName: doc.rule ?? "",
-      enabled: doc.enabled ?? true,
-      protected: doc.protected ?? false,
-    }))
+    const policies: Document<Policy>[] = items.map((doc: any) => {
+      const p = rawToPolicy(doc)
+      return { data: p, _id_: doc._id_, _metadata_: doc._metadata_ }
+    })
     return {
       data: policies,
       loading: false,
@@ -72,18 +80,9 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
         "system:policies:policy:list",
       )
       const items = (res.data?.data as any)?.policies ?? []
-      const match = items.find((p: any) => p._id_ === id || p.operation === id)
+      const match = items.find((p: any) => p._id_ === id || p.operation === id || p.id === id)
       if (!match) return undefined
-      return {
-        data: {
-          id: match._id_,
-          operationName: match.operation ?? "",
-          ruleName: match.rule ?? "",
-          enabled: match.enabled ?? true,
-          protected: match.protected ?? false,
-        },
-        metadata: {},
-      }
+      return { data: rawToPolicy(match), metadata: {} }
     } catch (err: any) {
       if (err?.code === "SYNC-001-NF" || err?.code === "NOT_FOUND") return undefined
       throw err
@@ -93,7 +92,11 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
   async create(props: { data: Partial<CreatePolicyRequest>; options?: string }): Promise<Document<Policy> | undefined> {
     const name = props.options ?? (props.data as any).name
     if (!name) throw new Error("Operation name is required for create")
-    const body: CreatePolicyRequest = { ruleName: (props.data as any).ruleName ?? "" }
+    const body: CreatePolicyRequest = {
+      ruleName: (props.data as any).ruleName ?? "",
+      rateLimit: (props.data as any).rateLimit,
+      throttle: (props.data as any).throttle,
+    }
     const res = await this.client.dispatch<{ data: Policy }>(
       "system:policies:policy:create",
       { arguments: { name }, payload: body },
@@ -102,12 +105,17 @@ export class HestiaPolicies implements DocumentStore<Policy, QueryDSL<Policy>, s
     return { data: res.data.data, metadata: {} }
   }
 
-  async update(props: { data: UpdatePolicyRuleRequest; options?: string }): Promise<Document<Policy> | undefined> {
+  async update(props: { data: UpdatePolicyRequest; options?: string }): Promise<Document<Policy> | undefined> {
     const name = props.options!
     if (!name) throw new Error("Operation name is required for update")
+    const payload: Record<string, unknown> = {}
+    if (props.data.ruleName !== undefined) payload.ruleName = props.data.ruleName
+    if (props.data.enabled !== undefined) payload.enabled = props.data.enabled
+    if (props.data.rateLimit !== undefined) payload.rateLimit = props.data.rateLimit
+    if (props.data.throttle !== undefined) payload.throttle = props.data.throttle
     const res = await this.client.dispatch<{ data: Policy }>(
       "system:policies:policy:update",
-      { arguments: { name }, payload: props.data },
+      { arguments: { name }, payload },
     )
     if (!res.data?.data) return undefined
     return { data: res.data.data, metadata: {} }

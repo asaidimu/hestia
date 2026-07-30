@@ -3,48 +3,62 @@ package users
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/go-anansi/v8/core/utils"
 
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
-const userCollectionName = "_user_"
+// IdentityDocProcessor returns the document unchanged — no compilation step.
+// Useful when the LiveCollection stores raw documents rather than derived artifacts.
+type IdentityDocProcessor struct{}
+
+func (p *IdentityDocProcessor) Compile(ctx context.Context, doc *data.Document) (*data.Document, error) {
+	return doc, nil
+}
+func (p *IdentityDocProcessor) Create(ctx context.Context, doc *data.Document) (*data.Document, error) {
+	return doc, nil
+}
+func (p *IdentityDocProcessor) Destroy(ctx context.Context, doc *data.Document) error {
+	return nil
+}
+func (p *IdentityDocProcessor) CloneState(doc *data.Document) (*data.Document, error) {
+	return doc, nil
+}
 
 type UserModel struct {
 	persistence base.Persistence
-	liveColl    base.Collection // optional; when set, all reads/writes route through it
+	docCache    collection.LiveCollection[*data.Document]
 }
 
 func NewUserModel(persistence base.Persistence) *UserModel {
 	return &UserModel{persistence: persistence}
 }
 
-// UseLiveCollection replaces the default persistence-backed collection with a
-// LiveCollection-backed one, so that write operations (CreateOne, Update,
-// Delete) fire the LiveCollection's cache interceptors. Must be called before
-// any user operations.
-func (m *UserModel) UseLiveCollection(c base.Collection) {
-	m.liveColl = c
+// UseDocCache sets the document cache for read-through lookups and write interception.
+func (m *UserModel) UseDocCache(c collection.LiveCollection[*data.Document]) {
+	m.docCache = c
 }
 
 func (m *UserModel) collection(ctx context.Context) (base.Collection, error) {
-	if m.liveColl != nil {
-		return m.liveColl, nil
+	if m.docCache != nil {
+		return m.docCache, nil
 	}
-	return m.persistence.Collection(ctx, userCollectionName)
+	return m.persistence.Collection(ctx, "_user_")
 }
 
 func (m *UserModel) Register(ctx context.Context, email, password, name, tenantID string, userData map[string]any, permissions ...string) (*data.Document, error) {
+
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("access user collection: %w", err)
 	}
 
+	// TODO email string should be in a constant
 	existingQ := query.NewQueryBuilder().Where("email").Eq(email).Build()
 	existing, err := col.Read(ctx, &existingQ)
 	if err != nil {
@@ -71,6 +85,7 @@ func (m *UserModel) Register(ctx context.Context, email, password, name, tenantI
 		"permissions":   permissions,
 		"token_version": 0,
 	})
+
 	if tenantID != "" {
 		doc.Set("tenant_id", tenantID)
 	}
@@ -99,10 +114,29 @@ func (m *UserModel) GetByEmail(ctx context.Context, email string) (*data.Documen
 	if result.Count == 0 {
 		return nil, fmt.Errorf("user not found")
 	}
-	return result.Data[0], nil
+	doc := result.Data[0]
+	disabled, _ := doc.GetInt("disabled")
+	if disabled != 0 {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	id := doc.ID()
+	if m.docCache != nil {
+		m.docCache.Set(id, doc)
+	}
+
+	return doc, nil
 }
 
 func (m *UserModel) GetByID(ctx context.Context, id string) (*data.Document, error) {
+	if m.docCache != nil {
+		doc, ok := m.docCache.Get(id)
+		if !ok {
+			return nil, fmt.Errorf("user not found")
+		}
+		return doc, nil
+	}
+
 	col, err := m.collection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("access user collection: %w", err)
@@ -181,7 +215,6 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 
 	q := query.NewQueryBuilder().
 		Where(data.DocumentIDField).Eq(id).
-		Where("deleted").NotExists().
 		Build()
 
 	result, err := col.Read(ctx, &q)
@@ -191,18 +224,12 @@ func (m *UserModel) GetActiveByID(ctx context.Context, id string) (*data.Documen
 	if result.Count == 0 {
 		return nil, fmt.Errorf("user not found")
 	}
-	return result.Data[0], nil
-}
-
-func (m *UserModel) IsDeleted(doc *data.Document) bool {
-	deleted, err := doc.GetString("deleted")
-	return err == nil && deleted != ""
-}
-
-func (m *UserModel) SoftDelete(ctx context.Context, id string) error {
-	return m.Update(ctx, id, map[string]any{
-		"deleted": time.Now().Format(time.RFC3339),
-	})
+	doc := result.Data[0]
+	disabled, _ := doc.GetInt("disabled")
+	if disabled != 0 {
+		return nil, fmt.Errorf("user not found")
+	}
+	return doc, nil
 }
 
 func (m *UserModel) IncrementTokenVersion(ctx context.Context, id string) error {
@@ -246,7 +273,7 @@ func (m *UserModel) UpdateSettings(ctx context.Context, id string, settings map[
 	return m.Update(ctx, id, map[string]any{"settings": current})
 }
 
-func (m *UserModel) HardDelete(ctx context.Context, id string) error {
+func (m *UserModel) Delete(ctx context.Context, id string) error {
 	col, err := m.collection(ctx)
 	if err != nil {
 		return fmt.Errorf("access user collection: %w", err)
@@ -258,7 +285,7 @@ func (m *UserModel) HardDelete(ctx context.Context, id string) error {
 
 	deleted, err := col.Delete(ctx, filter, false)
 	if err != nil {
-		return fmt.Errorf("hard delete user: %w", err)
+		return fmt.Errorf("delete user: %w", err)
 	}
 	if deleted == 0 {
 		return fmt.Errorf("user not found")

@@ -60,13 +60,14 @@ export interface DispatchInput {
   notifyAuthStateChange?: boolean;
 }
 
-export interface Transport {
+export interface Transport<R extends string = RouteName> {
   base(): string;
   prefix(): string;
+  routeUrl(name: R, args?: Record<string, string>): string;
 
   ready(): Promise<void>;
 
-  dispatch<T>(name: string, input?: DispatchInput): Promise<HestiaResponse<T>>;
+  dispatch<T>(name: R, input?: DispatchInput): Promise<HestiaResponse<T>>;
 
   get<T>(path: string, options?: RequestOptions): Promise<HestiaResponse<T>>;
   post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<HestiaResponse<T>>;
@@ -77,15 +78,9 @@ export interface Transport {
   openStream(path: string, handlers: StreamHandlers, options?: StreamOptions): Promise<void>;
 }
 
-import { ROUTE_TABLE } from "./routes.gen";
+import { ROUTE_TABLE, type RouteName } from "./routes.gen";
 
-interface RouteDoc {
-  method: string;
-  route: string;
-  arguments: string[];
-}
-
-export class HttpTransport implements Transport {
+export class HttpTransport<R extends string = RouteName> implements Transport<R> {
   private raw: NetworkClient;
 
   constructor(
@@ -107,8 +102,8 @@ export class HttpTransport implements Transport {
     });
   }
 
-  async dispatch<T>(name: string, input?: DispatchInput): Promise<HestiaResponse<T>> {
-    const entry = ROUTE_TABLE[name];
+  async dispatch<T>(name: R, input?: DispatchInput): Promise<HestiaResponse<T>> {
+    const entry = ROUTE_TABLE[name as keyof typeof ROUTE_TABLE];
 
     if (!entry) {
       throw new SystemError({
@@ -141,6 +136,19 @@ export class HttpTransport implements Transport {
     }
 
     return this.request<T>(method, path, input?.payload, options, notifyAuthStateChange);
+  }
+
+  routeUrl(name: R, args?: Record<string, string>): string {
+    const entry = ROUTE_TABLE[name as keyof typeof ROUTE_TABLE];
+    if (!entry) {
+      throw new SystemError({
+        code: "ROUTE_NOT_FOUND",
+        message: `No registered route for handler: ${name}`,
+      });
+    }
+    const base = this.baseUrl.replace(/\/+$/, "");
+    const path = this.canonicalPath(this.substituteArgs(entry.route, args ?? {}));
+    return `${base}/${path}`;
   }
 
   base() {

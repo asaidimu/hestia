@@ -10,7 +10,7 @@ import (
 
 type Dependencies struct {
 	BlobStore    blobutil.BlobStore
-	PolicyBridge OperationPolicyStore
+	PolicyBridge abstract.BindingPolicyStore
 	Registry     abstract.Registry
 }
 

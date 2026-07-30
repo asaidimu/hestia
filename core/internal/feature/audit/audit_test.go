@@ -50,10 +50,10 @@ func queryHandler(p base.Persistence) abstract.MessageHandler {
 	return nil
 }
 
-func TestDefaultOperations(t *testing.T) {
-	ops := audit.DefaultOperations()
-	if len(ops) == 0 {
-		t.Fatal("DefaultOperations() returned empty slice")
+func TestPolicyBindings(t *testing.T) {
+	bindings := audit.PolicyBindings()
+	if len(bindings) == 0 {
+		t.Fatal("PolicyBindings() returned empty slice")
 	}
 }
 

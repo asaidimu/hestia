@@ -112,7 +112,7 @@ func TestUserModelPassword(t *testing.T) {
 	}
 }
 
-func TestUserModelSoftDelete(t *testing.T) {
+func TestUserModelDisable(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
@@ -123,21 +123,31 @@ func TestUserModelSoftDelete(t *testing.T) {
 	}
 	id := doc.ID()
 
-	err = model.SoftDelete(ctx, id)
+	err = model.Update(ctx, id, map[string]any{"disabled": 1})
 	if err != nil {
-		t.Fatalf("SoftDelete: %v", err)
+		t.Fatalf("Update disabled: %v", err)
 	}
 
-	softDeleted, err := model.GetByID(ctx, id)
-	if err != nil {
-		t.Fatalf("GetByID after soft delete: %v", err)
+	// GetByEmail should reject disabled user
+	_, err = model.GetByEmail(ctx, "dave@example.com")
+	if err == nil {
+		t.Error("expected GetByEmail to return error for disabled user")
 	}
-	if !model.IsDeleted(softDeleted) {
-		t.Error("expected IsDeleted to be true after SoftDelete")
+
+	// GetActiveByID should reject disabled user
+	_, err = model.GetActiveByID(ctx, id)
+	if err == nil {
+		t.Error("expected GetActiveByID to return error for disabled user")
+	}
+
+	// GetByID should still return the doc regardless
+	_, err = model.GetByID(ctx, id)
+	if err != nil {
+		t.Errorf("GetByID should still return disabled user: %v", err)
 	}
 }
 
-func TestUserModelHardDelete(t *testing.T) {
+func TestUserModelDelete(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
 	model := users.NewUserModel(p)
@@ -148,14 +158,14 @@ func TestUserModelHardDelete(t *testing.T) {
 	}
 	id := doc.ID()
 
-	err = model.HardDelete(ctx, id)
+	err = model.Delete(ctx, id)
 	if err != nil {
-		t.Fatalf("HardDelete: %v", err)
+		t.Fatalf("Delete: %v", err)
 	}
 
 	_, err = model.GetByID(ctx, id)
 	if err == nil {
-		t.Error("expected GetByID to return error after HardDelete")
+		t.Error("expected GetByID to return error after Delete")
 	}
 }
 

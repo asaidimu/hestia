@@ -9,11 +9,12 @@ import (
 )
 
 type emailChannel struct {
-	mailer *runtime.Mailer
+	mailer   *runtime.Mailer
+	resolver abstract.TemplateResolver
 }
 
-func NewEmailChannel(mailer *runtime.Mailer) abstract.Channel {
-	return &emailChannel{mailer: mailer}
+func NewEmailChannel(mailer *runtime.Mailer, resolver abstract.TemplateResolver) abstract.Channel {
+	return &emailChannel{mailer: mailer, resolver: resolver}
 }
 
 func (c *emailChannel) Type() abstract.ChannelType { return abstract.ChannelEmail }
@@ -23,8 +24,10 @@ func (c *emailChannel) Send(ctx context.Context, n abstract.Notification) error 
 		return nil
 	}
 
-	subject := RenderSubject(n.Template, n.Data)
-	body := RenderBody(abstract.ChannelEmail, n.Template, n.Data)
+	subject, body, err := c.resolver.Render(ctx, abstract.ChannelEmail, n.Template, n.Data)
+	if err != nil {
+		return err
+	}
 	if body == "" {
 		return fmt.Errorf("no template for %q / channel %q", n.Template, abstract.ChannelEmail)
 	}

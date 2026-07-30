@@ -2,8 +2,8 @@ package auth
 
 import "github.com/asaidimu/hestia/core/internal/feature/policies"
 
-func DefaultOperations() []policies.Operation {
-	return []policies.Operation{
+func PolicyBindings() []policies.Binding {
+	return []policies.Binding{
 		{Name: "system:auth:session:create", RuleKey: "public", Description: "Authenticate and receive a session token"},
 		{Name: "system:auth:user:register", RuleKey: "administrator", Description: "Register new user"},
 		{Name: "system:auth:session:delete", RuleKey: "authenticated", Description: "Logout"},

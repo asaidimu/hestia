@@ -12,42 +12,78 @@ import (
 	"github.com/asaidimu/hestia/core/internal/feature/schedules"
 	"github.com/asaidimu/hestia/core/internal/feature/settings"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 var allDefaultPolicyBindings = func() []policies.Policy {
 	var bindings []policies.Policy
-	for _, op := range allKnownOperations {
+	for _, op := range allPolicyBindings {
 		ruleName := op.RuleKey
 		if ruleName == "" {
 			ruleName = "administrator"
 		}
-		bindings = append(bindings, policies.Policy{
+		p := policies.Policy{
 			OperationName: op.Name,
 			RuleName:      ruleName,
 			Enabled:       true,
-		})
+		}
+		switch op.Name {
+		case "system:auth:session:create":
+			p.RateLimit = &runtime.RateLimitPolicy{
+				Enabled:  true,
+				Identity: "ip",
+				Capacity: 5,
+				Refill:   5,
+				Period:   60,
+			}
+			p.Throttle = &runtime.ThrottlePolicy{
+				Limit:  10,
+				Window: 300,
+				Action: &runtime.ThrottleActionPolicy{
+					Message: "system:users:user:disable",
+					Input:   map[string]any{"arguments.id": "{{ .claims.user_id }}"},
+				},
+			}
+		case "system:auth:password:reset":
+			p.RateLimit = &runtime.RateLimitPolicy{
+				Enabled:  true,
+				Identity: "ip",
+				Capacity: 3,
+				Refill:   3,
+				Period:   60,
+			}
+		case "system:auth:user:register":
+			p.RateLimit = &runtime.RateLimitPolicy{
+				Enabled:  true,
+				Identity: "ip",
+				Capacity: 3,
+				Refill:   3,
+				Period:   60,
+			}
+		}
+		bindings = append(bindings, p)
 	}
 	return bindings
 }()
 
-var allKnownOperations = func() []policies.Operation {
-	var all []policies.Operation
-	all = append(all, apikeys.DefaultOperations()...)
-	all = append(all, audit.DefaultOperations()...)
-	all = append(all, auth.DefaultOperations()...)
-	all = append(all, blobs.DefaultOperations()...)
-	all = append(all, collections.DefaultOperations()...)
-	all = append(all, operations.DefaultOperations()...)
-	all = append(all, policies.DefaultOperations()...)
-	all = append(all, notifications.DefaultOperations()...)
-	all = append(all, schedules.DefaultOperations()...)
-	all = append(all, settings.DefaultOperations()...)
-	all = append(all, users.DefaultOperations()...)
+var allPolicyBindings = func() []policies.Binding {
+	var all []policies.Binding
+	all = append(all, apikeys.PolicyBindings()...)
+	all = append(all, audit.PolicyBindings()...)
+	all = append(all, auth.PolicyBindings()...)
+	all = append(all, blobs.PolicyBindings()...)
+	all = append(all, collections.PolicyBindings()...)
+	all = append(all, operations.PolicyBindings()...)
+	all = append(all, policies.PolicyBindings()...)
+	all = append(all, notifications.PolicyBindings()...)
+	all = append(all, schedules.PolicyBindings()...)
+	all = append(all, settings.PolicyBindings()...)
+	all = append(all, users.PolicyBindings()...)
 	return all
 }()
 
-func collectAllKnownOperations() []policies.Operation {
-	return allKnownOperations
+func collectAllPolicyBindings() []policies.Binding {
+	return allPolicyBindings
 }
 
 

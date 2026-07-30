@@ -87,9 +87,11 @@ export interface RouteDoc {
   arguments: string[];
 }
 
-export const ROUTE_TABLE: Record<string, RouteDoc> = {
+export const ROUTE_TABLE = {
 %s
-};
+} as const;
+
+export type RouteName = keyof typeof ROUTE_TABLE;
 `, strings.Join(lines, "\n"))
 
 	root := projectRoot()

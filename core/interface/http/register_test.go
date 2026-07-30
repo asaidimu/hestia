@@ -208,10 +208,10 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 	orch.installDispatcherRegistrations()
 
 	mt.mu.Lock()
-	_, ok := mt.handlers["GET /test/user/profile/{user_id}"]
+	_, ok := mt.handlers["GET /test/user/profile/get/{user_id}"]
 	mt.mu.Unlock()
 	if !ok {
-		t.Fatal("expected route GET /test/user/profile/{user_id} to be registered")
+		t.Fatal("expected route GET /test/user/profile/get/{user_id} to be registered")
 	}
 }
 
@@ -243,14 +243,14 @@ func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 
 func TestDeriveRoute_WithArguments(t *testing.T) {
 	path := DeriveRoute("system:blobs:blob:download", []abstract.ArgDef{{Name: "ns", Type: definition.FieldTypeString}, {Name: "key", Type: definition.FieldTypeString}})
-	if path != "/system/blobs/blob/{ns}/{key}" {
-		t.Fatalf("expected /system/blobs/blob/{ns}/{key}, got %s", path)
+	if path != "/system/blobs/blob/download/{ns}/{key}" {
+		t.Fatalf("expected /system/blobs/blob/download/{ns}/{key}, got %s", path)
 	}
 }
 
 func TestDeriveRoute_NoArguments(t *testing.T) {
 	path := DeriveRoute("system:core:health:check", nil)
-	if path != "/system/core/health" {
-		t.Fatalf("expected /system/core/health, got %s", path)
+	if path != "/system/core/health/check" {
+		t.Fatalf("expected /system/core/health/check, got %s", path)
 	}
 }

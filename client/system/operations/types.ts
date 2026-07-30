@@ -1,5 +1,4 @@
-export interface Operation {
+export interface Binding {
   name: string
   description?: string
-  intentType?: string
 }

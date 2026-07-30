@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -101,7 +102,7 @@ func NewPasswordResetHandler(users *users.UserModel, credProv abstract.Credentia
 			if err := notifier.Send(ctx, abstract.Notification{
 				Recipient: abstract.Recipient{Email: email},
 				Template:  "password_reset",
-				Data:      map[string]any{"token": token, "app_url": appURL},
+				Data:      map[string]any{"token": url.QueryEscape(token), "app_url": appURL},
 				Channels:  []abstract.ChannelType{abstract.ChannelEmail},
 			}); err != nil {
 				return nil, err

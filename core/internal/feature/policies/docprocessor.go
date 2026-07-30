@@ -52,6 +52,14 @@ func CompileCEL(expr string) (iam.FunctionRule, error) {
 
 type RuleDocProcessor struct{}
 
+func (p *RuleDocProcessor) Create(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
+	return p.Compile(ctx, doc)
+}
+
+func (p *RuleDocProcessor) Destroy(ctx context.Context, fn iam.FunctionRule) error {
+	return nil
+}
+
 func (p *RuleDocProcessor) Compile(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
 	expr, err := doc.GetString("expression")
 	if err != nil || expr == "" {
@@ -66,6 +74,14 @@ func (p *RuleDocProcessor) CloneState(fn iam.FunctionRule) (iam.FunctionRule, er
 
 // PolicyDocProcessor compiles _operation_policy_ documents into *Policy values.
 type PolicyDocProcessor struct{}
+
+func (p *PolicyDocProcessor) Create(ctx context.Context, doc *data.Document) (*Policy, error) {
+	return p.Compile(ctx, doc)
+}
+
+func (p *PolicyDocProcessor) Destroy(ctx context.Context, pol *Policy) error {
+	return nil
+}
 
 func (p *PolicyDocProcessor) Compile(ctx context.Context, doc *data.Document) (*Policy, error) {
 	policies, err := docToPolicy(doc)

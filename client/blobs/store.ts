@@ -191,7 +191,7 @@ export class HestiaBlobClient {
   }
 
   blob(namespace: string, key:string) {
-      return `${this.client.base()}${this.apiPrefix}/system/blobs/blob/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`
+      return this.client.routeUrl("system:blobs:blob:download", { ns: namespace, key });
   }
 
   namespace(ns: string): BlobNamespace {

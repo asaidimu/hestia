@@ -6,15 +6,17 @@ import (
 )
 
 var (
-	_registerInput   = dispatch.MustFromJSON(registerInputJSON)
-	_userOutput      = dispatch.MustFromJSON(userOutputJSON)
-	_loginInput      = dispatch.MustFromJSON(loginInputJSON)
-	_loginOutput     = dispatch.MustFromJSON(loginOutputJSON)
-	_passwordReset   = dispatch.MustFromJSON(passwordResetInputJSON)
-	_passwordConfirm = dispatch.MustFromJSON(passwordConfirmInputJSON)
-	_bootstrapPwd    = dispatch.MustFromJSON(bootstrapPasswordInputJSON)
-	_messageOutput   = dispatch.MustFromJSON(messageOutputJSON)
-	_claimsOutput    = dispatch.MustFromJSON(claimsOutputJSON)
+	_registerInput    = dispatch.MustFromJSON(registerInputJSON)
+	_userOutput       = dispatch.MustFromJSON(userOutputJSON)
+	_loginInput       = dispatch.MustFromJSON(loginInputJSON)
+	_loginOutput      = dispatch.MustFromJSON(loginOutputJSON)
+	_passwordReset    = dispatch.MustFromJSON(passwordResetInputJSON)
+	_passwordConfirm  = dispatch.MustFromJSON(passwordConfirmInputJSON)
+	_bootstrapPwd     = dispatch.MustFromJSON(bootstrapPasswordInputJSON)
+	_messageOutput    = dispatch.MustFromJSON(messageOutputJSON)
+	_claimsOutput     = dispatch.MustFromJSON(claimsOutputJSON)
+	_elevateInput     = dispatch.MustFromJSON(elevateInputJSON)
+	_elevateOutput    = dispatch.MustFromJSON(elevateOutputJSON)
 )
 
 func registerInputSchema() *definition.Schema        { return _registerInput }
@@ -26,6 +28,8 @@ func passwordConfirmInputSchema() *definition.Schema   { return _passwordConfirm
 func bootstrapPasswordInputSchema() *definition.Schema { return _bootstrapPwd }
 func messageOutputSchema() *definition.Schema         { return _messageOutput }
 func claimsOutputSchema() *definition.Schema           { return _claimsOutput }
+func elevateInputSchema() *definition.Schema          { return _elevateInput }
+func elevateOutputSchema() *definition.Schema         { return _elevateOutput }
 
 var registerInputJSON = []byte(`{
 	"name": "register_input",
@@ -191,6 +195,50 @@ var messageOutputJSON = []byte(`{
 	"version": "1.0.0",
 	"fields": {
 		"message": { "name": "message", "description": "Human-readable status message", "type": "string" }
+	}
+}`)
+
+var elevateInputJSON = []byte(`{
+	"name": "elevate_input",
+	"description": "Elevation request with manager credentials",
+	"version": "1.0.0",
+	"fields": {
+		"payload": {
+			"name": "payload",
+			"type": "object",
+			"schema": { "id": "elevate_payload" }
+		}
+	},
+	"schemas": {
+		"elevate_payload": {
+			"name": "ElevatePayload",
+			"fields": {
+				"email": { "name": "email", "description": "Manager email address", "type": "string", "required": true },
+				"password": { "name": "password", "description": "Manager password", "type": "string", "required": true }
+			}
+		}
+	}
+}`)
+
+var elevateOutputJSON = []byte(`{
+	"name": "elevate_output",
+	"description": "Ephemeral API key for privilege elevation",
+	"version": "1.0.0",
+	"fields": {
+		"document": {
+			"name": "document",
+			"description": "Elevation response document",
+			"type": "object",
+			"schema": { "id": "elevate_document" }
+		}
+	},
+	"schemas": {
+		"elevate_document": {
+			"name": "ElevateDocument",
+			"fields": {
+				"key": { "name": "key", "description": "Ephemeral API key string", "type": "string" }
+			}
+		}
 	}
 }`)
 

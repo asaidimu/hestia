@@ -3,5 +3,11 @@
     "glob": "core/internal/feature/**/schema/*.schema.json",
     "lockfile": "schemas.lock.json",
     "migrations_dir": "core/migrations/"
+  },
+  "gogen": {
+    "name_rules": [
+      { "pattern": "^_(.+)_$", "prefix": "System" }
+    ],
+    "scoped": true
   }
 }

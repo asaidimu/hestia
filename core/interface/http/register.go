@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"errors"
+	"strconv"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -86,7 +88,16 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 			Intent:  reg.Intent,
 		})
 		if err != nil {
-			return o.attachCookieClearingResponse(Response{}, reg.Name), err
+			resp := o.attachCookieClearingResponse(Response{}, reg.Name)
+			var rle *runtime.RateLimitError
+			if errors.As(err, &rle) {
+				if resp.Headers == nil {
+					resp.Headers = map[string][]string{}
+				}
+				resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
+				resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
+			}
+			return resp, err
 		}
 
 		resp := serializeResponse(result, reg.Output, reg.Intent, httpPath)
@@ -104,12 +115,15 @@ func serializeResponse(result *abstract.Result, output *definition.Schema, inten
 		return emptyResponse(intent)
 	}
 
-	if resp, ok := serializeStreamResult(result); ok {
-		return resp
+	if streamResp, ok := serializeStreamResult(result); ok {
+		copyMeta(&streamResp, result)
+		return streamResp
 	}
 
 	if result.Blob.Data != nil {
-		return blobResponse(result.Blob)
+		resp := blobResponse(result.Blob)
+		copyMeta(&resp, result)
+		return resp
 	}
 
 	if result.DocumentChannel != nil {
@@ -125,6 +139,8 @@ func serializeResponse(result *abstract.Result, output *definition.Schema, inten
 	}
 
 	if resp, ok := serializeOutputField(result, output, intent, httpPath); ok {
+		resp.Metadata = result.Metadata
+		promoteMetadataHeaders(&resp)
 		return resp
 	}
 
@@ -248,6 +264,34 @@ func serializeOutputField(result *abstract.Result, output *definition.Schema, in
 		}, true
 	}
 	return Response{}, false
+}
+
+func copyMeta(resp *Response, result *abstract.Result) {
+	resp.Metadata = result.Metadata
+	promoteMetadataHeaders(resp)
+}
+
+var metaHeaderPromotions = map[string]string{
+	"rates": "X-RateLimit",
+}
+
+func promoteMetadataHeaders(resp *Response) {
+	for key, headerPrefix := range metaHeaderPromotions {
+		v, ok := resp.Metadata[key]
+		if !ok {
+			continue
+		}
+		m, ok := v.(*runtime.RateLimitMeta)
+		if !ok {
+			continue
+		}
+		if resp.Headers == nil {
+			resp.Headers = map[string][]string{}
+		}
+		resp.Headers[headerPrefix+"-Remaining"] = []string{strconv.Itoa(m.Remaining)}
+		resp.Headers[headerPrefix+"-Limit"] = []string{strconv.Itoa(m.Limit)}
+		resp.Headers[headerPrefix+"-Reset"] = []string{strconv.FormatInt(m.ResetAt, 10)}
+	}
 }
 
 func extractSessionToken(result *abstract.Result) string {

@@ -9,6 +9,7 @@ import {
   type StreamOptions,
   type DispatchInput,
 } from "./client";
+import type { RouteName } from "./routes.gen";
 import { SystemError } from "@asaidimu/utils-error";
 
 interface WailsDispatchPayload {
@@ -73,7 +74,7 @@ function noHttpError(): never {
   });
 }
 
-export class WailsTransport implements Transport {
+export class WailsTransport implements Transport<RouteName> {
   private baseUrl = "";
   private apiPrefix = "";
   private init = new Once<void>({ throws: true });
@@ -88,7 +89,7 @@ export class WailsTransport implements Transport {
     this.onUnauthorized = config?.onUnauthorized;
 
     if (config?.baseUrl) {
-      this.http = new HttpTransport(
+      this.http = new HttpTransport<RouteName>(
         config.baseUrl,
         this.apiPrefix,
         () => this.onUnauthorized?.(),
@@ -99,7 +100,7 @@ export class WailsTransport implements Transport {
   setOnUnauthorized(cb: () => void, provider?: IdentityProvider) {
     this.onUnauthorized = cb;
     if (!this.http) {
-      this.http = new HttpTransport(
+      this.http = new HttpTransport<RouteName>(
         this.baseUrl || "http://wails.local",
         this.apiPrefix,
         () => this.onUnauthorized?.(),
@@ -111,7 +112,7 @@ export class WailsTransport implements Transport {
     this.baseUrl = baseUrl;
     this.apiPrefix = apiPrefix;
     if (!this.http) {
-      this.http = new HttpTransport(
+      this.http = new HttpTransport<RouteName>(
         baseUrl,
         apiPrefix,
         () => this.onUnauthorized?.(),
@@ -142,6 +143,11 @@ export class WailsTransport implements Transport {
     return this.apiPrefix;
   }
 
+  routeUrl(name: RouteName, args?: Record<string, string>): string {
+    if (!this.http) throw noHttpError();
+    return this.http.routeUrl(name, args);
+  }
+
   /**
    * Polls window.go until Wails bindings are available.
    * Concurrent callers share the single initialization attempt.
@@ -163,7 +169,7 @@ export class WailsTransport implements Transport {
   }
 
   async dispatch<T>(
-    name: string,
+    name: RouteName,
     input?: DispatchInput,
   ): Promise<HestiaResponse<T>> {
     await this.ready();

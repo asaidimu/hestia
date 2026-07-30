@@ -1,11 +1,11 @@
 package policies
 
-func DefaultOperations() []Operation {
-	return []Operation{
-		{Name: "system:policies:operation:get", Description: "Get a policy operation by name"},
+func PolicyBindings() []Binding {
+	return []Binding{
+		{Name: "system:policies:binding:get", Description: "Get a policy binding by name"},
 		{Name: "system:policies:rule:get", Description: "Get a policy rule by name"},
 		{Name: "system:policies:rule:validate", Description: "Validate a CEL rule expression"},
-		{Name: "system:policies:operation:list", Description: "List policy operations"},
+		{Name: "system:policies:binding:list", Description: "List policy bindings"},
 		{Name: "system:policies:rule:list", Description: "List policy rules"},
 		{Name: "system:policies:policy:list", Description: "List policy bindings"},
 		{Name: "system:policies:policy:create", Description: "Create a policy binding"},

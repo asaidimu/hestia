@@ -695,7 +695,7 @@ SetupConfig{
 4. Model: `model.go`
 5. Handlers: `handler.go` (factory functions → `runtime.MessageHandler`)
 6. Feature: `feature.go` (`Registrations(Dependencies)`)
-7. Default policies: `defaults.go` (`DefaultOperations()`)
+7. Default policies: `policies.go` (`PolicyBindings()`)
 8. Wire in `gen_features.go` (operations + registrations)
 9. Migration: `core/migrations/`
 10. Tests

@@ -10,17 +10,19 @@ var (
 	_scheduleOutput      = dispatch.MustFromJSON(scheduleOutputJSON)
 	_messageOutput       = dispatch.MustFromJSON(messageOutputJSON)
 	_scheduleCreateInput  = dispatch.MustFromJSON(scheduleCreateInputJSON)
+	_scheduleUpdateInput  = dispatch.MustFromJSON(scheduleUpdateInputJSON)
 )
 
 func schedulesListOutputSchema() *definition.Schema { return _schedulesListOutput }
 func scheduleOutputSchema() *definition.Schema      { return _scheduleOutput }
 func messageOutputSchema() *definition.Schema       { return _messageOutput }
 func scheduleCreateInputSchema() *definition.Schema { return _scheduleCreateInput }
+func scheduleUpdateInputSchema() *definition.Schema { return _scheduleUpdateInput }
 
 var schedulesListOutputJSON = []byte(`{
 	"version": "1.0.0",
 	"name": "schedules_list_output",
-	"description": "List of scheduled messages",
+	"description": "List of schedules",
 	"fields": {
 		"documents": {
 			"name": "documents",
@@ -34,13 +36,10 @@ var schedulesListOutputJSON = []byte(`{
 			"fields": {
 				"_id": { "name": "_id", "type": "string" },
 				"user_id": { "name": "user_id", "type": "string" },
-				"type": { "name": "type", "type": "string" },
-				"channel": { "name": "channel", "type": "string" },
-				"data": { "name": "data", "type": "any" },
-				"send_at": { "name": "send_at", "type": "integer" },
-				"sent": { "name": "sent", "type": "boolean" },
-				"sent_at": { "name": "sent_at", "type": "integer" },
-				"error_": { "name": "error_", "type": "string" },
+				"message": { "name": "message", "type": "string" },
+				"input": { "name": "input", "type": "record" },
+				"cron": { "name": "cron", "type": "string" },
+				"disabled": { "name": "disabled", "type": "boolean" },
 				"tenant_id": { "name": "tenant_id", "type": "string" },
 				"created_at": { "name": "created_at", "type": "integer" }
 			}
@@ -51,7 +50,7 @@ var schedulesListOutputJSON = []byte(`{
 var scheduleOutputJSON = []byte(`{
 	"version": "1.0.0",
 	"name": "schedule_output",
-	"description": "A single scheduled message",
+	"description": "A single schedule",
 	"fields": {
 		"document": {
 			"name": "document",
@@ -65,13 +64,10 @@ var scheduleOutputJSON = []byte(`{
 			"fields": {
 				"_id": { "name": "_id", "type": "string" },
 				"user_id": { "name": "user_id", "type": "string" },
-				"type": { "name": "type", "type": "string" },
-				"channel": { "name": "channel", "type": "string" },
-				"data": { "name": "data", "type": "any" },
-				"send_at": { "name": "send_at", "type": "integer" },
-				"sent": { "name": "sent", "type": "boolean" },
-				"sent_at": { "name": "sent_at", "type": "integer" },
-				"error_": { "name": "error_", "type": "string" },
+				"message": { "name": "message", "type": "string" },
+				"input": { "name": "input", "type": "record" },
+				"cron": { "name": "cron", "type": "string" },
+				"disabled": { "name": "disabled", "type": "boolean" },
 				"tenant_id": { "name": "tenant_id", "type": "string" },
 				"created_at": { "name": "created_at", "type": "integer" }
 			}
@@ -94,7 +90,7 @@ var messageOutputJSON = []byte(`{
 var scheduleCreateInputJSON = []byte(`{
 	"version": "1.0.0",
 	"name": "schedule_create_input",
-	"description": "Input for creating a scheduled message",
+	"description": "Input for creating a schedule",
 	"fields": {
 		"payload": {
 			"name": "payload",
@@ -108,11 +104,39 @@ var scheduleCreateInputJSON = []byte(`{
 			"name": "ScheduleCreatePayload",
 			"fields": {
 				"user_id": { "name": "user_id", "type": "string" },
-				"type": { "name": "type", "type": "string" },
-				"channel": { "name": "channel", "type": "string" },
-				"data": { "name": "data", "type": "record" },
-				"send_at": { "name": "send_at", "type": "integer" }
+				"message": { "name": "message", "required": true, "type": "string" },
+				"input": { "name": "input", "type": "record" },
+				"cron": { "name": "cron", "required": true, "type": "string" },
+				"disabled": { "name": "disabled", "type": "boolean" }
 			}
 		}
 	}
+}`)
+
+var scheduleUpdateInputJSON = []byte(`{
+	"version": "1.0.0",
+	"name": "schedule_update_input",
+	"description": "Input for updating a schedule",
+	"fields": {
+		"payload": {
+			"name": "payload",
+			"description": "Schedule update payload",
+			"type": "object",
+			"schema": { "id": "schedule_update_payload" }
+		}
+	},
+	"schemas": {
+		"schedule_update_payload": {
+			"name": "ScheduleUpdatePayload",
+			"fields": {
+				"message": { "name": "message", "type": "string" },
+				"input": { "name": "input", "type": "record" },
+				"cron": { "name": "cron", "type": "string" },
+				"disabled": { "name": "disabled", "type": "boolean" }
+			}
+		}
+	},
+	"arguments": [
+		{ "name": "id", "type": "string", "required": true }
+	]
 }`)

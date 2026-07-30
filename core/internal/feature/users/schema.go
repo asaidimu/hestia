@@ -6,12 +6,9 @@ import (
 )
 
 var (
-	_userRegisterInput       = dispatch.MustFromJSON(userRegisterInputJSON)
-	_userLoginInput          = dispatch.MustFromJSON(userLoginInputJSON)
 	_userQueryInput          = dispatch.MustFromJSON(userQueryInputJSON)
 	_userQueryOutput         = dispatch.MustFromJSON(userQueryOutputJSON)
 	_userOutput              = dispatch.MustFromJSON(userOutputJSON)
-	_userNameInput           = dispatch.MustFromJSON(userNameInputJSON)
 	_userUpdateInput         = dispatch.MustFromJSON(userUpdateInputJSON)
 	_userGetInput            = dispatch.MustFromJSON(userGetInputJSON)
 	_userChangePasswordInput = dispatch.MustFromJSON(userChangePasswordInputJSON)
@@ -19,64 +16,14 @@ var (
 	_messageOutput           = dispatch.MustFromJSON(messageOutputJSON)
 )
 
-func userRegisterInputSchema() *definition.Schema       { return _userRegisterInput }
-func userLoginInputSchema() *definition.Schema          { return _userLoginInput }
 func userQueryInputSchema() *definition.Schema          { return _userQueryInput }
 func userQueryOutputSchema() *definition.Schema         { return _userQueryOutput }
 func userOutputSchema() *definition.Schema               { return _userOutput }
-func userNameInputSchema() *definition.Schema            { return _userNameInput }
 func userUpdateInputSchema() *definition.Schema          { return _userUpdateInput }
 func userGetInputSchema() *definition.Schema             { return _userGetInput }
 func userChangePasswordInputSchema() *definition.Schema  { return _userChangePasswordInput }
 func userDeleteInputSchema() *definition.Schema          { return _userDeleteInput }
 func messageOutputSchema() *definition.Schema            { return _messageOutput }
-
-var userRegisterInputJSON = []byte(`{
-	"name": "user_register",
-	"description": "Register a new user",
-	"version": "1.0.0",
-	"fields": {
-		"payload": {
-			"name": "payload",
-			"description": "The user registration payload",
-			"type": "object",
-			"schema": { "id": "user_register_payload" }
-		}
-	},
-	"schemas": {
-		"user_register_payload": {
-			"name": "User Register Payload",
-			"fields": {
-				"username": { "name": "username", "description": "Desired username", "type": "string", "required": true },
-				"password": { "name": "password", "description": "Desired password", "type": "string", "required": true },
-				"display_name": { "name": "display_name", "description": "Display name for the user", "type": "string", "required": true }
-			}
-		}
-	}
-}`)
-
-var userLoginInputJSON = []byte(`{
-	"name": "user_login",
-	"description": "Authenticate a user and receive a session token",
-	"version": "1.0.0",
-	"fields": {
-		"payload": {
-			"name": "payload",
-			"description": "The user login payload",
-			"type": "object",
-			"schema": { "id": "user_login_payload" }
-		}
-	},
-	"schemas": {
-		"user_login_payload": {
-			"name": "User Login Payload",
-			"fields": {
-				"username": { "name": "username", "description": "The user's username", "type": "string", "required": true },
-				"password": { "name": "password", "description": "The user's password", "type": "string", "required": true }
-			}
-		}
-	}
-}`)
 
 var userQueryInputJSON = []byte(`{
 	"name": "user_query",
@@ -148,7 +95,7 @@ var userQueryOutputJSON = []byte(`{
 				"display_name": { "name": "display_name", "description": "Display name", "type": "string" },
 				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" },
 				"updated_at": { "name": "updated_at", "description": "Last update timestamp", "type": "string" },
-				"disabled": { "name": "disabled", "description": "Whether the user is disabled", "type": "boolean" }
+				"disabled": { "name": "disabled", "description": "Unix timestamp when disabled (0 = active)", "type": "integer" }
 			}
 		}
 	}
@@ -175,29 +122,7 @@ var userOutputJSON = []byte(`{
 				"display_name": { "name": "display_name", "description": "Display name", "type": "string" },
 				"created_at": { "name": "created_at", "description": "Creation timestamp", "type": "string" },
 				"updated_at": { "name": "updated_at", "description": "Last update timestamp", "type": "string" },
-				"disabled": { "name": "disabled", "description": "Whether the user is disabled", "type": "boolean" }
-			}
-		}
-	}
-}`)
-
-var userNameInputJSON = []byte(`{
-	"name": "user_name_input",
-	"description": "Username from the path",
-	"version": "1.0.0",
-	"fields": {
-		"arguments": {
-			"name": "arguments",
-			"description": "Username argument",
-			"type": "object",
-			"schema": { "id": "user_name_input_arguments" }
-		}
-	},
-	"schemas": {
-		"user_name_input_arguments": {
-			"name": "UserNameInputArguments",
-			"fields": {
-				"username": { "name": "username", "description": "The username", "type": "string" }
+				"disabled": { "name": "disabled", "description": "Unix timestamp when disabled (0 = active)", "type": "integer" }
 			}
 		}
 	}
@@ -232,7 +157,7 @@ var userUpdateInputJSON = []byte(`{
 			"name": "UserUpdatePayload",
 			"fields": {
 				"display_name": { "name": "display_name", "description": "New display name", "type": "string" },
-				"disabled": { "name": "disabled", "description": "Whether the user should be disabled", "type": "boolean" },
+				"disabled": { "name": "disabled", "description": "Unix timestamp when disabled (0 = active)", "type": "integer" },
 				"data": { "name": "data", "description": "Application-specific user data. Define its shape by extending the _user_ collection schema.", "type": "record" }
 			}
 		}
@@ -302,11 +227,6 @@ var userDeleteInputJSON = []byte(`{
 			"name": "arguments",
 			"type": "object",
 			"schema": { "id": "user_get_arguments" }
-		},
-		"modifiers": {
-			"name": "modifiers",
-			"type": "object",
-			"schema": { "id": "delete_modifiers" }
 		}
 	},
 	"schemas": {
@@ -314,12 +234,6 @@ var userDeleteInputJSON = []byte(`{
 			"name": "UserGetArguments",
 			"fields": {
 				"user_id": { "name": "user_id", "description": "The user ID", "type": "string" }
-			}
-		},
-		"delete_modifiers": {
-			"name": "DeleteModifiers",
-			"fields": {
-				"permanent": { "name": "permanent", "description": "Whether to permanently delete", "type": "boolean" }
 			}
 		}
 	}

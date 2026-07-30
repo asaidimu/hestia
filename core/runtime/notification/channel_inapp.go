@@ -13,11 +13,12 @@ import (
 const notificationsCollectionName = "_notifications_"
 
 type inAppChannel struct {
-	persist base.Persistence
+	persist  base.Persistence
+	resolver abstract.TemplateResolver
 }
 
-func NewInAppChannel(persist base.Persistence) abstract.Channel {
-	return &inAppChannel{persist: persist}
+func NewInAppChannel(persist base.Persistence, resolver abstract.TemplateResolver) abstract.Channel {
+	return &inAppChannel{persist: persist, resolver: resolver}
 }
 
 func (c *inAppChannel) Type() abstract.ChannelType { return abstract.ChannelInApp }
@@ -28,8 +29,10 @@ func (c *inAppChannel) Send(ctx context.Context, n abstract.Notification) error 
 		return err
 	}
 
-	subject := RenderSubject(n.Template, n.Data)
-	body := RenderBody(abstract.ChannelInApp, n.Template, n.Data)
+	subject, body, err := c.resolver.Render(ctx, abstract.ChannelInApp, n.Template, n.Data)
+	if err != nil {
+		return err
+	}
 	if body == "" {
 		body = subject
 	}

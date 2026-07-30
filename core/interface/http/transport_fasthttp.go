@@ -171,7 +171,7 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 		}
 		resp, err := handler(ctx, req)
 		if err != nil {
-			t.writeError(ctx, err, resp.Cookies)
+			t.writeError(ctx, err, resp)
 			return
 		}
 		t.writeSuccess(ctx, resp)
@@ -299,25 +299,37 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 		return
 	}
 
-	meta := responseMeta{
-		Timestamp: time.Now().Format(time.RFC3339),
-		RequestID: string(ctx.Request.Header.Peek("X-Request-ID")),
-		Page:      resp.Page,
-	}
-
-	json.NewEncoder(ctx).Encode(struct {
-		Data     any          `json:"data,omitempty"`
-		Metadata responseMeta `json:"metadata"`
-	}{
-		Data:     resp.Body,
-		Metadata: meta,
+	meta := buildResponseMeta(resp, ctx)
+	json.NewEncoder(ctx).Encode(map[string]any{
+		"data":     resp.Body,
+		"metadata": meta,
 	})
 }
 
-func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies []abstract.Cookie) {
+func buildResponseMeta(resp abstract.Response, ctx *fasthttp.RequestCtx) map[string]any {
+	meta := map[string]any{
+		"timestamp": time.Now().Format(time.RFC3339),
+		"request":   string(ctx.Request.Header.Peek("X-Request-ID")),
+	}
+	if resp.Page != nil {
+		meta["page"] = resp.Page
+	}
+	for k, v := range resp.Metadata {
+		meta[k] = v
+	}
+	return meta
+}
+
+func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abstract.Response) {
 	ctx.SetContentType("application/json")
 
-	for _, c := range cookies {
+	for k, vals := range resp.Headers {
+		for _, v := range vals {
+			ctx.Response.Header.Add(k, v)
+		}
+	}
+
+	for _, c := range resp.Cookies {
 		ctx.Response.Header.SetCookie(toFasthttpCookie(c))
 	}
 
@@ -332,22 +344,16 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, cookies 
 
 	issue := sysErr.ToIssue()
 
-	meta := responseMeta{
-		Timestamp: time.Now().Format(time.RFC3339),
-		RequestID: string(ctx.Request.Header.Peek("X-Request-ID")),
-	}
+	meta := buildResponseMeta(resp, ctx)
 
 	ctx.SetStatusCode(status)
-	json.NewEncoder(ctx).Encode(struct {
-		Error    responseErrorBody `json:"error"`
-		Metadata responseMeta      `json:"metadata"`
-	}{
-		Error: responseErrorBody{
+	json.NewEncoder(ctx).Encode(map[string]any{
+		"error": responseErrorBody{
 			Code:    issue.Code,
 			Message: issue.Message,
 			Details: issue.Cause,
 		},
-		Metadata: meta,
+		"metadata": meta,
 	})
 }
 
@@ -493,7 +499,7 @@ var codeToStatus = map[string]int{
 	"UNAUTHORIZED":         fasthttp.StatusUnauthorized,
 	"INVALID_CREDENTIALS":  fasthttp.StatusUnauthorized,
 	"EMAIL_EXISTS":         fasthttp.StatusConflict,
-	"USER_DELETED":         fasthttp.StatusGone,
+	"USER_DISABLED":        fasthttp.StatusForbidden,
 	"FORBIDDEN":            fasthttp.StatusForbidden,
 	"MISSING_PARAM":        fasthttp.StatusBadRequest,
 	"INVALID_QDSL":         fasthttp.StatusBadRequest,
@@ -507,6 +513,7 @@ var codeToStatus = map[string]int{
 	"DOCUMENT_NOT_FOUND":   fasthttp.StatusNotFound,
 	"NOT_IMPLEMENTED":      fasthttp.StatusNotImplemented,
 	"SERVICE_UNAVAILABLE":  fasthttp.StatusServiceUnavailable,
+	"RATE_LIMITED":         fasthttp.StatusTooManyRequests,
 }
 
 func codeToStatusFn(code string) int {

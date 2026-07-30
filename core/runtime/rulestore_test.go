@@ -21,6 +21,14 @@ type ruleDocProcessor struct {
 	ac iam.AccessController
 }
 
+func (p *ruleDocProcessor) Create(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
+	return p.Compile(ctx, doc)
+}
+
+func (p *ruleDocProcessor) Destroy(ctx context.Context, fn iam.FunctionRule) error {
+	return nil
+}
+
 func (p *ruleDocProcessor) Compile(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
 	expr, _ := doc.GetString("expression")
 	if expr == "" {

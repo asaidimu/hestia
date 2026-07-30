@@ -18,16 +18,6 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
-type OperationPolicyStore interface {
-	EnsureOperation(ctx context.Context, name, ruleKey, intentType, description string) error
-	DeleteOperation(ctx context.Context, name string) error
-	ForceDeleteOperation(ctx context.Context, name string) error
-	EnsureRule(ctx context.Context, name, expr, description string) error
-	DeleteRule(ctx context.Context, name string) error
-	ForceDeleteRule(ctx context.Context, name string) error
-	ReloadPolicies(ctx context.Context) error
-}
-
 func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		namespaces, err := svc.ListNamespaces(ctx)
@@ -48,7 +38,7 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
-func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyStore, registry abstract.Registry) abstract.MessageHandler {
+func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
 		displayName, _ := body["display_name"].(string)
@@ -70,7 +60,7 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyS
 			return nil, fmt.Errorf("create namespace: %w", err)
 		}
 
-		if err := SeedNamespaceOperations(ctx, policyOp, nsID); err != nil {
+		if err := SeedNamespaceBindings(ctx, policyOp, nsID); err != nil {
 			return nil, fmt.Errorf("seed namespace operations: %w", err)
 		}
 
@@ -88,7 +78,7 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyS
 	}
 }
 
-func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyStore, registry abstract.Registry) abstract.MessageHandler {
+func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		if nsID == "" {
@@ -99,7 +89,7 @@ func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp OperationPolicyS
 
 		for _, op := range blobOps {
 			opName := "system:blobs:" + nsID + ":" + op.Suffix
-			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
+			if err := policyOp.DeleteBinding(ctx, opName); err != nil {
 				return nil, fmt.Errorf("delete operation %s: %w", opName, err)
 			}
 		}
@@ -301,25 +291,25 @@ func mustDoc(m map[string]any, ctx context.Context) *data.Document {
 }
 
 type BlobOp struct {
-	Suffix, RuleKey, Intent, Desc string
+	Suffix, RuleKey, Desc string
 }
 
 var blobOps = []BlobOp{
-	{"list", "administrator", "QUERY", "List blobs"},
-	{"head", "administrator", "QUERY", "Get blob metadata"},
-	{"upload", "administrator", "COMMAND", "Upload a blob"},
-	{"download", "administrator", "COMMAND", "Download a blob"},
-	{"delete", "administrator", "COMMAND", "Delete a blob"},
-	{"update", "administrator", "COMMAND", "Update blob metadata"},
-	{"admin", "administrator", "COMMAND", "Administer blob namespace"},
+	{"list", "administrator", "List blobs"},
+	{"head", "administrator", "Get blob metadata"},
+	{"upload", "administrator", "Upload a blob"},
+	{"download", "administrator", "Download a blob"},
+	{"delete", "administrator", "Delete a blob"},
+	{"update", "administrator", "Update blob metadata"},
+	{"admin", "administrator", "Administer blob namespace"},
 }
 
 func BlobOps() []BlobOp { return blobOps }
 
-func SeedNamespaceOperations(ctx context.Context, policyOp OperationPolicyStore, nsID string) error {
+func SeedNamespaceBindings(ctx context.Context, policyOp abstract.BindingPolicyStore, nsID string) error {
 	for _, op := range blobOps {
 		opName := "system:blobs:" + nsID + ":" + op.Suffix
-		if err := policyOp.EnsureOperation(ctx, opName, op.RuleKey, op.Intent, op.Desc+" in "+nsID); err != nil {
+		if err := policyOp.EnsureBinding(ctx, opName, op.RuleKey); err != nil {
 			return fmt.Errorf("register operation %s: %w", opName, err)
 		}
 	}

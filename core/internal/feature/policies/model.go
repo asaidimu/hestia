@@ -10,6 +10,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/query"
 
 	"github.com/asaidimu/hestia/core/internal/util"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 const (
@@ -18,7 +19,6 @@ const (
 )
 
 var (
-	ErrPolicyDeleteForbidden   = common.NewSystemError("POLICY_DELETE_FORBIDDEN", "policies cannot be deleted; disable the policy instead")
 	ErrRuleProtected           = common.NewSystemError("RULE_PROTECTED", "rule is protected and cannot be deleted")
 	ErrRuleInUse               = common.NewSystemError("RULE_IN_USE", "rule is referenced by one or more policies and cannot be deleted")
 	ErrPolicyAlreadyExists     = common.NewSystemError("POLICY_ALREADY_EXISTS")
@@ -30,12 +30,11 @@ var (
 	ErrMarshalRuleNode         = common.NewSystemError("MARSHAL_RULE_NODE")
 )
 
-// Operation is read-only metadata about a registered handler.
+// Binding is read-only metadata about a registered operation.
 // RuleKey is the default rule name for seeding, not exposed via APIs.
-type Operation struct {
+type Binding struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	IntentType  string `json:"intentType"`
 	RuleKey     string `json:"-"`
 }
 
@@ -60,38 +59,40 @@ type PolicyRule struct {
 	Protected   bool      `json:"protected"`
 }
 
-// Policy binds an operation to a rule.
+// Policy binds an operation to a rule and carries optional rate-limit / throttle config.
 // Persisted in _operation_policy_ collection. 1:1 with an operation.
 // key is a composite of tenant_id + ":" + operationName for multi-tenant lookups.
 type Policy struct {
-	ID            string `json:"id"`
-	OperationName string `json:"operationName"`
-	RuleName      string `json:"ruleName"`
-	TenantID      string `json:"tenantID"`
-	Key           string `json:"key"`
-	Enabled       bool   `json:"enabled"`
-	Protected     bool   `json:"protected"`
+	ID            string                 `json:"id"`
+	OperationName string                 `json:"operationName"`
+	RuleName      string                 `json:"ruleName"`
+	TenantID      string                 `json:"tenantID"`
+	Key           string                 `json:"key"`
+	Enabled       bool                   `json:"enabled"`
+	Protected     bool                   `json:"protected"`
+	RateLimit     *runtime.RateLimitPolicy  `json:"rateLimit,omitempty"`
+	Throttle      *runtime.ThrottlePolicy   `json:"throttle,omitempty"`
 }
 
 type PolicyModel struct {
 	policyColl base.Collection
 	ruleColl   base.Collection
-	knownOps   []Operation
+	knownBindings   []Binding
 }
 
-func NewPolicyModel(policyColl, ruleColl base.Collection, knownOps []Operation) *PolicyModel {
-	if knownOps == nil {
-		knownOps = []Operation{}
+func NewPolicyModel(policyColl, ruleColl base.Collection, knownBindings []Binding) *PolicyModel {
+	if knownBindings == nil {
+		knownBindings = []Binding{}
 	}
 	return &PolicyModel{
-		policyColl: policyColl,
-		ruleColl:   ruleColl,
-		knownOps:   knownOps,
+		policyColl:    policyColl,
+		ruleColl:      ruleColl,
+		knownBindings: knownBindings,
 	}
 }
 
-func (m *PolicyModel) SetKnownOps(ops []Operation) {
-	m.knownOps = ops
+func (m *PolicyModel) SetKnownBindings(bindings []Binding) {
+	m.knownBindings = bindings
 }
 
 func (m *PolicyModel) SetPolicyColl(c base.Collection) {
@@ -102,21 +103,21 @@ func (m *PolicyModel) SetRuleColl(c base.Collection) {
 	m.ruleColl = c
 }
 
-// ── Operations (read-only, derived from knownOps) ─────────────────────────
+// ── Operations (read-only, derived from knownBindings) ────────────────────
 
-func (m *PolicyModel) ListOperations(ctx context.Context) ([]Operation, error) {
-	result := make([]Operation, len(m.knownOps))
-	copy(result, m.knownOps)
+func (m *PolicyModel) ListBindings(ctx context.Context) ([]Binding, error) {
+	result := make([]Binding, len(m.knownBindings))
+	copy(result, m.knownBindings)
 	return result, nil
 }
 
-func (m *PolicyModel) GetOperation(ctx context.Context, name string) (Operation, error) {
-	for _, op := range m.knownOps {
-		if op.Name == name {
-			return op, nil
+func (m *PolicyModel) GetBinding(ctx context.Context, name string) (Binding, error) {
+	for _, b := range m.knownBindings {
+		if b.Name == name {
+			return b, nil
 		}
 	}
-	return Operation{}, ErrOperationNotFound.WithOperation("GetOperation").WithMessagef("operation %q not found", name)
+	return Binding{}, ErrOperationNotFound.WithOperation("GetBinding").WithMessagef("binding %q not found", name)
 }
 
 // ── Rules ─────────────────────────────────────────────────────────────────
@@ -307,6 +308,21 @@ func (m *PolicyModel) CreatePolicy(ctx context.Context, p Policy) (Policy, error
 	if p.TenantID != "" {
 		fields["tenant_id"] = p.TenantID
 	}
+	if p.RateLimit != nil {
+		fields["rate_limit_enabled"] = p.RateLimit.Enabled
+		fields["rate_identity"] = p.RateLimit.Identity
+		fields["rate_capacity"] = p.RateLimit.Capacity
+		fields["rate_refill"] = p.RateLimit.Refill
+		fields["rate_period"] = p.RateLimit.Period
+	}
+	if p.Throttle != nil {
+		fields["throttle_limit"] = p.Throttle.Limit
+		fields["throttle_window"] = p.Throttle.Window
+		if p.Throttle.Action != nil {
+			fields["throttle_action_msg"] = p.Throttle.Action.Message
+			fields["throttle_action_input"] = p.Throttle.Action.Input
+		}
+	}
 
 	doc, err := data.NewDocument(fields, ctx)
 	if err != nil {
@@ -339,6 +355,58 @@ func (m *PolicyModel) UpdatePolicyRule(ctx context.Context, operationName, newRu
 	})
 	if err != nil {
 		return Policy{}, common.NewSystemError("UPDATE_POLICY_RULE").WithCause(err)
+	}
+
+	return m.GetPolicyForOperation(ctx, operationName)
+}
+
+func policyFields(p Policy) map[string]any {
+	f := map[string]any{}
+	if p.RuleName != "" {
+		f["rule"] = p.RuleName
+	}
+	if p.RateLimit != nil {
+		f["rate_limit_enabled"] = p.RateLimit.Enabled
+		f["rate_identity"] = p.RateLimit.Identity
+		f["rate_capacity"] = p.RateLimit.Capacity
+		f["rate_refill"] = p.RateLimit.Refill
+		f["rate_period"] = p.RateLimit.Period
+	}
+	if p.Throttle != nil {
+		f["throttle_limit"] = p.Throttle.Limit
+		f["throttle_window"] = p.Throttle.Window
+		if p.Throttle.Action != nil {
+			f["throttle_action_msg"] = p.Throttle.Action.Message
+			f["throttle_action_input"] = p.Throttle.Action.Input
+		}
+	}
+	return f
+}
+
+func (m *PolicyModel) UpdatePolicy(ctx context.Context, operationName string, p Policy) (Policy, error) {
+	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
+	existing, err := m.policyColl.Read(ctx, &q)
+	if err != nil {
+		return Policy{}, common.NewSystemError("QUERY_POLICY").WithCause(err)
+	}
+	if existing.Count == 0 {
+		return Policy{}, ErrPolicyNotFound.WithOperation("UpdatePolicy").WithMessagef("no policy for operation %q", operationName)
+	}
+
+	docID := existing.Data[0].ID()
+	fields := policyFields(p)
+
+	if len(fields) == 0 {
+		return m.GetPolicyForOperation(ctx, operationName)
+	}
+
+	setDoc := data.Patch(fields).Document(ctx)
+	_, err = m.policyColl.Update(ctx, &base.CollectionUpdate{
+		Set:    setDoc,
+		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(docID).Build().Filters,
+	})
+	if err != nil {
+		return Policy{}, common.NewSystemError("UPDATE_POLICY").WithCause(err)
 	}
 
 	return m.GetPolicyForOperation(ctx, operationName)
@@ -404,7 +472,7 @@ func docToPolicy(doc *data.Document) (Policy, error) {
 	tenantID, _ := doc.GetString("tenant_id")
 	key, _ := doc.GetString("key")
 
-	return Policy{
+	p := Policy{
 		ID:            doc.ID(),
 		OperationName: operationName,
 		RuleName:      ruleName,
@@ -412,7 +480,44 @@ func docToPolicy(doc *data.Document) (Policy, error) {
 		Key:           key,
 		Enabled:       enabled,
 		Protected:     protected,
-	}, nil
+	}
+
+	if rle, _ := doc.GetBool("rate_limit_enabled"); rle {
+		p.RateLimit = &runtime.RateLimitPolicy{
+			Enabled:  true,
+			Identity: mustGetString(doc, "rate_identity"),
+			Capacity: int64(mustGetFloat(doc, "rate_capacity")),
+			Refill:   int64(mustGetFloat(doc, "rate_refill")),
+			Period:   int64(mustGetFloat(doc, "rate_period")),
+		}
+	}
+
+	if tl, _ := doc.GetFloat64("throttle_limit"); tl > 0 {
+		p.Throttle = &runtime.ThrottlePolicy{
+			Limit:  int64(tl),
+			Window: int64(mustGetFloat(doc, "throttle_window")),
+		}
+		if msg, _ := doc.GetString("throttle_action_msg"); msg != "" {
+			p.Throttle.Action = &runtime.ThrottleActionPolicy{Message: msg}
+			if raw, _ := doc.Get("throttle_action_input"); raw != nil {
+				if m, ok := raw.(map[string]any); ok {
+					p.Throttle.Action.Input = m
+				}
+			}
+		}
+	}
+
+	return p, nil
+}
+
+func mustGetString(doc *data.Document, field string) string {
+	s, _ := doc.GetString(field)
+	return s
+}
+
+func mustGetFloat(doc *data.Document, field string) float64 {
+	f, _ := doc.GetFloat64(field)
+	return f
 }
 
 func docToRule(doc *data.Document) (PolicyRule, error) {

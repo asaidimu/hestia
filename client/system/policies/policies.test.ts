@@ -106,9 +106,9 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.query({})
       expect(result.data).toHaveLength(1)
-      expect(result.data[0].operationName).toBe("system:apikeys:key:create")
-      expect(result.data[0].ruleName).toBe("administrator")
-      expect(result.data[0].enabled).toBe(true)
+      expect(result.data[0].data?.operationName).toBe("system:apikeys:key:create")
+      expect(result.data[0].data?.ruleName).toBe("administrator")
+      expect(result.data[0].data?.enabled).toBe(true)
     })
 
     it("defaults ruleName to empty string when rule field is missing", async () => {
@@ -127,8 +127,38 @@ describe("HestiaPolicies", () => {
       )
 
       const result = await policies.query({})
-      expect(result.data[0].ruleName).toBe("")
-      expect(result.data[0].enabled).toBe(false)
+      expect(result.data[0].data?.ruleName).toBe("")
+      expect(result.data[0].data?.enabled).toBe(false)
+    })
+
+    it("maps rateLimit and throttle from doc fields", async () => {
+      raw.post.mockResolvedValueOnce(
+        okResponse({
+          data: [
+            {
+              _id_: "doc-3",
+              _metadata_: { created: "1000", updated: "1000", version: 1, checksum: "abc" },
+              operation: "system:auth:session:create",
+              rule: "administrator",
+              enabled: true,
+              protected: true,
+              rateLimit: { enabled: true, identity: "ip", capacity: 5, refill: 5, period: 60 },
+              throttle: { limit: 10, window: 300, action: { message: "system:users:user:disable", input: { "arguments.id": "{{.claims.user_id}}" } } },
+            },
+          ],
+        }),
+      )
+
+      const result = await policies.query({})
+      expect(result.data).toHaveLength(1)
+      const p = result.data[0].data
+      expect(p!.rateLimit).toBeDefined()
+      expect(p!.rateLimit!.identity).toBe("ip")
+      expect(p!.rateLimit!.capacity).toBe(5)
+      expect(p!.throttle).toBeDefined()
+      expect(p!.throttle!.limit).toBe(10)
+      expect(p!.throttle!.action).toBeDefined()
+      expect(p!.throttle!.action!.message).toBe("system:users:user:disable")
     })
   })
 
@@ -147,6 +177,91 @@ describe("HestiaPolicies", () => {
       const result = await policies.list()
       expect(result.data).toHaveLength(1)
       expect(result.data[0].data?.operationName).toBe("system:test:op")
+    })
+
+    it("includes rateLimit and throttle in list response", async () => {
+      raw.get.mockResolvedValueOnce(
+        okResponse({
+          data: {
+            policies: [
+              {
+                id: "p2",
+                operationName: "system:auth:session:create",
+                ruleName: "administrator",
+                enabled: true,
+                protected: true,
+                rateLimit: { enabled: true, identity: "ip", capacity: 5, refill: 5, period: 60 },
+                throttle: { limit: 10, window: 300, action: { message: "system:users:user:disable" } },
+              },
+            ],
+          },
+        }),
+      )
+
+      const result = await policies.list()
+      expect(result.data[0].data?.rateLimit?.identity).toBe("ip")
+      expect(result.data[0].data?.throttle?.limit).toBe(10)
+    })
+  })
+
+  describe("create", () => {
+    it("sends rateLimit and throttle in create body", async () => {
+      raw.post.mockResolvedValueOnce(
+        okResponse({
+          data: {
+            id: "new-1",
+            operationName: "system:auth:session:create",
+            ruleName: "administrator",
+            enabled: true,
+            protected: false,
+          },
+        }),
+      )
+
+      await policies.create({
+        data: {
+          ruleName: "administrator",
+          rateLimit: { enabled: true, identity: "ip", capacity: 5, refill: 5, period: 60 },
+          throttle: { limit: 10, window: 300, action: { message: "system:users:user:disable", input: { "arguments.id": "{{.claims.user_id}}" } } },
+        },
+        options: "system:auth:session:create",
+      })
+
+      const callArgs = raw.post.mock.calls[0]
+      const body = callArgs[2]?.body ?? callArgs[1]?.body ?? callArgs[1]
+      expect(body.rateLimit).toBeDefined()
+      expect(body.rateLimit.identity).toBe("ip")
+      expect(body.throttle).toBeDefined()
+      expect(body.throttle.limit).toBe(10)
+    })
+  })
+
+  describe("update", () => {
+    it("sends rateLimit and throttle in update body", async () => {
+      raw.patch.mockResolvedValueOnce(
+        okResponse({
+          data: {
+            id: "upd-1",
+            operationName: "system:auth:session:create",
+            ruleName: "administrator",
+            enabled: true,
+            protected: false,
+            rateLimit: { enabled: true, identity: "ip", capacity: 10, refill: 10, period: 60 },
+          },
+        }),
+      )
+
+      await policies.update({
+        data: {
+          rateLimit: { enabled: true, identity: "ip", capacity: 10, refill: 10, period: 60 },
+        },
+        options: "system:auth:session:create",
+      })
+
+      const callArgs = raw.patch.mock.calls[0]
+      const body = callArgs[2]?.body ?? callArgs[1]?.body ?? callArgs[1]
+      expect(body.rateLimit).toBeDefined()
+      expect(body.rateLimit.capacity).toBe(10)
     })
   })
 })

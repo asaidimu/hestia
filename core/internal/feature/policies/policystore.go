@@ -26,8 +26,8 @@ func NewPolicyStoreAdapter(policyModel *PolicyModel, permMgr runtime.ReloadableP
 	}
 }
 
-// EnsureOperation creates or updates a policy for the given operation.
-func (a *PolicyStoreAdapter) EnsureOperation(ctx context.Context, name, ruleName, intentType, description string) error {
+// EnsureBinding creates or updates a policy for the given binding.
+func (a *PolicyStoreAdapter) EnsureBinding(ctx context.Context, name, ruleName string) error {
 	_, err := a.policyModel.GetPolicyForOperation(ctx, name)
 	if err != nil {
 		policy := Policy{
@@ -50,48 +50,9 @@ func (a *PolicyStoreAdapter) EnsureOperation(ctx context.Context, name, ruleName
 	return nil
 }
 
-// DeleteOperation disables the policy for the given operation instead of deleting it.
-func (a *PolicyStoreAdapter) DeleteOperation(ctx context.Context, name string) error {
-	_, err := a.policyModel.SetPolicyEnabled(ctx, name, false)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ForceDeleteOperation hard-deletes the policy for the given operation.
-func (a *PolicyStoreAdapter) ForceDeleteOperation(ctx context.Context, name string) error {
+// DeleteBinding hard-deletes the policy for the given binding.
+func (a *PolicyStoreAdapter) DeleteBinding(ctx context.Context, name string) error {
 	return a.policyModel.DeletePolicy(ctx, name)
-}
-
-func (a *PolicyStoreAdapter) EnsureRule(ctx context.Context, name, expr, description string) error {
-	existing, err := a.policyModel.GetRule(ctx, name)
-	if err == nil && existing.Name != "" {
-		return nil
-	}
-
-	rule := PolicyRule{
-		Name:        name,
-		RuleType:    "simple",
-		Syntax:      "cel",
-		Expression:  expr,
-		Description: description,
-	}
-	if _, err := a.policyModel.CreateRule(ctx, rule); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *PolicyStoreAdapter) DeleteRule(ctx context.Context, name string) error {
-	if err := a.policyModel.DeleteRule(ctx, name); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *PolicyStoreAdapter) ForceDeleteRule(ctx context.Context, name string) error {
-	return a.DeleteRule(ctx, name)
 }
 
 func (a *PolicyStoreAdapter) ReloadPolicies(ctx context.Context) error {

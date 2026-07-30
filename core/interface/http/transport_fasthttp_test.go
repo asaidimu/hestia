@@ -217,7 +217,7 @@ func TestWriteError(t *testing.T) {
 		transport := NewTransport(TransportOptions{Addr: ":0"})
 		ctx := newCtx("GET", "/")
 		sysErr := common.NewSystemError("NOT_FOUND", "test not found")
-		transport.writeError(ctx, sysErr, nil)
+		transport.writeError(ctx, sysErr, abstract.Response{})
 
 		if ctx.Response.StatusCode() != 404 {
 			t.Errorf("status = %d, want 404", ctx.Response.StatusCode())
@@ -227,7 +227,7 @@ func TestWriteError(t *testing.T) {
 	t.Run("plain error maps to 500", func(t *testing.T) {
 		transport := NewTransport(TransportOptions{Addr: ":0"})
 		ctx := newCtx("GET", "/")
-		transport.writeError(ctx, errors.New("something broke"), nil)
+		transport.writeError(ctx, errors.New("something broke"), abstract.Response{})
 
 		if ctx.Response.StatusCode() != 500 {
 			t.Errorf("status = %d, want 500", ctx.Response.StatusCode())

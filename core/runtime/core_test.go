@@ -201,7 +201,7 @@ func TestErrorSentinels(t *testing.T) {
 		ErrMissingParam,
 		ErrInvalidQDSL,
 		ErrEmailExists,
-		ErrUserDeleted,
+		ErrUserDisabled,
 		ErrForbidden,
 		ErrPermissionNotRegistered,
 		ErrInvalidToken,

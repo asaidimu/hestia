@@ -526,7 +526,8 @@ func TestPasswordResetHandler_WithMailer(t *testing.T) {
 		t.Fatalf("userModel.Register: %v", err)
 	}
 
-	notifier := notification.New()
+	resolver := &testNotifResolver{}
+	notifier := notification.New(resolver)
 	mailer, err := runtime.NewMailer(runtime.MailerConfig{
 		SMTPHost:     "localhost",
 		SMTPPort:     1025,
@@ -537,7 +538,7 @@ func TestPasswordResetHandler_WithMailer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMailer: %v", err)
 	}
-	notifier.RegisterChannel(notification.NewEmailChannel(mailer))
+	notifier.RegisterChannel(notification.NewEmailChannel(mailer, resolver))
 
 	clearMailHog()
 
@@ -597,4 +598,16 @@ func TestNewAPIKeyAuthenticator(t *testing.T) {
 	if a == nil {
 		t.Fatal("NewAPIKeyAuthenticator returned nil")
 	}
+}
+
+type testNotifResolver struct{}
+
+func (r *testNotifResolver) Render(_ context.Context, ch abstract.ChannelType, name string, data map[string]any) (string, string, error) {
+	if ch == abstract.ChannelEmail && name == "password_reset" {
+		token, _ := data["token"].(string)
+		appURL, _ := data["app_url"].(string)
+		body := fmt.Sprintf(`<!DOCTYPE html><html><body><a href="%s/auth?token=%s">Reset</a><p>expires in 5 minutes</p></body></html>`, appURL, token)
+		return "Password Reset", body, nil
+	}
+	return name, "", nil
 }

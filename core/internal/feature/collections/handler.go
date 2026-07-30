@@ -19,16 +19,6 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-type OperationPolicyStore interface {
-	EnsureOperation(ctx context.Context, name, ruleKey, intentType, description string) error
-	DeleteOperation(ctx context.Context, name string) error
-	ForceDeleteOperation(ctx context.Context, name string) error
-	EnsureRule(ctx context.Context, name, expr, description string) error
-	DeleteRule(ctx context.Context, name string) error
-	ForceDeleteRule(ctx context.Context, name string) error
-	ReloadPolicies(ctx context.Context) error
-}
-
 func wrapErr(err error, code, msg string) *common.SystemError {
 	if sysErr, ok := errors.AsType[*common.SystemError](err); ok {
 		return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, sysErr.Error())).
@@ -37,7 +27,7 @@ func wrapErr(err error, code, msg string) *common.SystemError {
 	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
 }
 
-func NewCollectionCreateHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
+func NewCollectionCreateHandler(persist persistence.Persistence, policyOp abstract.BindingPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		bodyRaw := doc.GetOr("payload", nil)
@@ -84,20 +74,20 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 		}
 
 		type opDef struct {
-			suffix, ruleKey, intent, desc string
+			suffix, ruleKey string
 		}
 		ops := []opDef{
-			{"read", "authenticated", "QUERY", "Query " + name + " collection"},
-			{"write", "authenticated", "COMMAND", "Write to " + name + " collection"},
-			{"delete", "authenticated", "COMMAND", "Delete from " + name + " collection"},
-			{"document:read", "authenticated", "QUERY", "Get a document from " + name},
-			{"document:create", "administrator", "COMMAND", "Create a document in " + name},
-			{"document:update", "administrator", "COMMAND", "Update a document in " + name},
-			{"document:delete", "administrator", "COMMAND", "Delete a document from " + name},
+			{"read", "authenticated"},
+			{"write", "authenticated"},
+			{"delete", "authenticated"},
+			{"document:read", "authenticated"},
+			{"document:create", "administrator"},
+			{"document:update", "administrator"},
+			{"document:delete", "administrator"},
 		}
 		for _, op := range ops {
 			opName := "system:collections:" + name + ":" + op.suffix
-			if err := policyOp.EnsureOperation(ctx, opName, op.ruleKey, op.intent, op.desc); err != nil {
+			if err := policyOp.EnsureBinding(ctx, opName, op.ruleKey); err != nil {
 				return nil, wrapErr(err, "ENSURE_OPERATION", fmt.Sprintf("register operation %s", opName))
 			}
 		}
@@ -123,7 +113,7 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp Operat
 	}
 }
 
-func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp OperationPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
+func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp abstract.BindingPolicyStore, registry abstract.Registry, logger *zap.Logger) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
@@ -144,7 +134,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp Operat
 		suffixes := []string{"read", "write", "delete", "document:create", "document:read", "document:update", "document:delete"}
 		for _, s := range suffixes {
 			opName := "system:collections:" + name + ":" + s
-			if err := policyOp.ForceDeleteOperation(ctx, opName); err != nil {
+			if err := policyOp.DeleteBinding(ctx, opName); err != nil {
 				logger.Warn("Failed to delete operation", zap.String("operation", opName), zap.Error(err))
 			}
 		}

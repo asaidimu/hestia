@@ -16,8 +16,8 @@ type Dependencies struct {
 
 func Registrations(deps Dependencies) []abstract.MessageRegistration {
 	return []abstract.MessageRegistration{
-		{Name: "system:policies:operation:get", Handler: NewGetOperationHandler(deps.PolicyModel), Description: "Get operation info", Enabled: true, Intent: abstract.Read, Input: runtime.Input{Schema: policyOperationGetInputSchema(), Arguments: []abstract.ArgDef{{Name: "name", Type: definition.FieldTypeString}}, ResourceIDField: "name"}, Output: policyOperationOutputSchema()},
-		{Name: "system:policies:operation:list", Handler: NewListOperationsHandler(deps.PolicyModel), Description: "List all operations", Enabled: true, Intent: abstract.Read, Output: policyListOperationsOutputSchema()},
+		{Name: "system:policies:binding:get", Handler: NewGetBindingHandler(deps.PolicyModel), Description: "Get binding info", Enabled: true, Intent: abstract.Read, Input: runtime.Input{Schema: policyBindingGetInputSchema(), Arguments: []abstract.ArgDef{{Name: "name", Type: definition.FieldTypeString}}, ResourceIDField: "name"}, Output: policyBindingOutputSchema()},
+		{Name: "system:policies:binding:list", Handler: NewListBindingsHandler(deps.PolicyModel), Description: "List all bindings", Enabled: true, Intent: abstract.Read, Output: policyListBindingsOutputSchema()},
 		{Name: "system:policies:rule:validate", Handler: NewValidateRuleHandler(deps.LiveRules), Description: "Validate a CEL rule expression", Enabled: true, Intent: abstract.Check, Input: runtime.Input{Schema: policyValidateInputSchema(), Payload: definition.FieldTypeObject}, Output: policyValidateOutputSchema()},
 		{Name: "system:policies:rule:list", Handler: NewListRulesHandler(deps.PolicyModel), Description: "List all rules", Enabled: true, Intent: abstract.Read, Output: policyListRulesOutputSchema()},
 		{Name: "system:policies:rule:get", Handler: NewGetRuleHandler(deps.PolicyModel), Description: "Get a policy rule", Enabled: true, Intent: abstract.Read, Input: runtime.Input{Schema: policyRuleGetInputSchema(), Arguments: []abstract.ArgDef{{Name: "name", Type: definition.FieldTypeString}}, ResourceIDField: "name"}, Output: policyRuleOutputSchema()},

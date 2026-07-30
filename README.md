@@ -377,7 +377,7 @@ module/<name>/
     ├── handler.go      // business logic closures
     ├── model.go        // persistence wrapper
     ├── schema.go       // input/output schemas
-    ├── defaults.go     // DefaultOperations() → permission scopes
+    ├── policies.go    // PolicyBindings() → permission scopes
     ├── policies.go     // custom rules (optional)
     └── seed.go         // seed data (optional)
 ```

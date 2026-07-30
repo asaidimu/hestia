@@ -40,11 +40,12 @@ type Cookie struct {
 type StreamBody <-chan any
 
 type Response struct {
-	Status  int
-	Headers map[string][]string
-	Body    any
-	Cookies []Cookie
-	Page    *query.PaginationInfo
+	Status   int
+	Headers  map[string][]string
+	Body     any
+	Cookies  []Cookie
+	Page     *query.PaginationInfo
+	Metadata map[string]any
 }
 
 type Handler func(ctx context.Context, req Request) (Response, error)

@@ -167,14 +167,14 @@ describe("HestiaBlobClient", () => {
   describe("blob (download URL)", () => {
     it("composes download url", () => {
       const url = blobs.blob("test-bucket", "b1")
-      expect(url).toBe("http://test.local/api/system/blobs/blob/test-bucket/b1")
+      expect(url).toBe("http://test.local/api/system/blobs/blob/download/test-bucket/b1")
     })
 
     it("composes download url from custom baseUrl and prefix", () => {
       const customClient = new HttpTransport("http://other.local:9090", "/prefix")
       const customBlobs = new HestiaBlobClient(customClient, "/prefix")
       const url = customBlobs.blob("custom", "x")
-      expect(url).toBe("http://other.local:9090/prefix/system/blobs/blob/custom/x")
+      expect(url).toBe("http://other.local:9090/prefix/system/blobs/blob/download/custom/x")
     })
   })
 

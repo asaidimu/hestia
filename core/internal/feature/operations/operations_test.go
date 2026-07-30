@@ -29,14 +29,14 @@ func (m testMessage) UserAgent() string  { return "" }
 func (m testMessage) ResourceID() string { return "" }
 func (m testMessage) SessionID() string  { return "" }
 
-func TestDefaultOperations(t *testing.T) {
-	ops := operations.DefaultOperations()
-	if len(ops) == 0 {
-		t.Fatal("DefaultOperations returned empty list")
+func TestPolicyBindings(t *testing.T) {
+	bindings := operations.PolicyBindings()
+	if len(bindings) == 0 {
+		t.Fatal("PolicyBindings returned empty list")
 	}
-	for _, op := range ops {
-		if op.Name == "" {
-			t.Error("DefaultOperations contains an operation with empty Name")
+	for _, b := range bindings {
+		if b.Name == "" {
+			t.Error("PolicyBindings contains a binding with empty Name")
 		}
 	}
 }

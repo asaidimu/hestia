@@ -15,7 +15,7 @@ type UserClaims struct {
 	TenantID     string
 	Permissions  []string
 	TokenVersion int
-	Deleted      string // empty if active; RFC3339 if soft-deleted
+	Disabled     int
 }
 
 // UserClaimsDocProcessor compiles _user_ documents into UserClaims values.
@@ -26,7 +26,7 @@ func (p *UserClaimsDocProcessor) Compile(ctx context.Context, doc *data.Document
 	tenantID, _ := doc.GetString("tenant_id")
 	perms, _ := doc.GetStringArray("permissions")
 	tv, _ := doc.GetInt("token_version")
-	deleted, _ := doc.GetString("deleted")
+	disabled, _ := doc.GetInt("disabled")
 
 	return &UserClaims{
 		UserID:       doc.ID(),
@@ -34,8 +34,16 @@ func (p *UserClaimsDocProcessor) Compile(ctx context.Context, doc *data.Document
 		TenantID:     tenantID,
 		Permissions:  perms,
 		TokenVersion: tv,
-		Deleted:      deleted,
+		Disabled:     disabled,
 	}, nil
+}
+
+func (p *UserClaimsDocProcessor) Create(ctx context.Context, doc *data.Document) (*UserClaims, error) {
+	return p.Compile(ctx, doc)
+}
+
+func (p *UserClaimsDocProcessor) Destroy(ctx context.Context, c *UserClaims) error {
+	return nil
 }
 
 func (p *UserClaimsDocProcessor) CloneState(c *UserClaims) (*UserClaims, error) {

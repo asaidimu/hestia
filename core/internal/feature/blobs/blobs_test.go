@@ -68,10 +68,10 @@ func (m testMessage) SessionID() string  { return "" }
 
 // ── tests ────────────────────────────────────────────────────────────────────
 
-func TestDefaultOperations(t *testing.T) {
-	ops := blobs.DefaultOperations()
-	if len(ops) == 0 {
-		t.Fatal("DefaultOperations() returned empty slice")
+func TestPolicyBindings(t *testing.T) {
+	bindings := blobs.PolicyBindings()
+	if len(bindings) == 0 {
+		t.Fatal("PolicyBindings() returned empty slice")
 	}
 
 	expected := map[string]string{
@@ -86,18 +86,18 @@ func TestDefaultOperations(t *testing.T) {
 		"system:blobs:blob:update":      "administrator",
 	}
 
-	if len(ops) != len(expected) {
-		t.Errorf("got %d operations, want %d", len(ops), len(expected))
+	if len(bindings) != len(expected) {
+		t.Errorf("got %d bindings, want %d", len(bindings), len(expected))
 	}
 
-	for _, op := range ops {
-		want, ok := expected[op.Name]
+	for _, b := range bindings {
+		want, ok := expected[b.Name]
 		if !ok {
-			t.Errorf("unexpected operation %q", op.Name)
+			t.Errorf("unexpected binding %q", b.Name)
 			continue
 		}
-		if op.RuleKey != want {
-			t.Errorf("%s ruleKey = %q, want %q", op.Name, op.RuleKey, want)
+		if b.RuleKey != want {
+			t.Errorf("%s ruleKey = %q, want %q", b.Name, b.RuleKey, want)
 		}
 	}
 }

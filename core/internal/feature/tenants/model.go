@@ -73,15 +73,3 @@ func (m *TenantModel) GetByDomain(ctx context.Context, domain string) (*data.Doc
 	return result.Data[0], nil
 }
 
-func (m *TenantModel) Exists(ctx context.Context, id string) (bool, error) {
-	col, err := m.collection(ctx)
-	if err != nil {
-		return false, err
-	}
-	q := query.NewQueryBuilder().Where(data.DocumentIDField).Eq(id).Build()
-	result, err := col.Read(ctx, &q)
-	if err != nil {
-		return false, err
-	}
-	return result.Count > 0, nil
-}

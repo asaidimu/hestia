@@ -258,7 +258,7 @@ func fieldToExpr(f depField) string {
 		return "m.blobSvc"
 	case strings.Contains(t, "PermissionManager"):
 		return "m.permMgr"
-	case strings.Contains(t, "PolicyStore") || strings.Contains(t, "PolicyOperation"):
+	case strings.Contains(t, "PolicyStore") || strings.Contains(t, "BindingPolicyStore"):
 		return "m.policyBridge"
 	case strings.HasPrefix(t, "func("):
 		switch f.Name {
@@ -304,10 +304,10 @@ func genFeatures(features []featureInfo) {
 	}
 	b.WriteString(")\n\n")
 
-	b.WriteString("var allDefaultOperations = func() []policies.PolicyOperation {\n")
-	b.WriteString("\tvar all []policies.PolicyOperation\n")
+	b.WriteString("var allPolicyBindings = func() []policies.Binding {\n")
+	b.WriteString("\tvar all []policies.Binding\n")
 	for _, f := range features {
-		b.WriteString(fmt.Sprintf("\tall = append(all, %s.DefaultOperations()...)\n", f.PkgName))
+		b.WriteString(fmt.Sprintf("\tall = append(all, %s.PolicyBindings()...)\n", f.PkgName))
 	}
 	b.WriteString("\treturn all\n")
 	b.WriteString("}()\n\n")

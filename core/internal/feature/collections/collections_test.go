@@ -15,14 +15,10 @@ import (
 
 type stubPolicyStore struct{}
 
-func (stubPolicyStore) EnsureOperation(context.Context, string, string, string, string) error {
+func (stubPolicyStore) EnsureBinding(context.Context, string, string) error {
 	return nil
 }
-func (stubPolicyStore) DeleteOperation(context.Context, string) error   { return nil }
-func (stubPolicyStore) ForceDeleteOperation(context.Context, string) error { return nil }
-func (stubPolicyStore) EnsureRule(context.Context, string, string, string) error { return nil }
-func (stubPolicyStore) DeleteRule(context.Context, string) error   { return nil }
-func (stubPolicyStore) ForceDeleteRule(context.Context, string) error { return nil }
+func (stubPolicyStore) DeleteBinding(context.Context, string) error   { return nil }
 func (stubPolicyStore) ReloadPolicies(context.Context) error { return nil }
 
 type stubRegistry struct{}
