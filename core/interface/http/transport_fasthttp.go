@@ -28,10 +28,10 @@ type Logger interface {
 }
 
 type TransportOptions struct {
-	Addr      string
-	Logger    Logger
-	APIPrefix string
-	StaticFS  fs.FS
+	Addr           string
+	Logger         Logger
+	APIPrefix      string
+	StaticFS       fs.FS
 	AllowedOrigins []string
 }
 
@@ -491,29 +491,29 @@ func randomID() string {
 }
 
 var codeToStatus = map[string]int{
-	"ERR_ACCESS_DENIED":    fasthttp.StatusForbidden,
-	"NOT_FOUND":            fasthttp.StatusNotFound,
-	"ALREADY_EXISTS":       fasthttp.StatusConflict,
-	"VALIDATION_ERROR":     fasthttp.StatusBadRequest,
-	"INVALID_REQUEST":      fasthttp.StatusBadRequest,
-	"UNAUTHORIZED":         fasthttp.StatusUnauthorized,
-	"INVALID_CREDENTIALS":  fasthttp.StatusUnauthorized,
-	"EMAIL_EXISTS":         fasthttp.StatusConflict,
-	"USER_DISABLED":        fasthttp.StatusForbidden,
-	"FORBIDDEN":            fasthttp.StatusForbidden,
-	"MISSING_PARAM":        fasthttp.StatusBadRequest,
-	"INVALID_QDSL":         fasthttp.StatusBadRequest,
-	"DOCUMENT_REQUIRED":    fasthttp.StatusBadRequest,
-	"PARSE_DOCUMENT":       fasthttp.StatusBadRequest,
-	"SCHEMA_REQUIRED":      fasthttp.StatusBadRequest,
-	"SCHEMA_MISSING_NAME":  fasthttp.StatusBadRequest,
-	"COLLECTION_EXISTS":    fasthttp.StatusConflict,
-	"RESERVED_NAME":        fasthttp.StatusConflict,
-	"AUTH_REQUIRED":        fasthttp.StatusUnauthorized,
-	"DOCUMENT_NOT_FOUND":   fasthttp.StatusNotFound,
-	"NOT_IMPLEMENTED":      fasthttp.StatusNotImplemented,
-	"SERVICE_UNAVAILABLE":  fasthttp.StatusServiceUnavailable,
-	"RATE_LIMITED":         fasthttp.StatusTooManyRequests,
+	"ERR_ACCESS_DENIED":   fasthttp.StatusForbidden,
+	"NOT_FOUND":           fasthttp.StatusNotFound,
+	"ALREADY_EXISTS":      fasthttp.StatusConflict,
+	"VALIDATION_ERROR":    fasthttp.StatusBadRequest,
+	"INVALID_REQUEST":     fasthttp.StatusBadRequest,
+	"UNAUTHORIZED":        fasthttp.StatusUnauthorized,
+	"INVALID_CREDENTIALS": fasthttp.StatusUnauthorized,
+	"EMAIL_EXISTS":        fasthttp.StatusConflict,
+	"USER_DISABLED":       fasthttp.StatusForbidden,
+	"FORBIDDEN":           fasthttp.StatusForbidden,
+	"MISSING_PARAM":       fasthttp.StatusBadRequest,
+	"INVALID_QDSL":        fasthttp.StatusBadRequest,
+	"DOCUMENT_REQUIRED":   fasthttp.StatusBadRequest,
+	"PARSE_DOCUMENT":      fasthttp.StatusBadRequest,
+	"SCHEMA_REQUIRED":     fasthttp.StatusBadRequest,
+	"SCHEMA_MISSING_NAME": fasthttp.StatusBadRequest,
+	"COLLECTION_EXISTS":   fasthttp.StatusConflict,
+	"RESERVED_NAME":       fasthttp.StatusConflict,
+	"AUTH_REQUIRED":       fasthttp.StatusUnauthorized,
+	"DOCUMENT_NOT_FOUND":  fasthttp.StatusNotFound,
+	"NOT_IMPLEMENTED":     fasthttp.StatusNotImplemented,
+	"SERVICE_UNAVAILABLE": fasthttp.StatusServiceUnavailable,
+	"RATE_LIMITED":        fasthttp.StatusTooManyRequests,
 }
 
 func codeToStatusFn(code string) int {

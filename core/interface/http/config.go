@@ -31,13 +31,13 @@ func (c Config) Addr() string {
 
 func ConfigFromRuntime(cfg *runtime.Config) Config {
 	return Config{
-		Port:              cfg.Port,
-		APIPrefix:         cfg.APIPrefix,
-		StaticFS:          cfg.StaticFS,
-		CookieConfig:      cfg.CookieConfig,
-		SessionTTL:        cfg.SessionTTL,
-		IdleTTL:           cfg.IdleTTL,
-		RefreshTTL:        cfg.RefreshTTL,
-		AllowedOrigins:    cfg.AllowedOrigins,
+		Port:           cfg.Port,
+		APIPrefix:      cfg.APIPrefix,
+		StaticFS:       cfg.StaticFS,
+		CookieConfig:   cfg.CookieConfig,
+		SessionTTL:     cfg.SessionTTL,
+		IdleTTL:        cfg.IdleTTL,
+		RefreshTTL:     cfg.RefreshTTL,
+		AllowedOrigins: cfg.AllowedOrigins,
 	}
 }

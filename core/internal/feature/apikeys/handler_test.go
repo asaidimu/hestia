@@ -7,10 +7,10 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func testMsg(name string, input *data.Document) abstract.Message {

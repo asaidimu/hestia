@@ -5,14 +5,14 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
-	"github.com/asaidimu/hestia/core/internal/feature/users"
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
 type Dependencies struct {
-	UserModel           *users.UserModel
+	UserModel           *schema.SystemUsers
 	CredentialsProvider abstract.CredentialsProvider
 	APIKeyAuth          *APIKeyAuthenticator
 	APIKeyModel         *apikeys.APIKeyModel

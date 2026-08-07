@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_a_p_i_key_utils.go).
+// Add custom methods to the SystemAPIKey model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_a_p_i_key_validation.go,
+// system_a_p_i_key_serialization.go). Avoid throwing all logic into a
+// single system_a_p_i_key_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -19,32 +22,32 @@ import (
 	"sync"
 )
 
-type Operation = string
 type IPCIDR = string
-
-type Limits struct {
-	Rph int64 `anansi:"rph" json:"rph"`
-	Rpm int64 `anansi:"rpm" json:"rpm"`
-}
+type Operation = string
 
 type IPConfig struct {
-	Whitelist []IPCIDR `anansi:"whitelist" json:"whitelist"`
+	Whitelist []IPCIDR `anansi:"whitelist,required=false" json:"whitelist,omitempty"`
+}
+
+type Limits struct {
+	Rph *int64 `anansi:"rph,required=false" json:"rph,omitempty"`
+	Rpm *int64 `anansi:"rpm,required=false" json:"rpm,omitempty"`
 }
 
 type SystemAPIKey struct {
 	data.DocumentModel
-	Operations  []Operation `anansi:"operations" json:"operations"`
-	Expiry      string      `anansi:"expiry" json:"expiry"`
-	Hash        string      `anansi:"hash" json:"hash"`
-	LastUsed    string      `anansi:"last_used" json:"last_used"`
-	Status      string      `anansi:"status" json:"status"`
-	Name        string      `anansi:"name" json:"name"`
-	Environment string      `anansi:"environment" json:"environment"`
-	UserID      string      `anansi:"userId" json:"userId"`
-	Prefix      string      `anansi:"prefix" json:"prefix"`
-	Limits      Limits      `anansi:"limits" json:"limits"`
-	Usage       int64       `anansi:"usage" json:"usage"`
-	Ip          IPConfig    `anansi:"ip" json:"ip"`
+	Operations  []Operation `anansi:"operations,required=false" json:"operations,omitempty"`
+	Hash        string      `anansi:"hash,required=true" json:"hash"`
+	Name        string      `anansi:"name,required=true" json:"name"`
+	Prefix      string      `anansi:"prefix,required=true" json:"prefix"`
+	UserID      string      `anansi:"userId,required=true" json:"userId"`
+	Environment *string     `anansi:"environment,required=false" json:"environment,omitempty"`
+	Expiry      *string     `anansi:"expiry,required=false" json:"expiry,omitempty"`
+	Ip          *IPConfig   `anansi:"ip,required=false" json:"ip,omitempty"`
+	LastUsed    *string     `anansi:"last_used,required=false" json:"last_used,omitempty"`
+	Limits      *Limits     `anansi:"limits,required=false" json:"limits,omitempty"`
+	Status      *string     `anansi:"status,required=false" json:"status,omitempty"`
+	Usage       *int64      `anansi:"usage,required=false" json:"usage,omitempty"`
 }
 
 // NewSystemAPIKey creates and initializes a new SystemAPIKey
@@ -54,7 +57,7 @@ func NewSystemAPIKey(model SystemAPIKey) *SystemAPIKey {
 
 // SystemAPIKeys is a type-safe collection for SystemAPIKey
 type SystemAPIKeys struct {
-	base.ModelCollection[SystemAPIKey, *SystemAPIKey]
+	*collection.ModelCollection[*SystemAPIKey]
 }
 
 const SystemAPIKeysCollectionName = "_api_key_"
@@ -68,7 +71,7 @@ var (
 // construct the SystemAPIKey model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemAPIKeysModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemAPIKey, *SystemAPIKey]) (*SystemAPIKeys, error) {
+func InitSystemAPIKeysModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemAPIKey]) (*SystemAPIKeys, error) {
 	systemAPIKeysModelMu.Lock()
 	defer systemAPIKeysModelMu.Unlock()
 	if systemAPIKeysModel != nil {
@@ -80,7 +83,7 @@ func InitSystemAPIKeysModel(p base.Persistence, logger *zap.Logger, opts ...coll
 			WithOperation("InitSystemAPIKeysModel").
 			WithPath("_api_key_")
 	}
-	mc, err := collection.NewModelCollection[SystemAPIKey, *SystemAPIKey](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemAPIKey](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemAPIKeysModel").

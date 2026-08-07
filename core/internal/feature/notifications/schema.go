@@ -12,8 +12,8 @@ var (
 )
 
 func notificationsListOutputSchema() *definition.Schema { return _notificationsListOutput }
-func messageOutputSchema() *definition.Schema          { return _messageOutput }
-func unreadCountOutputSchema() *definition.Schema      { return _unreadCountOutput }
+func messageOutputSchema() *definition.Schema           { return _messageOutput }
+func unreadCountOutputSchema() *definition.Schema       { return _unreadCountOutput }
 
 var notificationsListOutputJSON = []byte(`{
 	"version": "1.0.0",

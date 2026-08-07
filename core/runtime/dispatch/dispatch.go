@@ -25,11 +25,11 @@ type dispatchMessage struct {
 	inputCh chan *data.Document
 }
 
-func (m *dispatchMessage) ID() string                         { return m.id }
-func (m *dispatchMessage) Name() string                       { return m.name }
-func (m *dispatchMessage) Context() context.Context            { return m.ctx }
-func (m *dispatchMessage) Input() *data.Document               { return m.input }
-func (m *dispatchMessage) InputChannel() <-chan *data.Document { return m.inputCh }
+func (m *dispatchMessage) ID() string                             { return m.id }
+func (m *dispatchMessage) Name() string                           { return m.name }
+func (m *dispatchMessage) Context() context.Context               { return m.ctx }
+func (m *dispatchMessage) Input() *data.Document                  { return m.input }
+func (m *dispatchMessage) InputChannel() <-chan *data.Document    { return m.inputCh }
 func (m *dispatchMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 
 func (m *dispatchMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }

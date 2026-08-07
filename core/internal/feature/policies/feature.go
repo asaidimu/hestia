@@ -4,14 +4,14 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-iam/v2/iam"
 
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 type Dependencies struct {
-	PolicyModel  *PolicyModel
-	PermManager  runtime.ReloadablePermissionManager
-	LiveRules    iam.RuleSet[iam.FunctionRule]
+	PolicyModel *PolicyModel
+	PermManager runtime.ReloadablePermissionManager
+	LiveRules   iam.RuleSet[iam.FunctionRule]
 }
 
 func Registrations(deps Dependencies) []abstract.MessageRegistration {

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -24,11 +25,21 @@ import (
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime/notification"
 )
+
+func newUserModelOn(t *testing.T, p base.Persistence) *schema.SystemUsers {
+	t.Helper()
+	model, err := schema.NewSystemUsers(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewSystemUsers: %v", err)
+	}
+	return model
+}
 
 type testMessage struct {
 	name  string
@@ -52,7 +63,7 @@ func (m testMessage) SessionID() string                      { return "" }
 
 func TestRegisterHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 
 	ctx := context.Background()
@@ -91,7 +102,7 @@ func TestRegisterHandler(t *testing.T) {
 
 func TestCreateSessionHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
@@ -256,7 +267,7 @@ func TestSessionService_TokenVersion(t *testing.T) {
 
 func TestPasswordResetHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
@@ -308,7 +319,7 @@ func TestPasswordResetHandler(t *testing.T) {
 
 func TestPasswordConfirmHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
@@ -331,7 +342,7 @@ func TestPasswordConfirmHandler(t *testing.T) {
 			t.Fatalf("GetByEmail failed: %v", err)
 		}
 
-		token, err := credProv.IssueResetToken(user.ID())
+		token, err := credProv.IssueResetToken(user.ID)
 		if err != nil {
 			t.Fatalf("IssueResetToken failed: %v", err)
 		}
@@ -397,7 +408,7 @@ func TestPasswordConfirmHandler(t *testing.T) {
 
 		now := time.Now().Add(-10 * time.Minute)
 		exp := now.Add(5 * time.Minute).Unix()
-		payload := fmt.Sprintf("%s:%d:%s", user.ID(), exp, uuid.Must(uuid.NewV7()).String())
+		payload := fmt.Sprintf("%s:%d:%s", user.ID, exp, uuid.Must(uuid.NewV7()).String())
 		mac := hmac.New(sha256.New, []byte("test-secret:reset"))
 		mac.Write([]byte(payload))
 		sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:16])
@@ -509,7 +520,7 @@ func TestPasswordResetHandler_WithMailer(t *testing.T) {
 	}
 
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")

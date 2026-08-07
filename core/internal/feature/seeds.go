@@ -14,8 +14,8 @@ import (
 
 // SeedOptions groups optional parameters for SeedAll.
 type SeedOptions struct {
-	AdminEmail       string
-	AdminPassword    string
+	AdminEmail        string
+	AdminPassword     string
 	ForceBootstrapped bool
 }
 

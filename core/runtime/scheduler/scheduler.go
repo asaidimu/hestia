@@ -11,12 +11,12 @@ import (
 )
 
 type JobInfo struct {
-	Name     string    `json:"name"`
-	Expr     string    `json:"expr"`
-	Next     time.Time `json:"next"`
-	Prev     time.Time `json:"prev"`
-	Paused   bool      `json:"paused"`
-	Tags     []string  `json:"tags,omitempty"`
+	Name   string    `json:"name"`
+	Expr   string    `json:"expr"`
+	Next   time.Time `json:"next"`
+	Prev   time.Time `json:"prev"`
+	Paused bool      `json:"paused"`
+	Tags   []string  `json:"tags,omitempty"`
 }
 
 type Scheduler struct {

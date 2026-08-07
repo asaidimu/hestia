@@ -10,22 +10,23 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/runtime/notification"
-	"github.com/asaidimu/hestia/core/runtime/scheduler"
-	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
+	"github.com/asaidimu/hestia/core/internal/feature/notifications"
 	"github.com/asaidimu/hestia/core/internal/feature/operations"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
-	"github.com/asaidimu/hestia/core/internal/feature/notifications"
 	"github.com/asaidimu/hestia/core/internal/feature/schedules"
 	"github.com/asaidimu/hestia/core/internal/feature/settings"
 	"github.com/asaidimu/hestia/core/internal/feature/tenants"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
+	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/runtime/notification"
+	"github.com/asaidimu/hestia/core/runtime/scheduler"
 )
 
 // ProviderSet groups all feature models and runtime state that were
@@ -36,15 +37,15 @@ type ProviderSet struct {
 	Logger       *zap.Logger
 	Bootstrapped bool
 
-	Users        *users.UserModel
-	APIKeys      *apikeys.APIKeyModel
-	Policies         *policies.PolicyModel
-	Seed             *operations.SeedModel
-	Audit            *audit.AuditModel
-	Tenants          *tenants.TenantModel
-	Settings         *settings.SettingsModel
-	Notifications    *notifications.NotificationModel
-	Schedules        *schedules.ScheduleModel
+	Users         *schema.SystemUsers
+	APIKeys       *apikeys.APIKeyModel
+	Policies      *policies.PolicyModel
+	Seed          *operations.SeedModel
+	Audit         *audit.AuditModel
+	Tenants       *tenants.TenantModel
+	Settings      *settings.SettingsModel
+	Notifications *notifications.NotificationModel
+	Schedules     *schedules.ScheduleModel
 
 	BlobSvc      *blobutil.Service
 	Notifier     abstract.Notifier
@@ -80,7 +81,11 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	}
 
 	ps.Policies = policies.NewPolicyModel(opColl, ruleColl, nil)
-	ps.Users = users.NewUserModel(ps.Persist)
+	systemUsers, err := schema.NewSystemUsers(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system users model: %w", err)
+	}
+	ps.Users = systemUsers
 	ps.APIKeys = apikeys.NewAPIKeyModel(ps.Persist)
 	ps.Seed = operations.NewSeedModel(ps.Persist)
 	ps.Audit = audit.NewAuditModel(ps.Persist)
@@ -198,5 +203,3 @@ func (ps *ProviderSet) CollectRegistrations(
 	allRegs = all
 	return all
 }
-
-

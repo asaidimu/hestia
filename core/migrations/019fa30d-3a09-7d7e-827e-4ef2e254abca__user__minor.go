@@ -17,7 +17,7 @@ func _user__5_1_0_to_5_2_0() *base.MigrationPlan {
 		Target:      target__user__5_2_0(),
 		VersionBump: definition.BumpMinor,
 	}
-	
+
 	return m
 }
 

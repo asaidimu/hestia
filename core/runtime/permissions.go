@@ -9,10 +9,10 @@ import (
 )
 
 type CapabilityMetadata struct {
-	Name        string            `json:"name"`
+	Name        string              `json:"name"`
 	Type        abstract.IntentType `json:"type"`
-	Scope       string            `json:"scope"`
-	Description string            `json:"description"`
+	Scope       string              `json:"scope"`
+	Description string              `json:"description"`
 }
 
 type PermissionManager interface {

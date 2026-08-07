@@ -9,8 +9,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -81,11 +81,11 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 		}
 
 		result, err := dispatch.Dispatch(o.disp, dispatch.DispatchInput{
-			Name:    reg.Name,
-			Context: ctx,
-			ID:      idempotencyKey,
+			Name:     reg.Name,
+			Context:  ctx,
+			ID:       idempotencyKey,
 			Document: doc,
-			Intent:  reg.Intent,
+			Intent:   reg.Intent,
 		})
 		if err != nil {
 			resp := o.attachCookieClearingResponse(Response{}, reg.Name)

@@ -1,12 +1,12 @@
 module github.com/asaidimu/hestia
 
-go 1.26.4
+go 1.27rc1
 
 require (
 	github.com/asaidimu/blobs v1.2.1
-	github.com/asaidimu/go-anansi/v8 v8.3.6
+	github.com/asaidimu/go-anansi/v8 v8.5.1
 	github.com/asaidimu/go-events v1.1.0
-	github.com/asaidimu/go-events/v2 v2.0.0
+	github.com/asaidimu/go-events/v2 v2.0.1
 	github.com/asaidimu/go-iam/v2 v2.0.0
 	github.com/google/cel-go v0.26.1
 	github.com/google/uuid v1.6.0
@@ -27,7 +27,6 @@ require (
 	cel.dev/expr v0.24.0 // indirect
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
-	github.com/ThreeDotsLabs/watermill v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -60,11 +59,9 @@ require (
 	github.com/leaanthony/gosod v1.0.4 // indirect
 	github.com/leaanthony/slicer v1.6.0 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
-	github.com/lithammer/shortuuid/v3 v3.0.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

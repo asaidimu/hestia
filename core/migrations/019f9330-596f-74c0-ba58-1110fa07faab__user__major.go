@@ -20,7 +20,7 @@ func _user__4_0_0_to_5_0_0() *base.MigrationPlan {
 		Target:      target__user__5_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		// Default removed from tenant_id. Existing docs already have the
 		// value set from the 2.1.0→3.0.0 migration — nothing to backfill.

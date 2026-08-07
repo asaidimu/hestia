@@ -20,7 +20,7 @@ func _user__3_0_0_to_4_0_0() *base.MigrationPlan {
 		Target:      target__user__4_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		// Type change: settings from unknown → record. Data is already in the
 		// doc, only the schema type annotation changed.

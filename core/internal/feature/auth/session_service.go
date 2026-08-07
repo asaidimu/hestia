@@ -13,10 +13,10 @@ import (
 )
 
 type SessionToken struct {
-	SessionID string `json:"sid"`
-	UserID    string `json:"uid"`
-	IssuedAt  int64  `json:"iat"`
-	ExpiresAt int64  `json:"exp"`
+	SessionID    string `json:"sid"`
+	UserID       string `json:"uid"`
+	IssuedAt     int64  `json:"iat"`
+	ExpiresAt    int64  `json:"exp"`
 	CreatedAt    int64  `json:"crt"`
 	TokenVersion int    `json:"tv"`
 }

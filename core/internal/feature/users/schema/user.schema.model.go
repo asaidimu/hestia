@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_user_utils.go).
+// Add custom methods to the SystemUser model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_user_validation.go,
+// system_user_serialization.go). Avoid throwing all logic into a
+// single system_user_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,16 +24,16 @@ import (
 
 type SystemUser struct {
 	data.DocumentModel
-	Permissions  []string       `anansi:"permissions" json:"permissions"`
-	Name         string         `anansi:"name" json:"name"`
-	TenantID     string         `anansi:"tenant_id" json:"tenant_id"`
-	Email        string         `anansi:"email" json:"email"`
-	Password     string         `anansi:"password" json:"password"`
-	Data         map[string]any `anansi:"data" json:"data"`
-	TokenVersion int64          `anansi:"token_version,default=0" json:"token_version"`
-	Settings     map[string]any `anansi:"settings" json:"settings"`
-	Disabled     int64          `anansi:"disabled,default=-1" json:"disabled"`
-	Verified     bool           `anansi:"verified" json:"verified"`
+	Permissions  []string       `anansi:"permissions,required=false" json:"permissions,omitempty"`
+	Email        string         `anansi:"email,required=true" json:"email"`
+	Name         string         `anansi:"name,required=true" json:"name"`
+	Password     string         `anansi:"password,required=true" json:"password"`
+	Data         map[string]any `anansi:"data,required=false" json:"data,omitempty"`
+	Disabled     *int64         `anansi:"disabled,required=false,default=-1" json:"disabled,omitempty"`
+	Settings     map[string]any `anansi:"settings,required=false" json:"settings,omitempty"`
+	TenantID     *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
+	TokenVersion *int64         `anansi:"token_version,required=false,default=0" json:"token_version,omitempty"`
+	Verified     *bool          `anansi:"verified,required=false" json:"verified,omitempty"`
 }
 
 // NewSystemUser creates and initializes a new SystemUser
@@ -40,7 +43,7 @@ func NewSystemUser(model SystemUser) *SystemUser {
 
 // SystemUsers is a type-safe collection for SystemUser
 type SystemUsers struct {
-	base.ModelCollection[SystemUser, *SystemUser]
+	*collection.ModelCollection[*SystemUser]
 }
 
 const SystemUsersCollectionName = "_user_"
@@ -54,7 +57,7 @@ var (
 // construct the SystemUser model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemUsersModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemUser, *SystemUser]) (*SystemUsers, error) {
+func InitSystemUsersModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemUser]) (*SystemUsers, error) {
 	systemUsersModelMu.Lock()
 	defer systemUsersModelMu.Unlock()
 	if systemUsersModel != nil {
@@ -66,7 +69,7 @@ func InitSystemUsersModel(p base.Persistence, logger *zap.Logger, opts ...collec
 			WithOperation("InitSystemUsersModel").
 			WithPath("_user_")
 	}
-	mc, err := collection.NewModelCollection[SystemUser, *SystemUser](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemUser](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemUsersModel").
@@ -86,4 +89,37 @@ func SystemUsersModel() (*SystemUsers, error) {
 			WithOperation("SystemUsersModel")
 	}
 	return systemUsersModel, nil
+}
+
+type UserPublic struct {
+	data.DocumentModel
+	Permissions  []string       `anansi:"permissions,required=false" json:"permissions,omitempty"`
+	Email        string         `anansi:"email,required=true" json:"email"`
+	Name         string         `anansi:"name,required=true" json:"name"`
+	Data         map[string]any `anansi:"data,required=false" json:"data,omitempty"`
+	Disabled     *int64         `anansi:"disabled,required=false,default=-1" json:"disabled,omitempty"`
+	Settings     map[string]any `anansi:"settings,required=false" json:"settings,omitempty"`
+	TenantID     *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
+	TokenVersion *int64         `anansi:"token_version,required=false,default=0" json:"token_version,omitempty"`
+	Verified     *bool          `anansi:"verified,required=false" json:"verified,omitempty"`
+}
+
+type UserRegister struct {
+	data.DocumentModel
+	Email    string         `anansi:"email,required=true" json:"email" input:"payload.email"`
+	Name     string         `anansi:"name,required=true" json:"name" input:"payload.name"`
+	Password string         `anansi:"password,required=true" json:"password" input:"payload.password"`
+	Data     map[string]any `anansi:"data,required=false" json:"data,omitempty" input:"payload.data"`
+	TenantID *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty" input:"payload.tenant_id"`
+}
+
+type UserUpdate struct {
+	data.DocumentModel
+	Permissions []string       `anansi:"permissions,required=false" json:"permissions,omitempty" input:"payload.permissions"`
+	Data        map[string]any `anansi:"data,required=false" json:"data,omitempty" input:"payload.data"`
+	Disabled    *int64         `anansi:"disabled,required=false,default=-1" json:"disabled,omitempty" input:"payload.disabled"`
+	Email       *string        `anansi:"email,required=false" json:"email,omitempty" input:"payload.email"`
+	Name        *string        `anansi:"name,required=false" json:"name,omitempty" input:"payload.name"`
+	Settings    map[string]any `anansi:"settings,required=false" json:"settings,omitempty" input:"payload.settings"`
+	Verified    *bool          `anansi:"verified,required=false" json:"verified,omitempty" input:"payload.verified"`
 }

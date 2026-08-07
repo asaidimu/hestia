@@ -5,23 +5,6 @@ This codebase relies on **go-anansi** for database operations and its proprietar
 When working with schemas: 
 1. Prefer writing schemas in json. The guide meta schema is at `~/projects/go-anansi/core/schema/meta/schema.json`
 2. Schemas that contribute towards collection go into `./core/internal/feature/**/schema/*.schema.json` as plain json files
-3. Schemas that describe DTOs go into `./core/internal/feature/**/schema.go` as 
-```go 
-
-var mySchema = []byte(`{
-  "version": "1.0.",
-  "name": "Example",
-  "description": "Example schema — replace with your own",
-  "fields": {
-    "FieldIdForName": {
-      "name": "name",
-      "required": true,
-      "type": "string"
-    }
-  }
-}`)
-```
-4. 
 
 ## IAM Layer
 
@@ -72,4 +55,9 @@ anansi migrate generate --dry-run
 3. **Generate Migration:** Finalize and generate the required migration files by running:
 ```bash
 anansi migrate generate
+```
+
+4. **Re-Generate Structs and DTO'S :** Finalize and generate the required code modification by running:
+```bash
+anansi codegen golang
 ```

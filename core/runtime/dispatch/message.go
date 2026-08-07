@@ -19,11 +19,11 @@ type genericMessage struct {
 	blobCh  <-chan abstract.Blob
 }
 
-func (m *genericMessage) ID() string                          { return m.id }
-func (m *genericMessage) Name() string                        { return m.name }
-func (m *genericMessage) Context() context.Context             { return m.ctx }
-func (m *genericMessage) Input() *data.Document                { return m.input }
-func (m *genericMessage) InputChannel() <-chan *data.Document  { return m.inputCh }
+func (m *genericMessage) ID() string                             { return m.id }
+func (m *genericMessage) Name() string                           { return m.name }
+func (m *genericMessage) Context() context.Context               { return m.ctx }
+func (m *genericMessage) Input() *data.Document                  { return m.input }
+func (m *genericMessage) InputChannel() <-chan *data.Document    { return m.inputCh }
 func (m *genericMessage) BlobInputChannel() <-chan abstract.Blob { return m.blobCh }
 
 func (m *genericMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }

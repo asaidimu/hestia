@@ -13,12 +13,12 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/interface/cli"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/internal/boot"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/interface/cli"
-	"github.com/asaidimu/hestia/core/internal/boot"
-	"github.com/asaidimu/hestia/core/internal/feature/users"
 )
 
 func projectName(projectName string) string {
@@ -34,7 +34,7 @@ type SystemModule interface {
 	Bootstrapped() bool
 	AdminUserID() string
 	AdminEmail() string
-	UserModel() *users.UserModel
+	UserModel() *schema.SystemUsers
 }
 
 type Middleware = httpapi.Middleware
@@ -69,7 +69,7 @@ type Application struct {
 func (a *Application) Persistence() base.Persistence {
 	return a.inner.Persistence()
 }
-func (a *Application) Dispatcher() abstract.Dispatcher        { return a.inner.Dispatcher() }
+func (a *Application) Dispatcher() abstract.Dispatcher { return a.inner.Dispatcher() }
 func (a *Application) SystemModule() SystemModule {
 	if a.inner.SystemModule() == nil {
 		return nil
@@ -77,7 +77,7 @@ func (a *Application) SystemModule() SystemModule {
 	return a.inner.SystemModule()
 }
 func (a *Application) Registrations() []abstract.MessageRegistration { return a.inner.Registrations }
-func (a *Application) RegisterModules(m ...Module) error     { return a.inner.RegisterModules(m...) }
+func (a *Application) RegisterModules(m ...Module) error             { return a.inner.RegisterModules(m...) }
 
 func (a *Application) NewHTTPInterface(cfg httpapi.Config) runtime.Interface {
 	mod := a.inner.SystemModule()
@@ -131,8 +131,8 @@ func (a *Application) Start() error {
 	a.inner.Start()
 	return nil
 }
-func (a *Application) Shutdown(ctx context.Context) error    { return a.inner.Shutdown(ctx) }
-func (a *Application) Close()                                { a.inner.Close() }
+func (a *Application) Shutdown(ctx context.Context) error { return a.inner.Shutdown(ctx) }
+func (a *Application) Close()                             { a.inner.Close() }
 func (a *Application) SeedPolicies() error {
 	if sysMod := a.inner.SystemModule(); sysMod != nil {
 		return sysMod.SeedPolicies(context.Background())
@@ -141,30 +141,30 @@ func (a *Application) SeedPolicies() error {
 }
 
 type SetupConfig struct {
-	SessionSecret   string
-	DataDir         string
-	DBPath          string
-	LogPath         string
-	BlobsDir        string
-	ProjectName     string
-	Version         string
-	BcryptCost      int
-	SessionTTL      time.Duration
-	IdleTTL         time.Duration
-	RefreshTTL      time.Duration
+	SessionSecret     string
+	DataDir           string
+	DBPath            string
+	LogPath           string
+	BlobsDir          string
+	ProjectName       string
+	Version           string
+	BcryptCost        int
+	SessionTTL        time.Duration
+	IdleTTL           time.Duration
+	RefreshTTL        time.Duration
 	ForceBootstrapped bool
-	LogMaxSize      int
-	LogMaxAge       int
-	LogMaxBackups   int
-	AdminEmail      string
-	AdminPassword   string
-	Mailer          runtime.MailerConfig
-	AppURL          string
+	LogMaxSize        int
+	LogMaxAge         int
+	LogMaxBackups     int
+	AdminEmail        string
+	AdminPassword     string
+	Mailer            runtime.MailerConfig
+	AppURL            string
 
-	Modules          []Module
-	DispatcherChainFunc  func(chain abstract.ChainEditor)
-	Interfaces       []func(abstract.Dispatcher) runtime.Interface
-	BuildInterfaces  func(app *Application) []runtime.Interface
+	Modules             []Module
+	DispatcherChainFunc func(chain abstract.ChainEditor)
+	Interfaces          []func(abstract.Dispatcher) runtime.Interface
+	BuildInterfaces     func(app *Application) []runtime.Interface
 
 	OnBootstrapped func()
 	OnReset        func()

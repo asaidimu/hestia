@@ -10,11 +10,11 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/internal/feature/users"
 )
 
-func NewCreateSessionHandler(users *users.UserModel, credProv abstract.CredentialsProvider, sessionTTL time.Duration) abstract.MessageHandler {
+func NewCreateSessionHandler(users *schema.SystemUsers, credProv abstract.CredentialsProvider, sessionTTL time.Duration) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -26,16 +26,11 @@ func NewCreateSessionHandler(users *users.UserModel, credProv abstract.Credentia
 			return nil, fmt.Errorf("invalid email or password")
 		}
 
-		storedPassword, err := user.GetString("password")
-		if err != nil {
+		if !runtime.CheckPassword(password, user.Password) {
 			return nil, fmt.Errorf("invalid email or password")
 		}
 
-		if !runtime.CheckPassword(password, storedPassword) {
-			return nil, fmt.Errorf("invalid email or password")
-		}
-
-		userID := user.ID()
+		userID := user.ID
 
 		token, _, err := credProv.CreateSession(userID, sessionTTL)
 		if err != nil {
@@ -43,7 +38,7 @@ func NewCreateSessionHandler(users *users.UserModel, credProv abstract.Credentia
 		}
 
 		sctx := common.ContextWithCollectionName(ctx, "_user_")
-		sane, err := user.Sanitize(sctx)
+		sane, err := user.MustDocument().Sanitize(sctx)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +52,7 @@ func NewCreateSessionHandler(users *users.UserModel, credProv abstract.Credentia
 	}
 }
 
-func NewRegisterHandler(users *users.UserModel) abstract.MessageHandler {
+func NewRegisterHandler(users *schema.SystemUsers) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -73,7 +68,7 @@ func NewRegisterHandler(users *users.UserModel) abstract.MessageHandler {
 		if err != nil {
 			return nil, err
 		}
-		return &abstract.Result{Document: user}, nil
+		return &abstract.Result{Document: user.MustDocument()}, nil
 	}
 }
 
@@ -83,7 +78,7 @@ func NewDeleteSessionHandler() abstract.MessageHandler {
 	}
 }
 
-func NewPasswordResetHandler(users *users.UserModel, credProv abstract.CredentialsProvider, notifier abstract.Notifier, appURL string) abstract.MessageHandler {
+func NewPasswordResetHandler(users *schema.SystemUsers, credProv abstract.CredentialsProvider, notifier abstract.Notifier, appURL string) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -93,7 +88,7 @@ func NewPasswordResetHandler(users *users.UserModel, credProv abstract.Credentia
 		if err != nil {
 			return &abstract.Result{}, nil
 		}
-		userID := user.ID()
+		userID := user.ID
 		token, err := credProv.IssueResetToken(userID)
 		if err != nil {
 			return nil, err
@@ -112,7 +107,7 @@ func NewPasswordResetHandler(users *users.UserModel, credProv abstract.Credentia
 	}
 }
 
-func NewPasswordConfirmHandler(users *users.UserModel, credProv abstract.CredentialsProvider) abstract.MessageHandler {
+func NewPasswordConfirmHandler(users *schema.SystemUsers, credProv abstract.CredentialsProvider) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -131,7 +126,7 @@ func NewPasswordConfirmHandler(users *users.UserModel, credProv abstract.Credent
 	}
 }
 
-func NewSetBootstrapPasswordHandler(users *users.UserModel, adminUserID string) abstract.MessageHandler {
+func NewSetBootstrapPasswordHandler(users *schema.SystemUsers, adminUserID string) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		body, _ := doc.GetOr("payload", nil).(map[string]any)
@@ -148,7 +143,7 @@ func NewSetBootstrapPasswordHandler(users *users.UserModel, adminUserID string) 
 		if err := users.ChangePassword(ctx, adminUserID, password); err != nil {
 			return nil, err
 		}
-		if err := users.Update(ctx, adminUserID, map[string]any{"email": email}); err != nil {
+		if err := users.UpdateEmail(ctx, adminUserID, email); err != nil {
 			return nil, err
 		}
 		return &abstract.Result{}, nil

@@ -13,8 +13,8 @@ import (
 	events "github.com/asaidimu/go-events/v2"
 	"go.uber.org/zap"
 
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 type PersistenceManager struct {
@@ -30,7 +30,7 @@ func traceIDMetadataProvider() data.MetadataProviderConfig {
 				Name: "trace_id_meta",
 				Fields: map[definition.FieldId]definition.Field{
 					"019f7a00-0001-7000-8000-000000000001": {
-						Name:             "trace_id",
+						Name:            "trace_id",
 						FieldProperties: definition.FieldProperties{Type: definition.FieldTypeString},
 					},
 				},

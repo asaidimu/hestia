@@ -51,5 +51,43 @@
       "name": "settings",
       "type": "record"
     }
+  },
+  "metadata": {
+    "projections": {
+      "UserRegister": {
+        "fields": {
+          "include": ["email", "password", "name", "tenant_id", "data"],
+          "required": ["email", "password", "name"],
+          "optional": ["tenant_id", "data"],
+          "tags": {
+            "email": { "input": "payload.{name}" },
+            "password": { "input": "payload.{name}" },
+            "name": { "input": "payload.{name}" },
+            "tenant_id": { "input": "payload.{name}" },
+            "data": { "input": "payload.{name}" }
+          }
+        }
+      },
+      "UserUpdate": {
+        "fields": {
+          "include": ["name", "email", "permissions", "verified", "data", "settings", "disabled"],
+          "optional": ["name", "email", "permissions", "verified", "data", "settings", "disabled"],
+          "tags": {
+            "name": { "input": "payload.{name}" },
+            "email": { "input": "payload.{name}" },
+            "permissions": { "input": "payload.{name}" },
+            "verified": { "input": "payload.{name}" },
+            "data": { "input": "payload.{name}" },
+            "settings": { "input": "payload.{name}" },
+            "disabled": { "input": "payload.{name}" }
+          }
+        }
+      },
+      "UserPublic": {
+        "fields": {
+          "exclude": ["password"]
+        }
+      }
+    }
   }
 }

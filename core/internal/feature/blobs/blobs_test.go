@@ -10,8 +10,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
-	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"go.uber.org/zap"
 )
 
@@ -52,19 +52,19 @@ type testMessage struct {
 	input *data.Document
 }
 
-func (m testMessage) ID() string                        { return "" }
-func (m testMessage) Name() string                      { return "" }
-func (m testMessage) Context() context.Context           { return m.ctx }
-func (m testMessage) Input() *data.Document              { return m.input }
-func (m testMessage) InputChannel() <-chan *data.Document { return nil }
+func (m testMessage) ID() string                             { return "" }
+func (m testMessage) Name() string                           { return "" }
+func (m testMessage) Context() context.Context               { return m.ctx }
+func (m testMessage) Input() *data.Document                  { return m.input }
+func (m testMessage) InputChannel() <-chan *data.Document    { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string   { return "" }
-func (m testMessage) TraceID() string    { return "" }
-func (m testMessage) RequestID() string  { return "" }
-func (m testMessage) SourceIP() string   { return "" }
-func (m testMessage) UserAgent() string  { return "" }
-func (m testMessage) ResourceID() string { return "" }
-func (m testMessage) SessionID() string  { return "" }
+func (m testMessage) TenantID() string                       { return "" }
+func (m testMessage) TraceID() string                        { return "" }
+func (m testMessage) RequestID() string                      { return "" }
+func (m testMessage) SourceIP() string                       { return "" }
+func (m testMessage) UserAgent() string                      { return "" }
+func (m testMessage) ResourceID() string                     { return "" }
+func (m testMessage) SessionID() string                      { return "" }
 
 // ── tests ────────────────────────────────────────────────────────────────────
 

@@ -37,19 +37,19 @@ type RateLimitStore interface {
 type MatchIdentity string
 
 const (
-	MatchIdentityUser    MatchIdentity = "user"
-	MatchIdentityIP      MatchIdentity = "ip"
-	MatchIdentityAPIKey  MatchIdentity = "apikey"
-	MatchIdentityTenant  MatchIdentity = "tenant"
-	MatchIdentityGlobal  MatchIdentity = "global"
+	MatchIdentityUser   MatchIdentity = "user"
+	MatchIdentityIP     MatchIdentity = "ip"
+	MatchIdentityAPIKey MatchIdentity = "apikey"
+	MatchIdentityTenant MatchIdentity = "tenant"
+	MatchIdentityGlobal MatchIdentity = "global"
 )
 
 type RateLimitLookup func(operation string) *RateLimitPolicy
 
 type RateLimitDispatcher struct {
-	next  abstract.Dispatcher
+	next   abstract.Dispatcher
 	lookup RateLimitLookup
-	store RateLimitStore
+	store  RateLimitStore
 }
 
 func NewRateLimitDispatcher(lookup RateLimitLookup) *RateLimitDispatcher {

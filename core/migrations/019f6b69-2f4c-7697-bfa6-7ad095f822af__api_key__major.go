@@ -20,7 +20,7 @@ func _api_key__1_0_0_to_2_0_0() *base.MigrationPlan {
 		Target:      target__api_key__2_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		scopes, err := doc.GetStringArray("scopes")
 		if err == nil {

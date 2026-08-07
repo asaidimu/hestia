@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/asaidimu/go-anansi/v8/core/schema"
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
+	"github.com/asaidimu/go-anansi/v8/core/schema"
 
 	"github.com/asaidimu/hestia/core/abstract"
 )
@@ -20,10 +20,10 @@ func IsSystemCollection(name string) bool {
 }
 
 type CollectionMeta struct {
-	Name    string `json:"name"`
+	Name    string         `json:"name"`
 	Schema  *schema.Schema `json:"schema,omitempty"`
-	Created string `json:"created"`
-	Updated string `json:"updated"`
+	Created string         `json:"created"`
+	Updated string         `json:"updated"`
 }
 
 type QueryCommand struct {
@@ -36,7 +36,7 @@ func NewQueryCommand(ctx context.Context, collection string, q *query.Query) Que
 	return QueryCommand{ctx: ctx, Collection: collection, QDSL: q}
 }
 
-func (q QueryCommand) QueryName() string       { return "collections:document:query" }
+func (q QueryCommand) QueryName() string        { return "collections:document:query" }
 func (q QueryCommand) Context() context.Context { return q.ctx }
 func (q QueryCommand) ResourceContext() any     { return map[string]any{"collection": q.Collection} }
 

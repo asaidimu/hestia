@@ -85,5 +85,3 @@ var allPolicyBindings = func() []policies.Binding {
 func collectAllPolicyBindings() []policies.Binding {
 	return allPolicyBindings
 }
-
-

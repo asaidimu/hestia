@@ -18,19 +18,19 @@ type testMessage struct {
 	ctx  context.Context
 }
 
-func (m testMessage) ID() string                         { return "" }
-func (m testMessage) Name() string                       { return m.name }
-func (m testMessage) Context() context.Context            { return m.ctx }
-func (m testMessage) Input() *data.Document               { return data.MustNewDocument(nil, m.ctx) }
-func (m testMessage) InputChannel() <-chan *data.Document   { return nil }
+func (m testMessage) ID() string                             { return "" }
+func (m testMessage) Name() string                           { return m.name }
+func (m testMessage) Context() context.Context               { return m.ctx }
+func (m testMessage) Input() *data.Document                  { return data.MustNewDocument(nil, m.ctx) }
+func (m testMessage) InputChannel() <-chan *data.Document    { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
-func (m testMessage) TraceID() string    { return runtimecontext.GetTraceID(m.ctx) }
-func (m testMessage) RequestID() string  { return runtimecontext.GetRequestID(m.ctx) }
-func (m testMessage) SourceIP() string   { return runtimecontext.GetSourceIP(m.ctx) }
-func (m testMessage) UserAgent() string  { return runtimecontext.GetUserAgent(m.ctx) }
-func (m testMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
-func (m testMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
+func (m testMessage) TenantID() string                       { return runtimecontext.GetTenantID(m.ctx) }
+func (m testMessage) TraceID() string                        { return runtimecontext.GetTraceID(m.ctx) }
+func (m testMessage) RequestID() string                      { return runtimecontext.GetRequestID(m.ctx) }
+func (m testMessage) SourceIP() string                       { return runtimecontext.GetSourceIP(m.ctx) }
+func (m testMessage) UserAgent() string                      { return runtimecontext.GetUserAgent(m.ctx) }
+func (m testMessage) ResourceID() string                     { return runtimecontext.GetResourceID(m.ctx) }
+func (m testMessage) SessionID() string                      { return runtimecontext.GetSessionID(m.ctx) }
 
 func anonymousContext() context.Context {
 	props := map[string]any{
@@ -159,6 +159,8 @@ func (d discarder) Write(p []byte) (int, error) { return len(p), nil }
 
 type noopDispatcher struct{}
 
-func (d noopDispatcher) Send(abstract.Message) (*abstract.Result, error) { return &abstract.Result{}, nil }
+func (d noopDispatcher) Send(abstract.Message) (*abstract.Result, error) {
+	return &abstract.Result{}, nil
+}
 
 var _ abstract.Dispatcher = noopDispatcher{}

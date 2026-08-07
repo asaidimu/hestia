@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_token_blocklist_utils.go).
+// Add custom methods to the SystemTokenBlocklist model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_token_blocklist_validation.go,
+// system_token_blocklist_serialization.go). Avoid throwing all logic into a
+// single system_token_blocklist_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,9 +24,9 @@ import (
 
 type SystemTokenBlocklist struct {
 	data.DocumentModel
-	Jti    string `anansi:"jti" json:"jti"`
-	UserID string `anansi:"user_id" json:"user_id"`
-	Exp    int64  `anansi:"exp" json:"exp"`
+	Jti    string `anansi:"jti,required=true" json:"jti"`
+	UserID string `anansi:"user_id,required=true" json:"user_id"`
+	Exp    int64  `anansi:"exp,required=true" json:"exp"`
 }
 
 // NewSystemTokenBlocklist creates and initializes a new SystemTokenBlocklist
@@ -33,7 +36,7 @@ func NewSystemTokenBlocklist(model SystemTokenBlocklist) *SystemTokenBlocklist {
 
 // SystemTokenBlocklists is a type-safe collection for SystemTokenBlocklist
 type SystemTokenBlocklists struct {
-	base.ModelCollection[SystemTokenBlocklist, *SystemTokenBlocklist]
+	*collection.ModelCollection[*SystemTokenBlocklist]
 }
 
 const SystemTokenBlocklistsCollectionName = "_token_blocklist_"
@@ -47,7 +50,7 @@ var (
 // construct the SystemTokenBlocklist model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemTokenBlocklistsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemTokenBlocklist, *SystemTokenBlocklist]) (*SystemTokenBlocklists, error) {
+func InitSystemTokenBlocklistsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemTokenBlocklist]) (*SystemTokenBlocklists, error) {
 	systemTokenBlocklistsModelMu.Lock()
 	defer systemTokenBlocklistsModelMu.Unlock()
 	if systemTokenBlocklistsModel != nil {
@@ -59,7 +62,7 @@ func InitSystemTokenBlocklistsModel(p base.Persistence, logger *zap.Logger, opts
 			WithOperation("InitSystemTokenBlocklistsModel").
 			WithPath("_token_blocklist_")
 	}
-	mc, err := collection.NewModelCollection[SystemTokenBlocklist, *SystemTokenBlocklist](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemTokenBlocklist](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemTokenBlocklistsModel").

@@ -21,7 +21,7 @@ type mailHogMsg struct {
 }
 
 type mailHogResp struct {
-	Total int           `json:"total"`
+	Total int          `json:"total"`
 	Items []mailHogMsg `json:"items"`
 }
 

@@ -4,65 +4,92 @@ import (
 	"context"
 	"testing"
 
-	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
+	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/hestia/core/internal/feature/apikeys"
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/operations"
-	"github.com/asaidimu/hestia/core/internal/feature/users"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"go.uber.org/zap"
 )
 
+func newUserModel(t *testing.T) *schema.SystemUsers {
+	t.Helper()
+	model, err := schema.NewSystemUsers(testutil.NewPersistence(t), zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewSystemUsers: %v", err)
+	}
+	return model
+}
+
+func newUserModelOn(t *testing.T, p base.Persistence) *schema.SystemUsers {
+	t.Helper()
+	model, err := schema.NewSystemUsers(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewSystemUsers: %v", err)
+	}
+	return model
+}
+
+func newUserAndKeyModels(t *testing.T) (*schema.SystemUsers, *apikeys.APIKeyModel) {
+	t.Helper()
+	p := testutil.NewPersistence(t)
+	userModel, err := schema.NewSystemUsers(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewSystemUsers: %v", err)
+	}
+	return userModel, apikeys.NewAPIKeyModel(p)
+}
+
 func TestUserModelRegisterAndGet(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc, err := model.Register(ctx, "alice@example.com", "p4ssw0rd", "Alice", "public", nil)
+	user, err := model.Register(ctx, "alice@example.com", "p4ssw0rd", "Alice", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	id := doc.ID()
+	id := user.ID
 
 	byEmail, err := model.GetByEmail(ctx, "alice@example.com")
 	if err != nil {
 		t.Fatalf("GetByEmail: %v", err)
 	}
-	if byEmail.ID() != id {
-		t.Errorf("GetByEmail returned doc %s, want %s", byEmail.ID(), id)
+	if byEmail.ID != id {
+		t.Errorf("GetByEmail returned doc %s, want %s", byEmail.ID, id)
 	}
-	email, _ := byEmail.GetString("email")
-	if email != "alice@example.com" {
-		t.Errorf("email = %q, want %q", email, "alice@example.com")
+	if byEmail.Email != "alice@example.com" {
+		t.Errorf("email = %q, want %q", byEmail.Email, "alice@example.com")
 	}
-	name, _ := byEmail.GetString("name")
-	if name != "Alice" {
-		t.Errorf("name = %q, want %q", name, "Alice")
+	if byEmail.Name != "Alice" {
+		t.Errorf("name = %q, want %q", byEmail.Name, "Alice")
 	}
 
 	byID, err := model.GetByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	if byID.ID() != id {
-		t.Errorf("GetByID returned doc %s, want %s", byID.ID(), id)
+	if byID.ID != id {
+		t.Errorf("GetByID returned doc %s, want %s", byID.ID, id)
 	}
 }
 
 func TestUserModelUpdate(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc, err := model.Register(ctx, "bob@example.com", "p4ssw0rd", "Bob", "public", nil)
+	user, err := model.Register(ctx, "bob@example.com", "p4ssw0rd", "Bob", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	id := doc.ID()
+	id := user.ID
 
-	err = model.Update(ctx, id, map[string]any{"name": "Robert"})
-	if err != nil {
+	update := data.New(&schema.SystemUser{Name: "Robert"})
+	if _, err := model.Update(ctx, id, update); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -70,22 +97,20 @@ func TestUserModelUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	name, _ := updated.GetString("name")
-	if name != "Robert" {
-		t.Errorf("name = %q, want %q", name, "Robert")
+	if updated.Name != "Robert" {
+		t.Errorf("name = %q, want %q", updated.Name, "Robert")
 	}
 }
 
 func TestUserModelPassword(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc, err := model.Register(ctx, "carol@example.com", "first-pass", "Carol", "public", nil)
+	user, err := model.Register(ctx, "carol@example.com", "first-pass", "Carol", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	id := doc.ID()
+	id := user.ID
 
 	hash, err := model.GetPasswordHash(ctx, id)
 	if err != nil {
@@ -114,17 +139,17 @@ func TestUserModelPassword(t *testing.T) {
 
 func TestUserModelDisable(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc, err := model.Register(ctx, "dave@example.com", "p4ssw0rd", "Dave", "public", nil)
+	user, err := model.Register(ctx, "dave@example.com", "p4ssw0rd", "Dave", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	id := doc.ID()
+	id := user.ID
 
-	err = model.Update(ctx, id, map[string]any{"disabled": 1})
-	if err != nil {
+	disabled := int64(1)
+	update := data.New(&schema.SystemUser{Disabled: &disabled})
+	if _, err := model.Update(ctx, id, update); err != nil {
 		t.Fatalf("Update disabled: %v", err)
 	}
 
@@ -149,14 +174,13 @@ func TestUserModelDisable(t *testing.T) {
 
 func TestUserModelDelete(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc, err := model.Register(ctx, "eve@example.com", "p4ssw0rd", "Eve", "public", nil)
+	user, err := model.Register(ctx, "eve@example.com", "p4ssw0rd", "Eve", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	id := doc.ID()
+	id := user.ID
 
 	err = model.Delete(ctx, id)
 	if err != nil {
@@ -171,33 +195,31 @@ func TestUserModelDelete(t *testing.T) {
 
 func TestUserModelList(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := newUserModel(t)
 
-	doc1, _ := model.Register(ctx, "fay@example.com", "p4ss", "Fay", "public", nil)
-	doc2, _ := model.Register(ctx, "gia@example.com", "p4ss", "Gia", "public", nil)
+	user1, _ := model.Register(ctx, "fay@example.com", "p4ss", "Fay", "public", nil)
+	user2, _ := model.Register(ctx, "gia@example.com", "p4ss", "Gia", "public", nil)
 
-	docs, total, err := model.List(ctx, 0, 10)
+	q := query.NewQueryBuilder().Limit(10).Build()
+	docs, err := model.Read(ctx, &q)
 	if err != nil {
-		t.Fatalf("List: %v", err)
+		t.Fatalf("Read: %v", err)
 	}
-	if total < 2 {
-		t.Errorf("total = %d, want >= 2", total)
+	if len(docs) < 2 {
+		t.Errorf("got %d docs, want >= 2", len(docs))
 	}
-	ids := map[string]bool{doc1.ID(): true, doc2.ID(): true}
+	ids := map[string]bool{user1.ID: true, user2.ID: true}
 	for _, d := range docs {
-		delete(ids, d.ID())
+		delete(ids, d.ID)
 	}
 	if len(ids) != 0 {
-		t.Error("List did not return both registered users")
+		t.Error("Read did not return both registered users")
 	}
 }
 
 func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
-	keyModel := apikeys.NewAPIKeyModel(p)
+	userModel, keyModel := newUserAndKeyModels(t)
 
 	userDoc, err := userModel.Register(ctx, "hank@example.com", "p4ss", "Hank", "public", nil)
 	if err != nil {
@@ -216,7 +238,7 @@ func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 	}
 
 	req := &apikeys.CreateKeyRequest{Name: "test-key", Operations: []string{"read:*"}}
-	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
+	doc, err := keyModel.Create(ctx, gk, userDoc.ID, req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -225,7 +247,7 @@ func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 		t.Errorf("name = %q, want %q", name, "test-key")
 	}
 
-	keys, err := keyModel.List(ctx, userDoc.ID())
+	keys, err := keyModel.List(ctx, userDoc.ID)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -236,9 +258,7 @@ func TestAPIKeyModelGenerateAndCreate(t *testing.T) {
 
 func TestAPIKeyModelDelete(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
-	keyModel := apikeys.NewAPIKeyModel(p)
+	userModel, keyModel := newUserAndKeyModels(t)
 
 	userDoc, err := userModel.Register(ctx, "iris@example.com", "p4ss", "Iris", "public", nil)
 	if err != nil {
@@ -250,17 +270,17 @@ func TestAPIKeyModelDelete(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 	req := &apikeys.CreateKeyRequest{Name: "delete-me"}
-	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
+	doc, err := keyModel.Create(ctx, gk, userDoc.ID, req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	err = keyModel.Delete(ctx, doc.ID(), userDoc.ID())
+	err = keyModel.Delete(ctx, doc.ID(), userDoc.ID)
 	if err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	_, err = keyModel.Get(ctx, doc.ID(), userDoc.ID())
+	_, err = keyModel.Get(ctx, doc.ID(), userDoc.ID)
 	if err == nil {
 		t.Error("expected Get to return error after Delete")
 	}
@@ -319,7 +339,7 @@ func TestAuditModelInsert(t *testing.T) {
 		Operation:    auditdomain.OperationExecute,
 		ResourceType: "test",
 		Status:       auditdomain.AuditStatusSuccess,
-		LatencyMs:   42,
+		LatencyMs:    42,
 		ServiceName:  "hestia",
 	}
 
@@ -332,7 +352,7 @@ func TestAuditModelInsert(t *testing.T) {
 func TestSeedAdmin(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	seedModel := operations.NewSeedModel(p)
 	logger := zap.NewNop()
 
@@ -368,7 +388,7 @@ func TestSeedAdmin(t *testing.T) {
 func TestSeedAdminWithOptions(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	seedModel := operations.NewSeedModel(p)
 	logger := zap.NewNop()
 
@@ -387,16 +407,15 @@ func TestSeedAdminWithOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	email, _ := doc.GetString("email")
-	if email != "custom@admin.com" {
-		t.Errorf("email = %q, want %q", email, "custom@admin.com")
+	if doc.Email != "custom@admin.com" {
+		t.Errorf("email = %q, want %q", doc.Email, "custom@admin.com")
 	}
 }
 
 func TestAPIKeyModelRotate(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
 	userDoc, err := userModel.Register(ctx, "jake@example.com", "p4ss", "Jake", "public", nil)
@@ -409,12 +428,12 @@ func TestAPIKeyModelRotate(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 	req := &apikeys.CreateKeyRequest{Name: "rotatable"}
-	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
+	doc, err := keyModel.Create(ctx, gk, userDoc.ID, req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	rotatedKey, rotatedDoc, err := keyModel.Rotate(ctx, doc.ID(), userDoc.ID())
+	rotatedKey, rotatedDoc, err := keyModel.Rotate(ctx, doc.ID(), userDoc.ID)
 	if err != nil {
 		t.Fatalf("Rotate: %v", err)
 	}
@@ -432,7 +451,7 @@ func TestAPIKeyModelRotate(t *testing.T) {
 func TestAPIKeyModelValidateKey(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
 	userDoc, err := userModel.Register(ctx, "kay@example.com", "p4ss", "Kay", "public", nil)
@@ -445,7 +464,7 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 	req := &apikeys.CreateKeyRequest{Name: "validatable", Operations: []string{"read:*"}}
-	_, err = keyModel.Create(ctx, gk, userDoc.ID(), req)
+	_, err = keyModel.Create(ctx, gk, userDoc.ID, req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -454,8 +473,8 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateKey: %v", err)
 	}
-	if claims.UserID != userDoc.ID() {
-		t.Errorf("claims.UserID = %q, want %q", claims.UserID, userDoc.ID())
+	if claims.UserID != userDoc.ID {
+		t.Errorf("claims.UserID = %q, want %q", claims.UserID, userDoc.ID)
 	}
 	if len(claims.Operations) == 0 || claims.Operations[0] != "read:*" {
 		t.Errorf("claims.Operations = %v, want [read:*]", claims.Operations)
@@ -468,7 +487,7 @@ func TestAPIKeyModelValidateKey(t *testing.T) {
 func TestAPIKeyModelUpdate(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	userModel := users.NewUserModel(p)
+	userModel := newUserModelOn(t, p)
 	keyModel := apikeys.NewAPIKeyModel(p)
 
 	userDoc, err := userModel.Register(ctx, "lia@example.com", "p4ss", "Lia", "public", nil)
@@ -478,14 +497,14 @@ func TestAPIKeyModelUpdate(t *testing.T) {
 
 	gk, _ := keyModel.Generate()
 	req := &apikeys.CreateKeyRequest{Name: "updatable", Operations: []string{"read:*"}}
-	doc, err := keyModel.Create(ctx, gk, userDoc.ID(), req)
+	doc, err := keyModel.Create(ctx, gk, userDoc.ID, req)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
 	newName := "updated-name"
-	updated, err := keyModel.Update(ctx, doc.ID(), userDoc.ID(), &apikeys.UpdateKeyRequest{
-		Name:   &newName,
+	updated, err := keyModel.Update(ctx, doc.ID(), userDoc.ID, &apikeys.UpdateKeyRequest{
+		Name:       &newName,
 		Operations: []string{"read:*", "write:*"},
 	})
 	if err != nil {

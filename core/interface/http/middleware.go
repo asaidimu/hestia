@@ -59,7 +59,7 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 					}
 					return Response{Status: 401}, runtime.ErrUnauthorized
 				}
-				currentVersion, _ := user.GetInt("token_version")
+				currentVersion := user.GetTokenVersion()
 				if info.TokenVersion != currentVersion {
 					if action != nil {
 						action.Clear = true
@@ -124,19 +124,14 @@ func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Ide
 		return nil
 	}
 
-	userEmail, _ := user.GetString("email")
-	tenantID, _ := user.GetString("tenant_id")
-	perms := []string{}
-	if rawPerms, err := user.GetStringArray("permissions"); err == nil {
-		perms = rawPerms
-	}
+	perms := user.GetPermissions()
 
 	return &iam.Identity{
 		Permissions: perms,
 		Properties: map[string]any{
 			"user_id":     userID,
-			"email":       userEmail,
-			"tenant_id":   tenantID,
+			"email":       user.GetEmail(),
+			"tenant_id":   user.GetTenantID(),
 			"permissions": perms,
 			"token_type":  "session",
 		},

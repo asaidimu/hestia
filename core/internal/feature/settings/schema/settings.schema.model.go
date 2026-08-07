@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_settings_utils.go).
+// Add custom methods to the SystemSettings model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_settings_validation.go,
+// system_settings_serialization.go). Avoid throwing all logic into a
+// single system_settings_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,10 +24,10 @@ import (
 
 type SystemSettings struct {
 	data.DocumentModel
-	TenantID  string         `anansi:"tenant_id" json:"tenant_id"`
-	UpdatedBy string         `anansi:"updated_by" json:"updated_by"`
-	Key       string         `anansi:"key" json:"key"`
-	Value     map[string]any `anansi:"value" json:"value"`
+	Key       string         `anansi:"key,required=true" json:"key"`
+	TenantID  *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
+	UpdatedBy *string        `anansi:"updated_by,required=false" json:"updated_by,omitempty"`
+	Value     map[string]any `anansi:"value,required=true" json:"value"`
 }
 
 // NewSystemSettings creates and initializes a new SystemSettings
@@ -34,7 +37,7 @@ func NewSystemSettings(model SystemSettings) *SystemSettings {
 
 // SystemSettingss is a type-safe collection for SystemSettings
 type SystemSettingss struct {
-	base.ModelCollection[SystemSettings, *SystemSettings]
+	*collection.ModelCollection[*SystemSettings]
 }
 
 const SystemSettingssCollectionName = "_settings_"
@@ -48,7 +51,7 @@ var (
 // construct the SystemSettings model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemSettingssModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemSettings, *SystemSettings]) (*SystemSettingss, error) {
+func InitSystemSettingssModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemSettings]) (*SystemSettingss, error) {
 	systemSettingssModelMu.Lock()
 	defer systemSettingssModelMu.Unlock()
 	if systemSettingssModel != nil {
@@ -60,7 +63,7 @@ func InitSystemSettingssModel(p base.Persistence, logger *zap.Logger, opts ...co
 			WithOperation("InitSystemSettingssModel").
 			WithPath("_settings_")
 	}
-	mc, err := collection.NewModelCollection[SystemSettings, *SystemSettings](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemSettings](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemSettingssModel").

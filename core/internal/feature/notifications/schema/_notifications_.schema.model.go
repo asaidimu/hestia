@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_notifications_utils.go).
+// Add custom methods to the SystemNotifications model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_notifications_validation.go,
+// system_notifications_serialization.go). Avoid throwing all logic into a
+// single system_notifications_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,14 +24,14 @@ import (
 
 type SystemNotifications struct {
 	data.DocumentModel
-	Body      string         `anansi:"body" json:"body"`
-	TenantID  string         `anansi:"tenant_id" json:"tenant_id"`
-	UserID    string         `anansi:"user_id" json:"user_id"`
-	Type      string         `anansi:"type" json:"type"`
-	Subject   string         `anansi:"subject" json:"subject"`
-	Data      map[string]any `anansi:"data" json:"data"`
-	CreatedAt int64          `anansi:"created_at" json:"created_at"`
-	Read      bool           `anansi:"read" json:"read"`
+	Subject   string         `anansi:"subject,required=true" json:"subject"`
+	Type      string         `anansi:"type,required=true" json:"type"`
+	UserID    string         `anansi:"user_id,required=true" json:"user_id"`
+	Body      *string        `anansi:"body,required=false" json:"body,omitempty"`
+	CreatedAt *int64         `anansi:"created_at,required=false" json:"created_at,omitempty"`
+	Data      map[string]any `anansi:"data,required=false" json:"data,omitempty"`
+	Read      *bool          `anansi:"read,required=false" json:"read,omitempty"`
+	TenantID  *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
 }
 
 // NewSystemNotifications creates and initializes a new SystemNotifications
@@ -38,7 +41,7 @@ func NewSystemNotifications(model SystemNotifications) *SystemNotifications {
 
 // SystemNotificationss is a type-safe collection for SystemNotifications
 type SystemNotificationss struct {
-	base.ModelCollection[SystemNotifications, *SystemNotifications]
+	*collection.ModelCollection[*SystemNotifications]
 }
 
 const SystemNotificationssCollectionName = "_notifications_"
@@ -52,7 +55,7 @@ var (
 // construct the SystemNotifications model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemNotificationssModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemNotifications, *SystemNotifications]) (*SystemNotificationss, error) {
+func InitSystemNotificationssModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemNotifications]) (*SystemNotificationss, error) {
 	systemNotificationssModelMu.Lock()
 	defer systemNotificationssModelMu.Unlock()
 	if systemNotificationssModel != nil {
@@ -64,7 +67,7 @@ func InitSystemNotificationssModel(p base.Persistence, logger *zap.Logger, opts 
 			WithOperation("InitSystemNotificationssModel").
 			WithPath("_notifications_")
 	}
-	mc, err := collection.NewModelCollection[SystemNotifications, *SystemNotifications](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemNotifications](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemNotificationssModel").

@@ -21,7 +21,7 @@ func _user__5_2_0_to_6_0_0() *base.MigrationPlan {
 		Target:      target__user__6_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		deleted, _ := doc.GetString("deleted")
 		doc.Unset("deleted")

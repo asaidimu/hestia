@@ -20,7 +20,7 @@ func _user__2_1_0_to_3_0_0() *base.MigrationPlan {
 		Target:      target__user__3_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		if _, err := doc.GetString("tenant_id"); err != nil {
 			doc.Set("tenant_id", "public")

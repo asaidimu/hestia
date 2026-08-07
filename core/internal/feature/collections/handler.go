@@ -14,6 +14,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-anansi/v8/core/schema/meta"
+	"github.com/asaidimu/go-anansi/v8/core/utils"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
@@ -122,9 +123,9 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp abstra
 			return nil, fmt.Errorf("collection %q is a system collection and cannot be deleted", name)
 		}
 
-	docSuffixes := []string{"document:create", "document:read", "document:update", "document:delete"}
-	for _, s := range docSuffixes {
-		registry.DeleteHandler("system:collections:" + name + ":" + s)
+		docSuffixes := []string{"document:create", "document:read", "document:update", "document:delete"}
+		for _, s := range docSuffixes {
+			registry.DeleteHandler("system:collections:" + name + ":" + s)
 		}
 
 		if _, err := persist.Delete(ctx, name); err != nil {
@@ -150,7 +151,7 @@ func NewCollectionDeleteHandler(persist persistence.Persistence, policyOp abstra
 }
 
 var iamProtectedCollections = map[string]struct{}{
-	"_iam_rule_":        {},
+	"_iam_rule_":         {},
 	"_operation_policy_": {},
 }
 
@@ -252,7 +253,7 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) abstract.MessageH
 		result, err := col.Update(ctx, &persistence.CollectionUpdate{
 			Set:            setDoc,
 			Filter:         filter,
-			ReturnDocument: true,
+			ReturnDocument: utils.PrimitivePtr(true),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("update document %q in %q: %w", documentID, name, err)

@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_iam_rule_utils.go).
+// Add custom methods to the SystemIamRule model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_iam_rule_validation.go,
+// system_iam_rule_serialization.go). Avoid throwing all logic into a
+// single system_iam_rule_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,13 +24,13 @@ import (
 
 type SystemIamRule struct {
 	data.DocumentModel
-	Syntax      string `anansi:"syntax" json:"syntax"`
-	Expression  string `anansi:"expression" json:"expression"`
-	Rules       string `anansi:"rules" json:"rules"`
-	Description string `anansi:"description" json:"description"`
-	Name        string `anansi:"name" json:"name"`
-	RuleType    string `anansi:"ruleType" json:"ruleType"`
-	Protected   bool   `anansi:"protected" json:"protected"`
+	Name        string  `anansi:"name,required=true" json:"name"`
+	Description *string `anansi:"description,required=false" json:"description,omitempty"`
+	Expression  *string `anansi:"expression,required=false" json:"expression,omitempty"`
+	Protected   *bool   `anansi:"protected,required=false" json:"protected,omitempty"`
+	RuleType    *string `anansi:"ruleType,required=false" json:"ruleType,omitempty"`
+	Rules       *string `anansi:"rules,required=false" json:"rules,omitempty"`
+	Syntax      *string `anansi:"syntax,required=false" json:"syntax,omitempty"`
 }
 
 // NewSystemIamRule creates and initializes a new SystemIamRule
@@ -37,7 +40,7 @@ func NewSystemIamRule(model SystemIamRule) *SystemIamRule {
 
 // SystemIamRules is a type-safe collection for SystemIamRule
 type SystemIamRules struct {
-	base.ModelCollection[SystemIamRule, *SystemIamRule]
+	*collection.ModelCollection[*SystemIamRule]
 }
 
 const SystemIamRulesCollectionName = "_iam_rule_"
@@ -51,7 +54,7 @@ var (
 // construct the SystemIamRule model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemIamRulesModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemIamRule, *SystemIamRule]) (*SystemIamRules, error) {
+func InitSystemIamRulesModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemIamRule]) (*SystemIamRules, error) {
 	systemIamRulesModelMu.Lock()
 	defer systemIamRulesModelMu.Unlock()
 	if systemIamRulesModel != nil {
@@ -63,7 +66,7 @@ func InitSystemIamRulesModel(p base.Persistence, logger *zap.Logger, opts ...col
 			WithOperation("InitSystemIamRulesModel").
 			WithPath("_iam_rule_")
 	}
-	mc, err := collection.NewModelCollection[SystemIamRule, *SystemIamRule](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemIamRule](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemIamRulesModel").

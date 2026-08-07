@@ -16,7 +16,7 @@ type ThrottleActionPolicy struct {
 }
 
 type ThrottlePolicy struct {
-	Limit  int64                `json:"limit"`
-	Window int64                `json:"window"` // seconds
+	Limit  int64                 `json:"limit"`
+	Window int64                 `json:"window"` // seconds
 	Action *ThrottleActionPolicy `json:"action"`
 }

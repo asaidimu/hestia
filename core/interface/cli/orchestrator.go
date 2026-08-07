@@ -14,8 +14,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var systemIdentity = iam.Identity{
@@ -160,5 +160,3 @@ func (o *Interface) runBootstrap() {
 
 	fmt.Fprintln(o.opts.Stdout, "Bootstrap complete. Start the server normally to use all features.")
 }
-
-

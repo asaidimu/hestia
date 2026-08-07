@@ -3,12 +3,20 @@ package abstract
 import (
 	"context"
 	"time"
-
-	"github.com/asaidimu/go-anansi/v8/core/data"
 )
 
+// UserIdentity exposes the identity-relevant subset of an active user for
+// authentication middleware and session revocation checks.
+type UserIdentity interface {
+	GetID() string
+	GetEmail() string
+	GetTenantID() string
+	GetPermissions() []string
+	GetTokenVersion() int
+}
+
 type UserResolver interface {
-	GetActiveByID(ctx context.Context, userID string) (*data.Document, error)
+	GetActiveByID(ctx context.Context, userID string) (UserIdentity, error)
 }
 
 type Claims struct {

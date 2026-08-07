@@ -22,7 +22,7 @@ func _user__6_0_0_to_7_0_0() *base.MigrationPlan {
 	}
 
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
-		return doc,nil
+		return doc, nil
 	}
 	return m
 }

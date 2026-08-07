@@ -17,18 +17,16 @@ import (
 )
 
 const (
-	DefaultPort         = 8090
-	DefaultBcryptCost   = 12
-	DefaultLogMaxSize   = 100
-	DefaultLogMaxAge    = 30
+	DefaultPort          = 8090
+	DefaultBcryptCost    = 12
+	DefaultLogMaxSize    = 100
+	DefaultLogMaxAge     = 30
 	DefaultLogMaxBackups = 5
 
 	DefaultSessionTTL = 8 * time.Hour
 	DefaultIdleTTL    = 30 * time.Minute
 	DefaultRefreshTTL = 15 * time.Minute
 	DefaultResetTTL   = 5 * time.Minute
-
-
 
 	DefaultAPIPrefix     = "/api"
 	DefaultSessionCookie = "session"
@@ -52,18 +50,18 @@ type Config struct {
 	IdleTTL       time.Duration
 	RefreshTTL    time.Duration
 
-	InteractorFactory InteractorFactory
+	InteractorFactory  InteractorFactory
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
-	AdminEmail         string
-	AdminPassword      string
-	ForceBootstrapped  bool
-	APIPrefix          string
-	StaticFS           fs.FS
-	CookieConfig       CookieConfig
-	AllowedOrigins     []string
-	Mailer             MailerConfig
-	AppURL             string
+	AdminEmail        string
+	AdminPassword     string
+	ForceBootstrapped bool
+	APIPrefix         string
+	StaticFS          fs.FS
+	CookieConfig      CookieConfig
+	AllowedOrigins    []string
+	Mailer            MailerConfig
+	AppURL            string
 }
 
 type CookieConfig struct {
@@ -77,15 +75,15 @@ type CookieConfig struct {
 
 func DefaultConfig() *Config {
 	return &Config{
-		Port:          DefaultPort,
-		BcryptCost:    DefaultBcryptCost,
-		SessionTTL:    DefaultSessionTTL,
-		IdleTTL:       DefaultIdleTTL,
-		RefreshTTL:    DefaultRefreshTTL,
-		LogMaxSize:    DefaultLogMaxSize,
-		LogMaxAge:     DefaultLogMaxAge,
-		LogMaxBackups: DefaultLogMaxBackups,
-		APIPrefix:     DefaultAPIPrefix,
+		Port:           DefaultPort,
+		BcryptCost:     DefaultBcryptCost,
+		SessionTTL:     DefaultSessionTTL,
+		IdleTTL:        DefaultIdleTTL,
+		RefreshTTL:     DefaultRefreshTTL,
+		LogMaxSize:     DefaultLogMaxSize,
+		LogMaxAge:      DefaultLogMaxAge,
+		LogMaxBackups:  DefaultLogMaxBackups,
+		APIPrefix:      DefaultAPIPrefix,
 		AllowedOrigins: []string{},
 		CookieConfig: CookieConfig{
 			Secure:      true,

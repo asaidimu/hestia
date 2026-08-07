@@ -21,7 +21,7 @@ func _user__7_0_0_to_8_0_0() *base.MigrationPlan {
 		Target:      target__user__8_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		v, err := doc.Get("disabled")
 		if err != nil {

@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_tenant_utils.go).
+// Add custom methods to the SystemTenant model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_tenant_validation.go,
+// system_tenant_serialization.go). Avoid throwing all logic into a
+// single system_tenant_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,10 +24,10 @@ import (
 
 type SystemTenant struct {
 	data.DocumentModel
-	Domain   string         `anansi:"domain" json:"domain"`
-	Status   string         `anansi:"status,default=active" json:"status"`
-	Name     string         `anansi:"name" json:"name"`
-	Metadata map[string]any `anansi:"metadata" json:"metadata"`
+	Name     string         `anansi:"name,required=true" json:"name"`
+	Domain   *string        `anansi:"domain,required=false" json:"domain,omitempty"`
+	Metadata map[string]any `anansi:"metadata,required=false" json:"metadata,omitempty"`
+	Status   *string        `anansi:"status,required=false,default=active" json:"status,omitempty"`
 }
 
 // NewSystemTenant creates and initializes a new SystemTenant
@@ -34,7 +37,7 @@ func NewSystemTenant(model SystemTenant) *SystemTenant {
 
 // SystemTenants is a type-safe collection for SystemTenant
 type SystemTenants struct {
-	base.ModelCollection[SystemTenant, *SystemTenant]
+	*collection.ModelCollection[*SystemTenant]
 }
 
 const SystemTenantsCollectionName = "_tenant_"
@@ -48,7 +51,7 @@ var (
 // construct the SystemTenant model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemTenantsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemTenant, *SystemTenant]) (*SystemTenants, error) {
+func InitSystemTenantsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemTenant]) (*SystemTenants, error) {
 	systemTenantsModelMu.Lock()
 	defer systemTenantsModelMu.Unlock()
 	if systemTenantsModel != nil {
@@ -60,7 +63,7 @@ func InitSystemTenantsModel(p base.Persistence, logger *zap.Logger, opts ...coll
 			WithOperation("InitSystemTenantsModel").
 			WithPath("_tenant_")
 	}
-	mc, err := collection.NewModelCollection[SystemTenant, *SystemTenant](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemTenant](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemTenantsModel").

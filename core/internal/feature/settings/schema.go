@@ -12,10 +12,10 @@ var (
 	_messageOutput      = dispatch.MustFromJSON(messageOutputJSON)
 )
 
-func setSettingInputSchema() *definition.Schema   { return _setSettingInput }
-func settingOutputSchema() *definition.Schema     { return _settingOutput }
+func setSettingInputSchema() *definition.Schema    { return _setSettingInput }
+func settingOutputSchema() *definition.Schema      { return _settingOutput }
 func settingsListOutputSchema() *definition.Schema { return _settingsListOutput }
-func messageOutputSchema() *definition.Schema     { return _messageOutput }
+func messageOutputSchema() *definition.Schema      { return _messageOutput }
 
 var setSettingInputJSON = []byte(`{
 	"version": "1.0.0",

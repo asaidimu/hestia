@@ -4,10 +4,10 @@ import (
 	"context"
 	"os"
 
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
-	"github.com/asaidimu/hestia/core/runtime"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func BuildApp(cfg *runtime.Config, opts dispatch.SystemOptions) (*Application, error) {

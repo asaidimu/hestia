@@ -23,19 +23,19 @@ type mockMessage struct {
 	tenantID string
 }
 
-func (m *mockMessage) ID() string                         { return "test-id" }
-func (m *mockMessage) Name() string                       { return m.name }
-func (m *mockMessage) Context() context.Context             { return m.ctx }
-func (m *mockMessage) Input() *data.Document                { return nil }
-func (m *mockMessage) InputChannel() <-chan *data.Document  { return nil }
+func (m *mockMessage) ID() string                             { return "test-id" }
+func (m *mockMessage) Name() string                           { return m.name }
+func (m *mockMessage) Context() context.Context               { return m.ctx }
+func (m *mockMessage) Input() *data.Document                  { return nil }
+func (m *mockMessage) InputChannel() <-chan *data.Document    { return nil }
 func (m *mockMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m *mockMessage) TenantID() string                     { return m.tenantID }
-func (m *mockMessage) TraceID() string                      { return "" }
-func (m *mockMessage) RequestID() string                    { return "" }
-func (m *mockMessage) SourceIP() string                     { return m.sourceIP }
-func (m *mockMessage) UserAgent() string                    { return "" }
-func (m *mockMessage) ResourceID() string                   { return "" }
-func (m *mockMessage) SessionID() string                    { return "" }
+func (m *mockMessage) TenantID() string                       { return m.tenantID }
+func (m *mockMessage) TraceID() string                        { return "" }
+func (m *mockMessage) RequestID() string                      { return "" }
+func (m *mockMessage) SourceIP() string                       { return m.sourceIP }
+func (m *mockMessage) UserAgent() string                      { return "" }
+func (m *mockMessage) ResourceID() string                     { return "" }
+func (m *mockMessage) SessionID() string                      { return "" }
 
 type mockDispatcher struct {
 	sendCalled int

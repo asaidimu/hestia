@@ -9,9 +9,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/internal/feature/audit"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 type testMessage struct {
@@ -19,19 +19,19 @@ type testMessage struct {
 	input *data.Document
 }
 
-func (m testMessage) ID() string                        { return "" }
-func (m testMessage) Name() string                      { return "" }
-func (m testMessage) Context() context.Context           { return m.ctx }
-func (m testMessage) Input() *data.Document              { return m.input }
-func (m testMessage) InputChannel() <-chan *data.Document { return nil }
+func (m testMessage) ID() string                             { return "" }
+func (m testMessage) Name() string                           { return "" }
+func (m testMessage) Context() context.Context               { return m.ctx }
+func (m testMessage) Input() *data.Document                  { return m.input }
+func (m testMessage) InputChannel() <-chan *data.Document    { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string   { return "" }
-func (m testMessage) TraceID() string    { return "" }
-func (m testMessage) RequestID() string  { return "" }
-func (m testMessage) SourceIP() string   { return "" }
-func (m testMessage) UserAgent() string  { return "" }
-func (m testMessage) ResourceID() string { return "" }
-func (m testMessage) SessionID() string  { return "" }
+func (m testMessage) TenantID() string                       { return "" }
+func (m testMessage) TraceID() string                        { return "" }
+func (m testMessage) RequestID() string                      { return "" }
+func (m testMessage) SourceIP() string                       { return "" }
+func (m testMessage) UserAgent() string                      { return "" }
+func (m testMessage) ResourceID() string                     { return "" }
+func (m testMessage) SessionID() string                      { return "" }
 
 var _ abstract.Message = testMessage{}
 

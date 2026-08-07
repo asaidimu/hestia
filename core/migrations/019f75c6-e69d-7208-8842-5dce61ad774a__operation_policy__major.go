@@ -20,7 +20,7 @@ func _operation_policy__1_0_1_to_2_0_0() *base.MigrationPlan {
 		Target:      target__operation_policy__2_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		name, _ := doc.GetString("name")
 		ruleKey, _ := doc.GetString("ruleKey")

@@ -11,8 +11,8 @@ import (
 // allowed through. This ensures all interface types (HTTP, CLI, Wails)
 // enforce the same pre-bootstrap restrictions uniformly.
 type BootstrapDispatcher struct {
-	next        abstract.Dispatcher
-	registry    interface{ IsHandlerBootstrapSafe(name string) bool }
+	next         abstract.Dispatcher
+	registry     interface{ IsHandlerBootstrapSafe(name string) bool }
 	bootstrapped func() bool
 }
 

@@ -6,16 +6,16 @@ import (
 )
 
 var (
-	_logQueryInput    = dispatch.MustFromJSON(logQueryInputJSON)
-	_logQueryOutput   = dispatch.MustFromJSON(logQueryOutputJSON)
-	_logStreamInput   = dispatch.MustFromJSON(logStreamInputJSON)
-	_logStreamOutput  = dispatch.MustFromJSON(logStreamOutputJSON)
+	_logQueryInput   = dispatch.MustFromJSON(logQueryInputJSON)
+	_logQueryOutput  = dispatch.MustFromJSON(logQueryOutputJSON)
+	_logStreamInput  = dispatch.MustFromJSON(logStreamInputJSON)
+	_logStreamOutput = dispatch.MustFromJSON(logStreamOutputJSON)
 )
 
-func logQueryInputSchema() *definition.Schema     { return _logQueryInput }
-func logQueryOutputSchema() *definition.Schema    { return _logQueryOutput }
-func logStreamInputSchema() *definition.Schema    { return _logStreamInput }
-func logStreamOutputSchema() *definition.Schema   { return _logStreamOutput }
+func logQueryInputSchema() *definition.Schema   { return _logQueryInput }
+func logQueryOutputSchema() *definition.Schema  { return _logQueryOutput }
+func logStreamInputSchema() *definition.Schema  { return _logStreamInput }
+func logStreamOutputSchema() *definition.Schema { return _logStreamOutput }
 
 var logQueryInputJSON = []byte(`{
 	"name": "log_query_input",

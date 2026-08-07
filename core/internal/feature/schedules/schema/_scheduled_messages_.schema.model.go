@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_scheduled_messages_utils.go).
+// Add custom methods to the SystemScheduledMessages model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_scheduled_messages_validation.go,
+// system_scheduled_messages_serialization.go). Avoid throwing all logic into a
+// single system_scheduled_messages_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,13 +24,13 @@ import (
 
 type SystemScheduledMessages struct {
 	data.DocumentModel
-	UserID    string         `anansi:"user_id" json:"user_id"`
-	Message   string         `anansi:"message" json:"message"`
-	Cron      string         `anansi:"cron" json:"cron"`
-	TenantID  string         `anansi:"tenant_id" json:"tenant_id"`
-	CreatedAt int64          `anansi:"created_at" json:"created_at"`
-	Input     map[string]any `anansi:"input" json:"input"`
-	Disabled  bool           `anansi:"disabled" json:"disabled"`
+	Cron      string         `anansi:"cron,required=true" json:"cron"`
+	Message   string         `anansi:"message,required=true" json:"message"`
+	UserID    string         `anansi:"user_id,required=true" json:"user_id"`
+	CreatedAt *int64         `anansi:"created_at,required=false" json:"created_at,omitempty"`
+	Disabled  *bool          `anansi:"disabled,required=false" json:"disabled,omitempty"`
+	Input     map[string]any `anansi:"input,required=false" json:"input,omitempty"`
+	TenantID  *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
 }
 
 // NewSystemScheduledMessages creates and initializes a new SystemScheduledMessages
@@ -37,7 +40,7 @@ func NewSystemScheduledMessages(model SystemScheduledMessages) *SystemScheduledM
 
 // SystemScheduledMessagess is a type-safe collection for SystemScheduledMessages
 type SystemScheduledMessagess struct {
-	base.ModelCollection[SystemScheduledMessages, *SystemScheduledMessages]
+	*collection.ModelCollection[*SystemScheduledMessages]
 }
 
 const SystemScheduledMessagessCollectionName = "_scheduled_messages_"
@@ -51,7 +54,7 @@ var (
 // construct the SystemScheduledMessages model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemScheduledMessagessModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemScheduledMessages, *SystemScheduledMessages]) (*SystemScheduledMessagess, error) {
+func InitSystemScheduledMessagessModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemScheduledMessages]) (*SystemScheduledMessagess, error) {
 	systemScheduledMessagessModelMu.Lock()
 	defer systemScheduledMessagessModelMu.Unlock()
 	if systemScheduledMessagessModel != nil {
@@ -63,7 +66,7 @@ func InitSystemScheduledMessagessModel(p base.Persistence, logger *zap.Logger, o
 			WithOperation("InitSystemScheduledMessagessModel").
 			WithPath("_scheduled_messages_")
 	}
-	mc, err := collection.NewModelCollection[SystemScheduledMessages, *SystemScheduledMessages](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemScheduledMessages](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemScheduledMessagessModel").

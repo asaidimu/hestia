@@ -19,15 +19,15 @@ const (
 )
 
 var (
-	ErrRuleProtected           = common.NewSystemError("RULE_PROTECTED", "rule is protected and cannot be deleted")
-	ErrRuleInUse               = common.NewSystemError("RULE_IN_USE", "rule is referenced by one or more policies and cannot be deleted")
-	ErrPolicyAlreadyExists     = common.NewSystemError("POLICY_ALREADY_EXISTS")
-	ErrPolicyNotFound          = common.NewSystemError("POLICY_NOT_FOUND")
-	ErrOperationNotFound       = common.NewSystemError("OPERATION_NOT_FOUND")
-	ErrRuleNotFound            = common.NewSystemError("RULE_NOT_FOUND")
-	ErrAccessCollection        = common.NewSystemError("ACCESS_COLLECTION")
-	ErrCreateRuleDoc           = common.NewSystemError("CREATE_RULE_DOC")
-	ErrMarshalRuleNode         = common.NewSystemError("MARSHAL_RULE_NODE")
+	ErrRuleProtected       = common.NewSystemError("RULE_PROTECTED", "rule is protected and cannot be deleted")
+	ErrRuleInUse           = common.NewSystemError("RULE_IN_USE", "rule is referenced by one or more policies and cannot be deleted")
+	ErrPolicyAlreadyExists = common.NewSystemError("POLICY_ALREADY_EXISTS")
+	ErrPolicyNotFound      = common.NewSystemError("POLICY_NOT_FOUND")
+	ErrOperationNotFound   = common.NewSystemError("OPERATION_NOT_FOUND")
+	ErrRuleNotFound        = common.NewSystemError("RULE_NOT_FOUND")
+	ErrAccessCollection    = common.NewSystemError("ACCESS_COLLECTION")
+	ErrCreateRuleDoc       = common.NewSystemError("CREATE_RULE_DOC")
+	ErrMarshalRuleNode     = common.NewSystemError("MARSHAL_RULE_NODE")
 )
 
 // Binding is read-only metadata about a registered operation.
@@ -63,21 +63,21 @@ type PolicyRule struct {
 // Persisted in _operation_policy_ collection. 1:1 with an operation.
 // key is a composite of tenant_id + ":" + operationName for multi-tenant lookups.
 type Policy struct {
-	ID            string                 `json:"id"`
-	OperationName string                 `json:"operationName"`
-	RuleName      string                 `json:"ruleName"`
-	TenantID      string                 `json:"tenantID"`
-	Key           string                 `json:"key"`
-	Enabled       bool                   `json:"enabled"`
-	Protected     bool                   `json:"protected"`
-	RateLimit     *runtime.RateLimitPolicy  `json:"rateLimit,omitempty"`
-	Throttle      *runtime.ThrottlePolicy   `json:"throttle,omitempty"`
+	ID            string                   `json:"id"`
+	OperationName string                   `json:"operationName"`
+	RuleName      string                   `json:"ruleName"`
+	TenantID      string                   `json:"tenantID"`
+	Key           string                   `json:"key"`
+	Enabled       bool                     `json:"enabled"`
+	Protected     bool                     `json:"protected"`
+	RateLimit     *runtime.RateLimitPolicy `json:"rateLimit,omitempty"`
+	Throttle      *runtime.ThrottlePolicy  `json:"throttle,omitempty"`
 }
 
 type PolicyModel struct {
-	policyColl base.Collection
-	ruleColl   base.Collection
-	knownBindings   []Binding
+	policyColl    base.Collection
+	ruleColl      base.Collection
+	knownBindings []Binding
 }
 
 func NewPolicyModel(policyColl, ruleColl base.Collection, knownBindings []Binding) *PolicyModel {

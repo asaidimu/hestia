@@ -6,30 +6,30 @@ import (
 )
 
 var (
-	_registerInput    = dispatch.MustFromJSON(registerInputJSON)
-	_userOutput       = dispatch.MustFromJSON(userOutputJSON)
-	_loginInput       = dispatch.MustFromJSON(loginInputJSON)
-	_loginOutput      = dispatch.MustFromJSON(loginOutputJSON)
-	_passwordReset    = dispatch.MustFromJSON(passwordResetInputJSON)
-	_passwordConfirm  = dispatch.MustFromJSON(passwordConfirmInputJSON)
-	_bootstrapPwd     = dispatch.MustFromJSON(bootstrapPasswordInputJSON)
-	_messageOutput    = dispatch.MustFromJSON(messageOutputJSON)
-	_claimsOutput     = dispatch.MustFromJSON(claimsOutputJSON)
-	_elevateInput     = dispatch.MustFromJSON(elevateInputJSON)
-	_elevateOutput    = dispatch.MustFromJSON(elevateOutputJSON)
+	_registerInput   = dispatch.MustFromJSON(registerInputJSON)
+	_userOutput      = dispatch.MustFromJSON(userOutputJSON)
+	_loginInput      = dispatch.MustFromJSON(loginInputJSON)
+	_loginOutput     = dispatch.MustFromJSON(loginOutputJSON)
+	_passwordReset   = dispatch.MustFromJSON(passwordResetInputJSON)
+	_passwordConfirm = dispatch.MustFromJSON(passwordConfirmInputJSON)
+	_bootstrapPwd    = dispatch.MustFromJSON(bootstrapPasswordInputJSON)
+	_messageOutput   = dispatch.MustFromJSON(messageOutputJSON)
+	_claimsOutput    = dispatch.MustFromJSON(claimsOutputJSON)
+	_elevateInput    = dispatch.MustFromJSON(elevateInputJSON)
+	_elevateOutput   = dispatch.MustFromJSON(elevateOutputJSON)
 )
 
-func registerInputSchema() *definition.Schema        { return _registerInput }
-func userOutputSchema() *definition.Schema            { return _userOutput }
-func loginInputSchema() *definition.Schema            { return _loginInput }
-func loginOutputSchema() *definition.Schema           { return _loginOutput }
-func passwordResetInputSchema() *definition.Schema    { return _passwordReset }
+func registerInputSchema() *definition.Schema          { return _registerInput }
+func userOutputSchema() *definition.Schema             { return _userOutput }
+func loginInputSchema() *definition.Schema             { return _loginInput }
+func loginOutputSchema() *definition.Schema            { return _loginOutput }
+func passwordResetInputSchema() *definition.Schema     { return _passwordReset }
 func passwordConfirmInputSchema() *definition.Schema   { return _passwordConfirm }
 func bootstrapPasswordInputSchema() *definition.Schema { return _bootstrapPwd }
-func messageOutputSchema() *definition.Schema         { return _messageOutput }
+func messageOutputSchema() *definition.Schema          { return _messageOutput }
 func claimsOutputSchema() *definition.Schema           { return _claimsOutput }
-func elevateInputSchema() *definition.Schema          { return _elevateInput }
-func elevateOutputSchema() *definition.Schema         { return _elevateOutput }
+func elevateInputSchema() *definition.Schema           { return _elevateInput }
+func elevateOutputSchema() *definition.Schema          { return _elevateOutput }
 
 var registerInputJSON = []byte(`{
 	"name": "register_input",

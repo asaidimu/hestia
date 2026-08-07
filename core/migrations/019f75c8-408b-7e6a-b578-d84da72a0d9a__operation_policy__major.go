@@ -20,7 +20,7 @@ func _operation_policy__2_0_0_to_3_0_0() *base.MigrationPlan {
 		Target:      target__operation_policy__3_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		return doc, nil
 	}

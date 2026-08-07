@@ -6,40 +6,40 @@ import (
 )
 
 var (
-	_policyBindingGetInput       = dispatch.MustFromJSON(policyBindingGetInputJSON)
-	_policyRuleGetInput           = dispatch.MustFromJSON(policyRuleGetInputJSON)
-	_policyRuleDeleteInput        = dispatch.MustFromJSON(policyRuleDeleteInputJSON)
-	_policyRuleCreateInput        = dispatch.MustFromJSON(policyRuleCreateInputJSON)
-	_policyRuleUpdateInput        = dispatch.MustFromJSON(policyRuleUpdateInputJSON)
-	_policyCreateInput            = dispatch.MustFromJSON(policyCreateInputJSON)
-	_policyUpdateInput            = dispatch.MustFromJSON(policyUpdateInputJSON)
-	_policyValidateInput          = dispatch.MustFromJSON(policyValidateInputJSON)
-	_policyValidateOutput         = dispatch.MustFromJSON(policyValidateOutputJSON)
-	_policyReloadOutput           = dispatch.MustFromJSON(policyReloadOutputJSON)
-	_policyBindingOutput         = dispatch.MustFromJSON(policyBindingOutputJSON)
-	_policyRuleOutput             = dispatch.MustFromJSON(policyRuleOutputJSON)
-	_policyOutput                 = dispatch.MustFromJSON(policyOutputJSON)
-	_policyListBindingsOutput    = dispatch.MustFromJSON(policyListBindingsOutputJSON)
-	_policyListRulesOutput        = dispatch.MustFromJSON(policyListRulesOutputJSON)
-	_policyListPoliciesOutput     = dispatch.MustFromJSON(policyListPoliciesOutputJSON)
+	_policyBindingGetInput    = dispatch.MustFromJSON(policyBindingGetInputJSON)
+	_policyRuleGetInput       = dispatch.MustFromJSON(policyRuleGetInputJSON)
+	_policyRuleDeleteInput    = dispatch.MustFromJSON(policyRuleDeleteInputJSON)
+	_policyRuleCreateInput    = dispatch.MustFromJSON(policyRuleCreateInputJSON)
+	_policyRuleUpdateInput    = dispatch.MustFromJSON(policyRuleUpdateInputJSON)
+	_policyCreateInput        = dispatch.MustFromJSON(policyCreateInputJSON)
+	_policyUpdateInput        = dispatch.MustFromJSON(policyUpdateInputJSON)
+	_policyValidateInput      = dispatch.MustFromJSON(policyValidateInputJSON)
+	_policyValidateOutput     = dispatch.MustFromJSON(policyValidateOutputJSON)
+	_policyReloadOutput       = dispatch.MustFromJSON(policyReloadOutputJSON)
+	_policyBindingOutput      = dispatch.MustFromJSON(policyBindingOutputJSON)
+	_policyRuleOutput         = dispatch.MustFromJSON(policyRuleOutputJSON)
+	_policyOutput             = dispatch.MustFromJSON(policyOutputJSON)
+	_policyListBindingsOutput = dispatch.MustFromJSON(policyListBindingsOutputJSON)
+	_policyListRulesOutput    = dispatch.MustFromJSON(policyListRulesOutputJSON)
+	_policyListPoliciesOutput = dispatch.MustFromJSON(policyListPoliciesOutputJSON)
 )
 
-func policyBindingGetInputSchema() *definition.Schema        { return _policyBindingGetInput }
-func policyRuleGetInputSchema() *definition.Schema            { return _policyRuleGetInput }
-func policyRuleDeleteInputSchema() *definition.Schema         { return _policyRuleDeleteInput }
-func policyRuleCreateInputSchema() *definition.Schema         { return _policyRuleCreateInput }
-func policyRuleUpdateInputSchema() *definition.Schema         { return _policyRuleUpdateInput }
-func policyCreateInputSchema() *definition.Schema             { return _policyCreateInput }
-func policyUpdateInputSchema() *definition.Schema                { return _policyUpdateInput }
-func policyValidateInputSchema() *definition.Schema           { return _policyValidateInput }
-func policyValidateOutputSchema() *definition.Schema          { return _policyValidateOutput }
-func policyReloadOutputSchema() *definition.Schema            { return _policyReloadOutput }
-func policyBindingOutputSchema() *definition.Schema          { return _policyBindingOutput }
-func policyRuleOutputSchema() *definition.Schema              { return _policyRuleOutput }
-func policyOutputSchema() *definition.Schema                  { return _policyOutput }
-func policyListBindingsOutputSchema() *definition.Schema     { return _policyListBindingsOutput }
-func policyListRulesOutputSchema() *definition.Schema         { return _policyListRulesOutput }
-func policyListPoliciesOutputSchema() *definition.Schema      { return _policyListPoliciesOutput }
+func policyBindingGetInputSchema() *definition.Schema    { return _policyBindingGetInput }
+func policyRuleGetInputSchema() *definition.Schema       { return _policyRuleGetInput }
+func policyRuleDeleteInputSchema() *definition.Schema    { return _policyRuleDeleteInput }
+func policyRuleCreateInputSchema() *definition.Schema    { return _policyRuleCreateInput }
+func policyRuleUpdateInputSchema() *definition.Schema    { return _policyRuleUpdateInput }
+func policyCreateInputSchema() *definition.Schema        { return _policyCreateInput }
+func policyUpdateInputSchema() *definition.Schema        { return _policyUpdateInput }
+func policyValidateInputSchema() *definition.Schema      { return _policyValidateInput }
+func policyValidateOutputSchema() *definition.Schema     { return _policyValidateOutput }
+func policyReloadOutputSchema() *definition.Schema       { return _policyReloadOutput }
+func policyBindingOutputSchema() *definition.Schema      { return _policyBindingOutput }
+func policyRuleOutputSchema() *definition.Schema         { return _policyRuleOutput }
+func policyOutputSchema() *definition.Schema             { return _policyOutput }
+func policyListBindingsOutputSchema() *definition.Schema { return _policyListBindingsOutput }
+func policyListRulesOutputSchema() *definition.Schema    { return _policyListRulesOutput }
+func policyListPoliciesOutputSchema() *definition.Schema { return _policyListPoliciesOutput }
 
 var policyBindingGetInputJSON = []byte(`{
 	"name": "policy_binding_get_input",

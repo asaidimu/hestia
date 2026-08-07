@@ -6,8 +6,8 @@ import (
 
 	"github.com/asaidimu/go-iam/v2/iam"
 
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/abstract"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 func TestClaimsFromContext(t *testing.T) {

@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	keyLength       = 48
-	prefixLength    = 10
-	hintLength      = 4
-	keyChars        = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	apiKeyCollName  = "_api_key_"
+	keyLength      = 48
+	prefixLength   = 10
+	hintLength     = 4
+	keyChars       = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	apiKeyCollName = "_api_key_"
 )
 
 type GeneratedKey struct {
@@ -46,13 +46,13 @@ type CreateKeyRequest struct {
 }
 
 type UpdateKeyRequest struct {
-	Name        *string         `json:"name,omitempty"`
-	Operations  []string        `json:"operations,omitempty"`
-	Status      *string         `json:"status,omitempty"`
-	Expiry      *string         `json:"expiry,omitempty"`
-	Limits      map[string]any  `json:"limits,omitempty"`
-	IP          map[string]any  `json:"ip,omitempty"`
-	Environment *string         `json:"environment,omitempty"`
+	Name        *string        `json:"name,omitempty"`
+	Operations  []string       `json:"operations,omitempty"`
+	Status      *string        `json:"status,omitempty"`
+	Expiry      *string        `json:"expiry,omitempty"`
+	Limits      map[string]any `json:"limits,omitempty"`
+	IP          map[string]any `json:"ip,omitempty"`
+	Environment *string        `json:"environment,omitempty"`
 }
 
 func NewAPIKeyModel(persistence base.Persistence) *APIKeyModel {

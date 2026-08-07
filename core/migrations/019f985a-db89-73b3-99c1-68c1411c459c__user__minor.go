@@ -20,7 +20,7 @@ func _user__5_0_0_to_5_1_0() *base.MigrationPlan {
 		Target:      target__user__5_1_0(),
 		VersionBump: definition.BumpMinor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		// tenant_id changed from required to optional. Existing docs already have
 		// the field set from earlier migrations — nothing to backfill.

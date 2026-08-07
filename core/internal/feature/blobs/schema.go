@@ -6,26 +6,26 @@ import (
 )
 
 var (
-	_nsInput          = dispatch.MustFromJSON(nsInputJSON)
-	_nsCreateInput    = dispatch.MustFromJSON(nsCreateInputJSON)
-	_blobKeyInput     = dispatch.MustFromJSON(blobKeyInputJSON)
-	_blobListInput    = dispatch.MustFromJSON(blobListInputJSON)
-	_nsListOutput     = dispatch.MustFromJSON(nsListOutputJSON)
-	_nsOutput         = dispatch.MustFromJSON(nsOutputJSON)
-	_blobListOutput   = dispatch.MustFromJSON(blobListOutputJSON)
-	_blobMetaOutput   = dispatch.MustFromJSON(blobMetaOutputJSON)
-	_blobUpdateInput  = dispatch.MustFromJSON(blobUpdateInputJSON)
+	_nsInput         = dispatch.MustFromJSON(nsInputJSON)
+	_nsCreateInput   = dispatch.MustFromJSON(nsCreateInputJSON)
+	_blobKeyInput    = dispatch.MustFromJSON(blobKeyInputJSON)
+	_blobListInput   = dispatch.MustFromJSON(blobListInputJSON)
+	_nsListOutput    = dispatch.MustFromJSON(nsListOutputJSON)
+	_nsOutput        = dispatch.MustFromJSON(nsOutputJSON)
+	_blobListOutput  = dispatch.MustFromJSON(blobListOutputJSON)
+	_blobMetaOutput  = dispatch.MustFromJSON(blobMetaOutputJSON)
+	_blobUpdateInput = dispatch.MustFromJSON(blobUpdateInputJSON)
 )
 
-func nsInputSchema() *definition.Schema           { return _nsInput }
-func nsCreateInputSchema() *definition.Schema     { return _nsCreateInput }
-func blobKeyInputSchema() *definition.Schema      { return _blobKeyInput }
-func blobListInputSchema() *definition.Schema      { return _blobListInput }
-func blobUpdateInputSchema() *definition.Schema    { return _blobUpdateInput }
-func nsListOutputSchema() *definition.Schema       { return _nsListOutput }
-func nsOutputSchema() *definition.Schema           { return _nsOutput }
-func blobListOutputSchema() *definition.Schema     { return _blobListOutput }
-func blobMetaOutputSchema() *definition.Schema     { return _blobMetaOutput }
+func nsInputSchema() *definition.Schema         { return _nsInput }
+func nsCreateInputSchema() *definition.Schema   { return _nsCreateInput }
+func blobKeyInputSchema() *definition.Schema    { return _blobKeyInput }
+func blobListInputSchema() *definition.Schema   { return _blobListInput }
+func blobUpdateInputSchema() *definition.Schema { return _blobUpdateInput }
+func nsListOutputSchema() *definition.Schema    { return _nsListOutput }
+func nsOutputSchema() *definition.Schema        { return _nsOutput }
+func blobListOutputSchema() *definition.Schema  { return _blobListOutput }
+func blobMetaOutputSchema() *definition.Schema  { return _blobMetaOutput }
 
 var nsInputJSON = []byte(`{
 	"name": "blob_ns_input",

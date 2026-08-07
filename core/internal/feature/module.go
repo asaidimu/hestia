@@ -17,25 +17,26 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
-	module "github.com/asaidimu/hestia/core/runtime/module"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
-	"github.com/asaidimu/hestia/core/runtime"
-	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/auth"
 	"github.com/asaidimu/hestia/core/internal/feature/blobs"
+	blobutil "github.com/asaidimu/hestia/core/internal/feature/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/feature/collections"
 	"github.com/asaidimu/hestia/core/internal/feature/policies"
 	"github.com/asaidimu/hestia/core/internal/feature/schedules"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
+	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	module "github.com/asaidimu/hestia/core/runtime/module"
 )
 
 type SystemModule struct {
 	module.BaseModule
 
-	opts     dispatch.SystemOptions
-	cfg      *runtime.Config
-	disp     *runtime.LocalDispatcher
+	opts      dispatch.SystemOptions
+	cfg       *runtime.Config
+	disp      *runtime.LocalDispatcher
 	providers *ProviderSet
 
 	bootstrapped bool
@@ -67,12 +68,6 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 		return fmt.Errorf("init live schedule: %w", err)
 	}
 
-	emailCh := m.cfg.Mailer.SMTPHost != ""
-	fmt.Printf("[mailer] host=%q port=%d auth=%q from=%q from_name=%q app_url=%q email_channel=%v\n",
-		m.cfg.Mailer.SMTPHost, m.cfg.Mailer.SMTPPort, m.cfg.Mailer.SMTPAuthType,
-		m.cfg.Mailer.FromAddress, m.cfg.Mailer.FromName, m.cfg.AppURL,
-		emailCh)
-
 	sessionSvc := auth.NewSessionService(m.cfg.SessionSecret)
 	resetSecret := m.cfg.SessionSecret + ":reset"
 	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetSecret, func(ctx context.Context, userID string) (int, error) {
@@ -80,8 +75,7 @@ func (m *SystemModule) Setup(ctx context.Context, persist base.Persistence) erro
 		if err != nil {
 			return 0, nil
 		}
-		v, _ := user.GetInt("token_version")
-		return v, nil
+		return user.GetTokenVersion(), nil
 	})
 
 	svc, err := blobutil.NewService(m.cfg.BlobsDir, m.opts.Logger)
@@ -271,16 +265,6 @@ func (m *SystemModule) initUserClaimsCache(ctx context.Context) error {
 	}
 	m.providers.LiveUsers = claims
 
-	docCache, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*data.Document]{
-		Collection: userColl,
-		Processor:  &users.IdentityDocProcessor{},
-		QueryKey:   "_id_",
-		AutoLoad:   false,
-	})
-	if err != nil {
-		return fmt.Errorf("create live user document cache: %w", err)
-	}
-	m.providers.Users.UseDocCache(docCache)
 	return nil
 }
 
@@ -366,12 +350,14 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 	return chain.Build(next)
 }
 
-func (m *SystemModule) AdminUserID() string                           { return m.adminUserID }
-func (m *SystemModule) AdminEmail() string                            { return m.adminEmail }
-func (m *SystemModule) Bootstrapped() bool                            { return m.bootstrapped }
-func (m *SystemModule) EphemeralKey() string                          { return m.ephemeralKey }
-func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider { return m.providers.CredProv }
-func (m *SystemModule) UserModel() *users.UserModel                   { return m.providers.Users }
+func (m *SystemModule) AdminUserID() string  { return m.adminUserID }
+func (m *SystemModule) AdminEmail() string   { return m.adminEmail }
+func (m *SystemModule) Bootstrapped() bool   { return m.bootstrapped }
+func (m *SystemModule) EphemeralKey() string { return m.ephemeralKey }
+func (m *SystemModule) CredentialsProvider() abstract.CredentialsProvider {
+	return m.providers.CredProv
+}
+func (m *SystemModule) UserModel() *schema.SystemUsers { return m.providers.Users }
 
 func (m *SystemModule) Start(ctx context.Context) error {
 	m.providers.Scheduler.Start()

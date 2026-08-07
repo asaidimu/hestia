@@ -8,8 +8,8 @@ import (
 	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
@@ -25,41 +25,41 @@ const cookieActionKey contextKey = "cookie_action"
 type Middleware func(ctx context.Context, req Request, next handlerFunc) (Response, error)
 
 type Options struct {
-	Dispatcher         abstract.Dispatcher
+	Dispatcher          abstract.Dispatcher
 	InternalDispatcher  abstract.Dispatcher
 	CredentialsProvider abstract.CredentialsProvider
-	Logger             *zap.Logger
-	Addr               string
-	Registrations      []abstract.MessageRegistration
-	CookieConfig       runtime.CookieConfig
-	SessionTTL         time.Duration
-	IdleTTL            time.Duration
-	RefreshTTL         time.Duration
-	APIPrefix          string
-	StaticFS           fs.FS
-	UserModel          abstract.UserResolver
-	Middleware         []Middleware
-	NoRefreshCommands  []string
-	AllowedOrigins     []string
+	Logger              *zap.Logger
+	Addr                string
+	Registrations       []abstract.MessageRegistration
+	CookieConfig        runtime.CookieConfig
+	SessionTTL          time.Duration
+	IdleTTL             time.Duration
+	RefreshTTL          time.Duration
+	APIPrefix           string
+	StaticFS            fs.FS
+	UserModel           abstract.UserResolver
+	Middleware          []Middleware
+	NoRefreshCommands   []string
+	AllowedOrigins      []string
 }
 
 type Interface struct {
-	opts           Options
-	trans          Transport
-	disp           abstract.Dispatcher
-	internalDisp   abstract.Dispatcher
-	identityProv   iam.IdentityProvider
-	credProv       abstract.CredentialsProvider
-	userModel      abstract.UserResolver
-	bootstrapped   bool
-	regs           []abstract.MessageRegistration
-	cookieCfg      runtime.CookieConfig
-	sessionTTL     time.Duration
-	idleTTL        time.Duration
-	refreshTTL     time.Duration
-	middleware         []Middleware
-	noRefreshCommands  map[string]struct{}
-	noRefreshOps       map[string]struct{}
+	opts              Options
+	trans             Transport
+	disp              abstract.Dispatcher
+	internalDisp      abstract.Dispatcher
+	identityProv      iam.IdentityProvider
+	credProv          abstract.CredentialsProvider
+	userModel         abstract.UserResolver
+	bootstrapped      bool
+	regs              []abstract.MessageRegistration
+	cookieCfg         runtime.CookieConfig
+	sessionTTL        time.Duration
+	idleTTL           time.Duration
+	refreshTTL        time.Duration
+	middleware        []Middleware
+	noRefreshCommands map[string]struct{}
+	noRefreshOps      map[string]struct{}
 }
 
 func New(opts Options) *Interface {
@@ -187,5 +187,3 @@ func (o *Interface) wrap(fn handlerFunc) Handler {
 		return
 	}
 }
-
-

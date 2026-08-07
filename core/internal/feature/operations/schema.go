@@ -15,11 +15,11 @@ var (
 )
 
 func healthOutputSchema() *definition.Schema        { return _healthOutput }
-func documentationOutputSchema() *definition.Schema  { return _documentationOutput }
-func capabilitiesOutputSchema() *definition.Schema   { return _capabilitiesOutput }
-func capabilityNameInputSchema() *definition.Schema  { return _capabilityNameInput }
-func messageOutputSchema() *definition.Schema        { return _messageOutput }
-func schedulerListOutputSchema() *definition.Schema  { return _schedulerListOutput }
+func documentationOutputSchema() *definition.Schema { return _documentationOutput }
+func capabilitiesOutputSchema() *definition.Schema  { return _capabilitiesOutput }
+func capabilityNameInputSchema() *definition.Schema { return _capabilityNameInput }
+func messageOutputSchema() *definition.Schema       { return _messageOutput }
+func schedulerListOutputSchema() *definition.Schema { return _schedulerListOutput }
 
 var healthOutputJSON = []byte(`{
 	"name": "health",

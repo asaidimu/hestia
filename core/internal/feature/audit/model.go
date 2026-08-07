@@ -9,8 +9,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
-	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/internal/util"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 const auditCollectionName = "_audit_log_"
@@ -55,4 +55,5 @@ func (m *AuditModel) Insert(ctx context.Context, entry auditdomain.AuditEntry) e
 	}
 	return nil
 }
+
 var _ auditdomain.AuditPersister = (*AuditModel)(nil)

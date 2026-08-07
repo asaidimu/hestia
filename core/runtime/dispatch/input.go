@@ -85,6 +85,17 @@ func SchemaFromType[T any]() *definition.Schema {
 	return MustFromJSON(b)
 }
 
+// SchemaFromTypeWithTag generates a meta-schema from any Go struct type using
+// anansi struct tags for field metadata and the given tag for field name/path
+// resolution, then parses it into a *definition.Schema. Panics on error.
+func SchemaFromTypeWithTag[T any](tag string, omitSystemFields ...bool) *definition.Schema {
+	b, err := data.SchemaFromWithTag[T](tag, omitSystemFields...)
+	if err != nil {
+		panic(err)
+	}
+	return MustFromJSON(b)
+}
+
 var inputMetaSchema = MustFromJSON(InputMetaSchemaJSON)
 
 var _ = meta.NormalizeSchema(inputMetaSchema)

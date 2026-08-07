@@ -20,7 +20,7 @@ func _notifications__0_0_0_to_1_0_0() *base.MigrationPlan {
 		Target:      target__notifications__1_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		panic("migrations: _notifications__0_0_0_to_1_0_0: implement transformer or remove this line")
 	}

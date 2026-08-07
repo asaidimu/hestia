@@ -8,8 +8,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 // LivePermissionManager resolves operation names to rule keys backed by a
@@ -53,7 +53,7 @@ func (m *LivePermissionManager) Resolve(msg abstract.Message) (string, bool, err
 			return d.RuleName, d.Enabled, nil
 		}
 	}
-	return "", false, runtime.ErrOperationLacksPolicy.WithIssue(common.Issue{Message: fmt.Sprintf("command %s has no policy",msg.Name())}).WithOperation(msg.Name())
+	return "", false, runtime.ErrOperationLacksPolicy.WithIssue(common.Issue{Message: fmt.Sprintf("command %s has no policy", msg.Name())}).WithOperation(msg.Name())
 }
 
 func (m *LivePermissionManager) ListCapabilities() []runtime.CapabilityMetadata {

@@ -40,5 +40,3 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies
 
 	return nil
 }
-
-

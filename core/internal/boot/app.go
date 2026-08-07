@@ -10,13 +10,13 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/core/runtime"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/abstract"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/internal/feature"
 	"github.com/asaidimu/hestia/core/migrations"
+	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func validateMessageName(name string) error {
@@ -32,7 +32,7 @@ type Application struct {
 	Loggers            *Loggers
 	PersistenceManager *PersistenceManager
 	Disp               *runtime.LocalDispatcher
-	Interfaces      []runtime.Interface
+	Interfaces         []runtime.Interface
 	Registrations      []abstract.MessageRegistration
 	Modules            []abstract.Module
 	systemMod          *feature.SystemModule

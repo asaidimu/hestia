@@ -9,8 +9,8 @@ var (
 	_schedulesListOutput = dispatch.MustFromJSON(schedulesListOutputJSON)
 	_scheduleOutput      = dispatch.MustFromJSON(scheduleOutputJSON)
 	_messageOutput       = dispatch.MustFromJSON(messageOutputJSON)
-	_scheduleCreateInput  = dispatch.MustFromJSON(scheduleCreateInputJSON)
-	_scheduleUpdateInput  = dispatch.MustFromJSON(scheduleUpdateInputJSON)
+	_scheduleCreateInput = dispatch.MustFromJSON(scheduleCreateInputJSON)
+	_scheduleUpdateInput = dispatch.MustFromJSON(scheduleUpdateInputJSON)
 )
 
 func schedulesListOutputSchema() *definition.Schema { return _schedulesListOutput }

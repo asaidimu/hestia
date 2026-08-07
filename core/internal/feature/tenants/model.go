@@ -72,4 +72,3 @@ func (m *TenantModel) GetByDomain(ctx context.Context, domain string) (*data.Doc
 	}
 	return result.Data[0], nil
 }
-

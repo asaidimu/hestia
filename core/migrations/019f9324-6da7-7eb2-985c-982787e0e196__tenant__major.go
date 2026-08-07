@@ -20,7 +20,7 @@ func _tenant__1_0_0_to_2_0_0() *base.MigrationPlan {
 		Target:      target__tenant__2_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		panic("migrations: _tenant__1_0_0_to_2_0_0: implement transformer or remove this line")
 	}

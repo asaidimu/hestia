@@ -6,11 +6,22 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/feature/users"
-	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"go.uber.org/zap"
 )
+
+func testModel(t *testing.T) *schema.SystemUsers {
+	t.Helper()
+	model, err := schema.NewSystemUsers(testutil.NewPersistence(t), zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewSystemUsers: %v", err)
+	}
+	return model
+}
 
 func testMsg(name string, input *data.Document) abstract.Message {
 	return dispatch.NewMessage(name, context.Background(), input)
@@ -18,14 +29,13 @@ func testMsg(name string, input *data.Document) abstract.Message {
 
 func TestGetUserHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := testModel(t)
 
-	doc, err := model.Register(ctx, "get@test.com", "password123", "Get User", "public", nil)
+	user, err := model.Register(ctx, "get@test.com", "password123", "Get User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	userID := doc.ID()
+	userID := user.ID
 
 	handler := users.NewGetUserHandler(model)
 	msg := testMsg("system:users:user:get", data.MustNewDocument(map[string]any{
@@ -54,14 +64,13 @@ func TestGetUserHandler(t *testing.T) {
 
 func TestUpdateUserHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := testModel(t)
 
-	doc, err := model.Register(ctx, "update@test.com", "password123", "Original Name", "public", nil)
+	user, err := model.Register(ctx, "update@test.com", "password123", "Original Name", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	userID := doc.ID()
+	userID := user.ID
 
 	handler := users.NewUpdateUserHandler(model)
 	msg := testMsg("system:users:user:update", data.MustNewDocument(map[string]any{
@@ -86,14 +95,13 @@ func TestUpdateUserHandler(t *testing.T) {
 
 func TestChangePasswordHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := testModel(t)
 
-	doc, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User", "public", nil)
+	user, err := model.Register(ctx, "changepw@test.com", "oldPassword", "PW User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	userID := doc.ID()
+	userID := user.ID
 
 	handler := users.NewChangePasswordHandler(model)
 	msg := testMsg("system:users:password:change", data.MustNewDocument(map[string]any{
@@ -111,32 +119,27 @@ func TestChangePasswordHandler(t *testing.T) {
 		t.Fatalf("ChangePasswordHandler: %v", err)
 	}
 
-	storedDoc, err := model.GetByID(ctx, userID)
+	storedUser, err := model.GetByID(ctx, userID)
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	storedPassword, err := storedDoc.GetString("password")
-	if err != nil {
-		t.Fatalf("GetString(password): %v", err)
-	}
-	if !runtime.CheckPassword("newPassword", storedPassword) {
+	if !runtime.CheckPassword("newPassword", storedUser.Password) {
 		t.Error("new password should match stored hash")
 	}
-	if runtime.CheckPassword("oldPassword", storedPassword) {
+	if runtime.CheckPassword("oldPassword", storedUser.Password) {
 		t.Error("old password should not match stored hash")
 	}
 }
 
 func TestDeleteUserHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	model := users.NewUserModel(p)
+	model := testModel(t)
 
-	doc, err := model.Register(ctx, "delete@test.com", "password123", "Delete User", "public", nil)
+	user, err := model.Register(ctx, "delete@test.com", "password123", "Delete User", "public", nil)
 	if err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	userID := doc.ID()
+	userID := user.ID
 
 	handler := users.NewDeleteUserHandler(model)
 	msg := testMsg("system:users:user:delete", data.MustNewDocument(map[string]any{

@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	collectionName     = "_notifications_"
-	readTTL            = 30 * 24 * time.Hour
+	collectionName = "_notifications_"
+	readTTL        = 30 * 24 * time.Hour
 )
 
 type NotificationModel struct {

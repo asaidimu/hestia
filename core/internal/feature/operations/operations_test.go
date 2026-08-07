@@ -15,19 +15,19 @@ type testMessage struct {
 	ctx context.Context
 }
 
-func (m testMessage) ID() string                            { return "" }
-func (m testMessage) Name() string                          { return "test" }
+func (m testMessage) ID() string                             { return "" }
+func (m testMessage) Name() string                           { return "test" }
 func (m testMessage) Context() context.Context               { return m.ctx }
 func (m testMessage) Input() *data.Document                  { return data.MustNewDocument(nil, m.ctx) }
 func (m testMessage) InputChannel() <-chan *data.Document    { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string   { return "" }
-func (m testMessage) TraceID() string    { return "" }
-func (m testMessage) RequestID() string  { return "" }
-func (m testMessage) SourceIP() string   { return "" }
-func (m testMessage) UserAgent() string  { return "" }
-func (m testMessage) ResourceID() string { return "" }
-func (m testMessage) SessionID() string  { return "" }
+func (m testMessage) TenantID() string                       { return "" }
+func (m testMessage) TraceID() string                        { return "" }
+func (m testMessage) RequestID() string                      { return "" }
+func (m testMessage) SourceIP() string                       { return "" }
+func (m testMessage) UserAgent() string                      { return "" }
+func (m testMessage) ResourceID() string                     { return "" }
+func (m testMessage) SessionID() string                      { return "" }
 
 func TestPolicyBindings(t *testing.T) {
 	bindings := operations.PolicyBindings()

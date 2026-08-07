@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_operation_policy_utils.go).
+// Add custom methods to the SystemOperationPolicy model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_operation_policy_validation.go,
+// system_operation_policy_serialization.go). Avoid throwing all logic into a
+// single system_operation_policy_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,23 +24,23 @@ import (
 
 type SystemOperationPolicy struct {
 	data.DocumentModel
-	RateIdentity        string         `anansi:"rate_identity" json:"rate_identity"`
-	Description         string         `anansi:"description" json:"description"`
-	Rule                string         `anansi:"rule" json:"rule"`
-	Key                 string         `anansi:"key" json:"key"`
-	Operation           string         `anansi:"operation" json:"operation"`
-	ThrottleActionMsg   string         `anansi:"throttle_action_msg" json:"throttle_action_msg"`
-	TenantID            string         `anansi:"tenant_id" json:"tenant_id"`
-	IntentType          string         `anansi:"intentType" json:"intentType"`
-	ThrottleActionInput map[string]any `anansi:"throttle_action_input" json:"throttle_action_input"`
-	RatePeriod          float64        `anansi:"rate_period" json:"rate_period"`
-	ThrottleLimit       float64        `anansi:"throttle_limit" json:"throttle_limit"`
-	RateCapacity        float64        `anansi:"rate_capacity" json:"rate_capacity"`
-	ThrottleWindow      float64        `anansi:"throttle_window" json:"throttle_window"`
-	RateRefill          float64        `anansi:"rate_refill" json:"rate_refill"`
-	RateLimitEnabled    bool           `anansi:"rate_limit_enabled" json:"rate_limit_enabled"`
-	Protected           bool           `anansi:"protected" json:"protected"`
-	Enabled             bool           `anansi:"enabled" json:"enabled"`
+	Operation           string         `anansi:"operation,required=true" json:"operation"`
+	Rule                string         `anansi:"rule,required=true" json:"rule"`
+	RateLimitEnabled    *bool          `anansi:"rate_limit_enabled,required=false" json:"rate_limit_enabled,omitempty"`
+	RatePeriod          *float64       `anansi:"rate_period,required=false" json:"rate_period,omitempty"`
+	IntentType          *string        `anansi:"intentType,required=false" json:"intentType,omitempty"`
+	Protected           *bool          `anansi:"protected,required=false" json:"protected,omitempty"`
+	RateCapacity        *float64       `anansi:"rate_capacity,required=false" json:"rate_capacity,omitempty"`
+	RateIdentity        *string        `anansi:"rate_identity,required=false" json:"rate_identity,omitempty"`
+	Description         *string        `anansi:"description,required=false" json:"description,omitempty"`
+	Key                 *string        `anansi:"key,required=false" json:"key,omitempty"`
+	RateRefill          *float64       `anansi:"rate_refill,required=false" json:"rate_refill,omitempty"`
+	Enabled             *bool          `anansi:"enabled,required=false" json:"enabled,omitempty"`
+	TenantID            *string        `anansi:"tenant_id,required=false" json:"tenant_id,omitempty"`
+	ThrottleActionInput map[string]any `anansi:"throttle_action_input,required=false" json:"throttle_action_input,omitempty"`
+	ThrottleActionMsg   *string        `anansi:"throttle_action_msg,required=false" json:"throttle_action_msg,omitempty"`
+	ThrottleLimit       *float64       `anansi:"throttle_limit,required=false" json:"throttle_limit,omitempty"`
+	ThrottleWindow      *float64       `anansi:"throttle_window,required=false" json:"throttle_window,omitempty"`
 }
 
 // NewSystemOperationPolicy creates and initializes a new SystemOperationPolicy
@@ -47,7 +50,7 @@ func NewSystemOperationPolicy(model SystemOperationPolicy) *SystemOperationPolic
 
 // SystemOperationPolicys is a type-safe collection for SystemOperationPolicy
 type SystemOperationPolicys struct {
-	base.ModelCollection[SystemOperationPolicy, *SystemOperationPolicy]
+	*collection.ModelCollection[*SystemOperationPolicy]
 }
 
 const SystemOperationPolicysCollectionName = "_operation_policy_"
@@ -61,7 +64,7 @@ var (
 // construct the SystemOperationPolicy model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemOperationPolicysModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemOperationPolicy, *SystemOperationPolicy]) (*SystemOperationPolicys, error) {
+func InitSystemOperationPolicysModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemOperationPolicy]) (*SystemOperationPolicys, error) {
 	systemOperationPolicysModelMu.Lock()
 	defer systemOperationPolicysModelMu.Unlock()
 	if systemOperationPolicysModel != nil {
@@ -73,7 +76,7 @@ func InitSystemOperationPolicysModel(p base.Persistence, logger *zap.Logger, opt
 			WithOperation("InitSystemOperationPolicysModel").
 			WithPath("_operation_policy_")
 	}
-	mc, err := collection.NewModelCollection[SystemOperationPolicy, *SystemOperationPolicy](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemOperationPolicy](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemOperationPolicysModel").

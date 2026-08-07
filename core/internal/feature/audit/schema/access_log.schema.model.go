@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_audit_log_utils.go).
+// Add custom methods to the SystemAuditLog model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_audit_log_validation.go,
+// system_audit_log_serialization.go). Avoid throwing all logic into a
+// single system_audit_log_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -55,6 +58,14 @@ const (
 	OperationOther   Operation = "other"
 )
 
+type Severity string
+
+const (
+	SeverityInfo     Severity = "info"
+	SeverityWarning  Severity = "warning"
+	SeverityCritical Severity = "critical"
+)
+
 type Status string
 
 const (
@@ -64,41 +75,33 @@ const (
 	StatusError   Status = "error"
 )
 
-type Severity string
-
-const (
-	SeverityInfo     Severity = "info"
-	SeverityWarning  Severity = "warning"
-	SeverityCritical Severity = "critical"
-)
-
 type SystemAuditLog struct {
 	data.DocumentModel
-	ErrorCode     string         `anansi:"error_code" json:"error_code"`
-	Region        string         `anansi:"region" json:"region"`
-	SessionID     string         `anansi:"session_id" json:"session_id"`
-	UserAgent     string         `anansi:"user_agent" json:"user_agent"`
-	ErrorMessage  string         `anansi:"error_message" json:"error_message"`
-	ActorID       string         `anansi:"actor_id" json:"actor_id"`
-	SourceIp      string         `anansi:"source_ip" json:"source_ip"`
-	EventID       string         `anansi:"event_id" json:"event_id"`
-	RequestID     string         `anansi:"request_id" json:"request_id"`
-	EventName     string         `anansi:"event_name" json:"event_name"`
-	TraceID       string         `anansi:"trace_id" json:"trace_id"`
-	IntegrityHash string         `anansi:"integrity_hash" json:"integrity_hash"`
-	RecordedAt    string         `anansi:"recorded_at" json:"recorded_at"`
-	OccurredAt    string         `anansi:"occurred_at" json:"occurred_at"`
-	ServiceName   string         `anansi:"service_name" json:"service_name"`
-	ResourceID    string         `anansi:"resource_id" json:"resource_id"`
-	OnBehalfOfID  string         `anansi:"on_behalf_of_id" json:"on_behalf_of_id"`
-	ResourceType  string         `anansi:"resource_type" json:"resource_type"`
-	LatencyMs     int64          `anansi:"latency_ms" json:"latency_ms"`
-	Severity      Severity       `anansi:"severity,type=enum" json:"severity"`
-	Operation     Operation      `anansi:"operation,type=enum" json:"operation"`
-	Status        Status         `anansi:"status,type=enum" json:"status"`
-	AuthMethod    AuthMethod     `anansi:"auth_method,type=enum" json:"auth_method"`
-	ActorType     ActorType      `anansi:"actor_type,type=enum" json:"actor_type"`
-	Metadata      map[string]any `anansi:"metadata" json:"metadata"`
+	ServiceName   string         `anansi:"service_name,required=true" json:"service_name"`
+	OccurredAt    string         `anansi:"occurred_at,required=true" json:"occurred_at"`
+	RecordedAt    string         `anansi:"recorded_at,required=true" json:"recorded_at"`
+	ActorID       string         `anansi:"actor_id,required=true" json:"actor_id"`
+	ResourceType  string         `anansi:"resource_type,required=true" json:"resource_type"`
+	EventID       string         `anansi:"event_id,required=true" json:"event_id"`
+	EventName     string         `anansi:"event_name,required=true" json:"event_name"`
+	SourceIp      *string        `anansi:"source_ip,required=false" json:"source_ip,omitempty"`
+	ResourceID    *string        `anansi:"resource_id,required=false" json:"resource_id,omitempty"`
+	Metadata      map[string]any `anansi:"metadata,required=false" json:"metadata,omitempty"`
+	IntegrityHash *string        `anansi:"integrity_hash,required=false" json:"integrity_hash,omitempty"`
+	OnBehalfOfID  *string        `anansi:"on_behalf_of_id,required=false" json:"on_behalf_of_id,omitempty"`
+	ActorType     ActorType      `anansi:"actor_type,required=true,type=enum" json:"actor_type"`
+	Region        *string        `anansi:"region,required=false" json:"region,omitempty"`
+	Operation     Operation      `anansi:"operation,required=true,type=enum" json:"operation"`
+	RequestID     *string        `anansi:"request_id,required=false" json:"request_id,omitempty"`
+	LatencyMs     *int64         `anansi:"latency_ms,required=false" json:"latency_ms,omitempty"`
+	ErrorMessage  *string        `anansi:"error_message,required=false" json:"error_message,omitempty"`
+	ErrorCode     *string        `anansi:"error_code,required=false" json:"error_code,omitempty"`
+	SessionID     *string        `anansi:"session_id,required=false" json:"session_id,omitempty"`
+	Severity      *Severity      `anansi:"severity,required=false,type=enum" json:"severity,omitempty"`
+	AuthMethod    *AuthMethod    `anansi:"auth_method,required=false,type=enum" json:"auth_method,omitempty"`
+	Status        Status         `anansi:"status,required=true,type=enum" json:"status"`
+	TraceID       *string        `anansi:"trace_id,required=false" json:"trace_id,omitempty"`
+	UserAgent     *string        `anansi:"user_agent,required=false" json:"user_agent,omitempty"`
 }
 
 // NewSystemAuditLog creates and initializes a new SystemAuditLog
@@ -108,7 +111,7 @@ func NewSystemAuditLog(model SystemAuditLog) *SystemAuditLog {
 
 // SystemAuditLogs is a type-safe collection for SystemAuditLog
 type SystemAuditLogs struct {
-	base.ModelCollection[SystemAuditLog, *SystemAuditLog]
+	*collection.ModelCollection[*SystemAuditLog]
 }
 
 const SystemAuditLogsCollectionName = "_audit_log_"
@@ -122,7 +125,7 @@ var (
 // construct the SystemAuditLog model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemAuditLogsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemAuditLog, *SystemAuditLog]) (*SystemAuditLogs, error) {
+func InitSystemAuditLogsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemAuditLog]) (*SystemAuditLogs, error) {
 	systemAuditLogsModelMu.Lock()
 	defer systemAuditLogsModelMu.Unlock()
 	if systemAuditLogsModel != nil {
@@ -134,7 +137,7 @@ func InitSystemAuditLogsModel(p base.Persistence, logger *zap.Logger, opts ...co
 			WithOperation("InitSystemAuditLogsModel").
 			WithPath("_audit_log_")
 	}
-	mc, err := collection.NewModelCollection[SystemAuditLog, *SystemAuditLog](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemAuditLog](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemAuditLogsModel").

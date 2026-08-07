@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/asaidimu/hestia/core"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/interface/cli"
+	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 

@@ -16,9 +16,9 @@ import (
 )
 
 type credentialProvider struct {
-	sessionSvc      *SessionService
-	secret          []byte
-	getUserVersion  func(ctx context.Context, userID string) (int, error)
+	sessionSvc     *SessionService
+	secret         []byte
+	getUserVersion func(ctx context.Context, userID string) (int, error)
 }
 
 func NewCredentialsProvider(sessionSvc *SessionService, resetSecret string) abstract.CredentialsProvider {

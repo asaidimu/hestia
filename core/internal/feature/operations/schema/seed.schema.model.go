@@ -6,7 +6,10 @@ package schema
 // Always run codegen alongside database migrations so that the
 // generated models stay in sync with the schema on file.
 //
-// Extend model functionality in separate Go files (e.g. system_seed_utils.go).
+// Add custom methods to the SystemSeed model in separate Go files,
+// using filenames that reflect their purpose (e.g., system_seed_validation.go,
+// system_seed_serialization.go). Avoid throwing all logic into a
+// single system_seed_utils.go file.
 // This file is overwritten on each codegen run — never edit it directly.
 
 import (
@@ -21,8 +24,8 @@ import (
 
 type SystemSeed struct {
 	data.DocumentModel
-	Key   string `anansi:"key" json:"key"`
-	Value string `anansi:"value" json:"value"`
+	Key   string  `anansi:"key,required=true" json:"key"`
+	Value *string `anansi:"value,required=false" json:"value,omitempty"`
 }
 
 // NewSystemSeed creates and initializes a new SystemSeed
@@ -32,7 +35,7 @@ func NewSystemSeed(model SystemSeed) *SystemSeed {
 
 // SystemSeeds is a type-safe collection for SystemSeed
 type SystemSeeds struct {
-	base.ModelCollection[SystemSeed, *SystemSeed]
+	*collection.ModelCollection[*SystemSeed]
 }
 
 const SystemSeedsCollectionName = "_seed_"
@@ -46,7 +49,7 @@ var (
 // construct the SystemSeed model. Idempotent — subsequent calls return
 // the existing instance. Retry-safe: if the first call fails, the
 // caller can fix the underlying issue and call again.
-func InitSystemSeedsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[SystemSeed, *SystemSeed]) (*SystemSeeds, error) {
+func InitSystemSeedsModel(p base.Persistence, logger *zap.Logger, opts ...collection.ModelCollectionOptions[*SystemSeed]) (*SystemSeeds, error) {
 	systemSeedsModelMu.Lock()
 	defer systemSeedsModelMu.Unlock()
 	if systemSeedsModel != nil {
@@ -58,7 +61,7 @@ func InitSystemSeedsModel(p base.Persistence, logger *zap.Logger, opts ...collec
 			WithOperation("InitSystemSeedsModel").
 			WithPath("_seed_")
 	}
-	mc, err := collection.NewModelCollection[SystemSeed, *SystemSeed](raw, logger, opts...)
+	mc, err := collection.NewModelCollection[*SystemSeed](raw, logger, opts...)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err, "ERR_MODEL_INIT_FAILED").
 			WithOperation("InitSystemSeedsModel").

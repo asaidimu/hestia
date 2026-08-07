@@ -72,10 +72,6 @@ type Page struct {
 	Pagination *query.PaginationInfo
 }
 
-type Blob struct {
-	Data        []byte
-	ContentType string
-}
 
 type ResultKind int
 
@@ -99,5 +95,3 @@ type Result struct {
 	SessionToken    string
 	Metadata        map[string]any
 }
-
-

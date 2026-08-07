@@ -10,8 +10,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 func TestMain(m *testing.M) {
@@ -34,7 +34,7 @@ func (m *mockTransport) Handle(pattern string, handler Handler) {
 	m.handlers[pattern] = handler
 }
 
-func (m *mockTransport) Start() error   { return nil }
+func (m *mockTransport) Start() error                     { return nil }
 func (m *mockTransport) Shutdown(_ context.Context) error { return nil }
 
 type mockDispatcher struct {
@@ -189,7 +189,7 @@ func TestSerializeResponse_Blob(t *testing.T) {
 func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 	mt := newMockTransport()
 	reg := abstract.MessageRegistration{
-		Name:    "test:user:profile:get",
+		Name: "test:user:profile:get",
 		Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 			return &abstract.Result{}, nil
 		},
@@ -218,7 +218,7 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 	mt := newMockTransport()
 	reg := abstract.MessageRegistration{
-		Name:    "test:user:profile:query",
+		Name: "test:user:profile:query",
 		Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 			return &abstract.Result{}, nil
 		},

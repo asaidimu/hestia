@@ -20,7 +20,7 @@ func _user__1_0_0_to_2_0_0() *base.MigrationPlan {
 		Target:      target__user__2_0_0(),
 		VersionBump: definition.BumpMajor,
 	}
-	
+
 	m.Transformer = func(ctx context.Context, doc data.Document) (data.Document, error) {
 		if v, err := doc.Get("scopes"); err == nil {
 			doc.Set("permissions", v)

@@ -17,7 +17,7 @@ func _operation_policy__3_1_0_to_3_2_0() *base.MigrationPlan {
 		Target:      target__operation_policy__3_2_0(),
 		VersionBump: definition.BumpMinor,
 	}
-	
+
 	return m
 }
 

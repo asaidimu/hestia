@@ -36,9 +36,9 @@ func main() {
 	})
 
 	err = wailsruntime.Run(&options.App{
-		Title:       "Hestia Wails Test",
-		Width:       1024,
-		Height:      768,
+		Title:  "Hestia Wails Test",
+		Width:  1024,
+		Height: 768,
 		AssetServer: &assetserver.Options{
 			Handler: adapter.Handler(),
 		},
