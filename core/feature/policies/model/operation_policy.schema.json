@@ -1,0 +1,124 @@
+{
+  "fields": {
+    "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string",
+      "unique": true
+    },
+    "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+      "name": "_metadata_",
+      "schema": {
+        "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+      },
+      "type": "object"
+    },
+    "019fdc60-69d8-7040-a0cb-e3494e481b0e": {
+      "name": "tenant_id",
+      "type": "string"
+    },
+    "019fdc60-69d8-7041-8088-242565fc1ac0": {
+      "name": "operation",
+      "required": true,
+      "type": "string"
+    },
+    "019fdc60-69d8-7042-92d8-171873de2706": {
+      "name": "rate_period",
+      "type": "number"
+    },
+    "019fdc60-69d8-7043-8d85-3f6d06a1469c": {
+      "name": "key",
+      "type": "string"
+    },
+    "019fdc60-69d8-7044-b1a4-0da3fa623f63": {
+      "name": "throttle_limit",
+      "type": "number"
+    },
+    "019fdc60-69d8-7045-8c82-019a7ae1a665": {
+      "name": "rule",
+      "required": true,
+      "type": "string"
+    },
+    "019fdc60-69d8-7046-b73c-e0f104277b7a": {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    "019fdc60-69d8-7047-9d79-e559ecd81803": {
+      "name": "throttle_window",
+      "type": "number"
+    },
+    "019fdc60-69d8-7048-a088-fb34ee6bc8f2": {
+      "name": "protected",
+      "type": "boolean"
+    },
+    "019fdc60-69d8-7049-a4fb-77986fa35748": {
+      "name": "rate_refill",
+      "type": "number"
+    },
+    "019fdc60-69d8-704a-8807-069bb4ac3b17": {
+      "name": "intentType",
+      "type": "string"
+    },
+    "019fdc60-69d8-704b-bbec-d09b1a9c9ad1": {
+      "name": "throttle_action_msg",
+      "type": "string"
+    },
+    "019fdc60-69d8-704c-85ee-5fd6269d007c": {
+      "name": "throttle_action_input",
+      "type": "record"
+    },
+    "019fdc60-69d8-704d-8407-ac9ec33d9037": {
+      "name": "description",
+      "type": "string"
+    },
+    "019fdc60-69d8-704e-90b2-35b16dc15f98": {
+      "name": "rate_capacity",
+      "type": "number"
+    },
+    "019fdc60-69d8-704f-beb8-7359200e4520": {
+      "name": "rate_identity",
+      "type": "string"
+    },
+    "019fdc60-69d8-7050-8e53-a1ceb77c8696": {
+      "name": "rate_limit_enabled",
+      "type": "boolean"
+    }
+  },
+  "name": "_operation_policy_",
+  "schemas": {
+    "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+      "fields": {
+        "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+          "name": "version",
+          "required": true,
+          "type": "number"
+        },
+        "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+          "name": "updated",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-7440-b104-8d774438853a": {
+          "name": "checksum",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+          "name": "signature",
+          "type": "string"
+        },
+        "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+          "name": "created",
+          "required": true,
+          "type": "string"
+        },
+        "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+          "name": "trace_id",
+          "type": "string"
+        }
+      },
+      "name": "_metadata_"
+    }
+  },
+  "version": "1.0.0"
+}

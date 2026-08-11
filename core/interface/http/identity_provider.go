@@ -85,7 +85,7 @@ func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 	}
 }
 
-func extractClaims(doc *data.Document) *abstract.Claims {
+func extractClaims(doc data.Documenter) *abstract.Claims {
 	if doc == nil {
 		return &abstract.Claims{}
 	}

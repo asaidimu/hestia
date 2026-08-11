@@ -2,9 +2,9 @@
 This codebase relies on **go-anansi** for database operations and its proprietary query language.
 
 * **Local Development Path:** `~/projects/go-anansi` for reference.
-When working with schemas: 
-1. Prefer writing schemas in json. The guide meta schema is at `~/projects/go-anansi/core/schema/meta/schema.json`
-2. Schemas that contribute towards collection go into `./core/internal/feature/**/schema/*.schema.json` as plain json files
+* **Before writing or migrating any feature, read `docs/guide/writing_features.md`** — it is the canonical how-to (layout, schema+projections, codegen workflow, DTOs, domain methods, wiring, tests), distilled from the migrated `users` (reference) and `apikeys` features.
+* Schemas that contribute towards a collection go into `core/feature/<feature>/model/*.schema.json` as plain JSON files (package `model`).
+* The meta schema reference is at `~/projects/go-anansi/core/schema/meta/schema.json`.
 
 ## IAM Layer
 
@@ -31,7 +31,7 @@ Because operations often require authentication, you must first establish a sess
 
 To discover and understand all available registered commands within the system, query the documentation endpoint:
 
-* **Endpoint:** `GET /api/system/core/docs`
+* **Endpoint:** `GET /api/system/core/docs/list`
 
 ---
 

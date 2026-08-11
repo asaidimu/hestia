@@ -2,81 +2,143 @@
   "version": "1",
   "schemas": {
     "_api_key_": {
-      "path": "core/internal/feature/apikeys/schema/api_key.schema.json",
-      "hash": "sha256:db8f4663f766b3eae84428121d8fa6b70937606c03d518666f590aee7d979b75",
-      "version": "2.0.0",
+      "path": "core/feature/apikeys/model/api_key.schema.json",
+      "hash": "sha256:3d620801ea0997c542c6c1b22137f7995704aef04e97c6765c32b47e078b3830",
+      "version": "1.0.1",
       "schema": {
         "version": "1.0.0",
         "name": "_api_key_",
         "fields": {
-          "019f32aa-ba8a-7137-a802-606e4d06a033": {
+          "019fdc60-69c4-7005-98d9-9f0cb2f9bb44": {
+            "name": "environment",
+            "type": "string"
+          },
+          "019fdc60-69c4-7008-8c96-2de2677a17da": {
+            "name": "expiry",
+            "type": "string"
+          },
+          "019fdc60-69c4-7006-a137-50262ef675df": {
+            "name": "operations",
+            "type": "array",
+            "schema": {
+              "id": "019fdc60-69c4-7012-b851-0072ccca431c"
+            }
+          },
+          "019fdc60-69c4-7009-b986-1f77c8e16093": {
+            "name": "last_used",
+            "type": "string"
+          },
+          "019fdc60-69c4-700b-81ba-57b7809eb9e1": {
             "name": "prefix",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8a-7418-a2f0-8a84464d9e7c": {
-            "name": "environment",
-            "type": "string"
-          },
-          "019f32aa-ba8a-75c8-9aa9-cb904e77891f": {
+          "019fdc60-69c4-700c-82fa-372376861e44": {
             "name": "hash",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8a-76db-922d-d3534a208904": {
+          "019fdc60-69c4-700d-b674-73c3651341d1": {
             "name": "usage",
             "type": "integer"
           },
-          "019f32aa-ba8a-77a7-8a35-cc7048d887bf": {
-            "name": "expiry",
-            "type": "string"
-          },
-          "019f32aa-ba8a-797f-9766-755f4bfa93fc": {
-            "name": "status",
-            "type": "string"
-          },
-          "019f32aa-ba8a-7acb-adf9-a94f426a9c1e": {
-            "name": "name",
-            "required": true,
-            "type": "string"
-          },
-          "019f32aa-ba8a-7c52-a286-d4de4ee69c69": {
-            "name": "limits",
-            "type": "object",
-            "schema": {
-              "id": "019f32aa-ba8b-7397-a13f-ce3d4d539f39"
-            }
-          },
-          "019f32aa-ba8a-7ce2-9ec2-dd6f4d2f8a15": {
-            "name": "operations",
-            "type": "array",
-            "schema": {
-              "id": "019f32aa-ba8a-7226-9382-2607406fb689"
-            }
-          },
-          "019f32aa-ba8a-7e37-add0-cf5d489ea2b4": {
+          "019fdc60-69c4-7010-bf56-dfca364fe145": {
             "name": "userId",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8a-7fc6-b756-ec714d9a8c4a": {
-            "name": "last_used",
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
             "type": "string"
           },
-          "019f32aa-ba8b-78df-9ed2-d5f246c3a93a": {
+          "019fdc60-69c4-7007-92d8-b7fd5d58cbf7": {
+            "name": "status",
+            "type": "string"
+          },
+          "019fdc60-69c4-700e-a8a0-2258407eeeb8": {
             "name": "ip",
             "type": "object",
             "schema": {
-              "id": "019f32aa-ba8b-7d31-9e87-a7e34d2da347"
+              "id": "019fdc60-69c4-7014-9d4b-469f6e0509df"
+            }
+          },
+          "019fdc60-69c4-700f-8b76-60aae5a92341": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69c4-700a-b59e-0570e18531ff": {
+            "name": "limits",
+            "type": "object",
+            "schema": {
+              "id": "019fdc60-69c4-7013-a460-1cbc930c7a0e"
             }
           }
         },
         "schemas": {
-          "019f32aa-ba8a-7226-9382-2607406fb689": {
+          "019fdc60-69c4-7014-9d4b-469f6e0509df": {
+            "name": "IPConfig",
+            "fields": {
+              "019f32aa-ba8b-75ad-b09b-21584dd3a317": {
+                "name": "whitelist",
+                "type": "array",
+                "schema": {
+                  "id": "019fdc60-69c4-7011-98b6-abdc97b94c13"
+                }
+              }
+            }
+          },
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              }
+            }
+          },
+          "019fdc60-69c4-7011-98b6-abdc97b94c13": {
+            "name": "IPCIDR",
+            "type": "string"
+          },
+          "019fdc60-69c4-7012-b851-0072ccca431c": {
             "name": "Operation",
             "type": "string"
           },
-          "019f32aa-ba8b-7397-a13f-ce3d4d539f39": {
+          "019fdc60-69c4-7013-a460-1cbc930c7a0e": {
             "name": "Limits",
             "fields": {
               "019f32aa-ba8b-7072-99db-4cb04c7d9562": {
@@ -88,26 +150,112 @@
                 "type": "integer"
               }
             }
-          },
-          "019f32aa-ba8b-77a9-b368-358446c283ae": {
-            "name": "IPCIDR",
-            "type": "string"
-          },
-          "019f32aa-ba8b-7d31-9e87-a7e34d2da347": {
-            "name": "IPConfig",
-            "fields": {
-              "019f32aa-ba8b-75ad-b09b-21584dd3a317": {
-                "name": "whitelist",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8b-77a9-b368-358446c283ae"
+          }
+        },
+        "metadata": {
+          "projections": {
+            "APIKeyPublic": {
+              "fields": {
+                "exclude": [
+                  "hash"
+                ]
+              }
+            },
+            "APIKeyCreate": {
+              "fields": {
+                "include": [
+                  "name",
+                  "environment",
+                  "operations",
+                  "expiry",
+                  "limits",
+                  "ip"
+                ],
+                "required": [
+                  "name"
+                ],
+                "optional": [
+                  "environment",
+                  "operations",
+                  "expiry",
+                  "limits",
+                  "ip"
+                ],
+                "tags": {
+                  "limits": {
+                    "input": "payload.{name}"
+                  },
+                  "name": {
+                    "input": "payload.{name}"
+                  },
+                  "operations": {
+                    "input": "payload.{name}"
+                  },
+                  "environment": {
+                    "input": "payload.{name}"
+                  },
+                  "expiry": {
+                    "input": "payload.{name}"
+                  },
+                  "ip": {
+                    "input": "payload.{name}"
+                  }
                 }
+              }
+            },
+            "APIKeyUpdate": {
+              "fields": {
+                "optional": [
+                  "name",
+                  "status",
+                  "environment",
+                  "operations",
+                  "expiry",
+                  "limits",
+                  "ip"
+                ],
+                "tags": {
+                  "name": {
+                    "input": "payload.{name}"
+                  },
+                  "operations": {
+                    "input": "payload.{name}"
+                  },
+                  "status": {
+                    "input": "payload.{name}"
+                  },
+                  "_id_": {
+                    "input": "arguments.key_id"
+                  },
+                  "environment": {
+                    "input": "payload.{name}"
+                  },
+                  "expiry": {
+                    "input": "payload.{name}"
+                  },
+                  "ip": {
+                    "input": "payload.{name}"
+                  },
+                  "limits": {
+                    "input": "payload.{name}"
+                  }
+                },
+                "include": [
+                  "_id_",
+                  "name",
+                  "status",
+                  "environment",
+                  "operations",
+                  "expiry",
+                  "limits",
+                  "ip"
+                ]
               }
             }
           }
         }
       },
-      "migration_file": "019f6b69-2f4c-7697-bfa6-7ad095f822af__api_key__major.go",
+      "migration_file": "019fefbd-664e-72a2-830e-df744cde3a44__api_key__patch.go",
       "history": [
         {
           "version": "1.0.0",
@@ -115,74 +263,83 @@
             "version": "1.0.0",
             "name": "_api_key_",
             "fields": {
-              "019f32aa-ba8a-7137-a802-606e4d06a033": {
-                "name": "prefix",
+              "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+                "name": "_id_",
                 "required": true,
+                "unique": true,
                 "type": "string"
               },
-              "019f32aa-ba8a-7418-a2f0-8a84464d9e7c": {
-                "name": "environment",
-                "type": "string"
-              },
-              "019f32aa-ba8a-75c8-9aa9-cb904e77891f": {
-                "name": "hash",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8a-76db-922d-d3534a208904": {
-                "name": "usage",
-                "type": "integer"
-              },
-              "019f32aa-ba8a-77a7-8a35-cc7048d887bf": {
-                "name": "expiry",
-                "type": "string"
-              },
-              "019f32aa-ba8a-797f-9766-755f4bfa93fc": {
-                "name": "status",
-                "type": "string"
-              },
-              "019f32aa-ba8a-7acb-adf9-a94f426a9c1e": {
+              "019fdc60-69c4-700f-8b76-60aae5a92341": {
                 "name": "name",
                 "required": true,
                 "type": "string"
               },
-              "019f32aa-ba8a-7c52-a286-d4de4ee69c69": {
+              "019fdc60-69c4-7005-98d9-9f0cb2f9bb44": {
+                "name": "environment",
+                "type": "string"
+              },
+              "019fdc60-69c4-7007-92d8-b7fd5d58cbf7": {
+                "name": "status",
+                "type": "string"
+              },
+              "019fdc60-69c4-7009-b986-1f77c8e16093": {
+                "name": "last_used",
+                "type": "string"
+              },
+              "019fdc60-69c4-700a-b59e-0570e18531ff": {
                 "name": "limits",
                 "type": "object",
                 "schema": {
-                  "id": "019f32aa-ba8b-7397-a13f-ce3d4d539f39"
+                  "id": "019fdc60-69c4-7013-a460-1cbc930c7a0e"
                 }
               },
-              "019f32aa-ba8a-7ce2-9ec2-dd6f4d2f8a15": {
-                "name": "scopes",
-                "type": "array",
+              "019fdc60-69c4-700b-81ba-57b7809eb9e1": {
+                "name": "prefix",
+                "required": true,
+                "type": "string"
+              },
+              "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+                "name": "_metadata_",
+                "type": "object",
                 "schema": {
-                  "id": "019f32aa-ba8a-7226-9382-2607406fb689"
+                  "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
                 }
               },
-              "019f32aa-ba8a-7e37-add0-cf5d489ea2b4": {
+              "019fdc60-69c4-7010-bf56-dfca364fe145": {
                 "name": "userId",
                 "required": true,
                 "type": "string"
               },
-              "019f32aa-ba8a-7fc6-b756-ec714d9a8c4a": {
-                "name": "last_used",
+              "019fdc60-69c4-700c-82fa-372376861e44": {
+                "name": "hash",
+                "required": true,
                 "type": "string"
               },
-              "019f32aa-ba8b-78df-9ed2-d5f246c3a93a": {
+              "019fdc60-69c4-700e-a8a0-2258407eeeb8": {
                 "name": "ip",
                 "type": "object",
                 "schema": {
-                  "id": "019f32aa-ba8b-7d31-9e87-a7e34d2da347"
+                  "id": "019fdc60-69c4-7014-9d4b-469f6e0509df"
                 }
+              },
+              "019fdc60-69c4-7006-a137-50262ef675df": {
+                "name": "operations",
+                "type": "array",
+                "schema": {
+                  "id": "019fdc60-69c4-7012-b851-0072ccca431c"
+                }
+              },
+              "019fdc60-69c4-7008-8c96-2de2677a17da": {
+                "name": "expiry",
+                "type": "string"
+              },
+              "019fdc60-69c4-700d-b674-73c3651341d1": {
+                "name": "usage",
+                "type": "integer"
               }
             },
             "schemas": {
-              "019f32aa-ba8a-7226-9382-2607406fb689": {
-                "name": "Scope",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7397-a13f-ce3d4d539f39": {
+              "019fdc60-69c4-7013-a460-1cbc930c7a0e": {
                 "name": "Limits",
                 "fields": {
                   "019f32aa-ba8b-7072-99db-4cb04c7d9562": {
@@ -195,253 +352,292 @@
                   }
                 }
               },
-              "019f32aa-ba8b-77a9-b368-358446c283ae": {
-                "name": "IPCIDR",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7d31-9e87-a7e34d2da347": {
+              "019fdc60-69c4-7014-9d4b-469f6e0509df": {
                 "name": "IPConfig",
                 "fields": {
                   "019f32aa-ba8b-75ad-b09b-21584dd3a317": {
                     "name": "whitelist",
                     "type": "array",
                     "schema": {
-                      "id": "019f32aa-ba8b-77a9-b368-358446c283ae"
+                      "id": "019fdc60-69c4-7011-98b6-abdc97b94c13"
                     }
                   }
                 }
+              },
+              "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+                "name": "_metadata_",
+                "fields": {
+                  "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                    "name": "version",
+                    "required": true,
+                    "type": "number"
+                  },
+                  "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                    "name": "created",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                    "name": "updated",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-7440-b104-8d774438853a": {
+                    "name": "checksum",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                    "name": "signature",
+                    "type": "string"
+                  },
+                  "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                    "name": "trace_id",
+                    "type": "string"
+                  }
+                }
+              },
+              "019fdc60-69c4-7011-98b6-abdc97b94c13": {
+                "name": "IPCIDR",
+                "type": "string"
+              },
+              "019fdc60-69c4-7012-b851-0072ccca431c": {
+                "name": "Operation",
+                "type": "string"
               }
             }
           },
-          "migration_file": "019f6640-8f99-7a42-8e86-6e24c5d93d8a__api_key__major.go"
+          "migration_file": "019fdc60-69e6-7baf-905f-065940790cb5__api_key__major.go"
         }
       ]
     },
     "_audit_log_": {
-      "path": "core/internal/feature/audit/schema/access_log.schema.json",
-      "hash": "sha256:46f8d00dacbed16175bb78f83b59a560898ea0950c7f3800cd6f40b086087707",
+      "path": "core/feature/audit/model/access_log.schema.json",
+      "hash": "sha256:ec9e3a2397b9207554b28f15d4b6e3ebb117b8949151112367b7de0f73d15402",
       "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_audit_log_",
         "description": "Audit trail of security-relevant actions: who did what, to what, when, from where, and with what outcome.",
         "fields": {
-          "019f65b3-d3e4-7021-aa73-19c16c747eb6": {
-            "name": "recorded_at",
-            "description": "ISO-8601 timestamp of when this record was written. Compare with occurred_at to detect ingestion lag or clock skew.",
-            "required": true,
-            "type": "string"
-          },
-          "019f65b3-d3e4-70b1-b9a7-66665c4d3983": {
-            "name": "trace_id",
-            "description": "Distributed trace/correlation ID linking this event to related events across services.",
-            "type": "string"
-          },
-          "019f65b3-d3e4-70d4-9dcb-b08d10798318": {
-            "name": "region",
-            "description": "Deployment region or data center of the emitting service.",
-            "type": "string"
-          },
-          "019f65b3-d3e4-70f2-954e-c078a0d74b4e": {
-            "name": "session_id",
-            "description": "Non-secret session/token identifier. Never store raw credentials, tokens, or secrets here.",
-            "type": "string"
-          },
-          "019f65b3-d3e4-7171-aa1c-2e37e433345b": {
-            "name": "resource_id",
-            "description": "Identifier of the specific resource instance acted upon.",
-            "type": "string"
-          },
-          "019f65b3-d3e4-73bd-9199-06ce692d9093": {
-            "name": "occurred_at",
-            "description": "ISO-8601 timestamp of when the audited action actually took place.",
-            "required": true,
-            "type": "string"
-          },
-          "019f65b3-d3e4-74d1-9c20-a6d199cf1b70": {
-            "name": "metadata",
-            "description": "Additional producer-specific context that doesn't warrant a first-class field.",
-            "type": "record"
-          },
-          "019f65b3-d3e4-7545-b93f-dfce85a54bbe": {
-            "name": "event_name",
-            "description": "Fine-grained, human-readable event taxonomy, e.g. \"user.login.failed\" or \"invoice.updated\". Complements operation/resource_type with producer-specific detail.",
-            "required": true,
-            "type": "string"
-          },
-          "019f65b3-d3e4-757d-8cd3-5207c6d7d958": {
-            "name": "latency_ms",
-            "description": "Duration of the underlying operation, in milliseconds.",
-            "type": "integer"
-          },
-          "019f65b3-d3e4-7637-931b-27558af15fdd": {
-            "name": "auth_method",
-            "type": "enum",
-            "schema": {
-              "id": "019f65b3-d3e4-7ed1-82f7-4fd86ab0e4ea"
-            }
-          },
-          "019f65b3-d3e4-7681-9846-340535e27ccb": {
-            "name": "user_agent",
-            "type": "string"
-          },
-          "019f65b3-d3e4-77f7-b01f-4853f19f2651": {
+          "019fdc60-69cd-702b-ad82-677a7671314a": {
             "name": "service_name",
             "description": "The service/component that emitted this audit record.",
             "required": true,
             "type": "string"
           },
-          "019f65b3-d3e4-78da-bddf-2ed076a26a21": {
-            "name": "status",
-            "required": true,
-            "type": "enum",
-            "schema": {
-              "id": "019f65b3-d3e4-7bb9-bf4e-6f62ae863543"
-            }
-          },
-          "019f65b3-d3e4-78e5-9ca9-fa9caf58b685": {
-            "name": "actor_type",
-            "required": true,
-            "type": "enum",
-            "schema": {
-              "id": "019f65b3-d3e4-7acc-9b9d-9789d2049126"
-            }
-          },
-          "019f65b3-d3e4-790a-96c2-69f2d5931eea": {
-            "name": "source_ip",
-            "description": "Originating IP address of the actor.",
+          "019fdc60-69cd-7016-8969-e934b8ae87fd": {
+            "name": "region",
+            "description": "Deployment region or data center of the emitting service.",
             "type": "string"
           },
-          "019f65b3-d3e4-7a91-adde-07a5cf26c8c2": {
+          "019fdc60-69cd-7022-bff0-58fd34b1af45": {
+            "name": "resource_type",
+            "description": "The kind of resource acted upon, e.g. \"invoice\", \"user_account\", \"api_key\".",
+            "required": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69cd-7014-895e-bc5dbf1b49b3": {
             "name": "on_behalf_of_id",
             "description": "Set when actor_id is acting on behalf of another identity (delegation/impersonation), e.g. an admin or service acting for a user.",
             "type": "string"
           },
-          "019f65b3-d3e4-7b19-82b7-51fefc6ee322": {
+          "019fdc60-69cd-701c-9625-714db6ad22aa": {
             "name": "actor_id",
             "description": "Identifier of who or what performed the action. Use \"system\" for automated/internal actors.",
             "required": true,
             "type": "string"
           },
-          "019f65b3-d3e4-7bd3-b702-5dcb79b1e58a": {
+          "019fdc60-69cd-701f-9f5d-05663af5a8a9": {
+            "name": "severity",
+            "type": "enum",
+            "schema": {
+              "id": "019fdc60-69cd-7030-934c-79ac44521d40"
+            }
+          },
+          "019fdc60-69cd-7018-9ed4-55b863a12509": {
             "name": "integrity_hash",
             "description": "Hash of this record chained with the previous record's hash, for tamper-evidence. Populated by the log writer, never by the emitting service.",
             "type": "string"
           },
-          "019f65b3-d3e4-7c4f-9751-3bc4dd183df5": {
-            "name": "error_code",
-            "description": "Machine-readable error/denial code, present when status is failure, denied, or error.",
+          "019fdc60-69cd-7023-ae15-b565086044a3": {
+            "name": "latency_ms",
+            "description": "Duration of the underlying operation, in milliseconds.",
+            "type": "integer"
+          },
+          "019fdc60-69cd-701b-9fcb-c60a227a5a22": {
+            "name": "recorded_at",
+            "description": "ISO-8601 timestamp of when this record was written. Compare with occurred_at to detect ingestion lag or clock skew.",
+            "required": true,
             "type": "string"
           },
-          "019f65b3-d3e4-7c7c-b357-eecfdf5cef15": {
+          "019fdc60-69cd-7029-98d6-e7e81d36c913": {
+            "name": "source_ip",
+            "description": "Originating IP address of the actor.",
+            "type": "string"
+          },
+          "019fdc60-69cd-701d-ada2-5b3846cc57f6": {
+            "name": "resource_id",
+            "description": "Identifier of the specific resource instance acted upon.",
+            "type": "string"
+          },
+          "019fdc60-69cd-7019-8f6b-9e9df3fbd2b4": {
             "name": "event_id",
             "description": "Unique identifier for this audit record itself (UUIDv7).",
             "required": true,
             "unique": true,
             "type": "string"
           },
-          "019f65b3-d3e4-7c89-9c6a-2df577c21fbf": {
-            "name": "resource_type",
-            "description": "The kind of resource acted upon, e.g. \"invoice\", \"user_account\", \"api_key\".",
+          "019fdc60-69cd-7025-bac1-e03ab63af3cd": {
+            "name": "request_id",
+            "description": "Identifier of the originating request, if applicable.",
+            "type": "string"
+          },
+          "019fdc60-69cd-702a-8427-0f80b5df6fd4": {
+            "name": "user_agent",
+            "type": "string"
+          },
+          "019fdc60-69cd-7028-993b-c309eed292b5": {
+            "name": "error_code",
+            "description": "Machine-readable error/denial code, present when status is failure, denied, or error.",
+            "type": "string"
+          },
+          "019fdc60-69cd-7021-83cc-7d8760013d3b": {
+            "name": "actor_type",
+            "required": true,
+            "type": "enum",
+            "schema": {
+              "id": "019fdc60-69cd-702c-901b-0de264bee51c"
+            }
+          },
+          "019fdc60-69cd-7024-8716-c48cd2883a60": {
+            "name": "event_name",
+            "description": "Fine-grained, human-readable event taxonomy, e.g. \"user.login.failed\" or \"invoice.updated\". Complements operation/resource_type with producer-specific detail.",
             "required": true,
             "type": "string"
           },
-          "019f65b3-d3e4-7d9d-a2f3-da8ac99d8d14": {
-            "name": "error_message",
-            "description": "Human-readable error detail. Avoid embedding secrets or PII beyond what's already logged elsewhere.",
-            "type": "string"
+          "019fdc60-69cd-701e-a3b8-c249b3bf840b": {
+            "name": "status",
+            "required": true,
+            "type": "enum",
+            "schema": {
+              "id": "019fdc60-69cd-702f-a18e-5224f8739be3"
+            }
           },
-          "019f65b3-d3e4-7dc8-bcf4-6f3e2cfa624b": {
+          "019fdc60-69cd-7017-a753-51fbbcd816d7": {
+            "name": "metadata",
+            "description": "Additional producer-specific context that doesn't warrant a first-class field.",
+            "type": "record"
+          },
+          "019fdc60-69cd-7026-9f23-5657bd0fbef5": {
+            "name": "auth_method",
+            "type": "enum",
+            "schema": {
+              "id": "019fdc60-69cd-702d-95c6-94c9d47ea239"
+            }
+          },
+          "019fdc60-69cd-7027-b867-7ef2862423b4": {
             "name": "operation",
             "description": "Coarse-grained action category, for consistent filtering across all producers.",
             "required": true,
             "type": "enum",
             "schema": {
-              "id": "019f65b3-d3e4-7487-b43c-ef6e36017358"
+              "id": "019fdc60-69cd-702e-a166-2039ac1e6cc1"
             }
           },
-          "019f65b3-d3e4-7e39-8446-8c8b037a9a38": {
-            "name": "request_id",
-            "description": "Identifier of the originating request, if applicable.",
+          "019fdc60-69cd-7015-8e28-7c852d323fc7": {
+            "name": "session_id",
+            "description": "Non-secret session/token identifier. Never store raw credentials, tokens, or secrets here.",
             "type": "string"
           },
-          "019f65b3-d3e4-7f7e-8c12-84b4b29161cb": {
-            "name": "severity",
-            "type": "enum",
-            "schema": {
-              "id": "019f65b3-d3e4-79a2-9e6e-b436917314ed"
-            }
-          }
-        },
-        "indexes": {
-          "019f65b3-d3e4-70aa-a5ca-a39c18823c81": {
-            "name": "idx_occurred_at",
-            "order": "desc",
-            "fields": [
-              "occurred_at"
-            ],
-            "type": "normal"
+          "019fdc60-69cd-701a-994a-1c1ae18f8aa0": {
+            "name": "occurred_at",
+            "description": "ISO-8601 timestamp of when the audited action actually took place.",
+            "required": true,
+            "type": "string"
           },
-          "019f65b3-d3e4-7395-9c1b-d852a9c19587": {
-            "name": "idx_request_id",
-            "fields": [
-              "request_id"
-            ],
-            "type": "normal"
+          "019fdc60-69cd-7020-925c-b30e646b2ebf": {
+            "name": "error_message",
+            "description": "Human-readable error detail. Avoid embedding secrets or PII beyond what's already logged elsewhere.",
+            "type": "string"
           },
-          "019f65b3-d3e4-74be-a3a3-7a15bfb48367": {
-            "name": "idx_status",
-            "fields": [
-              "status"
-            ],
-            "type": "normal"
-          },
-          "019f65b3-d3e4-7764-bb2d-ca2fef76040d": {
-            "name": "idx_severity",
-            "fields": [
-              "severity"
-            ],
-            "type": "normal"
-          },
-          "019f65b3-d3e4-791c-87e6-1a24e489a53f": {
-            "name": "idx_actor_id",
-            "fields": [
-              "actor_id"
-            ],
-            "type": "normal"
-          },
-          "019f65b3-d3e4-7941-8dde-35faa7eac266": {
-            "name": "idx_resource",
-            "fields": [
-              "resource_type",
-              "resource_id"
-            ],
-            "type": "normal"
-          },
-          "019f65b3-d3e4-7a51-9b57-1ed43107b048": {
-            "name": "idx_operation",
-            "fields": [
-              "operation"
-            ],
-            "type": "normal"
-          },
-          "019f65b3-d3e4-7a60-b1c0-7bcb6e024155": {
-            "name": "idx_event_id",
-            "fields": [
-              "event_id"
-            ],
-            "type": "unique"
-          },
-          "019f65b3-d3e4-7ce0-b413-5d2cc9f4b76f": {
-            "name": "idx_trace_id",
-            "fields": [
-              "trace_id"
-            ],
-            "type": "normal"
+          "019fdc60-69cc-7014-befa-b56800e9839b": {
+            "name": "trace_id",
+            "description": "Distributed trace/correlation ID linking this event to related events across services.",
+            "type": "string"
           }
         },
         "schemas": {
-          "019f65b3-d3e4-7487-b43c-ef6e36017358": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              }
+            }
+          },
+          "019fdc60-69cd-702c-901b-0de264bee51c": {
+            "name": "ActorType",
+            "type": "string",
+            "values": [
+              "user",
+              "service",
+              "system",
+              "anonymous"
+            ]
+          },
+          "019fdc60-69cd-702d-95c6-94c9d47ea239": {
+            "name": "AuthMethod",
+            "type": "string",
+            "values": [
+              "password",
+              "oauth",
+              "api_key",
+              "mtls",
+              "sso",
+              "service_account",
+              "none"
+            ]
+          },
+          "019fdc60-69cd-702e-a166-2039ac1e6cc1": {
             "name": "Operation",
             "type": "string",
             "values": [
@@ -457,26 +653,7 @@
               "other"
             ]
           },
-          "019f65b3-d3e4-79a2-9e6e-b436917314ed": {
-            "name": "Severity",
-            "type": "string",
-            "values": [
-              "info",
-              "warning",
-              "critical"
-            ]
-          },
-          "019f65b3-d3e4-7acc-9b9d-9789d2049126": {
-            "name": "ActorType",
-            "type": "string",
-            "values": [
-              "user",
-              "service",
-              "system",
-              "anonymous"
-            ]
-          },
-          "019f65b3-d3e4-7bb9-bf4e-6f62ae863543": {
+          "019fdc60-69cd-702f-a18e-5224f8739be3": {
             "name": "Status",
             "type": "string",
             "values": [
@@ -486,1050 +663,1052 @@
               "error"
             ]
           },
-          "019f65b3-d3e4-7ed1-82f7-4fd86ab0e4ea": {
-            "name": "AuthMethod",
+          "019fdc60-69cd-7030-934c-79ac44521d40": {
+            "name": "Severity",
             "type": "string",
             "values": [
-              "password",
-              "oauth",
-              "api_key",
-              "mtls",
-              "sso",
-              "service_account",
-              "none"
+              "info",
+              "warning",
+              "critical"
+            ]
+          }
+        },
+        "indexes": {
+          "019f65b3-d3e4-70aa-a5ca-a39c18823c81": {
+            "name": "idx_occurred_at",
+            "type": "normal",
+            "order": "desc",
+            "fields": [
+              "occurred_at"
+            ]
+          },
+          "019f65b3-d3e4-7395-9c1b-d852a9c19587": {
+            "name": "idx_request_id",
+            "type": "normal",
+            "fields": [
+              "request_id"
+            ]
+          },
+          "019f65b3-d3e4-74be-a3a3-7a15bfb48367": {
+            "name": "idx_status",
+            "type": "normal",
+            "fields": [
+              "status"
+            ]
+          },
+          "019f65b3-d3e4-7941-8dde-35faa7eac266": {
+            "name": "idx_resource",
+            "type": "normal",
+            "fields": [
+              "resource_type",
+              "resource_id"
+            ]
+          },
+          "019f65b3-d3e4-7764-bb2d-ca2fef76040d": {
+            "name": "idx_severity",
+            "type": "normal",
+            "fields": [
+              "severity"
+            ]
+          },
+          "019f65b3-d3e4-7a51-9b57-1ed43107b048": {
+            "name": "idx_operation",
+            "type": "normal",
+            "fields": [
+              "operation"
+            ]
+          },
+          "019f65b3-d3e4-7a60-b1c0-7bcb6e024155": {
+            "name": "idx_event_id",
+            "type": "unique",
+            "fields": [
+              "event_id"
+            ]
+          },
+          "019f65b3-d3e4-7ce0-b413-5d2cc9f4b76f": {
+            "name": "idx_trace_id",
+            "type": "normal",
+            "fields": [
+              "trace_id"
+            ]
+          },
+          "019f65b3-d3e4-791c-87e6-1a24e489a53f": {
+            "name": "idx_actor_id",
+            "type": "normal",
+            "fields": [
+              "actor_id"
             ]
           }
         }
       },
-      "migration_file": "019f6642-12d1-7a61-832f-bac77b80eea5__audit_log__major.go"
+      "migration_file": "019fdc60-69e7-72cb-b475-56418431fa4e__audit_log__major.go"
     },
     "_iam_rule_": {
-      "path": "core/internal/feature/policies/schema/iam_rule.schema.json",
-      "hash": "sha256:c4d907f6a6afc1a648e91c3f0cc3d89dbc67dcc0655afc292c69865c8d1e989d",
-      "version": "2.0.0",
+      "path": "core/feature/policies/model/iam_rule.schema.json",
+      "hash": "sha256:6b74121bce5a60822ffff97412ae6f8c11d0ae6d9b98c9873aa19efa4c55be91",
+      "version": "1.0.0",
       "schema": {
         "version": "1.1.0",
         "name": "_iam_rule_",
         "fields": {
-          "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
+          "019fdc60-69d6-703c-b023-7c12d281da8a": {
+            "name": "syntax",
+            "type": "string"
+          },
+          "019fdc60-69d6-703e-9365-1bad923d02a1": {
+            "name": "rules",
+            "type": "string"
+          },
+          "019fdc60-69d6-703d-a852-e274b698c23b": {
+            "name": "expression",
+            "type": "string"
+          },
+          "019fdc60-69d6-7040-ac9e-d05d8253c1be": {
+            "name": "protected",
+            "type": "boolean"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019fdc60-69d6-703b-825f-2aeb9b480623": {
+            "name": "ruleType",
+            "type": "string"
+          },
+          "019fdc60-69d6-703f-b4e8-a7172153fec3": {
+            "name": "description",
+            "type": "string"
+          },
+          "019fdc60-69d6-703a-bfa0-58a39ddcd061": {
             "name": "name",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
-            "name": "ruleType",
-            "type": "string"
-          },
-          "019f32aa-ba8b-743d-86a5-28354af49391": {
-            "name": "syntax",
-            "type": "string"
-          },
-          "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
-            "name": "protected",
-            "type": "boolean"
-          },
-          "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
-            "name": "rules",
-            "type": "string"
-          },
-          "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
-            "name": "expression",
-            "type": "string"
-          },
-          "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
-            "name": "description",
-            "type": "string"
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              }
+            }
           }
         }
       },
-      "migration_file": "019f75c8-408b-7c11-abf4-1825265b90df__iam_rule__major.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "1.1.0",
-            "name": "_iam_rule_",
-            "fields": {
-              "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
-                "name": "ruleType",
-                "type": "string"
-              },
-              "019f32aa-ba8b-743d-86a5-28354af49391": {
-                "name": "syntax",
-                "type": "string"
-              },
-              "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
-                "name": "protected",
-                "type": "unknown"
-              },
-              "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
-                "name": "rules",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
-                "name": "expression",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
-                "name": "description",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f6640-8f9a-71fd-bb58-29c411898033__iam_rule__major.go"
-        },
-        {
-          "version": "1.0.1",
-          "schema": {
-            "version": "1.1.0",
-            "name": "_iam_rule_",
-            "fields": {
-              "019f32aa-ba8b-727e-a7d5-a7c4412bb37b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7377-ba7c-fd634b2d83f3": {
-                "name": "ruleType",
-                "type": "string"
-              },
-              "019f32aa-ba8b-743d-86a5-28354af49391": {
-                "name": "syntax",
-                "type": "string"
-              },
-              "019f32aa-ba8b-758b-90c9-f6d64f28bf4d": {
-                "name": "protected",
-                "type": "unknown"
-              },
-              "019f32aa-ba8b-7b04-8d18-bf364d909a62": {
-                "name": "rules",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7cf3-82bd-dacc49029e71": {
-                "name": "expression",
-                "type": "string"
-              },
-              "019f32aa-ba8b-7f76-b7e5-cd8c43218d6b": {
-                "name": "description",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f6b69-2f4c-7a45-a1d1-e2941533f5c5__iam_rule__patch.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e8-7253-9471-ff0de910e68d__iam_rule__major.go"
     },
     "_notifications_": {
-      "path": "core/internal/feature/notifications/schema/_notifications_.schema.json",
-      "hash": "sha256:900860794b8adc5657fc732b2b7881e059d7c0fbbf998653119f419703387dd9",
-      "version": "1.0.1",
+      "path": "core/feature/notifications/model/_notifications_.schema.json",
+      "hash": "sha256:34013edc0a9f2ad8f65bb32aacf9fe4d15f96a469d40c669533b6497409752cd",
+      "version": "1.0.0",
       "schema": {
         "version": "0.1.0",
         "name": "_notifications_",
         "description": "In-app notification inbox per user",
         "fields": {
-          "019fa758-299e-75d1-8954-71aefd2e5426": {
-            "name": "data",
-            "type": "record"
-          },
-          "019fa758-299e-75d2-9134-9599d25e75f8": {
+          "019fdc60-69d2-7036-a7a2-c71738c08c93": {
             "name": "read",
             "type": "boolean"
           },
-          "019fa758-299e-75d3-905b-733a0f6123f8": {
-            "name": "tenant_id",
-            "type": "string"
-          },
-          "019fa758-299e-75d4-ae08-88411a38fb6c": {
-            "name": "created_at",
-            "type": "integer"
-          },
-          "019fa758-299e-75d5-99a0-6233d3661d54": {
-            "name": "user_id",
-            "required": true,
-            "type": "string"
-          },
-          "019fa758-299e-75d6-9fc2-3e42db15adf0": {
-            "name": "type",
-            "required": true,
-            "type": "string"
-          },
-          "019fa758-299e-75d7-8074-153f58b15221": {
+          "019fdc60-69d2-7033-ba84-d65bf4976720": {
             "name": "subject",
             "required": true,
             "type": "string"
           },
-          "019fa758-299e-75d8-a990-d008ab12411e": {
+          "019fdc60-69d2-7037-98ff-7e56ba344428": {
+            "name": "tenant_id",
+            "type": "string"
+          },
+          "019fdc60-69d2-7039-93e6-68c8053c6ffe": {
+            "name": "user_id",
+            "required": true,
+            "type": "string"
+          },
+          "019fdc60-69d2-7034-b064-ebb444159fbb": {
             "name": "body",
             "type": "string"
+          },
+          "019fdc60-69d2-7035-863f-2cc813ae28db": {
+            "name": "data",
+            "type": "record"
+          },
+          "019fdc60-69d2-7038-aee8-d8e17277ae37": {
+            "name": "created_at",
+            "type": "integer"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019fdc60-69d2-7032-9bbb-435b5d9682e8": {
+            "name": "type",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              }
+            }
           }
         },
         "indexes": {
           "019fa758-299e-75d9-8bf0-3cec9be7c963": {
             "name": "idx_user_read",
+            "type": "normal",
             "fields": [
               "user_id",
               "read"
-            ],
-            "type": "normal"
+            ]
           },
           "019fa758-299e-75da-9019-c8e52fc44412": {
             "name": "idx_user_created",
+            "type": "normal",
             "fields": [
               "user_id",
               "created_at"
-            ],
-            "type": "normal"
+            ]
           }
         }
       },
-      "migration_file": "019fa76c-17fc-77a3-be47-511c79409677__notifications__patch.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "0.1.0",
-            "name": "_notifications_",
-            "description": "In-app notification inbox per user",
-            "fields": {
-              "019fa758-299e-75d1-8954-71aefd2e5426": {
-                "name": "data",
-                "type": "record"
-              },
-              "019fa758-299e-75d2-9134-9599d25e75f8": {
-                "name": "read",
-                "type": "boolean"
-              },
-              "019fa758-299e-75d3-905b-733a0f6123f8": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019fa758-299e-75d4-ae08-88411a38fb6c": {
-                "name": "created_at",
-                "type": "integer"
-              },
-              "019fa758-299e-75d5-99a0-6233d3661d54": {
-                "name": "user_id",
-                "required": true,
-                "type": "string"
-              },
-              "019fa758-299e-75d6-9fc2-3e42db15adf0": {
-                "name": "type",
-                "required": true,
-                "type": "string"
-              },
-              "019fa758-299e-75d7-8074-153f58b15221": {
-                "name": "subject",
-                "required": true,
-                "type": "string"
-              },
-              "019fa758-299e-75d8-a990-d008ab12411e": {
-                "name": "body",
-                "type": "string"
-              }
-            },
-            "indexes": {
-              "019fa758-299e-75d9-8bf0-3cec9be7c963": {
-                "name": "idx_user_read",
-                "fields": [
-                  "user_id",
-                  "read"
-                ],
-                "type": "normal"
-              },
-              "019fa758-299e-75da-9019-c8e52fc44412": {
-                "name": "idx_user_created",
-                "fields": [
-                  "user_id",
-                  "created_at"
-                ],
-                "type": "normal"
-              }
-            }
-          },
-          "migration_file": "019fa758-299f-723f-945c-e7e34f8803ad__notifications__major.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e7-7b2b-b9a4-926363ee0a8a__notifications__major.go"
     },
     "_operation_policy_": {
-      "path": "core/internal/feature/policies/schema/operation_policy.schema.json",
-      "hash": "sha256:463024888ee98fac1ef033cc8a4f26bce2d9bf824ff05aae54f3d90eb40aff4b",
-      "version": "3.2.0",
+      "path": "core/feature/policies/model/operation_policy.schema.json",
+      "hash": "sha256:80da727a3f8aa180f88105f4f6e39f8b2f3c6687468fcc51cb1d02159a4fce13",
+      "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_operation_policy_",
         "fields": {
-          "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
+          "019fdc60-69d8-7043-8d85-3f6d06a1469c": {
+            "name": "key",
+            "type": "string"
+          },
+          "019fdc60-69d8-704d-8407-ac9ec33d9037": {
             "name": "description",
             "type": "string"
           },
-          "019f32aa-ba8b-797a-bc32-17574381a3b4": {
+          "019fdc60-69d8-7050-8e53-a1ceb77c8696": {
+            "name": "rate_limit_enabled",
+            "type": "boolean"
+          },
+          "019fdc60-69d8-7041-8088-242565fc1ac0": {
             "name": "operation",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
+          "019fdc60-69d8-7047-9d79-e559ecd81803": {
+            "name": "throttle_window",
+            "type": "number"
+          },
+          "019fdc60-69d8-7040-a0cb-e3494e481b0e": {
+            "name": "tenant_id",
+            "type": "string"
+          },
+          "019fdc60-69d8-7042-92d8-171873de2706": {
+            "name": "rate_period",
+            "type": "number"
+          },
+          "019fdc60-69d8-704a-8807-069bb4ac3b17": {
+            "name": "intentType",
+            "type": "string"
+          },
+          "019fdc60-69d8-704c-85ee-5fd6269d007c": {
+            "name": "throttle_action_input",
+            "type": "record"
+          },
+          "019fdc60-69d8-7048-a088-fb34ee6bc8f2": {
             "name": "protected",
             "type": "boolean"
           },
-          "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
+          "019fdc60-69d8-7049-a4fb-77986fa35748": {
+            "name": "rate_refill",
+            "type": "number"
+          },
+          "019fdc60-69d8-7044-b1a4-0da3fa623f63": {
+            "name": "throttle_limit",
+            "type": "number"
+          },
+          "019fdc60-69d8-7046-b73c-e0f104277b7a": {
+            "name": "enabled",
+            "type": "boolean"
+          },
+          "019fdc60-69d8-704e-90b2-35b16dc15f98": {
+            "name": "rate_capacity",
+            "type": "number"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69d8-704b-bbec-d09b1a9c9ad1": {
+            "name": "throttle_action_msg",
+            "type": "string"
+          },
+          "019fdc60-69d8-7045-8c82-019a7ae1a665": {
             "name": "rule",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-            "name": "intentType",
-            "type": "string"
-          },
-          "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
-            "name": "enabled",
-            "type": "boolean"
-          },
-          "019f936c-1b9b-72f1-be3c-1e65f5964c49": {
-            "name": "tenant_id",
-            "type": "string"
-          },
-          "019f936c-1b9b-72f2-831d-967f284f1fda": {
-            "name": "key",
-            "type": "string"
-          },
-          "019fa82b-e174-7444-97cf-1f019bcbba0c": {
-            "name": "rate_limit_enabled",
-            "type": "boolean"
-          },
-          "019fa82b-e174-7445-bc15-2b6b8c4dbfc8": {
-            "name": "rate_capacity",
-            "type": "number"
-          },
-          "019fa82b-e174-7446-bbd8-a78a7b4c38b3": {
-            "name": "throttle_limit",
-            "type": "number"
-          },
-          "019fa82b-e174-7447-968a-f519fb04c110": {
-            "name": "throttle_window",
-            "type": "number"
-          },
-          "019fa82b-e174-7448-a245-62d91bc6f793": {
-            "name": "throttle_action_msg",
-            "type": "string"
-          },
-          "019fa82b-e174-7449-b368-47db69033ee9": {
-            "name": "throttle_action_input",
-            "type": "record"
-          },
-          "019fa82b-e174-744a-bf83-8f3e24762a02": {
-            "name": "rate_period",
-            "type": "number"
-          },
-          "019fa82b-e174-744b-b33e-d8c3b10fbc61": {
+          "019fdc60-69d8-704f-beb8-7359200e4520": {
             "name": "rate_identity",
             "type": "string"
-          },
-          "019fa82b-e174-744c-b480-06fa110bcee8": {
-            "name": "rate_refill",
-            "type": "number"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              }
+            }
           }
         }
       },
-      "migration_file": "019fa82b-e176-7b3c-af50-0985a5910cc0__operation_policy__minor.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_operation_policy_",
-            "fields": {
-              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
-                "name": "description",
-                "type": "string"
-              },
-              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
-                "name": "protected",
-                "type": "unknown"
-              },
-              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-                "name": "ruleKey",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-                "name": "intentType",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f6640-8f9a-7150-b266-6e2102f78cc4__operation_policy__major.go"
-        },
-        {
-          "version": "1.0.1",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_operation_policy_",
-            "fields": {
-              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
-                "name": "description",
-                "type": "string"
-              },
-              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
-                "name": "protected",
-                "type": "unknown"
-              },
-              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-                "name": "ruleKey",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-                "name": "intentType",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f6b69-2f4c-7b13-b255-97a0cfc6d30e__operation_policy__patch.go"
-        },
-        {
-          "version": "2.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_operation_policy_",
-            "fields": {
-              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
-                "name": "description",
-                "type": "string"
-              },
-              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-                "name": "operation",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
-                "name": "protected",
-                "type": "unknown"
-              },
-              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-                "name": "rule",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-                "name": "intentType",
-                "type": "string"
-              },
-              "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
-                "name": "enabled",
-                "type": "unknown"
-              }
-            }
-          },
-          "migration_file": "019f75c6-e69d-7208-8842-5dce61ad774a__operation_policy__major.go"
-        },
-        {
-          "version": "3.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_operation_policy_",
-            "fields": {
-              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
-                "name": "description",
-                "type": "string"
-              },
-              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-                "name": "operation",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
-                "name": "protected",
-                "type": "boolean"
-              },
-              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-                "name": "rule",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-                "name": "intentType",
-                "type": "string"
-              },
-              "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
-                "name": "enabled",
-                "type": "boolean"
-              }
-            }
-          },
-          "migration_file": "019f75c8-408b-7e6a-b578-d84da72a0d9a__operation_policy__major.go"
-        },
-        {
-          "version": "3.1.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_operation_policy_",
-            "fields": {
-              "019f32aa-ba8b-748c-8f2b-68c940329ed0": {
-                "name": "description",
-                "type": "string"
-              },
-              "019f32aa-ba8b-797a-bc32-17574381a3b4": {
-                "name": "operation",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7db8-817e-7de94fe1ae3d": {
-                "name": "protected",
-                "type": "boolean"
-              },
-              "019f32aa-ba8b-7dd9-baef-3fe342578ecc": {
-                "name": "rule",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8b-7e81-82df-b9f34eddb05d": {
-                "name": "intentType",
-                "type": "string"
-              },
-              "019f75c6-e69c-7b8a-85b0-36efff9a58f6": {
-                "name": "enabled",
-                "type": "boolean"
-              },
-              "019f936c-1b9b-72f1-be3c-1e65f5964c49": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019f936c-1b9b-72f2-831d-967f284f1fda": {
-                "name": "key",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f936c-1b9c-754a-a7b7-2b5ac0cf07c3__operation_policy__minor.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e8-75fe-a7f3-00c0a5c67c33__operation_policy__major.go"
     },
     "_scheduled_messages_": {
-      "path": "core/internal/feature/schedules/schema/_scheduled_messages_.schema.json",
-      "hash": "sha256:44e90dd30b53c4dd21193408674b10e7866a588e57e550b5385107426c1ace8c",
-      "version": "2.0.0",
+      "path": "core/feature/schedules/model/_scheduled_messages_.schema.json",
+      "hash": "sha256:a784e69eaaec1fd96b4b0db463b79072385b2889df02f982e870333c5803577d",
+      "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_scheduled_messages_",
         "description": "Cron-triggered message dispatch",
         "fields": {
-          "019fa783-cc47-7ed2-90cf-f641e208f891": {
-            "name": "input",
-            "type": "record"
-          },
-          "019fa783-cc47-7ed3-a81a-7739bd63f247": {
-            "name": "cron",
-            "required": true,
-            "type": "string"
-          },
-          "019fa783-cc47-7ed6-82f3-a60b5a48f594": {
-            "name": "disabled",
-            "type": "boolean"
-          },
-          "019fa783-cc47-7ed7-9fff-124eb1a05564": {
+          "019fdc60-69d9-7051-ad50-96f5e9967253": {
             "name": "tenant_id",
             "type": "string"
           },
-          "019fa783-cc47-7ed8-8d66-b583034ba56c": {
-            "name": "created_at",
-            "type": "integer"
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
           },
-          "019fa783-cc47-7ed9-b9f1-89ae38252551": {
+          "019fdc60-69d9-7052-bf86-dc7525a5d331": {
             "name": "user_id",
             "required": true,
             "type": "string"
           },
-          "019fa783-cc47-7eda-8c24-e5ebade936a3": {
+          "019fdc60-69d9-7050-a014-27d3b781c44c": {
+            "name": "disabled",
+            "type": "boolean"
+          },
+          "019fdc60-69d9-7053-bd8e-19c311677855": {
+            "name": "created_at",
+            "type": "integer"
+          },
+          "019fdc60-69d9-7054-9687-1230f39f5a54": {
             "name": "message",
             "required": true,
             "type": "string"
+          },
+          "019fdc60-69d9-7055-bb14-0c1fc52a4d37": {
+            "name": "input",
+            "type": "record"
+          },
+          "019fdc60-69d9-7056-8456-1e60dbe13811": {
+            "name": "cron",
+            "required": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              }
+            }
           }
         }
       },
-      "migration_file": "019face1-6091-7ade-b826-e99419b51c7f__scheduled_messages__major.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_scheduled_messages_",
-            "description": "Scheduled message dispatch queue",
-            "fields": {
-              "019fa783-cc47-7ed1-9710-88068d570686": {
-                "name": "channel",
-                "type": "string"
-              },
-              "019fa783-cc47-7ed2-90cf-f641e208f891": {
-                "name": "data",
-                "type": "record"
-              },
-              "019fa783-cc47-7ed3-a81a-7739bd63f247": {
-                "name": "send_at",
-                "required": true,
-                "type": "integer"
-              },
-              "019fa783-cc47-7ed4-9327-f1aed10a509d": {
-                "name": "sent_at",
-                "type": "integer"
-              },
-              "019fa783-cc47-7ed5-9c61-d39f3e0a4e2e": {
-                "name": "error_",
-                "type": "string"
-              },
-              "019fa783-cc47-7ed6-82f3-a60b5a48f594": {
-                "name": "sent",
-                "type": "boolean"
-              },
-              "019fa783-cc47-7ed7-9fff-124eb1a05564": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019fa783-cc47-7ed8-8d66-b583034ba56c": {
-                "name": "created_at",
-                "type": "integer"
-              },
-              "019fa783-cc47-7ed9-b9f1-89ae38252551": {
-                "name": "user_id",
-                "required": true,
-                "type": "string"
-              },
-              "019fa783-cc47-7eda-8c24-e5ebade936a3": {
-                "name": "type",
-                "required": true,
-                "type": "string"
-              }
-            },
-            "indexes": {
-              "019fa783-cc47-7edb-b494-6d08ff6100d2": {
-                "name": "idx_tenant",
-                "fields": [
-                  "tenant_id",
-                  "send_at"
-                ],
-                "type": "normal"
-              },
-              "019fa783-cc47-7edc-bd96-9c346e9d4305": {
-                "name": "idx_due",
-                "fields": [
-                  "send_at",
-                  "sent"
-                ],
-                "type": "normal"
-              }
-            }
-          },
-          "migration_file": "019fa783-cc48-7efb-aa7c-5b2792d82132__scheduled_messages__major.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e8-79c6-ad33-b90836a46f6d__scheduled_messages__major.go"
     },
     "_seed_": {
-      "path": "core/internal/feature/operations/schema/seed.schema.json",
-      "hash": "sha256:609b8a25b8118f61727c5819875e2dc52e8f9cefe74246147c55a2735b55d7e0",
+      "path": "core/feature/operations/model/seed.schema.json",
+      "hash": "sha256:cd58e518e391aa5d98cacc9d8b18f7034d7b91044c26051c262902b95815c2bb",
       "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_seed_",
         "fields": {
-          "019f32aa-ba89-7151-994b-fed14dc4b1ac": {
-            "name": "value",
-            "type": "string"
-          },
-          "019f32aa-ba89-7b6e-98f3-7e2f4867b0f2": {
+          "019fdc60-69d5-7039-960a-fa5337fc059a": {
             "name": "key",
             "required": true,
             "type": "string"
+          },
+          "019fdc60-69d5-703a-8889-23934f11a0ac": {
+            "name": "value",
+            "type": "string"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              }
+            }
           }
         },
         "indexes": {
           "019f32aa-ba8a-733c-80be-12f048d896cd": {
             "name": "idx_key",
+            "type": "unique",
             "fields": [
               "key"
-            ],
-            "type": "unique"
+            ]
           }
         }
       },
-      "migration_file": "019f6640-8f9a-7077-abea-89dd860a22f7__seed__major.go"
+      "migration_file": "019fdc60-69e7-7dfe-9351-0280c45b5852__seed__major.go"
     },
     "_settings_": {
-      "path": "core/internal/feature/settings/schema/settings.schema.json",
-      "hash": "sha256:c66085d77276b083927cd674432aa1e1b45ec1f041ad0fe82862ac6872ddbddf",
-      "version": "3.0.0",
+      "path": "core/feature/settings/model/settings.schema.json",
+      "hash": "sha256:44093dd4f6ae8f313084400e09bf0e30fd9c2a17408b9e5898c9a9e825996b8d",
+      "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_settings_",
         "fields": {
-          "019f9324-6da7-712f-a893-902d54379c60": {
+          "019fdc60-69db-7059-9b3a-0a986d386ab6": {
+            "name": "tenant_id",
+            "type": "string"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69db-7056-8ae5-ee245b54e79e": {
+            "name": "updated_by",
+            "type": "string"
+          },
+          "019fdc60-69db-7057-9a84-62a67e9a1fa1": {
             "name": "key",
             "required": true,
             "type": "string"
           },
-          "019f9324-6da7-7130-b318-65ab997951ab": {
+          "019fdc60-69db-7058-b15c-51b410d2aeaf": {
             "name": "value",
             "required": true,
             "type": "record"
-          },
-          "019f9324-6da7-7131-9d67-ae03742fd8ea": {
-            "name": "tenant_id",
-            "type": "string"
-          },
-          "019f9324-6da7-7132-a6b7-2d5baef9299c": {
-            "name": "updated_by",
-            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              }
+            }
           }
         },
         "indexes": {
           "019f9324-6da7-7133-860d-c2bfe7ccfb27": {
             "name": "idx_tenant_key",
+            "type": "unique",
             "fields": [
               "tenant_id",
               "key"
-            ],
-            "type": "unique"
+            ]
           }
         }
       },
-      "migration_file": "019f9326-020b-737e-9a67-5a3856713549__settings__major.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_settings_",
-            "description": "Key-value settings store. Settings can be global (tenant_id=null) or scoped to a tenant.",
-            "fields": {
-              "019f9323-56fd-7370-8396-1dc906d6493d": {
-                "name": "updated_by",
-                "description": "User ID who last updated this setting",
-                "type": "string"
-              },
-              "019f9323-56fd-7371-a995-4d389487069f": {
-                "name": "key",
-                "description": "Setting key (dot-separated namespace, e.g. 'cors.origins')",
-                "required": true,
-                "type": "string"
-              },
-              "019f9323-56fd-7372-9f9c-bcadeccab761": {
-                "name": "value",
-                "description": "Arbitrary JSON value",
-                "required": true,
-                "type": "unknown"
-              },
-              "019f9323-56fd-7373-992b-4d8fa95ab903": {
-                "name": "tenant_id",
-                "description": "Tenant scope — null means global setting",
-                "type": "string"
-              },
-              "019f9323-56fd-7374-b40e-acdbbfaf21bc": {
-                "name": "updated_at",
-                "type": "integer"
-              }
-            },
-            "indexes": {
-              "019f9323-56fd-7375-aeb9-5da1451fb172": {
-                "name": "idx_tenant_key",
-                "fields": [
-                  "tenant_id",
-                  "key"
-                ],
-                "type": "unique"
-              }
-            }
-          },
-          "migration_file": "019f9323-56fe-7544-b198-d610be5d9add__settings__major.go"
-        },
-        {
-          "version": "2.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_settings_",
-            "fields": {
-              "019f9324-6da7-712f-a893-902d54379c60": {
-                "name": "key",
-                "required": true,
-                "type": "string"
-              },
-              "019f9324-6da7-7130-b318-65ab997951ab": {
-                "name": "value",
-                "required": true,
-                "type": "unknown"
-              },
-              "019f9324-6da7-7131-9d67-ae03742fd8ea": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019f9324-6da7-7132-a6b7-2d5baef9299c": {
-                "name": "updated_by",
-                "type": "string"
-              }
-            },
-            "indexes": {
-              "019f9324-6da7-7133-860d-c2bfe7ccfb27": {
-                "name": "idx_tenant_key",
-                "fields": [
-                  "tenant_id",
-                  "key"
-                ],
-                "type": "unique"
-              }
-            }
-          },
-          "migration_file": "019f9324-6da7-7d87-8bfb-f9a4958e9025__settings__major.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e8-7d11-8ff3-c5a46f1ebe5d__settings__major.go"
     },
     "_tenant_": {
-      "path": "core/internal/feature/tenants/schema/tenant.schema.json",
-      "hash": "sha256:b07c88692e4bfbdda1e48678acdd6a9e9a29322c5462d58ba20db83975d0d7ec",
-      "version": "3.1.0",
+      "path": "core/feature/tenants/model/tenant.schema.json",
+      "hash": "sha256:896f54ba3728ceedbe730c7abd2abbc7195ed415ab8ef0751b62899094c6e8f0",
+      "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_tenant_",
         "fields": {
-          "019f9324-6da7-7134-a0ab-1186a7ad2ccd": {
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69de-7059-91f5-2f23e1a9c42f": {
+            "name": "status",
+            "type": "string",
+            "default": "active"
+          },
+          "019fdc60-69de-705a-8837-7ec75867109b": {
             "name": "metadata",
             "type": "record"
           },
-          "019f9324-6da7-7135-8b0d-693af7e7560a": {
+          "019fdc60-69de-705b-aa8c-6b37fdf890e1": {
             "name": "name",
             "required": true,
             "type": "string"
           },
-          "019f9324-6da7-7136-a935-7acfc1aad4cd": {
+          "019fdc60-69de-705c-b2af-49c3bd023ad4": {
             "name": "domain",
             "unique": true,
             "type": "string"
           },
-          "019f9324-6da7-7137-a78b-fcff82470c8c": {
-            "name": "status",
-            "type": "string",
-            "default": "active"
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              }
+            }
           }
         }
       },
-      "migration_file": "019f933c-9e1f-7f36-b529-c7a9955b946d__tenant__minor.go",
-      "history": [
-        {
-          "version": "1.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_tenant_",
-            "description": "Multi-tenant organization definitions. The platform root tenant uses id='root'. The public fallback tenant uses id='public'.",
-            "fields": {
-              "019f9323-56fd-7376-8a92-f3a58cf3cc70": {
-                "name": "domain",
-                "description": "Optional DNS domain for automatic tenant resolution",
-                "unique": true,
-                "type": "string"
-              },
-              "019f9323-56fd-7377-b864-f4125de2a781": {
-                "name": "status",
-                "type": "string",
-                "default": "active"
-              },
-              "019f9323-56fd-7378-9cc3-95e422b90404": {
-                "name": "created_at",
-                "type": "integer"
-              },
-              "019f9323-56fd-7379-9d26-dd7aac1f7891": {
-                "name": "metadata",
-                "description": "Arbitrary tenant metadata (branding, settings overrides)",
-                "type": "unknown"
-              },
-              "019f9323-56fd-737a-ad2f-57573e8c53ff": {
-                "name": "name",
-                "description": "Human-readable tenant name (e.g. 'Acme Corp')",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f9323-56fe-7619-858e-f68942042149__tenant__major.go"
-        },
-        {
-          "version": "2.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_tenant_",
-            "fields": {
-              "019f9324-6da7-7134-a0ab-1186a7ad2ccd": {
-                "name": "metadata",
-                "type": "unknown"
-              },
-              "019f9324-6da7-7135-8b0d-693af7e7560a": {
-                "name": "name",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f9324-6da7-7136-a935-7acfc1aad4cd": {
-                "name": "domain",
-                "unique": true,
-                "type": "string"
-              },
-              "019f9324-6da7-7137-a78b-fcff82470c8c": {
-                "name": "status",
-                "type": "string",
-                "default": "active"
-              }
-            }
-          },
-          "migration_file": "019f9324-6da7-7eb2-985c-982787e0e196__tenant__major.go"
-        },
-        {
-          "version": "3.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_tenant_",
-            "fields": {
-              "019f9324-6da7-7134-a0ab-1186a7ad2ccd": {
-                "name": "metadata",
-                "type": "record"
-              },
-              "019f9324-6da7-7135-8b0d-693af7e7560a": {
-                "name": "name",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f9324-6da7-7136-a935-7acfc1aad4cd": {
-                "name": "domain",
-                "unique": true,
-                "type": "string"
-              },
-              "019f9324-6da7-7137-a78b-fcff82470c8c": {
-                "name": "status",
-                "type": "string",
-                "default": "active"
-              }
-            }
-          },
-          "migration_file": "019f9326-020b-7468-8812-e16bf62e4bad__tenant__major.go"
-        }
-      ]
+      "migration_file": "019fdc60-69e9-7103-b414-eb8cb7b1a1a7__tenant__major.go"
     },
     "_token_blocklist_": {
-      "path": "core/internal/feature/auth/schema/token_blocklist.schema.json",
-      "hash": "sha256:93217df99995831306aa2b46b4eb94d3e8368cf4712a562dde2ac15d1c105e2e",
+      "path": "core/feature/auth/model/token_blocklist.schema.json",
+      "hash": "sha256:69f9d3fd7e68f6e4c816ec6b61d964eb98b741621c193ff10593caca369b14ee",
       "version": "1.0.0",
       "schema": {
         "version": "1.0.0",
         "name": "_token_blocklist_",
         "fields": {
-          "019f32aa-ba8a-78f8-a3db-999944a4873c": {
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69d0-7030-a2de-3d9d06dc7a9c": {
             "name": "jti",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8a-7c35-979b-876047e881ef": {
-            "name": "user_id",
-            "required": true,
-            "type": "string"
-          },
-          "019f32aa-ba8a-7d09-b85a-30804b64b594": {
+          "019fdc60-69d0-7031-acc0-987358f39789": {
             "name": "exp",
             "required": true,
             "type": "integer"
+          },
+          "019fdc60-69d0-7032-93bf-fcfaa2a04ea8": {
+            "name": "user_id",
+            "required": true,
+            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              },
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              }
+            }
           }
         },
         "indexes": {
           "019f32aa-ba8a-7ba1-9ceb-3de9492ab2b2": {
             "name": "idx_jti",
+            "type": "unique",
             "fields": [
               "jti"
-            ],
-            "type": "unique"
+            ]
           },
           "019f32aa-ba8a-7cef-992c-d4754160bb20": {
             "name": "idx_exp",
+            "type": "normal",
             "fields": [
               "exp"
-            ],
-            "type": "normal"
+            ]
           }
         }
       },
-      "migration_file": "019f6640-8f99-7f1f-992b-00fc578a2ce1__token_blocklist__major.go"
+      "migration_file": "019fdc60-69e7-77ed-9200-28e1d2b50d0d__token_blocklist__major.go"
     },
     "_user_": {
-      "path": "core/internal/feature/users/schema/user.schema.json",
-      "hash": "sha256:cc16417fc8c27c93790fa859f44a35426f86ecb6b04ec0d6d4617faa9474ed1e",
-      "version": "9.0.0",
+      "path": "core/feature/users/model/user.schema.json",
+      "hash": "sha256:6617ab575279c53026819292f70feefca42843f1d666895bec98deb9a74a589d",
+      "version": "1.0.2",
       "schema": {
         "version": "1.0.0",
         "name": "_user_",
         "fields": {
-          "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-            "name": "name",
-            "required": true,
-            "type": "string"
-          },
-          "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-            "name": "email",
-            "required": true,
-            "unique": true,
-            "type": "string"
-          },
-          "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
+          "019fdc60-69e4-7062-8a2a-871c8d7b050f": {
             "name": "permissions",
             "type": "array",
             "schema": {
-              "id": "",
               "type": "string"
             }
           },
-          "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
+          "019fdc60-69e4-7061-8f31-e29a36dc76a2": {
+            "name": "disabled",
+            "type": "integer",
+            "default": -1
+          },
+          "019fdc60-69e4-7063-867c-46a3553bb278": {
             "name": "password",
             "required": true,
             "type": "string"
           },
-          "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
+          "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+            "name": "_metadata_",
+            "type": "object",
+            "schema": {
+              "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+            }
+          },
+          "019fdc60-69e4-7064-81c1-96ff466f570b": {
+            "name": "tenant_id",
+            "type": "string"
+          },
+          "019fdc60-69e4-7065-aa4d-ee9849c15b12": {
             "name": "verified",
             "type": "boolean"
           },
-          "019f9310-ed56-7530-9741-959cfd29d275": {
+          "019fdc60-69e4-705d-b315-ea54cb9ae218": {
             "name": "token_version",
             "type": "integer",
             "default": 0
           },
-          "019f9323-56fe-737a-b225-4740d68e6d02": {
-            "name": "tenant_id",
-            "type": "string"
-          },
-          "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-            "name": "settings",
-            "type": "record"
-          },
-          "019fa30d-3a09-7493-b907-316c3c34fead": {
+          "019fdc60-69e4-705f-89e8-ae465f3b78a3": {
             "name": "data",
             "type": "record"
           },
-          "019fad8b-d14f-735c-b5e7-8eb4fc6657d3": {
-            "name": "disabled",
-            "type": "integer",
-            "default": -1
+          "019fdc60-69e4-7060-a0f1-a36c2f68e1db": {
+            "name": "settings",
+            "type": "record"
+          },
+          "019fdc60-69e4-705e-8755-afa5b14c42e3": {
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+            "name": "_id_",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          },
+          "019fdc60-69e4-705c-b1ba-bbb0feac2d81": {
+            "name": "email",
+            "required": true,
+            "unique": true,
+            "type": "string"
+          }
+        },
+        "schemas": {
+          "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+            "name": "_metadata_",
+            "fields": {
+              "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                "name": "created",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                "name": "updated",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-7440-b104-8d774438853a": {
+                "name": "checksum",
+                "required": true,
+                "type": "string"
+              },
+              "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                "name": "signature",
+                "type": "string"
+              },
+              "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                "name": "trace_id",
+                "type": "string"
+              },
+              "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                "name": "version",
+                "required": true,
+                "type": "number"
+              }
+            }
+          }
+        },
+        "metadata": {
+          "projections": {
+            "UserRegister": {
+              "fields": {
+                "tags": {
+                  "data": {
+                    "input": "payload.{name}"
+                  },
+                  "email": {
+                    "input": "payload.{name}"
+                  },
+                  "name": {
+                    "input": "payload.{name}"
+                  },
+                  "password": {
+                    "input": "payload.{name}"
+                  },
+                  "tenant_id": {
+                    "input": "payload.{name}"
+                  }
+                },
+                "include": [
+                  "email",
+                  "password",
+                  "name",
+                  "tenant_id",
+                  "data"
+                ],
+                "optional": [
+                  "tenant_id",
+                  "data"
+                ],
+                "required": [
+                  "email",
+                  "password",
+                  "name"
+                ]
+              }
+            },
+            "UserUpdate": {
+              "fields": {
+                "tags": {
+                  "settings": {
+                    "input": "payload.{name}"
+                  },
+                  "verified": {
+                    "input": "payload.{name}"
+                  },
+                  "_id_": {
+                    "input": "arguments.user_id"
+                  },
+                  "data": {
+                    "input": "payload.{name}"
+                  },
+                  "disabled": {
+                    "input": "payload.{name}"
+                  },
+                  "email": {
+                    "input": "payload.{name}"
+                  },
+                  "name": {
+                    "input": "payload.{name}"
+                  },
+                  "permissions": {
+                    "input": "payload.{name}"
+                  }
+                },
+                "include": [
+                  "_id_",
+                  "name",
+                  "email",
+                  "permissions",
+                  "verified",
+                  "data",
+                  "settings",
+                  "disabled"
+                ],
+                "optional": [
+                  "name",
+                  "email",
+                  "permissions",
+                  "verified",
+                  "data",
+                  "settings",
+                  "disabled"
+                ]
+              }
+            },
+            "UserPublic": {
+              "fields": {
+                "exclude": [
+                  "password"
+                ]
+              }
+            }
           }
         }
       },
-      "migration_file": "019fb34b-d90a-7c7f-b5de-7ff23d370997__user__major.go",
+      "migration_file": "019fdc6e-db3e-7bf6-a1fc-d22d5218fba5__user__patch.go",
       "history": [
         {
           "version": "1.0.0",
@@ -1537,637 +1716,410 @@
             "version": "1.0.0",
             "name": "_user_",
             "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted_at",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "scopes",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Scope",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f6640-8f9a-7293-b918-56460fc3c92b__user__major.go"
-        },
-        {
-          "version": "2.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f7451-a4f4-72be-aefa-0a7e14b9670b__user__major.go"
-        },
-        {
-          "version": "2.1.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f9310-ed56-7eb6-807e-81be55140444__user__minor.go"
-        },
-        {
-          "version": "3.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
-                "required": true,
-                "type": "string",
-                "default": "public"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "unknown"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f9323-56fe-7700-af05-953e31ebb894__user__major.go"
-        },
-        {
-          "version": "4.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
-                "required": true,
-                "type": "string",
-                "default": "public"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f9326-020b-75aa-976d-d3b3e0eb165e__user__major.go"
-        },
-        {
-          "version": "5.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
-                "required": true,
-                "type": "string"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f9330-596f-74c0-ba58-1110fa07faab__user__major.go"
-        },
-        {
-          "version": "5.1.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
+              "019fdc60-69e4-7064-81c1-96ff466f570b": {
                 "name": "tenant_id",
                 "type": "string"
               },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019f985a-db89-73b3-99c1-68c1411c459c__user__minor.go"
-        },
-        {
-          "version": "5.2.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7602-84a7-00db460db25b": {
-                "name": "deleted",
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              },
-              "019fa30d-3a09-7493-b907-316c3c34fead": {
-                "name": "data",
-                "type": "record"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019fa30d-3a09-7d7e-827e-4ef2e254abca__user__minor.go"
-        },
-        {
-          "version": "6.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
-                "name": "email",
-                "required": true,
-                "unique": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "019f32aa-ba8c-7488-a799-bb6645acaeb4"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
-                "name": "token_version",
-                "type": "integer",
-                "default": 0
-              },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
-                "type": "string"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              },
-              "019fa30d-3a09-7493-b907-316c3c34fead": {
+              "019fdc60-69e4-705f-89e8-ae465f3b78a3": {
                 "name": "data",
                 "type": "record"
               },
-              "019fad8b-d14f-735c-b5e7-8eb4fc6657d3": {
-                "name": "disabled",
+              "019fdc60-69e4-7065-aa4d-ee9849c15b12": {
+                "name": "verified",
                 "type": "boolean"
-              }
-            },
-            "schemas": {
-              "019f32aa-ba8c-7488-a799-bb6645acaeb4": {
-                "name": "Permission",
-                "type": "string"
-              }
-            }
-          },
-          "migration_file": "019fad8b-d158-7058-938d-80ad5dd0f3b7__user__major.go"
-        },
-        {
-          "version": "7.0.0",
-          "schema": {
-            "version": "1.0.0",
-            "name": "_user_",
-            "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
+              },
+              "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+                "name": "_id_",
                 "required": true,
+                "unique": true,
                 "type": "string"
               },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
+              "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+                "name": "_metadata_",
+                "type": "object",
+                "schema": {
+                  "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+                }
+              },
+              "019fdc60-69e4-705c-b1ba-bbb0feac2d81": {
                 "name": "email",
                 "required": true,
                 "unique": true,
                 "type": "string"
               },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
+              "019fdc60-69e4-7060-a0f1-a36c2f68e1db": {
+                "name": "settings",
+                "type": "record"
+              },
+              "019fdc60-69e4-7063-867c-46a3553bb278": {
+                "name": "password",
+                "required": true,
+                "type": "string"
+              },
+              "019fdc60-69e4-7062-8a2a-871c8d7b050f": {
                 "name": "permissions",
                 "type": "array",
                 "schema": {
-                  "id": "",
                   "type": "string"
                 }
               },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
+              "019fdc60-69e4-7061-8f31-e29a36dc76a2": {
+                "name": "disabled",
+                "type": "integer",
+                "default": -1
               },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
-                "name": "verified",
-                "type": "boolean"
-              },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
+              "019fdc60-69e4-705d-b315-ea54cb9ae218": {
                 "name": "token_version",
                 "type": "integer",
                 "default": 0
               },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
+              "019fdc60-69e4-705e-8755-afa5b14c42e3": {
+                "name": "name",
+                "required": true,
                 "type": "string"
-              },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
-              },
-              "019fa30d-3a09-7493-b907-316c3c34fead": {
-                "name": "data",
-                "type": "record"
-              },
-              "019fad8b-d14f-735c-b5e7-8eb4fc6657d3": {
-                "name": "disabled",
-                "type": "boolean"
+              }
+            },
+            "schemas": {
+              "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+                "name": "_metadata_",
+                "fields": {
+                  "019f32a2-1eb5-7440-b104-8d774438853a": {
+                    "name": "checksum",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                    "name": "signature",
+                    "type": "string"
+                  },
+                  "019fdc3a-fce9-7d1b-9cb8-5ca79cbf6a6f": {
+                    "name": "span_id",
+                    "type": "string"
+                  },
+                  "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                    "name": "trace_id",
+                    "type": "string"
+                  },
+                  "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                    "name": "version",
+                    "required": true,
+                    "type": "number"
+                  },
+                  "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                    "name": "created",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                    "name": "updated",
+                    "required": true,
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "metadata": {
+              "projections": {
+                "UserPublic": {
+                  "fields": {
+                    "exclude": [
+                      "password"
+                    ]
+                  }
+                },
+                "UserRegister": {
+                  "fields": {
+                    "include": [
+                      "email",
+                      "password",
+                      "name",
+                      "tenant_id",
+                      "data"
+                    ],
+                    "required": [
+                      "email",
+                      "password",
+                      "name"
+                    ],
+                    "optional": [
+                      "tenant_id",
+                      "data"
+                    ],
+                    "tags": {
+                      "data": {
+                        "input": "payload.{name}"
+                      },
+                      "email": {
+                        "input": "payload.{name}"
+                      },
+                      "password": {
+                        "input": "payload.{name}"
+                      },
+                      "name": {
+                        "input": "payload.{name}"
+                      },
+                      "tenant_id": {
+                        "input": "payload.{name}"
+                      }
+                    }
+                  }
+                },
+                "UserUpdate": {
+                  "fields": {
+                    "optional": [
+                      "name",
+                      "email",
+                      "permissions",
+                      "verified",
+                      "data",
+                      "settings",
+                      "disabled"
+                    ],
+                    "tags": {
+                      "verified": {
+                        "input": "payload.{name}"
+                      },
+                      "data": {
+                        "input": "payload.{name}"
+                      },
+                      "settings": {
+                        "input": "payload.{name}"
+                      },
+                      "disabled": {
+                        "input": "payload.{name}"
+                      },
+                      "name": {
+                        "input": "payload.{name}"
+                      },
+                      "email": {
+                        "input": "payload.{name}"
+                      },
+                      "permissions": {
+                        "input": "payload.{name}"
+                      }
+                    },
+                    "include": [
+                      "name",
+                      "email",
+                      "permissions",
+                      "verified",
+                      "data",
+                      "settings",
+                      "disabled"
+                    ]
+                  }
+                }
               }
             }
           },
-          "migration_file": "019fadae-0337-74e5-815c-003d2da91770__user__major.go"
+          "migration_file": "019fdc60-69e9-74a2-b59f-688f55124176__user__major.go"
         },
         {
-          "version": "8.0.0",
+          "version": "1.0.1",
           "schema": {
             "version": "1.0.0",
             "name": "_user_",
             "fields": {
-              "019f32aa-ba8c-73a6-8fed-a5f84b19ab3b": {
-                "name": "name",
+              "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+                "name": "_id_",
                 "required": true,
+                "unique": true,
                 "type": "string"
               },
-              "019f32aa-ba8c-7679-957f-588144ddbb2b": {
+              "019fdc60-69e4-705c-b1ba-bbb0feac2d81": {
                 "name": "email",
                 "required": true,
                 "unique": true,
                 "type": "string"
               },
-              "019f32aa-ba8c-7957-a27c-e2f64c8aabd1": {
-                "name": "permissions",
-                "type": "array",
-                "schema": {
-                  "id": "",
-                  "type": "string"
-                }
-              },
-              "019f32aa-ba8c-7cb6-ab3f-262b49e3a2bf": {
-                "name": "password",
-                "required": true,
-                "type": "string"
-              },
-              "019f32aa-ba8c-7f38-bce4-d3fa440c9881": {
+              "019fdc60-69e4-7065-aa4d-ee9849c15b12": {
                 "name": "verified",
                 "type": "boolean"
               },
-              "019f9310-ed56-7530-9741-959cfd29d275": {
+              "019fdc60-69e4-7064-81c1-96ff466f570b": {
+                "name": "tenant_id",
+                "type": "string"
+              },
+              "019fdc60-69e4-7060-a0f1-a36c2f68e1db": {
+                "name": "settings",
+                "type": "record"
+              },
+              "019fdc60-69e4-705e-8755-afa5b14c42e3": {
+                "name": "name",
+                "required": true,
+                "type": "string"
+              },
+              "019fdc60-69e4-705d-b315-ea54cb9ae218": {
                 "name": "token_version",
                 "type": "integer",
                 "default": 0
               },
-              "019f9323-56fe-737a-b225-4740d68e6d02": {
-                "name": "tenant_id",
+              "019fdc60-69e4-7061-8f31-e29a36dc76a2": {
+                "name": "disabled",
+                "type": "integer",
+                "default": -1
+              },
+              "019fdc60-69e4-7063-867c-46a3553bb278": {
+                "name": "password",
+                "required": true,
                 "type": "string"
               },
-              "019f9323-56fe-737b-9a01-bdc7da91cc88": {
-                "name": "settings",
-                "type": "record"
+              "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+                "name": "_metadata_",
+                "type": "object",
+                "schema": {
+                  "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+                }
               },
-              "019fa30d-3a09-7493-b907-316c3c34fead": {
+              "019fdc60-69e4-705f-89e8-ae465f3b78a3": {
                 "name": "data",
                 "type": "record"
               },
-              "019fad8b-d14f-735c-b5e7-8eb4fc6657d3": {
-                "name": "disabled",
-                "type": "integer",
-                "default": 0
+              "019fdc60-69e4-7062-8a2a-871c8d7b050f": {
+                "name": "permissions",
+                "type": "array",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "schemas": {
+              "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+                "name": "_metadata_",
+                "fields": {
+                  "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+                    "name": "version",
+                    "required": true,
+                    "type": "number"
+                  },
+                  "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+                    "name": "created",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+                    "name": "updated",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-7440-b104-8d774438853a": {
+                    "name": "checksum",
+                    "required": true,
+                    "type": "string"
+                  },
+                  "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+                    "name": "signature",
+                    "type": "string"
+                  },
+                  "019fdc3a-fce9-7d1b-9cb8-5ca79cbf6a6f": {
+                    "name": "span_id",
+                    "type": "string"
+                  },
+                  "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+                    "name": "trace_id",
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "metadata": {
+              "projections": {
+                "UserUpdate": {
+                  "fields": {
+                    "optional": [
+                      "name",
+                      "email",
+                      "permissions",
+                      "verified",
+                      "data",
+                      "settings",
+                      "disabled"
+                    ],
+                    "tags": {
+                      "email": {
+                        "input": "payload.{name}"
+                      },
+                      "name": {
+                        "input": "payload.{name}"
+                      },
+                      "permissions": {
+                        "input": "payload.{name}"
+                      },
+                      "settings": {
+                        "input": "payload.{name}"
+                      },
+                      "verified": {
+                        "input": "payload.{name}"
+                      },
+                      "_id_": {
+                        "input": "arguments.user_id"
+                      },
+                      "data": {
+                        "input": "payload.{name}"
+                      },
+                      "disabled": {
+                        "input": "payload.{name}"
+                      }
+                    },
+                    "include": [
+                      "name",
+                      "email",
+                      "permissions",
+                      "verified",
+                      "data",
+                      "settings",
+                      "disabled"
+                    ]
+                  }
+                },
+                "UserPublic": {
+                  "fields": {
+                    "exclude": [
+                      "password"
+                    ]
+                  }
+                },
+                "UserRegister": {
+                  "fields": {
+                    "include": [
+                      "email",
+                      "password",
+                      "name",
+                      "tenant_id",
+                      "data"
+                    ],
+                    "optional": [
+                      "tenant_id",
+                      "data"
+                    ],
+                    "required": [
+                      "email",
+                      "password",
+                      "name"
+                    ],
+                    "tags": {
+                      "tenant_id": {
+                        "input": "payload.{name}"
+                      },
+                      "data": {
+                        "input": "payload.{name}"
+                      },
+                      "email": {
+                        "input": "payload.{name}"
+                      },
+                      "name": {
+                        "input": "payload.{name}"
+                      },
+                      "password": {
+                        "input": "payload.{name}"
+                      }
+                    }
+                  }
+                }
               }
             }
           },
-          "migration_file": "019fb1c5-82ad-7077-8e6f-9bc079961250__user__major.go"
+          "migration_file": "019fdc6c-32ee-7344-b6d7-2c7726b4a8a6__user__patch.go"
         }
       ]
     }

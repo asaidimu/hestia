@@ -1,13 +1,17 @@
 {
   "schema": {
-    "glob": "core/internal/feature/**/schema/*.schema.json",
+    "glob": "core/feature/**/*.schema.json",
     "lockfile": "schemas.lock.json",
-    "migrations_dir": "core/migrations/"
+    "migrations_dir": "core/internal/migrations"
   },
   "gogen": {
     "name_rules": [
       { "pattern": "^_(.+)_$", "prefix": "System" }
     ],
     "scoped": false
+  },
+  "metadata": {
+    "schema_path": "metadata.schema.json",
+    "out_dir": ""
   }
 }

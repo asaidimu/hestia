@@ -86,11 +86,11 @@ const (
 
 type Result struct {
 	Kind            ResultKind
-	Document        *data.Document
+	Document        data.Documenter
 	Documents       data.DocumentSet
 	Page            *Page
 	Blob            Blob
-	DocumentChannel <-chan *data.Document
+	DocumentChannel <-chan data.Documenter
 	BlobChannel     <-chan Blob
 	SessionToken    string
 	Metadata        map[string]any

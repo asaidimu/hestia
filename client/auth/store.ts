@@ -27,7 +27,7 @@ export class HestiaAuth {
     name: string,
   ): Promise<{ _id_: string; email: string; name: string }> {
     const res = await this.client.dispatch<{ data: { _id_: string; email: string; name: string } }>(
-      "system:auth:user:register",
+      "system:users:user:create",
       { payload: { email, password, name } },
     );
     return res.data.data;

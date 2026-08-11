@@ -1,0 +1,200 @@
+{
+  "fields": {
+    "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string",
+      "unique": true
+    },
+    "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+      "name": "_metadata_",
+      "schema": {
+        "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+      },
+      "type": "object"
+    },
+    "019fdc60-69e4-705c-b1ba-bbb0feac2d81": {
+      "name": "email",
+      "required": true,
+      "type": "string",
+      "unique": true
+    },
+    "019fdc60-69e4-705d-b315-ea54cb9ae218": {
+      "default": 0,
+      "name": "token_version",
+      "type": "integer"
+    },
+    "019fdc60-69e4-705e-8755-afa5b14c42e3": {
+      "name": "name",
+      "required": true,
+      "type": "string"
+    },
+    "019fdc60-69e4-705f-89e8-ae465f3b78a3": {
+      "name": "data",
+      "type": "record"
+    },
+    "019fdc60-69e4-7060-a0f1-a36c2f68e1db": {
+      "name": "settings",
+      "type": "record"
+    },
+    "019fdc60-69e4-7061-8f31-e29a36dc76a2": {
+      "default": -1,
+      "name": "disabled",
+      "type": "integer"
+    },
+    "019fdc60-69e4-7062-8a2a-871c8d7b050f": {
+      "name": "permissions",
+      "schema": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "019fdc60-69e4-7063-867c-46a3553bb278": {
+      "name": "password",
+      "required": true,
+      "type": "string"
+    },
+    "019fdc60-69e4-7064-81c1-96ff466f570b": {
+      "name": "tenant_id",
+      "type": "string"
+    },
+    "019fdc60-69e4-7065-aa4d-ee9849c15b12": {
+      "name": "verified",
+      "type": "boolean"
+    }
+  },
+  "metadata": {
+    "projections": {
+      "UserPublic": {
+        "fields": {
+          "exclude": [
+            "password"
+          ]
+        }
+      },
+      "UserRegister": {
+        "fields": {
+          "include": [
+            "email",
+            "password",
+            "name",
+            "tenant_id",
+            "data"
+          ],
+          "optional": [
+            "tenant_id",
+            "data"
+          ],
+          "required": [
+            "email",
+            "password",
+            "name"
+          ],
+          "tags": {
+            "data": {
+              "input": "payload.{name}"
+            },
+            "email": {
+              "input": "payload.{name}"
+            },
+            "name": {
+              "input": "payload.{name}"
+            },
+            "password": {
+              "input": "payload.{name}"
+            },
+            "tenant_id": {
+              "input": "payload.{name}"
+            }
+          }
+        }
+      },
+      "UserUpdate": {
+        "fields": {
+          "include": [
+            "_id_",
+            "name",
+            "email",
+            "permissions",
+            "verified",
+            "data",
+            "settings",
+            "disabled"
+          ],
+          "optional": [
+            "name",
+            "email",
+            "permissions",
+            "verified",
+            "data",
+            "settings",
+            "disabled"
+          ],
+          "tags": {
+            "_id_": {
+              "input": "arguments.user_id"
+            },
+            "data": {
+              "input": "payload.{name}"
+            },
+            "disabled": {
+              "input": "payload.{name}"
+            },
+            "email": {
+              "input": "payload.{name}"
+            },
+            "name": {
+              "input": "payload.{name}"
+            },
+            "permissions": {
+              "input": "payload.{name}"
+            },
+            "settings": {
+              "input": "payload.{name}"
+            },
+            "verified": {
+              "input": "payload.{name}"
+            }
+          }
+        }
+      }
+    }
+  },
+  "name": "_user_",
+  "schemas": {
+    "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+      "fields": {
+        "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+          "name": "version",
+          "required": true,
+          "type": "number"
+        },
+        "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+          "name": "updated",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-7440-b104-8d774438853a": {
+          "name": "checksum",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+          "name": "signature",
+          "type": "string"
+        },
+        "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+          "name": "created",
+          "required": true,
+          "type": "string"
+        },
+        "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+          "name": "trace_id",
+          "type": "string"
+        }
+      },
+      "name": "_metadata_"
+    }
+  },
+  "version": "1.0.0"
+}

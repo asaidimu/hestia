@@ -13,7 +13,7 @@ type DispatchInput struct {
 	Name     string
 	Context  context.Context
 	ID       string
-	Document *data.Document
+	Document data.Documenter
 	Intent   abstract.Verb
 }
 
@@ -21,15 +21,15 @@ type dispatchMessage struct {
 	id      string
 	name    string
 	ctx     context.Context
-	input   *data.Document
-	inputCh chan *data.Document
+	input   data.Documenter
+	inputCh chan data.Documenter
 }
 
 func (m *dispatchMessage) ID() string                             { return m.id }
 func (m *dispatchMessage) Name() string                           { return m.name }
 func (m *dispatchMessage) Context() context.Context               { return m.ctx }
-func (m *dispatchMessage) Input() *data.Document                  { return m.input }
-func (m *dispatchMessage) InputChannel() <-chan *data.Document    { return m.inputCh }
+func (m *dispatchMessage) Input() data.Documenter                 { return m.input }
+func (m *dispatchMessage) InputChannel() <-chan data.Documenter    { return m.inputCh }
 func (m *dispatchMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 
 func (m *dispatchMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
@@ -54,7 +54,7 @@ func Dispatch(disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, err
 	}
 
 	if in.Intent == abstract.Stream {
-		msg.inputCh = make(chan *data.Document, 1)
+		msg.inputCh = make(chan data.Documenter, 1)
 	}
 
 	result, err := disp.Send(msg)

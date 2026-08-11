@@ -12,7 +12,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/persistence"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-anansi/v8/tests/testutils"
-	"github.com/asaidimu/go-events"
+	"github.com/asaidimu/go-anansi/v8/utils"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -43,10 +43,11 @@ func NewPersistence(t *testing.T) base.Persistence {
 	interactor, cleanup := testutils.CreateNativeInteractor(t)
 	t.Cleanup(cleanup)
 
-	bus, err := events.NewTypedEventBus[base.PersistenceEvent](events.DefaultConfig())
+	bus, err := utils.NewInMemoryGoEventsBus("test")
 	require.NoError(t, err)
 
-	p, err := persistence.NewPersistence(interactor, pevents.NewGoEventsBusAdapter(bus), logger, nil)
+	pbus := pevents.NewGoEventsBusAdapter[base.PersistenceEvent](bus)
+	p, err := persistence.NewPersistence(interactor, pbus, logger, nil)
 	require.NoError(t, err)
 
 	root := projectRoot()

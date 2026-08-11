@@ -7,11 +7,13 @@ import (
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func TestMain(m *testing.M) {
@@ -48,8 +50,21 @@ func (m *mockDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	return &abstract.Result{}, nil
 }
 
+func mustPool(t *testing.T, s *definition.Schema) *document.DocumentPool {
+	t.Helper()
+	p, err := document.NewDocumentPool(s)
+	if err != nil {
+		t.Fatalf("NewDocumentPool: %v", err)
+	}
+	return p
+}
+
 func TestBuildDoc_PathParams(t *testing.T) {
+	type userGetInput struct {
+		UserID string `input:"arguments.user_id"`
+	}
 	input := runtime.Input{
+		Schema:    dispatch.SchemaFromTypeWithTag[userGetInput]("input", true),
 		Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
 	}
 
@@ -57,19 +72,22 @@ func TestBuildDoc_PathParams(t *testing.T) {
 		PathParams: map[string]string{"user_id": "abc-123"},
 	}
 
-	doc := buildDoc(context.Background(), req, input)
-	m := doc.ToMap()
-	args, ok := m["arguments"].(map[string]any)
-	if !ok {
-		t.Fatal("expected arguments field")
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
 	}
-	if args["user_id"] != "abc-123" {
-		t.Fatalf("expected user_id=abc-123, got %v", args["user_id"])
+	userID, _ := doc.GetString("arguments.user_id")
+	if userID != "abc-123" {
+		t.Fatalf("expected user_id=abc-123, got %q", userID)
 	}
 }
 
 func TestBuildDoc_PayloadObject(t *testing.T) {
+	type renameInput struct {
+		Payload map[string]any `input:"payload"`
+	}
 	input := runtime.Input{
+		Schema:  dispatch.SchemaFromTypeWithTag[renameInput]("input", true),
 		Payload: definition.FieldTypeObject,
 	}
 
@@ -77,11 +95,13 @@ func TestBuildDoc_PayloadObject(t *testing.T) {
 		Body: []byte(`{"name": "New Name"}`),
 	}
 
-	doc := buildDoc(context.Background(), req, input)
-	m := doc.ToMap()
-	payload, ok := m["payload"].(map[string]any)
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
+	}
+	payload, ok := doc.GetOr("payload", nil).(map[string]any)
 	if !ok {
-		t.Fatal("expected payload field")
+		t.Fatal("expected payload as map[string]any")
 	}
 	if payload["name"] != "New Name" {
 		t.Fatalf("expected name=New Name, got %v", payload["name"])
@@ -89,7 +109,11 @@ func TestBuildDoc_PayloadObject(t *testing.T) {
 }
 
 func TestBuildDoc_PayloadBytes(t *testing.T) {
+	type uploadInput struct {
+		Payload []byte `input:"payload"`
+	}
 	input := runtime.Input{
+		Schema:  dispatch.SchemaFromTypeWithTag[uploadInput]("input", true),
 		Payload: definition.FieldTypeBytes,
 	}
 
@@ -97,19 +121,26 @@ func TestBuildDoc_PayloadBytes(t *testing.T) {
 		Body: []byte("raw data"),
 	}
 
-	doc := buildDoc(context.Background(), req, input)
-	m := doc.ToMap()
-	payload, ok := m["payload"].([]byte)
-	if !ok {
-		t.Fatal("expected payload as []byte")
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
 	}
-	if string(payload) != "raw data" {
-		t.Fatalf("expected 'raw data', got %s", string(payload))
+	payload := doc.GetOr("payload", nil)
+	b, ok := payload.([]byte)
+	if !ok {
+		t.Fatalf("expected payload as []byte, got %T", payload)
+	}
+	if string(b) != "raw data" {
+		t.Fatalf("expected 'raw data', got %s", string(b))
 	}
 }
 
 func TestBuildDoc_Modifiers(t *testing.T) {
+	type notifyInput struct {
+		Email string `input:"modifiers.email"`
+	}
 	input := runtime.Input{
+		Schema:    dispatch.SchemaFromTypeWithTag[notifyInput]("input", true),
 		Modifiers: map[string]definition.FieldType{"email": definition.FieldTypeString},
 	}
 
@@ -117,14 +148,58 @@ func TestBuildDoc_Modifiers(t *testing.T) {
 		Query: map[string][]string{"email": {"a@b.com"}},
 	}
 
-	doc := buildDoc(context.Background(), req, input)
-	m := doc.ToMap()
-	mods, ok := m["modifiers"].(map[string]any)
-	if !ok {
-		t.Fatal("expected modifiers field")
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
 	}
-	if mods["email"] != "a@b.com" {
-		t.Fatalf("expected email=a@b.com, got %v", mods["email"])
+	email, _ := doc.GetString("modifiers.email")
+	if email != "a@b.com" {
+		t.Fatalf("expected email=a@b.com, got %q", email)
+	}
+}
+
+func TestBuildDoc_DecodeError(t *testing.T) {
+	type loginInput struct {
+		Payload map[string]any `input:"payload"`
+	}
+	input := runtime.Input{
+		Schema:  dispatch.SchemaFromTypeWithTag[loginInput]("input", true),
+		Payload: definition.FieldTypeObject,
+	}
+
+	req := Request{
+		Body: []byte(`{"email": `),
+	}
+
+	_, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err == nil {
+		t.Fatal("expected decode error for malformed body")
+	}
+}
+
+func TestBuildDoc_ArgsOnlyWhenDeclared(t *testing.T) {
+	type createInput struct {
+		Payload map[string]any `input:"payload"`
+	}
+	input := runtime.Input{
+		Schema:    dispatch.SchemaFromTypeWithTag[createInput]("input", true),
+		Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
+	}
+
+	req := Request{
+		PathParams: map[string]string{"user_id": "abc-123"},
+		Body:       []byte(`{"name": "New Name"}`),
+	}
+
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
+	}
+	if doc.HasKey("arguments") {
+		t.Fatal("arguments should not be emitted when the schema does not declare it")
+	}
+	if !doc.HasKey("payload") {
+		t.Fatal("expected payload field")
 	}
 }
 

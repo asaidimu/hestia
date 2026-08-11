@@ -45,7 +45,7 @@ var InputMetaSchemaJSON = []byte(`{
 					"description": "Allowed field types",
 					"required": true,
 					"type": "enum",
-					"schema": { "type": "string", "values": ["object", "record", "string"] }
+					"schema": { "type": "string", "values": ["object", "record", "string", "bytes"] }
 				},
 				"required": {
 					"name": "required",
@@ -125,7 +125,7 @@ func getDocValidator(s *definition.Schema) (*definition.DocumentValidator, error
 	return v, nil
 }
 
-func ValidateInputDocument(s *definition.Schema, doc *data.Document) ([]common.Issue, bool) {
+func ValidateInputDocument(s *definition.Schema, doc data.Documenter) ([]common.Issue, bool) {
 	if s == nil {
 		return nil, true
 	}

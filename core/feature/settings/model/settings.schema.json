@@ -1,0 +1,82 @@
+{
+  "fields": {
+    "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string",
+      "unique": true
+    },
+    "019f4065-0a3d-7ecf-a2eb-7af6e1fdd6f0": {
+      "name": "_metadata_",
+      "schema": {
+        "id": "019f4065-0a3d-7ed7-8ab1-417acc881135"
+      },
+      "type": "object"
+    },
+    "019fdc60-69db-7056-8ae5-ee245b54e79e": {
+      "name": "updated_by",
+      "type": "string"
+    },
+    "019fdc60-69db-7057-9a84-62a67e9a1fa1": {
+      "name": "key",
+      "required": true,
+      "type": "string"
+    },
+    "019fdc60-69db-7058-b15c-51b410d2aeaf": {
+      "name": "value",
+      "required": true,
+      "type": "record"
+    },
+    "019fdc60-69db-7059-9b3a-0a986d386ab6": {
+      "name": "tenant_id",
+      "type": "string"
+    }
+  },
+  "indexes": {
+    "019f9324-6da7-7133-860d-c2bfe7ccfb27": {
+      "fields": [
+        "tenant_id",
+        "key"
+      ],
+      "name": "idx_tenant_key",
+      "type": "unique"
+    }
+  },
+  "name": "_settings_",
+  "schemas": {
+    "019f4065-0a3d-7ed7-8ab1-417acc881135": {
+      "fields": {
+        "019f32a2-1eb3-7c39-885e-c3d545f981ac": {
+          "name": "version",
+          "required": true,
+          "type": "number"
+        },
+        "019f32a2-1eb5-72a9-a0d6-086140f78a85": {
+          "name": "updated",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-7440-b104-8d774438853a": {
+          "name": "checksum",
+          "required": true,
+          "type": "string"
+        },
+        "019f32a2-1eb5-774f-abf3-09d64b4dbdd7": {
+          "name": "signature",
+          "type": "string"
+        },
+        "019f32a2-1eb5-78b8-971d-ac164c938f2f": {
+          "name": "created",
+          "required": true,
+          "type": "string"
+        },
+        "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+          "name": "trace_id",
+          "type": "string"
+        }
+      },
+      "name": "_metadata_"
+    }
+  },
+  "version": "1.0.0"
+}

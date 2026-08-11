@@ -87,7 +87,7 @@ func TestNewBlobResult(t *testing.T) {
 }
 
 func TestNewDocumentChannelResult(t *testing.T) {
-	ch := make(chan *data.Document)
+	ch := make(chan data.Documenter)
 	r := NewDocumentChannelResult(ch)
 	if r.Kind != abstract.ResultKindDocumentChannel {
 		t.Errorf("Kind = %d, want %d", r.Kind, abstract.ResultKindDocumentChannel)

@@ -16,7 +16,7 @@ import (
 	"github.com/asaidimu/hestia/core/interface/cli"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/internal/boot"
-	"github.com/asaidimu/hestia/core/internal/feature/users/schema"
+	"github.com/asaidimu/hestia/core/feature/users/model"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -34,7 +34,7 @@ type SystemModule interface {
 	Bootstrapped() bool
 	AdminUserID() string
 	AdminEmail() string
-	UserModel() *schema.SystemUsers
+	UserModel() *model.SystemUsers
 }
 
 type Middleware = httpapi.Middleware

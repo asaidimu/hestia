@@ -21,7 +21,7 @@ type ruleDocProcessor struct {
 	ac iam.AccessController
 }
 
-func (p *ruleDocProcessor) Create(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
+func (p *ruleDocProcessor) Create(ctx context.Context, doc data.Documenter) (iam.FunctionRule, error) {
 	return p.Compile(ctx, doc)
 }
 
@@ -29,7 +29,7 @@ func (p *ruleDocProcessor) Destroy(ctx context.Context, fn iam.FunctionRule) err
 	return nil
 }
 
-func (p *ruleDocProcessor) Compile(ctx context.Context, doc *data.Document) (iam.FunctionRule, error) {
+func (p *ruleDocProcessor) Compile(ctx context.Context, doc data.Documenter) (iam.FunctionRule, error) {
 	expr, _ := doc.GetString("expression")
 	if expr == "" {
 		return func(req iam.AccessRequest) bool { return true }, nil
@@ -46,7 +46,6 @@ func (p *ruleDocProcessor) CloneState(fn iam.FunctionRule) (iam.FunctionRule, er
 // interface but exist on the concrete liveRepository type.
 type writeableRuleStore interface {
 	collection.LiveCollection[iam.FunctionRule]
-	CreateOne(ctx context.Context, doc *data.Document) (base.CreateResult, error)
 	Update(ctx context.Context, params *base.CollectionUpdate) (*base.ReadResult, error)
 }
 
@@ -190,7 +189,6 @@ func TestLiveCollectionRuleStore_AutoRefreshOnUpdate(t *testing.T) {
 				Value:    query.FilterValue{StringVal: strPtr("update_rule")},
 			},
 		},
-		ReturnDocument: true,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)

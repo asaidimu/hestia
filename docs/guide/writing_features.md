@@ -1,381 +1,394 @@
 # Writing Features
 
-This guide distills what we've learned about building persistence-backed
-features on **go-anansi**. It covers the six things that repeatedly bite us:
+This guide distills how persistence-backed features are built on **go-anansi**
+in this repo. It is the accumulated knowledge from converting `users` (the
+reference implementation) and `apikeys`. Follow it when building a new feature
+or migrating an existing one (audit, notifications, operations, policies,
+schedules, settings, tenants).
 
-1. [Generating models from schemas](#1-generating-models-from-schemas)
-2. [Generating projections with proper bindings](#2-generating-projections-with-proper-bindings)
-3. [Binding input to DTO structs](#3-binding-input-to-dto-structs)
-4. [Why DTO structs and not `map[string]any`](#4-why-dto-structs-and-not-mapstringany)
-5. [Extending model functionality](#5-extending-model-functionality)
-6. [Deriving runtime schemas for DTOs](#6-deriving-runtime-schemas-for-dtos)
-
-The canonical example is the users feature: `core/internal/feature/users/`.
-Read it alongside this guide.
+**Read `core/feature/users/` and `core/feature/apikeys/` alongside this guide —
+they are the canonical, fully-migrated examples.**
 
 ---
-## 0. Writing Schema
-A collection schema is a plain JSON file. 
-When working with schemas: 
-1. Prefer writing schemas in json. The guide meta schema is at `~/projects/go-anansi/core/schema/meta/schema.json`
-2. Schemas that contribute towards collection go into `./core/internal/feature/**/schema/*.schema.json` as plain json files
 
-When updating the database schema, strictly adhere to the following workflow:
+## 1. Canonical layout
 
-1. **Edit the Schema:** Modify the schema files directly.
-* *Do not* alter existing IDs.
-* Only modify field properties.
-* If introducing a new field, set its ID to match the field's name. DO NOT GENERATE MANUAL UUIDS. The migration tool will detect this and assign a proper UUID. 
-* If deleting a field, remove it's entry completely preserving the other fields.
+A feature is two packages:
 
-2. **Preview Changes:** Validate and preview the migration by running:
-```bash
-anansi migrate generate --dry-run
+```
+core/feature/<feature>/
+├── feature.go      # Registrations(): wire handlers to messages
+├── handler.go      # abstract.MessageHandler funcs, bind DTOs, call the model
+├── policies.go     # PolicyBindings() (if the feature has IAM rules)
+└── *_test.go
+core/feature/<feature>/model/    # package model — everything persistence
+├── <name>.schema.json           # schema + projections (hand-written)
+├── <name>.schema.model.go       # GENERATED — model, collection, projections
+├── data_transfer_objects.go     # DTOs + *Schema() accessors (hand-written)
+├── <feature>_utils.go           # domain methods on the generated collection
+└── *_test.go
 ```
 
-3. **Generate Migration:** Finalize and generate the required migration files by running:
-```bash
-anansi migrate generate
-```
+- The **root package** (`apikeys`) owns handlers, message registrations, and
+  policy bindings. It imports `model`.
+- The **`model` package** owns the schema, generated code, DTOs, and domain
+  methods. It never imports the root package.
+- Generated model files are **never hand-edited** — extend via methods in a
+  separate `*_utils.go` file.
 
-## 1. Generating models from schemas
+---
 
-**Layout:** schemas that contribute to a persisted collection live at
-`./core/internal/feature/<feature>/schema/<name>.schema.json`.
+## 2. Schema + projections (the single source of truth)
+
+Schema lives at `model/<name>.schema.json`. Declare **everything** here,
+including projections. Do not define Go structs separately — codegen derives
+them from the schema.
 
 ```json
 {
+  "name": "_api_key_",
   "version": "1.0.0",
-  "name": "_user_",
   "fields": {
-    "<uuid>": { "name": "email", "required": true, "unique": true, "type": "string" },
+    "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": { "name": "_id_", "required": true, "unique": true, "type": "string" },
     "<uuid>": { "name": "name", "required": true, "type": "string" },
-    "<uuid>": { "name": "disabled", "type": "integer", "default": -1 }
+    "<uuid>": { "name": "hash", "required": true, "type": "string" },
+    "<uuid>": { "name": "limits", "type": "object", "schema": { "id": "<uuid>" } }
   },
-  "metadata": {
-    "projections": { ... }
-  }
+  "schemas": {
+    "<uuid>": { "name": "Limits", "fields": { "<uuid>": { "name": "rph", "type": "integer" } } }
+  },
+  "metadata": { "projections": { ... } }
 }
 ```
 
-**Regenerate the Go model** after any schema edit:
+**Field IDs are UUIDv7 and must never be hand-generated.** When adding a field,
+use the field **name as the key**; `anansi migrate generate` normalizes it to a
+UUIDv7 and preserves it in the lockfile. Never rename an existing UUID key.
 
-```bash
-anansi codegen golang
-```
+**Field shape is driven by required/nullable:**
+- Required + non-nullable → value type (`Name string`).
+- Optional or nullable → pointer type (`Expiry *string`, `Limits *Limits`).
 
-This emits `<name>.schema.model.go` next to the schema, containing:
+### Projections
 
-- **The model struct** (`SystemUser`) — embeds `data.DocumentModel`, every
-  field carries its `anansi` tag.
-- **The collection wrapper** (`SystemUsers`) — embeds
-  `*collection.ModelCollection[*SystemUser]`, plus
-  `SystemUsersCollectionName` and the singleton `InitSystemUsersModel` /
-  `UsersModel()` accessors.
-- **Projection structs** (`UserRegister`, `UserUpdate`, `UserPublic`).
+Declared under `metadata.projections`, keyed by name. They are field subsets
+of the root schema, not new schemas. Three kinds:
 
-### Constructor vs. singleton
-
-Prefer a **fresh constructor** over the generated singleton when you need
-isolation (per-module setup, tests):
-
-```go
-// Generated (pins the first persistence forever):
-users, err := schema.InitSystemUsersModel(p, logger)
-
-// Hand-rolled fresh instance, good for tests and Reset lifecycle:
-func NewSystemUsers(p base.Persistence, logger *zap.Logger) (*SystemUsers, error) {
-    raw, err := p.Collection(context.Background(), SystemUsersCollectionName)
-    if err != nil { return nil, err }
-    mc, err := collection.NewModelCollection[*SystemUser](raw, logger)
-    if err != nil { return nil, err }
-    return &SystemUsers{ModelCollection: mc}, nil
-}
-```
-
-> The generated singleton caches the first persistence it was built with.
-> Reusing it across `Reset()` cycles or isolated test persistences silently
-> hits the wrong database. When in doubt, construct fresh.
-
-### Field shape is driven by required/nullable
-
-- Required + non-nullable → value type (`Email string`).
-- Optional or nullable → pointer type (`Disabled *int64`).
-
-Optional fields must be pointers because **partial updates skip zero fields**
-(see §5). That is why `UserUpdate` is all pointers.
-
----
-
-## 2. Generating projections with proper bindings
-
-Projections are declared under `metadata.projections`, keyed by name. They are
-**field subsets** of the root schema, not new schemas.
-
-```json
-"UserRegister": {
-  "fields": {
-    "include":  ["email", "password", "name", "tenant_id", "data"],
-    "required": ["email", "password", "name"],
-    "optional": ["tenant_id", "data"],
-    "tags": {
-      "email":     { "input": "payload.{name}" },
-      "password":  { "input": "payload.{name}" },
-      "name":      { "input": "payload.{name}" }
-    }
-  }
-}
-```
+| Kind | Purpose | Shape |
+| --- | --- | --- |
+| **Input** | Bound from the incoming message | `include` + `required`/`optional` + `tags` with `input:` |
+| **Output** | Response shape, secrets excluded structurally | `include` or `exclude` |
+| **Create output** | Response with a once-only field (e.g. raw key) | custom DTO struct, see §6 |
 
 Projection DSL:
 
-| Key | Meaning |
-| --- | --- |
-| `fields.include` | Whitelist of root fields |
-| `fields.exclude` | Remove fields from the final set |
-| `fields.required` | Force `required=true` (upgrades to value type) |
-| `fields.optional` | Force `required=false` (stays/downgrades to pointer) |
-| `fields.tags` | Custom struct tags per field, `{FieldProperty}` placeholders |
+```json
+"APIKeyCreate": {
+  "fields": {
+    "include":  ["name", "environment", "operations", "expiry", "limits", "ip"],
+    "required": ["name"],
+    "optional": ["environment", "operations", "expiry", "limits", "ip"],
+    "tags": {
+      "name":        { "input": "payload.{name}" },
+      "environment": { "input": "payload.{name}" }
+    }
+  }
+}
+```
 
-### The two-tag contract 
+- `fields.include` — whitelist of root fields.
+- `fields.exclude` — remove fields from the final set (use for output shapes).
+- `fields.required` / `fields.optional` — force the generated Go type
+  (value vs pointer).
+- `fields.tags` — per-field struct tags with `{name}` placeholders.
+  `"input": "payload.{name}"` or `"input": "arguments.{name}"`.
 
-Every generated struct carries two contracts (or 1+n where n is the number of tags assigned in the projection.):
+### The two-tag contract
 
-- **`anansi` tag** — the persistence contract. Flat doc field names, used by
-  `Patch()` / `NewPartialDocumentFromStruct` when writing to the DB.
-- **`input` tag** — the dispatch binding contract. Dotted paths into the
-  incoming message, used by `BindToTag(&dto, "input")`.
+Every generated struct carries tags:
 
-Use `fields.tags` to declare how a projection field arrives on the wire:
+- **`anansi` tag** — the persistence contract (flat doc field names).
+- **`input` tag** — the dispatch binding contract (dotted paths into the
+  incoming message), only on input projections.
+- **`json` tag** — serialization.
 
-- `"input": "payload.{name}"` — field lands in the message `payload`.
-- `"input": "arguments.{name}"` — field lands in the message `arguments`.
+### The `_id_` → arguments binding (solved)
 
-A projection with only an `anansi` tag (e.g. `UserPublic`) is a **pure output
-shape** — never an input — and is how you keep `password` out of responses:
+The `_id_` field binds from `arguments.*` **directly through the projection
+tag** — no DTO sibling hack needed:
 
 ```json
-"UserPublic": { "fields": { "exclude": ["password"] } }
+"_id_": { "input": "arguments.key_id" }
 ```
 
-> Keep projections **flat**. Do not nest them inside DTO structs as references
-> to generated types; instead embed them flat (see §3) so the promoted fields
-> carry both tag sets down.
+generates `ID string anansi:"_id_,required=true" json:"_id_" input:"arguments.key_id"`,
+and `BindToTag(&input, "input")` lands the resource id in `input.ID`. Wire the
+same name into `ResourceIDField` and `Arguments` in the registration.
 
 ---
 
-## 3. Binding input to DTO structs
+## 3. The schema → codegen workflow (exact sequence)
 
-DTOs describe the dispatch I/O contract — the `{arguments, payload}` incoming
-message and the `{document, page}` response. They are **not** persisted.
+```bash
+anansi migrate generate --dry-run   # 1. validate + preview
+anansi migrate generate             # 2. normalize IDs, write migration
+anansi codegen golang               # 3. emit structs + collection + projections
+```
 
-Put them in the schema package as a standalone file
-(`core/internal/feature/users/schema/data_transfer_objects.go`) and export
-both the types and their schema accessors (see §6).
+- `migrate generate` rewrites field-name keys to UUIDv7, injects
+  `_id_`/`_metadata_`, bumps the schema version, and writes a migration under
+  `core/internal/migrations/`. It also updates `schemas.lock.json`.
+- A metadata-only change (adding projections) still produces a patch migration
+  — that's expected and fine.
+- **`codegen golang` regenerates ALL feature schemas** (the `anansi.json`
+  glob). After running it, `git diff --stat` may surface *unrelated* drift in
+  other features (schema edited but not regenerated). Check and either revert
+  unrelated generated files or fold them in deliberately.
 
-### Input DTOs
+---
 
-Bind an incoming message into a typed struct with
-`msg.Input().BindToTag(&dto, "input")`:
+## 4. What codegen emits (`<name>.schema.model.go`, package `model`)
+
+- **Model struct** — `SystemAPIKey`, embeds `document.DocumentModel`, every
+  field carries `anansi` + `json` tags.
+- **Projection structs** — `APIKeyCreate`, `APIKeyUpdate`, `APIKeyPublic`, etc.
+- **Collection wrapper** — `SystemAPIKeys` embeds
+  `*collection.ModelCollection[*SystemAPIKey]`, plus `SystemAPIKeysCollectionName`.
+- **Singletons** — `InitSystemAPIKeysModel(p, logger)`, `SystemAPIKeysModel()`,
+  and `DangerouslyResetSystemAPIKeysModel()` for tests.
+
+Optional fields are emitted with `anansi:"...,required=false,omitempty"` —
+**`omitempty` in the anansi tag is what lets nil pointers (e.g. `Limits`,
+`IPConfig` object fields) be skipped on create**. If you ever hit
+`field "limits" expects an object (map), got <nil>`, it means the generated
+file predates the omitempty fix — re-run `anansi codegen golang`.
+
+---
+
+## 5. DTOs: bind projections directly, no wrapper structs
+
+Input DTOs **are** the projections. Don't wrap them in
+`type XxxInput struct { Xxx }` — the projection already carries every
+`input:` tag. Bind and derive schemas straight from it:
 
 ```go
-type UserGetInput struct {
-    UserID string `input:"arguments.user_id"`
-}
-
-type UserUpdateInput struct {
-    UserUpdate // embeds the projection: promotes all anansi + input tags
-    UserID     string `input:"arguments.user_id"`
-}
-
-func NewUpdateUserHandler(users *schema.SystemUsers) abstract.MessageHandler {
-    return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-        var input schema.UserUpdateInput
-        if err := msg.Input().BindToTag(&input, "input"); err != nil {
-            return nil, err
-        }
-        // input.UserID, input.Name, input.Email, ...
-    }
+// handler.go
+var input model.APIKeyCreate
+if err := msg.Input().BindToTag(&input, "input"); err != nil {
+    return nil, err
 }
 ```
 
-Embedding the projection (`UserUpdate`) is how an input DTO inherits all of the
-projection's `input:"payload.*"` tags without repeating them. The `arguments`
-bound fields are added as siblings.
-
-### The `_id_` special case
-
-The binder treats `_id_` specially — it only binds from the document's
-internal id, **not** from `arguments.user_id`. Until that fix lands, use an
-explicit DTO field for the resource id:
-
 ```go
-UserID string `input:"arguments.user_id"`
+// data_transfer_objects.go
+func APIKeyCreateInputSchema() *definition.Schema {
+    return dispatch.SchemaFromTypeWithTag[APIKeyCreate]("input", true)
+}
 ```
 
-and reference it in the registration's `Arguments` / `ResourceIDField`:
+The `true` omits the embedded `document.DocumentModel` from the derived schema.
+
+Simple argument-only inputs still get a small struct:
 
 ```go
-{ Name: "system:users:user:get",
-  Input: runtime.Input{ Schema: schema.UserGetInputSchema(),
-    Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
-    ResourceIDField: "user_id" } }
+type APIKeyGetInput struct {
+    KeyID string `input:"arguments.key_id"`
+}
+func APIKeyGetInputSchema() *definition.Schema {
+    return dispatch.SchemaFromTypeWithTag[APIKeyGetInput]("input")
+}
 ```
 
-### Output DTOs
-
-Response DTOs use `anansi` tags to position fields in the response document.
-Output them as the password-free projection:
+Output DTOs are plain envelopes:
 
 ```go
-type UserOutput struct {
-    Document UserPublic `anansi:"data"`
+type APIKeyOutput struct {
+    Document APIKeyPublic `anansi:"document"`
+}
+type APIKeyListOutput struct {
+    Documents []APIKeyPublic `anansi:"documents"`
+}
+```
+
+> `serializeOutputField` (in `core/interface/http/register.go`) only checks that
+> the output schema declares a top-level `document` / `documents` / `page`
+> field, then passes the (sanitized) document body through. The inner schema is
+> documentation/introspection, not a filter.
+
+### Registering with derived schemas
+
+```go
+{ Name: "system:apikeys:key:update",
+  Handler: NewUpdateAPIKeyHandler(deps.APIKeyModel),
+  Intent: abstract.Update,
+  Input: runtime.Input{
+    Schema:          model.APIKeyUpdateInputSchema(),
+    Arguments:       []abstract.ArgDef{{Name: "key_id", Type: definition.FieldTypeString}},
+    ResourceIDField: "key_id",
+    Payload:         definition.FieldTypeObject,
+  },
+  Output: model.APIKeyOutputSchema() }
+```
+
+---
+
+## 6. Custom response shapes (revealing a once-only secret)
+
+You **cannot** `doc.Set()` an arbitrary field onto a container-backed
+`document.Document` — it's schema-bound, unknown paths error. To return a
+field that isn't in the collection (e.g. the raw API key, shown once on
+create/rotate), build a custom output DTO that embeds the public projection
+and declares the extra field:
+
+```go
+type APIKeyCreatedOutput struct {
+    document.DocumentModel `json:"-" anansi:"-"`
+    APIKeyPublic
+    Key string `anansi:"key,required=false" json:"key,omitempty"`
+}
+```
+
+Then populate it by binding the created model into the public projection and
+re-marshaling:
+
+```go
+func keyDocWithSecret(ctx context.Context, k *model.SystemAPIKey, rawKey string) (*document.Document, error) {
+    var pub model.APIKeyPublic
+    d, err := k.Document()
+    if err != nil { return nil, err }
+    if err := d.BindTo(&pub); err != nil { return nil, err }
+    out := document.New(&model.APIKeyCreatedOutput{APIKeyPublic: pub, Key: rawKey})
+    return out.Document()
 }
 ```
 
 ---
 
-## 4. Why DTO structs and not `map[string]any`
+## 7. Domain methods on the model (`*_utils.go`)
 
-The short answer: **"Have you met `UpdateFrom`?"** Working with raw documents
-and maps bypasses everything go-anansi gives you.
+Add domain logic as methods on the generated collection in a hand-written
+`model/<feature>_utils.go` file. Two patterns, both typed:
 
-| `map[string]any` | DTO structs |
-| --- | --- |
-| No compile-time checks; typo'd keys silently no-op | Field names checked at compile time |
-| Update semantics are your problem | `UpdateFrom[*UserUpdate]` skips zero fields for you |
-| No validation without extra code | `Validate` / schema-driven validation for free |
-| Spreads field names as string literals across the codebase | Field names live in one schema |
-| Outputs leak fields unless you remember to scrub | `UserPublic` projection excludes `password` by construction |
-
-Typed partial update:
+**Full create** — build the model with `document.New` and call `Create`:
 
 ```go
-updated, err := users.UpdateFrom[*schema.UserUpdate, *schema.UserPublic](ctx, id, &input.UserUpdate)
-```
-
-Typed full/small updates via the model type:
-
-```go
-update := data.New(&schema.SystemUser{Email: email})
-m.Update(ctx, id, update)
-```
-
-Both routes skip zero fields and never clobber the `DocumentModel` system
-embed (`_id_` / `_metadata_`) — something a hand-rolled `map[string]any`
-merge almost certainly gets wrong.
-
-> If you need to inspect *which* fields a struct would update, use
-> `data.NewPartialDocumentFromStruct(&input.UserUpdate, ctx)` and check
-> `len(patch.ToMap())` — still no map[string]any plumbing.
-
----
-
-## 5. Extending model functionality
-
-Generated `ModelCollection` gives you the generic CRUD (see go-anansi's
-`docs/codegeneration.md` §4):
-
-| Method | Behaviour |
-| --- | --- |
-| `Create(ctx, doc P)` / `CreateMany` | Persist, return hydrated model |
-| `FindByID(ctx, id)` / `Read(ctx, q)` | Read into `P` |
-| `Update(ctx, id, update P)` / `UpdateMany` | Partial update, zero fields skipped |
-| `Replace(ctx, id, replacement P)` | Full replacement |
-| `DeleteByID` / `DeleteMany` | Delete |
-| `ReadAs[R]` / `CreateFrom[R]` / `UpdateFrom[R]` | Shape operations over projections |
-
-Domain logic goes in a **hand-written extension file** in the schema package,
-e.g. `system_user_utils.go`, as methods on the model:
-
-```go
-func (m *SystemUsers) Register(ctx context.Context, email, password, name, tenantID string, data map[string]any) (*SystemUser, error) {
-    // query existing, hash password, then:
-    user := data.New(&SystemUser{
-        Email: email, Password: hashed, Name: name,
-        Disabled: &minusOne, TokenVersion: &zero,
+func (m *SystemAPIKeys) CreateKey(ctx context.Context, key *GeneratedKey, userID string, req *APIKeyCreate) (*SystemAPIKey, error) {
+    active := "active"
+    usage := int64(0)
+    doc := document.New(&SystemAPIKey{
+        Name: req.Name, UserID: userID, Prefix: key.Prefix, Hash: key.Hash,
+        Operations: req.Operations, Status: &active, Usage: &usage,
+        Limits: req.Limits, Ip: req.Ip, Environment: req.Environment,
     })
-    return m.Create(ctx, user)
+    if req.Expiry != nil { doc.Expiry = req.Expiry }
+    return m.ModelCollection.Create(ctx, doc)
 }
+```
 
-func (m *SystemUsers) ChangePassword(ctx context.Context, id, newPassword string) error {
-    hashed, _ := runtime.HashPassword(newPassword)
-    _, err := m.Update(ctx, id, data.New(&SystemUser{Password: hashed}))
-    return err
-}
+**Partial update** — use `UpdateFrom` with the projection:
 
-func (m *SystemUsers) IncrementTokenVersion(ctx context.Context, id string) error {
-    user, _ := m.GetByID(ctx, id)
-    next := int64(1)
-    if user.TokenVersion != nil { next = *user.TokenVersion + 1 }
-    _, err := m.Update(ctx, id, data.New(&SystemUser{TokenVersion: &next}))
-    return err
+```go
+func (m *SystemAPIKeys) UpdateKey(ctx context.Context, keyID, userID string, req *APIKeyUpdate) (*SystemAPIKey, error) {
+    if _, err := m.Get(ctx, keyID, userID); err != nil { return nil, err } // ownership
+    return m.UpdateFrom[*APIKeyUpdate, *SystemAPIKey](ctx, keyID, req)
 }
 ```
 
 Rules of thumb:
 
-- **`data.New(&T{...})` sets `parent`**, which makes `Patch()`,
-  `MustDocument()`, and `ID()` work on the result. Always route creates and
-  updates through it.
-- **Never use map-based updates.** Prefer `Update` with a struct shape or
-  `UpdateFrom` with a projection.
-- **Bootstrap default state explicitly.** `disabled=-1` (enabled),
-  `token_version=0`, `verified=false` are the domain defaults — set them in
-  `Register`, don't rely on the DB.
-- **Keep accessors returning interfaces when they must cross boundaries.**
-  Go has no covariant returns: a method declared as `GetActiveByID(...)
-  (abstract.UserIdentity, error)` must return the interface, not `*SystemUser`.
-  Implement the interface on the model struct with plain getters.
+- **Always route creates/updates through `document.New` / `UpdateFrom`** so the
+  `DocumentModel` is wired — never map-based updates.
+- **Ownership-scope reads** with the query DSL:
+  `query.NewQueryBuilder().Where(data.DocumentIDField).Eq(keyID).Where("userId").Eq(userID)`.
+- **Do not shadow the ModelCollection's `Create`/`Update`** — name your domain
+  methods `CreateKey`/`UpdateKey` (or call `m.ModelCollection.Create`/`m.Update`
+  explicitly inside). `Delete`/`Get`/`List` don't collide, so they're fine.
+- **Set domain defaults explicitly** (`status: "active"`, `usage: 0`) — don't
+  rely on the DB.
+- **Best-effort side effects are best-effort**: don't fail a read just because
+  a usage counter failed to bump.
 
 ---
 
-## 6. Deriving runtime schemas for DTOs
+## 8. Wiring
 
-The dispatch layer needs a `*definition.Schema` for every registration input
-and output. Derive it from the DTO struct with `dispatch.SchemaFromType` so it
-never drifts from the Go type.
-
-In `core/runtime/dispatch/input.go`:
-
-- `dispatch.SchemaFromType[T]()` — derives a meta-schema from the `anansi`
-  tags of `T`.
-- `dispatch.SchemaFromTypeWithTag[T](tag)` — same, but resolves field
-  names/paths from `tag` (use `"input"` for input DTOs). An optional
-  `omitSystemFields=true` skips the embedded `DocumentModel`.
-
-Export one accessor per DTO in the schema package:
+`core/feature/provider.go` initializes models once at startup:
 
 ```go
-func UserOutputSchema() *definition.Schema      { return dispatch.SchemaFromType[schema.UserOutput]() }
-func UserGetInputSchema() *definition.Schema    { return dispatch.SchemaFromTypeWithTag[UserGetInput]("input") }
-func UserUpdateInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[UserUpdateInput]("input", true) }
+apiKeys, err := apikeysmodel.InitSystemAPIKeysModel(ps.Persist, ps.Logger)
+if err != nil { return fmt.Errorf("init system api keys model: %w", err) }
+ps.APIKeys = apiKeys
 ```
 
-Wire them into the feature registration (see `users/feature.go`):
+`ProviderSet` holds `APIKeys *apikeysmodel.SystemAPIKeys` and hands it to both
+`apikeys.Registrations(...)` and any cross-feature consumers.
 
-```go
-Input:  runtime.Input{ Schema: schema.UserUpdateInputSchema(),
-    Arguments: []abstract.ArgDef{{Name: "user_id", ...}}, Payload: definition.FieldTypeObject },
-Output: schema.UserOutputSchema(),
-```
-
-> Use `"input"` tags for anything bound from the incoming message, `anansi`
-> tags for outputs. This mirrors the two-tag contract from §2 and guarantees
-> the runtime schema, the struct, and the wire format stay in sync.
+**Cross-feature consumers must be converted too.** When `apikeys` moved from a
+hand-rolled `APIKeyModel` to the generated `*model.SystemAPIKeys`, we updated:
+`core/feature/provider.go` (init + field type) and `core/feature/auth/` —
+`feature.go` (Dependencies type), `token.go` (`CreateKey` + `APIKeyCreate`),
+`adapters.go` (authenticator's model field). The call sites changed:
+`Create(ctx, key, uid, &CreateKeyRequest{...})` →
+`CreateKey(ctx, key, uid, &model.APIKeyCreate{...})`, `Expiry` went from
+`string` to `*string`.
 
 ---
 
-## Checklist
+## 9. Sanitization
 
-When adding a new persistence-backed feature:
+`core/internal/boot/persistence.go` configures global sanitization: `hash`,
+`secret`, `token`, `api[_-]?key`, `credential` (and `password`) patterns are
+redacted by the HTTP layer, with scoped overrides per collection. The HTTP
+serializer always calls `Sanitize()`. Still, **keep secrets out of output
+structurally** via output projections (`APIKeyPublic` excludes `hash`) — don't
+rely on redaction alone.
 
-1. Write `<feature>/schema/<name>.schema.json` (stable UUID keys, required/nullable correct).
-2. `anansi codegen golang` to emit the model + projections.
-3. Add `input` tags to projections that arrive via messages; add a password-free output projection.
-4. `anansi migrate generate --dry-run`, then `anansi migrate generate`.
-5. Write DTOs + `*Schema()` accessors in the schema package.
-6. Write `*_utils.go` domain methods on the model (typed updates only).
-7. Write handlers that `BindToTag(&dto, "input")` and `UpdateFrom`/`CreateFrom`.
-8. Register messages in `feature.go` with the derived schemas.
-9. Build, vet, and run the feature tests.
+---
+
+## 10. Testing
+
+Mirror `core/feature/users/model/system_user_test.go` and
+`core/feature/apikeys/handler_test.go`:
+
+```go
+func testModel(t *testing.T) *model.SystemAPIKeys {
+    t.Helper()
+    model.DangerouslyResetSystemAPIKeysModel()
+    m, err := model.InitSystemAPIKeysModel(testutil.NewPersistence(t), zap.NewNop())
+    if err != nil { t.Fatalf("InitSystemAPIKeysModel: %v", err) }
+    return m
+}
+
+func testMsg(name string, input data.Documenter) abstract.Message {
+    return dispatch.NewMessage(name, context.Background(), input)
+}
+```
+
+- The generated singleton pins the first persistence, so tests **must** call
+  `DangerouslyResetXxxModel()` first, or construct fresh.
+- Build message inputs with `data.MustNewDocument(map[string]any{...})` or
+  `testutil.InputDoc(t, schema, json)` for schema-derived input.
+- For `userID`-driven handlers, attach claims via
+  `runtimecontext.ContextWithClaims(ctx, &abstract.Claims{UserID: ...})`.
+- **Delete `zz_probe_test.go`-style scratch files** — they're debug leftovers
+  that break the build the moment APIs change.
+
+---
+
+## Checklist — converting or adding a feature
+
+1. Write `model/<name>.schema.json` with projections (input tags on input
+   projections, secret-free output projection).
+2. `anansi migrate generate --dry-run` → `anansi migrate generate` →
+   `anansi codegen golang`. Check `git diff --stat` for unrelated regeneration.
+3. Write `model/data_transfer_objects.go` — bind projections directly
+   (`SchemaFromTypeWithTag[Projection]("input", true)`), small arg DTOs for
+   argument-only inputs, output envelopes.
+4. Write `model/<feature>_utils.go` — domain methods, ownership-scoped reads,
+   `document.New` / `UpdateFrom`, no `Create`/`Update` shadowing.
+5. Write `handler.go` — `BindToTag(&input, "input")`, call the model.
+6. Update `feature.go` — registrations with derived schemas +
+   `Arguments`/`ResourceIDField`/`Payload`.
+7. Update `provider.go` (+ any cross-feature consumers like `auth`).
+8. Migrate/rewrite tests; delete scratch tests.
+9. `go build ./... && go test ./core/feature/<feature>/...`.

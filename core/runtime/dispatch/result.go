@@ -6,7 +6,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-func NewDocumentResult(doc *data.Document) *abstract.Result {
+func NewDocumentResult(doc data.Documenter) *abstract.Result {
 	return &abstract.Result{Kind: abstract.ResultKindDocument, Document: doc}
 }
 
@@ -22,7 +22,7 @@ func NewBlobResult(blob abstract.Blob) *abstract.Result {
 	return &abstract.Result{Kind: abstract.ResultKindBlob, Blob: blob}
 }
 
-func NewDocumentChannelResult(ch <-chan *data.Document) *abstract.Result {
+func NewDocumentChannelResult(ch <-chan data.Documenter) *abstract.Result {
 	return &abstract.Result{Kind: abstract.ResultKindDocumentChannel, DocumentChannel: ch}
 }
 

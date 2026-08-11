@@ -1,0 +1,14 @@
+{
+  "name": "_metadata_",
+  "providers": {
+    "trace": {
+      "description": "Tracing correlation ids",
+      "fields": {
+        "019fdc3a-fce9-7d1c-acec-ed552a5254b4": {
+          "name": "trace_id",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

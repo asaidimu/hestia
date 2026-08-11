@@ -14,16 +14,16 @@ type genericMessage struct {
 	id      string
 	name    string
 	ctx     context.Context
-	input   *data.Document
-	inputCh <-chan *data.Document
+	input   data.Documenter
+	inputCh <-chan data.Documenter
 	blobCh  <-chan abstract.Blob
 }
 
 func (m *genericMessage) ID() string                             { return m.id }
 func (m *genericMessage) Name() string                           { return m.name }
 func (m *genericMessage) Context() context.Context               { return m.ctx }
-func (m *genericMessage) Input() *data.Document                  { return m.input }
-func (m *genericMessage) InputChannel() <-chan *data.Document    { return m.inputCh }
+func (m *genericMessage) Input() data.Documenter                 { return m.input }
+func (m *genericMessage) InputChannel() <-chan data.Documenter    { return m.inputCh }
 func (m *genericMessage) BlobInputChannel() <-chan abstract.Blob { return m.blobCh }
 
 func (m *genericMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
@@ -34,7 +34,7 @@ func (m *genericMessage) UserAgent() string  { return runtimecontext.GetUserAgen
 func (m *genericMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
 func (m *genericMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
 
-func NewMessage(name string, ctx context.Context, input *data.Document) abstract.Message {
+func NewMessage(name string, ctx context.Context, input data.Documenter) abstract.Message {
 	return &genericMessage{id: MustNewID(), name: name, ctx: ctx, input: input}
 }
 

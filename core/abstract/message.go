@@ -9,8 +9,8 @@ type Message interface {
 	ID() string
 	Name() string
 	Context() context.Context
-	Input() *data.Document
-	InputChannel() <-chan *data.Document
+	Input() data.Documenter
+	InputChannel() <-chan data.Documenter
 	BlobInputChannel() <-chan Blob
 
 	TenantID() string

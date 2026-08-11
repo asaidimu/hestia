@@ -13,8 +13,8 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/internal/feature"
-	"github.com/asaidimu/hestia/core/migrations"
+	"github.com/asaidimu/hestia/core/feature"
+	"github.com/asaidimu/hestia/core/internal/migrations"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )

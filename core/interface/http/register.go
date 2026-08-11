@@ -3,10 +3,12 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
 	"github.com/asaidimu/hestia/core/abstract"
@@ -57,18 +59,33 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	}
 	pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
 
+	var pool *document.DocumentPool
+	if reg.Input.Schema != nil {
+		p, err := document.NewDocumentPool(reg.Input.Schema)
+		if err != nil {
+			panic(fmt.Sprintf("install %s: input pool: %v", reg.Name, err))
+		}
+		pool = p
+	}
+
 	if _, ok := o.noRefreshCommands[reg.Name]; ok {
 		o.noRefreshOps[pattern] = struct{}{}
 	}
 
 	o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
-		doc := buildDoc(ctx, req, reg.Input)
+		doc, err := buildDoc(ctx, req, reg.Input, pool)
+		if err != nil {
+			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues([]common.Issue{{
+				Code:    "INVALID_INPUT",
+				Message: err.Error(),
+			}})
+		}
 
 		if issues, ok := dispatch.ValidateInputDocument(reg.Input.Schema, doc); !ok {
 			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
 		}
 
-		if reg.Input.ResourceIDField != "" {
+		if reg.Input.ResourceIDField != "" && doc != nil {
 			if rid, ok := doc.GetOr("arguments."+reg.Input.ResourceIDField, "").(string); ok && rid != "" {
 				ctx = runtimecontext.ContextWithResourceID(ctx, rid)
 			}
@@ -106,8 +123,11 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	}))
 }
 
-func buildDoc(ctx context.Context, req Request, input runtime.Input) *data.Document {
-	return BuildInputDocument(ctx, input, req.PathParams, req.Query, req.Body)
+func buildDoc(ctx context.Context, req Request, input runtime.Input, pool *document.DocumentPool) (data.Documenter, error) {
+	if pool == nil {
+		return nil, nil
+	}
+	return BuildInputDocument(pool, input, req)
 }
 
 func serializeResponse(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) Response {
@@ -162,7 +182,7 @@ func streamChannel[T any](src <-chan T, transform func(T) any) (Response, bool) 
 }
 
 func serializeStreamResult(result *abstract.Result) (Response, bool) {
-	if resp, ok := streamChannel(result.DocumentChannel, func(d *data.Document) any {
+	if resp, ok := streamChannel(result.DocumentChannel, func(d data.Documenter) any {
 		sane, _ := d.Sanitize()
 		return sane
 	}); ok {
@@ -181,14 +201,14 @@ func blobResponse(blob abstract.Blob) Response {
 	}
 }
 
-func drainChannelResponse(docCh <-chan *data.Document) Response {
-	var docs []*data.Document
+func drainChannelResponse(docCh <-chan data.Documenter) Response {
+	var docs []data.Documenter
 	for d := range docCh {
 		sane, _ := d.Sanitize()
 		docs = append(docs, sane)
 	}
 	if docs == nil {
-		docs = []*data.Document{}
+		docs = []data.Documenter{}
 	}
 	return Response{Status: statusOK, Body: map[string]any{"items": docs}}
 }
@@ -211,7 +231,7 @@ func createStatus(intent abstract.Verb) int {
 	return statusOK
 }
 
-func locationHeader(intent abstract.Verb, doc *data.Document, httpPath string) map[string][]string {
+func locationHeader(intent abstract.Verb, doc data.Documenter, httpPath string) map[string][]string {
 	if intent != abstract.Create {
 		return nil
 	}
@@ -242,7 +262,7 @@ func serializeOutputField(result *abstract.Result, output *definition.Schema, in
 		}, true
 	}
 	if result.Documents != nil && fieldExists(output, "documents") {
-		items := make([]*data.Document, 0, len(result.Documents))
+		items := make([]data.Documenter, 0, len(result.Documents))
 		for _, d := range result.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)
@@ -251,7 +271,7 @@ func serializeOutputField(result *abstract.Result, output *definition.Schema, in
 		return Response{Status: statusOK, Body: items}, true
 	}
 	if result.Page != nil && fieldExists(output, "page") {
-		items := make([]*data.Document, 0, len(result.Page.Documents))
+		items := make([]data.Documenter, 0, len(result.Page.Documents))
 		for _, d := range result.Page.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)

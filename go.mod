@@ -3,9 +3,8 @@ module github.com/asaidimu/hestia
 go 1.27rc1
 
 require (
-	github.com/asaidimu/blobs v1.2.1
-	github.com/asaidimu/go-anansi/v8 v8.5.1
-	github.com/asaidimu/go-events v1.1.0
+	github.com/asaidimu/blobs v1.3.1
+	github.com/asaidimu/go-anansi/v8 v8.5.6
 	github.com/asaidimu/go-events/v2 v2.0.1
 	github.com/asaidimu/go-iam/v2 v2.0.0
 	github.com/google/cel-go v0.26.1
@@ -16,7 +15,7 @@ require (
 	github.com/netresearch/go-cron v0.15.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	github.com/valyala/fasthttp v1.72.0
+	github.com/valyala/fasthttp v1.73.0
 	github.com/wailsapp/wails/v2 v2.12.0
 	github.com/wneessen/go-mail v0.8.1
 	go.uber.org/zap v1.28.0
@@ -27,8 +26,9 @@ require (
 	cel.dev/expr v0.24.0 // indirect
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
-	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
+	github.com/asaidimu/go-events v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -50,7 +50,8 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/kalbasit/fastcdc v1.0.0 // indirect
+	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo/v4 v4.13.3 // indirect
@@ -82,7 +83,7 @@ require (
 	go.etcd.io/bbolt v1.5.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240826202546-f6391c0de4c7 // indirect

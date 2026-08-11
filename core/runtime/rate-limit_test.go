@@ -26,8 +26,8 @@ type mockMessage struct {
 func (m *mockMessage) ID() string                             { return "test-id" }
 func (m *mockMessage) Name() string                           { return m.name }
 func (m *mockMessage) Context() context.Context               { return m.ctx }
-func (m *mockMessage) Input() *data.Document                  { return nil }
-func (m *mockMessage) InputChannel() <-chan *data.Document    { return nil }
+func (m *mockMessage) Input() data.Documenter                  { return nil }
+func (m *mockMessage) InputChannel() <-chan data.Documenter    { return nil }
 func (m *mockMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m *mockMessage) TenantID() string                       { return m.tenantID }
 func (m *mockMessage) TraceID() string                        { return "" }

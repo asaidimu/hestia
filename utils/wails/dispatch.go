@@ -14,6 +14,7 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/hestia/core/abstract"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
@@ -396,7 +397,11 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ctx = a.authenticatedContext(ctx, claims)
 
-		doc := buildDoc(ctx, r, params, route.input)
+		doc, err := buildDoc(ctx, r, params, route.input)
+		if err != nil {
+			writeError(w, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues([]common.Issue{{Code: "INVALID_INPUT", Message: err.Error()}}))
+			return
+		}
 
 		if issues, ok := dispatch.ValidateInputDocument(route.input.Schema, doc); !ok {
 			writeError(w, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues))
@@ -432,7 +437,7 @@ func buildResponse(result *abstract.Result) Response {
 		resp.Data = map[string]any{"data": sane, "metadata": meta}
 
 	case result.Documents != nil:
-		items := make([]*data.Document, 0, len(result.Documents))
+		items := make([]data.Documenter, 0, len(result.Documents))
 		for _, d := range result.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)
@@ -444,7 +449,7 @@ func buildResponse(result *abstract.Result) Response {
 		if p := result.Page.Pagination; p != nil {
 			meta["page"] = p
 		}
-		items := make([]*data.Document, 0, len(result.Page.Documents))
+		items := make([]data.Documenter, 0, len(result.Page.Documents))
 		for _, d := range result.Page.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)
@@ -459,12 +464,22 @@ func buildResponse(result *abstract.Result) Response {
 	return resp
 }
 
-func buildDoc(ctx context.Context, r *http.Request, pathParams map[string]string, input abstract.Input) *data.Document {
+func buildDoc(ctx context.Context, r *http.Request, pathParams map[string]string, input abstract.Input) (data.Documenter, error) {
 	var body []byte
 	if r.Body != nil {
 		body, _ = io.ReadAll(r.Body)
 	}
-	return httpapi.BuildInputDocument(ctx, input, pathParams, r.URL.Query(), body)
+	pool, err := document.NewDocumentPool(input.Schema)
+	if err != nil {
+		return nil, err
+	}
+	req := httpapi.Request{
+		Body:       body,
+		PathParams: pathParams,
+		Query:      r.URL.Query(),
+		Headers:    map[string][]string{"Content-Type": {r.Header.Get("Content-Type")}},
+	}
+	return httpapi.BuildInputDocument(pool, input, req)
 }
 
 func writeResult(w http.ResponseWriter, result *abstract.Result, _ abstract.Verb) {
@@ -495,7 +510,7 @@ func writeResult(w http.ResponseWriter, result *abstract.Result, _ abstract.Verb
 		json.NewEncoder(w).Encode(map[string]any{"data": sane, "metadata": map[string]any{}})
 
 	case result.Documents != nil:
-		items := make([]*data.Document, 0, len(result.Documents))
+		items := make([]data.Documenter, 0, len(result.Documents))
 		for _, d := range result.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)
@@ -508,7 +523,7 @@ func writeResult(w http.ResponseWriter, result *abstract.Result, _ abstract.Verb
 		if p := result.Page.Pagination; p != nil {
 			meta["page"] = p
 		}
-		items := make([]*data.Document, 0, len(result.Page.Documents))
+		items := make([]data.Documenter, 0, len(result.Page.Documents))
 		for _, d := range result.Page.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
 				items = append(items, sane)
