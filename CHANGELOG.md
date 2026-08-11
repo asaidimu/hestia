@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/asaidimu/hestia/compare/v1.4.1...v1.4.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* **core:** migrate features to model-based architecture and update schema management ([542d9f9](https://github.com/asaidimu/hestia/commit/542d9f943c277bcb252c9da3c5d2d54ef55e6b9e))
+
 ## [1.4.1](https://github.com/asaidimu/hestia/compare/v1.4.0...v1.4.1) (2026-07-30)
 
 
