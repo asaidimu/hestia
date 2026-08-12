@@ -1,3 +1,10 @@
+## [1.4.4](https://github.com/asaidimu/hestia/compare/v1.4.3...v1.4.4) (2026-08-12)
+
+
+### Bug Fixes
+
+* **blobs:** add resumable upload protocol ([0e8581b](https://github.com/asaidimu/hestia/commit/0e8581b96ee64df6be97dd6a41dad7abb42e427e))
+
 ## [1.4.3](https://github.com/asaidimu/hestia/compare/v1.4.2...v1.4.3) (2026-08-12)
 
 
