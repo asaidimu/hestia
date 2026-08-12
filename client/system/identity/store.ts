@@ -2,16 +2,29 @@ import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { type Transport } from "../../core/client";
 import { createPagedController } from "../../core/pager";
-import type { Document, DocumentStore, Page, PagedData, StoreEvent } from "../../core/types";
+import type {
+  Document,
+  DocumentStore,
+  Page,
+  PagedData,
+  StoreEvent,
+} from "../../core/types";
 import type { UserData } from "./types";
 
-export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, string, QueryDSL<UserData>, Record<string, unknown>, string, string, Record<string, unknown>> {
+export class HestiaUsers implements DocumentStore<
+  UserData,
+  QueryDSL<UserData>,
+  string,
+  QueryDSL<UserData>,
+  Record<string, unknown>,
+  string,
+  string,
+  Record<string, unknown>
+> {
   private pagerOptions: any = {};
   private pager: PagedData<UserData>;
 
-  constructor(
-    private client: Transport,
-  ) {
+  constructor(private client: Transport) {
     this.pager = createPagedController<UserData>(
       "users",
       new ReactiveDataStore<any>({}),
@@ -59,7 +72,10 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
     }
   }
 
-  async update(props: { data: Partial<UserData>; options?: string }): Promise<Document<UserData> | undefined> {
+  async update(props: {
+    data: Partial<UserData>;
+    options?: string;
+  }): Promise<Document<UserData> | undefined> {
     const id = props.options!;
     const res = await this.client.dispatch<{ data: Document<UserData> }>(
       "system:users:user:update",
@@ -74,15 +90,30 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
     });
   }
 
-  async create(_props: { data: Partial<UserData> }): Promise<Document<UserData> | undefined> {
-    throw new Error("User creation requires email/password/name, use register endpoint");
+  async create({
+      data: payload,
+  }: {
+    data: Partial<UserData>;
+  }): Promise<Document<UserData> | undefined> {
+    if (!payload) {
+      throw new Error("User creation requires email/password/name");
+    }
+    const res = await this.client.dispatch<{
+      data: Document<UserData>;
+    }>("system:users:user:create", { payload });
+    return res.data.data;
   }
 
-  async upload(_props: { file: File }): Promise<Document<UserData> | undefined> {
+  async upload(_props: {
+    file: File;
+  }): Promise<Document<UserData> | undefined> {
     throw new Error("Upload not supported for users");
   }
 
-  async subscribe(_scope: string, _callback: (event: StoreEvent) => void): Promise<() => void> {
+  async subscribe(
+    _scope: string,
+    _callback: (event: StoreEvent) => void,
+  ): Promise<() => void> {
     throw new Error("Subscription not supported for users");
   }
 
@@ -90,7 +121,10 @@ export class HestiaUsers implements DocumentStore<UserData, QueryDSL<UserData>, 
     throw new Error("Notify not supported for users");
   }
 
-  stream(_options: Record<string, unknown>, _onStreamChange: () => void): {
+  stream(
+    _options: Record<string, unknown>,
+    _onStreamChange: () => void,
+  ): {
     stream: () => AsyncIterable<Document<UserData>>;
     cancel: () => void;
     status: () => "active" | "cancelled" | "completed";

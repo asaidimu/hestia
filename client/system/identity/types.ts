@@ -6,12 +6,13 @@ export interface UserData {
   verified: boolean
   permissions: string[]
   tenant_id: string
+  password?: string
   deleted?: string | null
 }
 
 export type UserIdentity = Document<UserData>
 
-export interface CreateUserRequest {
+export interface CreateUserRequest extends Record<string,unknown> {
   email: string
   password: string
   name: string
