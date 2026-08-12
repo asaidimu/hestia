@@ -280,7 +280,7 @@ func (m *SystemModule) registerExistingBlobHandlers(ctx context.Context) error {
 				return fmt.Errorf("seed operation %s: %w", opName, err)
 			}
 		}
-		if err := blobs.RegisterBlobHandlers(m.disp, m.providers.BlobSvc, ns.ID); err != nil {
+		if err := blobs.RegisterBlobHandlers(m.disp, m.providers.BlobSvc, m.providers.BlobSvc.Staging(), ns.ID); err != nil {
 			return fmt.Errorf("register blob handlers for %q: %w", ns.ID, err)
 		}
 	}
@@ -367,6 +367,12 @@ func (m *SystemModule) Start(ctx context.Context) error {
 
 func (m *SystemModule) Stop(ctx context.Context) error {
 	m.providers.Scheduler.Stop()
+	if m.providers.BlobSvc != nil {
+		if err := m.providers.BlobSvc.Close(); err != nil {
+			m.opts.Logger.Warn("close blob service", zap.Error(err))
+		}
+		m.providers.BlobSvc = nil
+	}
 	m.opts.Logger.Info("system module stopped")
 	return nil
 }

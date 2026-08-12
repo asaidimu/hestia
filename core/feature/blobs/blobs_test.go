@@ -201,12 +201,14 @@ func TestMustDoc(t *testing.T) {
 
 func TestUploadBlobHandler(t *testing.T) {
 	ctx := context.Background()
-	store := mockBlobStore{ns: mockBlobNamespace{}}
+	store := mockBlobStore{ns: mockBlobNamespace{
+		headErr: &bserrors.NotFoundError{NamespaceID: "test-ns", Key: "a.txt"},
+	}}
 	handler := blobs.NewUploadBlobHandler(store)
 
 	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"},
-		"content_type": "text/plain",
+		"headers": {"content_type": "text/plain"},
 		"payload": "aGVsbG8gd29ybGQ="
 	}`)
 	msg := testMessage{ctx: ctx, input: input}
@@ -225,6 +227,46 @@ func TestUploadBlobHandler(t *testing.T) {
 	size, _ := result.Document.GetOr("size", int64(0)).(int64)
 	if size != int64(len("hello world")) {
 		t.Errorf("size = %d, want %d", size, len("hello world"))
+	}
+}
+
+func TestUploadBlobHandlerRejectsExistingKey(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{}} // Head succeeds → key exists
+	handler := blobs.NewUploadBlobHandler(store)
+
+	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+		"arguments": {"ns": "test-ns", "key": "a.txt"},
+		"payload": "aGVsbG8gd29ybGQ="
+	}`)
+
+	_, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err == nil {
+		t.Fatal("expected error for existing key without overwrite")
+	}
+	var sysErr *common.SystemError
+	if !errors.As(err, &sysErr) || sysErr.Code != "ALREADY_EXISTS" {
+		t.Errorf("expected ALREADY_EXISTS, got %v", err)
+	}
+}
+
+func TestUploadBlobHandlerOverwriteAllowsExistingKey(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{}} // Head succeeds → key exists
+	handler := blobs.NewUploadBlobHandler(store)
+
+	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+		"arguments": {"ns": "test-ns", "key": "a.txt"},
+		"modifiers": {"overwrite": "true"},
+		"payload": "aGVsbG8gd29ybGQ="
+	}`)
+
+	result, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err != nil {
+		t.Fatalf("upload with overwrite: %v", err)
+	}
+	if result == nil || result.Document == nil {
+		t.Fatal("expected non-nil result document")
 	}
 }
 

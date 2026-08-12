@@ -42,6 +42,7 @@ type BlobNamespaceInfo struct {
 
 type BlobNamespace interface {
 	Put(ctx context.Context, key, contentType string, reader io.Reader) (*BlobMeta, error)
+	PutCustom(ctx context.Context, key, contentType string, reader io.Reader, custom map[string]string) (*BlobMeta, error)
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
 	Head(ctx context.Context, key string) (*BlobMeta, error)
 	UpdateMetadata(ctx context.Context, key string, custom map[string]string) (*BlobMeta, error)

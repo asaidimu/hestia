@@ -16,6 +16,7 @@ type Input struct {
 	Schema          *definition.Schema
 	Arguments       []ArgDef
 	Modifiers       map[string]definition.FieldType
+	HeaderFields    map[string]string
 	Payload         definition.FieldType
 	ResourceIDField string
 }

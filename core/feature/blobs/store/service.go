@@ -6,16 +6,20 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	bbolt "github.com/asaidimu/blobs/index/backend"
 	"github.com/asaidimu/blobs/object"
+	"github.com/asaidimu/blobs/staging"
 	"github.com/asaidimu/blobs/store"
 	"go.uber.org/zap"
 )
 
 type Service struct {
-	s      *store.Store
-	logger *zap.Logger
+	s          *store.Store
+	staging    *staging.Manager
+	stopReaper func()
+	logger     *zap.Logger
 }
 
 func NewService(dataDir string, logger *zap.Logger) (*Service, error) {
@@ -38,10 +42,28 @@ func NewService(dataDir string, logger *zap.Logger) (*Service, error) {
 		return nil, fmt.Errorf("blobs: open store: %w", err)
 	}
 
-	return &Service{s: s, logger: logger}, nil
+	stagingDir := filepath.Join(dataDir, "staging")
+	mgr, err := staging.NewManager(stagingDir)
+	if err != nil {
+		_ = s.Close()
+		return nil, fmt.Errorf("blobs: init staging manager: %w", err)
+	}
+	// Reap abandoned upload sessions: every 5 minutes, discard anything idle
+	// for more than 6 hours.
+	stopReaper := mgr.StartReaper(5*time.Minute, 6*time.Hour)
+
+	return &Service{s: s, staging: mgr, stopReaper: stopReaper, logger: logger}, nil
+}
+
+func (svc *Service) Staging() *staging.Manager {
+	return svc.staging
 }
 
 func (svc *Service) Close() error {
+	if svc.stopReaper != nil {
+		svc.stopReaper()
+		svc.stopReaper = nil
+	}
 	return svc.s.Close()
 }
 
@@ -104,7 +126,11 @@ type nsHandle struct {
 }
 
 func (h *nsHandle) Put(ctx context.Context, key, contentType string, reader io.Reader) (*BlobMeta, error) {
-	info, err := h.ns.Put(ctx, key, reader, store.PutOptions{ContentType: contentType})
+	return h.PutCustom(ctx, key, contentType, reader, nil)
+}
+
+func (h *nsHandle) PutCustom(ctx context.Context, key, contentType string, reader io.Reader, custom map[string]string) (*BlobMeta, error) {
+	info, err := h.ns.Put(ctx, key, reader, store.PutOptions{ContentType: contentType, Custom: custom})
 	if err != nil {
 		return nil, err
 	}

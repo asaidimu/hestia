@@ -38,7 +38,7 @@ var InputMetaSchemaJSON = []byte(`{
 					"description": "Allowed field names",
 					"required": true,
 					"type": "enum",
-					"schema": { "type": "string", "values": ["arguments", "modifiers", "payload", "_id_", "_metadata_"] }
+					"schema": { "type": "string", "values": ["arguments", "modifiers", "headers", "payload", "_id_", "_metadata_"] }
 				},
 				"type": {
 					"name": "type",

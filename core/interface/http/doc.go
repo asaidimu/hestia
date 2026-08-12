@@ -39,12 +39,20 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 		buf.Write(val)
 	}
 
-	if cts := req.Headers["Content-Type"]; len(cts) > 0 && rootField(input.Schema, "content_type") {
-		ct, err := json.Marshal(cts[0])
-		if err != nil {
-			return nil, err
+	if len(input.HeaderFields) > 0 && rootField(input.Schema, "headers") {
+		headers := make(map[string]any)
+		for header, field := range input.HeaderFields {
+			if vals, ok := req.Headers[header]; ok && len(vals) > 0 {
+				headers[field] = vals[0]
+			}
 		}
-		writeSection("content_type", ct)
+		if len(headers) > 0 {
+			headersJSON, err := json.Marshal(headers)
+			if err != nil {
+				return nil, err
+			}
+			writeSection("headers", headersJSON)
+		}
 	}
 
 	if rootField(input.Schema, "arguments") {

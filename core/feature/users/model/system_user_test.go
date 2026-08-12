@@ -79,6 +79,90 @@ func TestUserModelUpdate(t *testing.T) {
 	}
 }
 
+// TestUserModelUpdatePreservesPassword guards against partial updates wiping
+// unset fields: updating a user must never clobber the password or other
+// values that weren't part of the patch.
+func TestUserModelUpdatePreservesUnsetValues(t *testing.T) {
+	ctx := context.Background()
+	m := newTestModel(t)
+
+	user, err := m.Register(ctx, "update@example.com", "s3cret-pass", "Original", "public", map[string]any{"plan": "pro"})
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	id := user.ID
+
+	before, err := m.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	hashBefore := before.Password
+
+	t.Run("UpdateUserProfile name-only patch", func(t *testing.T) {
+		patch := &model.UserUpdate{Name: ptr("Renamed")}
+		patch.ID = id
+		updated, err := m.UpdateUserProfile(ctx, id, patch)
+		if err != nil {
+			t.Fatalf("UpdateUserProfile: %v", err)
+		}
+		if updated.Name != "Renamed" {
+			t.Errorf("name = %q, want Renamed", updated.Name)
+		}
+		if updated.Password != hashBefore {
+			t.Errorf("password hash was overwritten: got %q, want %q", updated.Password, hashBefore)
+		}
+		if updated.Email != "update@example.com" {
+			t.Errorf("email = %q, want unchanged", updated.Email)
+		}
+		if len(updated.Permissions) != 0 {
+			t.Errorf("permissions = %v, want empty (unchanged)", updated.Permissions)
+		}
+		if updated.Data == nil || updated.Data["plan"] != "pro" {
+			t.Errorf("data = %v, want preserved", updated.Data)
+		}
+		if updated.Disabled == nil || *updated.Disabled != -1 {
+			t.Errorf("disabled = %v, want preserved -1", updated.Disabled)
+		}
+		if updated.Verified == nil || *updated.Verified {
+			t.Errorf("verified = %v, want preserved false", updated.Verified)
+		}
+		if updated.TokenVersion == nil || *updated.TokenVersion != 0 {
+			t.Errorf("token_version = %v, want preserved 0", updated.TokenVersion)
+		}
+		if updated.TenantID == nil || *updated.TenantID != "public" {
+			t.Errorf("tenant_id = %v, want preserved public", updated.TenantID)
+		}
+	})
+
+	t.Run("direct Update name-only doc", func(t *testing.T) {
+		update := data.New(&model.SystemUser{Name: "Direct"})
+		if _, err := m.Update(ctx, id, update); err != nil {
+			t.Fatalf("Update: %v", err)
+		}
+		updated, err := m.GetByID(ctx, id)
+		if err != nil {
+			t.Fatalf("GetByID: %v", err)
+		}
+		if updated.Name != "Direct" {
+			t.Errorf("name = %q, want Direct", updated.Name)
+		}
+		if updated.Password != hashBefore {
+			t.Errorf("password hash was overwritten: got %q, want %q", updated.Password, hashBefore)
+		}
+		if updated.Email != "update@example.com" {
+			t.Errorf("email = %q, want unchanged", updated.Email)
+		}
+		if updated.Data == nil || updated.Data["plan"] != "pro" {
+			t.Errorf("data = %v, want preserved", updated.Data)
+		}
+		if updated.Disabled == nil || *updated.Disabled != -1 {
+			t.Errorf("disabled = %v, want preserved -1", updated.Disabled)
+		}
+	})
+}
+
+func ptr[T any](v T) *T { return &v }
+
 func TestUserModelPassword(t *testing.T) {
 	ctx := context.Background()
 	m := newTestModel(t)

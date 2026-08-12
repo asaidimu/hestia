@@ -158,6 +158,7 @@ func (ps *ProviderSet) CollectRegistrations(
 
 	all = append(all, blobs.Registrations(blobs.Dependencies{
 		BlobStore:    ps.BlobSvc,
+		Staging:      ps.BlobSvc.Staging(),
 		PolicyBridge: ps.PolicyBridge,
 		Registry:     disp,
 	})...)

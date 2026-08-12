@@ -15,6 +15,7 @@ import { HestiaLogs } from "./system/logs/store";
 import { HestiaPolicies } from "./system/policies/store";
 import { HestiaRules } from "./system/rules/store";
 import { HestiaBlobClient } from "./blobs/store";
+import type { UploadPersistence } from "./blobs/types";
 import { HestiaCapabilities } from "./system/capabilities/store";
 import { HestiaNotificationStore } from "./system/notifications/store";
 import { HestiaScheduleStore } from "./system/schedules/store";
@@ -24,6 +25,7 @@ export interface HestiaConfig {
   baseUrl: string;
   apiPrefix?: string;
   persistence?: SimplePersistence<AuthState>;
+  uploadPersistence?: UploadPersistence;
   transport?: Transport;
 }
 
@@ -95,7 +97,7 @@ export class HestiaClient {
       apiPrefix,
     );
     this.collections = new HestiaCollections(this.client);
-    this.blobs = new HestiaBlobClient(this.client, apiPrefix);
+    this.blobs = new HestiaBlobClient(this.client, apiPrefix, config.uploadPersistence);
     this.capabilities = new HestiaCapabilities(this.client)
     this.notifications = new HestiaNotificationStore(this.client)
     this.schedules = new HestiaScheduleStore(this.client)

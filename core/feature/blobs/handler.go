@@ -11,6 +11,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	bserrors "github.com/asaidimu/blobs/errors"
+	"github.com/asaidimu/blobs/staging"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	blobutil "github.com/asaidimu/hestia/core/feature/blobs/store"
@@ -38,7 +39,7 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
-func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
+func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
 		displayName, _ := body["display_name"].(string)
@@ -64,7 +65,7 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.Binding
 			return nil, fmt.Errorf("seed namespace operations: %w", err)
 		}
 
-		if err := RegisterBlobHandlers(registry, svc, nsID); err != nil {
+		if err := RegisterBlobHandlers(registry, svc, mgr, nsID); err != nil {
 			return nil, fmt.Errorf("register blob handlers: %w", err)
 		}
 
@@ -168,12 +169,20 @@ func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
 		key, _ := msg.Input().GetOr("arguments.key", "").(string)
-		contentType, _ := msg.Input().GetOr("content_type", "").(string)
+		contentType, _ := msg.Input().GetOr("headers.content_type", "").(string)
 
 		raw, _ := msg.Input().Get("payload")
 		data, _ := raw.([]byte)
 		if len(data) == 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "request body is required")
+		}
+		if len(data) > maxDirectUploadBytes {
+			return nil, common.NewSystemError("VALIDATION_ERROR",
+				fmt.Sprintf("direct upload exceeds %d byte limit; use the resumable upload protocol", maxDirectUploadBytes))
+		}
+
+		if err := ensureKeyWritable(ctx, svc, nsID, key, msg.Input().GetOr("modifiers.overwrite", "") == "true"); err != nil {
+			return nil, err
 		}
 
 		meta, err := svc.Namespace(nsID).Put(ctx, key, contentType, bytes.NewReader(data))
@@ -274,6 +283,26 @@ func wrapErr(err error, code, msg string) *common.SystemError {
 	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
 }
 
+// ensureKeyWritable enforces overwrite protection: unless overwrite is true,
+// an existing key rejects the write with runtime.ErrAlreadyExists.
+func ensureKeyWritable(ctx context.Context, svc blobutil.BlobStore, nsID, key string, overwrite bool) error {
+	if key == "" {
+		return common.NewSystemError("VALIDATION_ERROR", "blob key is required")
+	}
+	if overwrite {
+		return nil
+	}
+	_, err := svc.Namespace(nsID).Head(ctx, key)
+	if err == nil {
+		return runtime.ErrAlreadyExists.WithCause(fmt.Errorf("blob key %q already exists", key))
+	}
+	var notFound *bserrors.NotFoundError
+	if errors.As(err, &notFound) {
+		return nil
+	}
+	return mapBlobError(err)
+}
+
 func mapBlobError(err error) error {
 	var notFound *bserrors.NotFoundError
 	if errors.As(err, &notFound) {
@@ -301,6 +330,11 @@ var blobOps = []BlobOp{
 	{"download", "administrator", "Download a blob"},
 	{"delete", "administrator", "Delete a blob"},
 	{"update", "administrator", "Update blob metadata"},
+	{"begin", "administrator", "Begin a resumable blob upload"},
+	{"chunk", "administrator", "Upload a chunk of a resumable blob upload"},
+	{"complete", "administrator", "Complete a resumable blob upload"},
+	{"progress", "administrator", "Report progress of a resumable blob upload"},
+	{"abort", "administrator", "Abort a resumable blob upload"},
 	{"admin", "administrator", "Administer blob namespace"},
 }
 
@@ -316,7 +350,7 @@ func SeedNamespaceBindings(ctx context.Context, policyOp abstract.BindingPolicyS
 	return policyOp.ReloadPolicies(ctx)
 }
 
-func RegisterBlobHandlers(registry abstract.Registry, svc blobutil.BlobStore, nsID string) error {
+func RegisterBlobHandlers(registry abstract.Registry, svc blobutil.BlobStore, mgr *staging.Manager, nsID string) error {
 	entries := []struct {
 		suffix  string
 		handler abstract.MessageHandler
@@ -327,6 +361,11 @@ func RegisterBlobHandlers(registry abstract.Registry, svc blobutil.BlobStore, ns
 		{"download", NewDownloadBlobHandler(svc)},
 		{"delete", NewDeleteBlobHandler(svc)},
 		{"update", NewUpdateBlobHandler(svc)},
+		{"begin", NewBeginUploadHandler(svc, mgr)},
+		{"chunk", NewUploadChunkHandler(mgr)},
+		{"complete", NewCompleteUploadHandler(svc, mgr)},
+		{"progress", NewProgressUploadHandler(mgr)},
+		{"abort", NewAbortUploadHandler(mgr)},
 	}
 	for _, e := range entries {
 		name := "system:blobs:" + nsID + ":" + e.suffix

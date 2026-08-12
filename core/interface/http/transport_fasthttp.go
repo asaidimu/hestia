@@ -125,9 +125,19 @@ func (t *HTTPTransport) Handle(pattern string, handler abstract.Handler) {
 	t.router.insert(method, path, handler)
 }
 
+const (
+	// maxRequestBodySize caps a single request body (10 GiB). fasthttp's
+	// default is only 4 MiB, which would break resumable-upload chunks.
+	maxRequestBodySize = 10 << 30
+)
+
 func (t *HTTPTransport) Start() error {
 	t.server = &fasthttp.Server{
 		Handler: t.serveHTTP,
+		// fasthttp treats MaxRequestBodySize <= 0 as its 4 MB default, which
+		// would reject every resumable-upload chunk. Use a generous explicit
+		// ceiling; individual blob handlers enforce their own per-op limits.
+		MaxRequestBodySize: maxRequestBodySize,
 	}
 	return t.server.ListenAndServe(t.addr)
 }
