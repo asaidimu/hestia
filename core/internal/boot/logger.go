@@ -32,11 +32,7 @@ func (u *UserOutput) Print(args ...any) {
 
 func (u *UserOutput) Banner() {
 	banner := `
-╔══════════════════════════════════════════════════════════════╗
-║                    Hestia Platform                           ║
-║                                                              ║
-║                  ERP Template Server                         ║
-╚══════════════════════════════════════════════════════════════╝
+ Hestia Platform — ERP Template Server
 `
 	fmt.Fprint(u.w, banner)
 }

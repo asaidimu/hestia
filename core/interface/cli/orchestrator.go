@@ -107,6 +107,9 @@ func (o *Interface) runBootstrap() {
 			bootstrapped = true
 		}
 	}
+	if statusResult != nil {
+		statusResult.Release()
+	}
 	if bootstrapped {
 		fmt.Fprintln(o.opts.Stdout, "System is already bootstrapped.")
 		return
@@ -147,15 +150,19 @@ func (o *Interface) runBootstrap() {
 	pwdMsg := dispatch.NewMessage("system:auth:bootstrap:password:set", ctx, data.MustNewDocument(map[string]any{
 		"payload": map[string]any{"password": password, "email": email, "caller_id": o.opts.AdminUserID},
 	}, ctx))
-	if _, err := o.opts.Dispatcher.Send(pwdMsg); err != nil {
+	if res, err := o.opts.Dispatcher.Send(pwdMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Bootstrap failed: %v\n", err)
 		os.Exit(1)
+	} else if res != nil {
+		res.Release()
 	}
 
 	bsMsg := dispatch.NewMessage("system:core:bootstrap:mark", ctx, data.MustNewDocument(nil, ctx))
-	if _, err := o.opts.Dispatcher.Send(bsMsg); err != nil {
+	if res, err := o.opts.Dispatcher.Send(bsMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Failed to mark bootstrapped: %v\n", err)
 		os.Exit(1)
+	} else if res != nil {
+		res.Release()
 	}
 
 	fmt.Fprintln(o.opts.Stdout, "Bootstrap complete. Start the server normally to use all features.")

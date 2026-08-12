@@ -13,13 +13,15 @@ func NewCreateUserHandler(users *model.SystemUsers) abstract.MessageHandler {
 		if err := msg.Input().BindToTag(&input, "input"); err != nil {
 			return nil, err
 		}
+		msg.Input().Release()
 
 		tenantID := ""
 		if input.TenantID != nil {
 			tenantID = *input.TenantID
 		}
 
-		created, err := users.Register(ctx, input.Email, input.Password, input.Name, tenantID, input.Data)
+		// TODO: This is absurd
+		created, err := users.Register(ctx, input.Email, input.Password, input.Name, tenantID, input.Data, input.Permissions...)
 		if err != nil {
 			return nil, err
 		}

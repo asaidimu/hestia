@@ -49,6 +49,10 @@ func (m mockBlobNamespace) Put(_ context.Context, key, contentType string, r io.
 	return &blobutil.BlobMeta{Key: key, NamespaceID: "test-ns", ContentType: contentType, Size: int64(len(data))}, nil
 }
 
+func (m mockBlobNamespace) UpdateMetadata(_ context.Context, key string, custom map[string]string) (*blobutil.BlobMeta, error) {
+	return &blobutil.BlobMeta{Key: key, NamespaceID: "test-ns", ContentType: "text/plain", Custom: custom}, nil
+}
+
 type mockBlobStore struct {
 	blobutil.BlobStore
 	ns           mockBlobNamespace
@@ -96,6 +100,11 @@ func TestPolicyBindings(t *testing.T) {
 		"system:blobs:blob:download":    "administrator",
 		"system:blobs:blob:delete":      "administrator",
 		"system:blobs:blob:update":      "administrator",
+		"system:blobs:blob:begin":       "administrator",
+		"system:blobs:blob:chunk":       "administrator",
+		"system:blobs:blob:complete":    "administrator",
+		"system:blobs:blob:progress":    "administrator",
+		"system:blobs:blob:abort":       "administrator",
 	}
 
 	if len(bindings) != len(expected) {
@@ -116,12 +125,6 @@ func TestPolicyBindings(t *testing.T) {
 
 func TestMapBlobError(t *testing.T) {
 	ctx := context.Background()
-	input := testutil.InputDoc(t, blobs.BlobKeyInputSchema(), `{
-		"arguments": {
-			"ns":  "test-ns",
-			"key": "test-key"
-		}
-	}`)
 
 	tests := []struct {
 		name string
@@ -135,6 +138,12 @@ func TestMapBlobError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			input := testutil.InputDoc(t, blobs.BlobKeyInputSchema(), `{
+				"arguments": {
+					"ns":  "test-ns",
+					"key": "test-key"
+				}
+			}`)
 			store := mockBlobStore{ns: mockBlobNamespace{headErr: tt.err}}
 			handler := blobs.NewHeadBlobHandler(store)
 			msg := testMessage{ctx: ctx, input: input}
@@ -162,7 +171,7 @@ func TestMapBlobError(t *testing.T) {
 	}
 }
 
-func TestMustDoc(t *testing.T) {
+func TestListBlobsHandler(t *testing.T) {
 	ctx := context.Background()
 
 	store := mockBlobStore{
@@ -190,12 +199,19 @@ func TestMustDoc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected 'blobs' key: %v", err)
 	}
-	items, ok := raw.([]map[string]any)
+	items, ok := raw.([]any)
 	if !ok {
-		t.Fatalf("expected []map[string]any, got %T", raw)
+		t.Fatalf("expected []any, got %T", raw)
 	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 blob, got %d", len(items))
+	}
+	first, ok := items[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected map entry, got %T", items[0])
+	}
+	if first["key"] != "a.txt" {
+		t.Errorf("entry key = %v, want %q", first["key"], "a.txt")
 	}
 }
 

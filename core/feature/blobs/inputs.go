@@ -10,7 +10,9 @@ type NsInput struct {
 }
 
 type NsCreateInput struct {
-	Payload map[string]any `input:"payload"`
+	NS          string `input:"arguments.ns"`
+	DisplayName string `input:"payload.display_name"`
+	Public      bool   `input:"payload.public"`
 }
 
 type BlobKeyInput struct {
@@ -19,28 +21,32 @@ type BlobKeyInput struct {
 }
 
 type BlobListInput struct {
-	NS      string         `input:"arguments.ns"`
-	Payload map[string]any `input:"payload"`
+	NS     string `input:"arguments.ns"`
+	Prefix string `input:"payload.prefix"`
+	Limit  int    `input:"payload.limit"`
 }
 
 type BlobUpdateInput struct {
-	NS      string         `input:"arguments.ns"`
-	Key     string         `input:"arguments.key"`
-	Payload map[string]any `input:"payload"`
+	NS     string            `input:"arguments.ns"`
+	Key    string            `input:"arguments.key"`
+	Custom map[string]string `input:"payload.custom"`
 }
 
 type BlobUploadInput struct {
-	NS        string `input:"arguments.ns"`
-	Key       string `input:"arguments.key"`
+	NS          string `input:"arguments.ns"`
+	Key         string `input:"arguments.key"`
 	ContentType string `input:"headers.content_type"`
-	Overwrite string `input:"modifiers.overwrite"`
-	Payload   []byte `input:"payload"`
+	Overwrite   string `input:"modifiers.overwrite"`
+	Payload     []byte `input:"payload"`
 }
 
 type BlobBeginInput struct {
-	NS        string         `input:"arguments.ns"`
-	Overwrite string         `input:"modifiers.overwrite"`
-	Payload   map[string]any `input:"payload"`
+	NS          string `input:"arguments.ns"`
+	Overwrite   string `input:"modifiers.overwrite"`
+	Key         string `input:"payload.key"`
+	Size        int64  `input:"payload.size"`
+	ContentType string `input:"payload.content_type"`
+	BlockSize   int64  `input:"payload.block_size"`
 }
 
 type BlobChunkInput struct {

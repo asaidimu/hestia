@@ -57,6 +57,7 @@ func (p *hestiaIdentityProvider) authenticateAPIKey(key string) (*iam.Identity, 
 	if err != nil {
 		return nil, common.NewSystemError("UNAUTHORIZED", err.Error())
 	}
+	defer result.Release()
 
 	claims := extractClaims(result.Document)
 	return claimsToIdentity(claims), nil

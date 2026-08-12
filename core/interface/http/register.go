@@ -117,6 +117,7 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 			return resp, err
 		}
 
+		defer result.Release()
 		resp := serializeResponse(result, reg.Output, reg.Intent, httpPath)
 		resp = o.attachCookieToResponse(resp, result, reg.Name)
 		return resp, nil

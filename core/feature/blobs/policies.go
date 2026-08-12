@@ -13,5 +13,10 @@ func PolicyBindings() []policies.Binding {
 		{Name: "system:blobs:blob:download", RuleKey: "administrator", Description: "Download a blob"},
 		{Name: "system:blobs:blob:delete", RuleKey: "administrator", Description: "Delete a blob"},
 		{Name: "system:blobs:blob:update", RuleKey: "administrator", Description: "Update blob metadata"},
+		{Name: "system:blobs:blob:begin", RuleKey: "administrator", Description: "Begin a resumable blob upload"},
+		{Name: "system:blobs:blob:chunk", RuleKey: "administrator", Description: "Upload a chunk of a resumable blob upload"},
+		{Name: "system:blobs:blob:complete", RuleKey: "administrator", Description: "Complete a resumable blob upload"},
+		{Name: "system:blobs:blob:progress", RuleKey: "administrator", Description: "Report progress of a resumable blob upload"},
+		{Name: "system:blobs:blob:abort", RuleKey: "administrator", Description: "Abort a resumable blob upload"},
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	blobutil "github.com/asaidimu/hestia/core/feature/blobs/store"
-	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -26,38 +26,37 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 			return nil, fmt.Errorf("list namespaces: %w", err)
 		}
 
-		docs := make([]map[string]any, len(namespaces))
+		views := make([]NamespaceView, len(namespaces))
 		for i, ns := range namespaces {
-			docs[i] = map[string]any{
-				"id":           ns.ID,
-				"display_name": ns.DisplayName,
-				"public":       ns.Public,
-			}
+			views[i] = NamespaceView{ID: ns.ID, DisplayName: ns.DisplayName, Public: ns.Public}
 		}
 
-		return &abstract.Result{Document: mustDoc(map[string]any{"namespaces": docs}, ctx)}, nil
+		return &abstract.Result{Document: newDoc(ctx, &NamespaceListDocument{Namespaces: views})}, nil
 	}
 }
 
 func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
-		displayName, _ := body["display_name"].(string)
+		var input NsCreateInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
 
-		nsID := msg.Input().GetOr("arguments.ns", "").(string)
+		nsID := input.NS
 		if nsID == "" {
-			nsID = displayName
+			nsID = input.DisplayName
 		}
 		if nsID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
 		}
 
 		var opts []blobutil.NamespaceOption
-		if public, ok := body["public"].(bool); ok && public {
+		if input.Public {
 			opts = append(opts, blobutil.WithPublic(true))
 		}
 
-		if err := svc.CreateNamespace(ctx, nsID, displayName, opts...); err != nil {
+		if err := svc.CreateNamespace(ctx, nsID, input.DisplayName, opts...); err != nil {
 			return nil, fmt.Errorf("create namespace: %w", err)
 		}
 
@@ -70,18 +69,20 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, pol
 		}
 
 		return &abstract.Result{
-			Document: mustDoc(map[string]any{
-				"id":           nsID,
-				"display_name": displayName,
-				"public":       len(opts) > 0 && body["public"] == true,
-			}, ctx),
+			Document: newDoc(ctx, &NamespaceView{ID: nsID, DisplayName: input.DisplayName, Public: input.Public}),
 		}, nil
 	}
 }
 
 func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
+		var input NsInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		nsID := input.NS
 		if nsID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
 		}
@@ -109,110 +110,93 @@ func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.Binding
 
 func NewListBlobsHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		if nsID == "" {
+		var input BlobListInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		if input.NS == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "namespace ID is required")
 		}
 
-		prefix := ""
-		limit := 0
-		if body, ok := msg.Input().GetOr("payload", nil).(map[string]any); ok {
-			prefix, _ = body["prefix"].(string)
-			if l, ok := body["limit"].(float64); ok {
-				limit = int(l)
-			}
-		}
-
-		blobs, err := svc.Namespace(nsID).List(ctx, prefix, limit)
+		blobs, err := svc.Namespace(input.NS).List(ctx, input.Prefix, input.Limit)
 		if err != nil {
 			return nil, fmt.Errorf("list blobs: %w", err)
 		}
 
-		items := make([]map[string]any, len(blobs))
-		for i, b := range blobs {
-			items[i] = map[string]any{
-				"key":          b.Key,
-				"namespace_id": b.NamespaceID,
-				"content_type": b.ContentType,
-				"size":         b.Size,
-				"created_at":   b.CreatedAt,
-			}
+		items := make([]BlobMetaView, len(blobs))
+		for i := range blobs {
+			items[i] = blobMetaView(&blobs[i])
 		}
 
-		return &abstract.Result{Document: mustDoc(map[string]any{"blobs": items}, ctx)}, nil
+		return &abstract.Result{Document: newDoc(ctx, &BlobListDocument{Blobs: items})}, nil
 	}
 }
 
 func NewHeadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		key, _ := msg.Input().GetOr("arguments.key", "").(string)
+		var input BlobKeyInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
 
-		meta, err := svc.Namespace(nsID).Head(ctx, key)
+		meta, err := svc.Namespace(input.NS).Head(ctx, input.Key)
 		if err != nil {
 			return nil, mapBlobError(err)
 		}
 
-		return &abstract.Result{
-			Document: mustDoc(map[string]any{
-				"key":          meta.Key,
-				"namespace_id": meta.NamespaceID,
-				"content_type": meta.ContentType,
-				"size":         meta.Size,
-				"created_at":   meta.CreatedAt,
-			}, ctx),
-		}, nil
+		view := blobMetaView(meta)
+		return &abstract.Result{Document: newDoc(ctx, &view)}, nil
 	}
 }
 
 func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		key, _ := msg.Input().GetOr("arguments.key", "").(string)
-		contentType, _ := msg.Input().GetOr("headers.content_type", "").(string)
+		var input BlobUploadInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		payload := append([]byte(nil), input.Payload...)
+		msg.Input().Release()
 
-		raw, _ := msg.Input().Get("payload")
-		data, _ := raw.([]byte)
-		if len(data) == 0 {
+		if len(payload) == 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "request body is required")
 		}
-		if len(data) > maxDirectUploadBytes {
+		if len(payload) > maxDirectUploadBytes {
 			return nil, common.NewSystemError("VALIDATION_ERROR",
 				fmt.Sprintf("direct upload exceeds %d byte limit; use the resumable upload protocol", maxDirectUploadBytes))
 		}
 
-		if err := ensureKeyWritable(ctx, svc, nsID, key, msg.Input().GetOr("modifiers.overwrite", "") == "true"); err != nil {
+		if err := ensureKeyWritable(ctx, svc, input.NS, input.Key, input.Overwrite == "true"); err != nil {
 			return nil, err
 		}
 
-		meta, err := svc.Namespace(nsID).Put(ctx, key, contentType, bytes.NewReader(data))
+		meta, err := svc.Namespace(input.NS).Put(ctx, input.Key, input.ContentType, bytes.NewReader(payload))
 		if err != nil {
 			return nil, mapBlobError(err)
 		}
 
-		return &abstract.Result{
-			Document: mustDoc(map[string]any{
-				"key":          meta.Key,
-				"namespace_id": meta.NamespaceID,
-				"content_type": meta.ContentType,
-				"size":         meta.Size,
-				"created_at":   meta.CreatedAt,
-			}, ctx),
-		}, nil
+		view := blobMetaView(meta)
+		return &abstract.Result{Document: newDoc(ctx, &view)}, nil
 	}
 }
 
 func NewDownloadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		key, _ := msg.Input().GetOr("arguments.key", "").(string)
+		var input BlobKeyInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
 
-		meta, err := svc.Namespace(nsID).Head(ctx, key)
+		meta, err := svc.Namespace(input.NS).Head(ctx, input.Key)
 		if err != nil {
 			return nil, mapBlobError(err)
 		}
 
-		rc, err := svc.Namespace(nsID).Get(ctx, key)
+		rc, err := svc.Namespace(input.NS).Get(ctx, input.Key)
 		if err != nil {
 			return nil, mapBlobError(err)
 		}
@@ -234,53 +218,40 @@ func NewDownloadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 
 func NewUpdateBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		key, _ := msg.Input().GetOr("arguments.key", "").(string)
-
-		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
-
-		var custom map[string]string
-		if raw, ok := body["custom"].(map[string]any); ok {
-			custom = make(map[string]string, len(raw))
-			for k, v := range raw {
-				custom[k] = fmt.Sprint(v)
-			}
+		var input BlobUpdateInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
 		}
+		msg.Input().Release()
 
-		meta, err := svc.Namespace(nsID).UpdateMetadata(ctx, key, custom)
+		meta, err := svc.Namespace(input.NS).UpdateMetadata(ctx, input.Key, input.Custom)
 		if err != nil {
 			return nil, mapBlobError(err)
 		}
 
-		return &abstract.Result{
-			Document: mustDoc(util.StructToMap(*meta), ctx),
-		}, nil
+		view := blobMetaView(meta)
+		return &abstract.Result{Document: newDoc(ctx, &view)}, nil
 	}
 }
 
 func NewDeleteBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		key, _ := msg.Input().GetOr("arguments.key", "").(string)
+		var input BlobKeyInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
 
-		if _, err := svc.Namespace(nsID).Head(ctx, key); err != nil {
+		if _, err := svc.Namespace(input.NS).Head(ctx, input.Key); err != nil {
 			return nil, mapBlobError(err)
 		}
 
-		if err := svc.Namespace(nsID).Delete(ctx, key); err != nil {
+		if err := svc.Namespace(input.NS).Delete(ctx, input.Key); err != nil {
 			return nil, mapBlobError(err)
 		}
 
 		return &abstract.Result{}, nil
 	}
-}
-
-func wrapErr(err error, code, msg string) *common.SystemError {
-	if sysErr, ok := err.(*common.SystemError); ok {
-		return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, sysErr.Error())).
-			WithCause(sysErr)
-	}
-	return common.NewSystemError(code, fmt.Sprintf("%s: %s", msg, err.Error()))
 }
 
 // ensureKeyWritable enforces overwrite protection: unless overwrite is true,
@@ -303,6 +274,28 @@ func ensureKeyWritable(ctx context.Context, svc blobutil.BlobStore, nsID, key st
 	return mapBlobError(err)
 }
 
+// blobMetaView maps store metadata into its typed wire shape, rendering
+// timestamps as RFC3339 strings and omitting an untouched UpdatedAt.
+func blobMetaView(m *blobutil.BlobMeta) BlobMetaView {
+	view := BlobMetaView{
+		Key:         m.Key,
+		NamespaceID: m.NamespaceID,
+		ContentType: m.ContentType,
+		Size:        m.Size,
+		CreatedAt:   m.CreatedAt.Format(time.RFC3339Nano),
+		Custom:      m.Custom,
+	}
+	if !m.UpdatedAt.IsZero() {
+		updated := m.UpdatedAt.Format(time.RFC3339Nano)
+		view.UpdatedAt = &updated
+	}
+	return view
+}
+
+func newDoc(ctx context.Context, v any) *data.Document {
+	return data.MustNewDocumentFromStruct(v, ctx)
+}
+
 func mapBlobError(err error) error {
 	var notFound *bserrors.NotFoundError
 	if errors.As(err, &notFound) {
@@ -313,10 +306,6 @@ func mapBlobError(err error) error {
 		return runtime.ErrAlreadyExists.WithCause(err)
 	}
 	return fmt.Errorf("blob: %w", err)
-}
-
-func mustDoc(m map[string]any, ctx context.Context) *data.Document {
-	return data.MustNewDocument(m, ctx)
 }
 
 type BlobOp struct {

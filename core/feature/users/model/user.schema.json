@@ -79,7 +79,8 @@
             "password",
             "name",
             "tenant_id",
-            "data"
+            "data",
+            "permissions"
           ],
           "optional": [
             "tenant_id",
@@ -91,6 +92,9 @@
             "name"
           ],
           "tags": {
+            "permissions": {
+              "input": "payload.{name}"
+            },
             "data": {
               "input": "payload.{name}"
             },

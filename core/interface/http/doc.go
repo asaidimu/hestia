@@ -3,6 +3,8 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
+	"strings"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
@@ -16,6 +18,27 @@ func rootField(s *definition.Schema, name string) bool {
 	}
 	_, f := s.FindField(name)
 	return f != nil
+}
+
+// requestHeaderValue returns the first value of the named request header,
+// matching case-insensitively. fasthttp canonicalizes header names it
+// receives (X-Session-ID → X-Session-Id), while registrations declare them
+// in their canonical, human-readable form, so an exact map lookup would
+// silently drop headers like X-Session-ID and X-Chunk-SHA256.
+func requestHeaderValue(headers map[string][]string, name string) (string, bool) {
+	if vals, ok := headers[name]; ok && len(vals) > 0 {
+		return vals[0], true
+	}
+	canonical := http.CanonicalHeaderKey(name)
+	if vals, ok := headers[canonical]; ok && len(vals) > 0 {
+		return vals[0], true
+	}
+	for k, vals := range headers {
+		if len(vals) > 0 && strings.EqualFold(k, name) {
+			return vals[0], true
+		}
+	}
+	return "", false
 }
 
 // BuildInputDocument builds a schema-bound document from a request's path
@@ -42,8 +65,8 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 	if len(input.HeaderFields) > 0 && rootField(input.Schema, "headers") {
 		headers := make(map[string]any)
 		for header, field := range input.HeaderFields {
-			if vals, ok := req.Headers[header]; ok && len(vals) > 0 {
-				headers[field] = vals[0]
+			if v, ok := requestHeaderValue(req.Headers, header); ok {
+				headers[field] = v
 			}
 		}
 		if len(headers) > 0 {

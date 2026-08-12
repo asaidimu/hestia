@@ -95,3 +95,39 @@ type Result struct {
 	SessionToken    string
 	Metadata        map[string]any
 }
+
+// Release returns pooled resources owned by the result to their pools: the
+// single Document, every document in Documents and in Page.Documents, and the
+// Blob buffer. It is safe to call on a nil or already-released result, and a
+// second call is a no-op.
+//
+// Streaming kinds (ResultKindDocumentChannel / ResultKindBlobChannel) are not
+// touched: the documents flowing over those channels are owned by whoever is
+// draining the channel, not by the result.
+//
+// After Release, the result must not be read for its documents; scalar fields
+// (Kind, SessionToken, Metadata) remain valid.
+func (r *Result) Release() {
+	if r == nil {
+		return
+	}
+	if r.Document != nil {
+		r.Document.Release()
+		r.Document = nil
+	}
+	releaseDocs(r.Documents)
+	r.Documents = nil
+	if r.Page != nil {
+		releaseDocs(r.Page.Documents)
+		r.Page.Documents = nil
+	}
+	r.Blob.Free()
+}
+
+func releaseDocs(docs data.DocumentSet) {
+	for _, d := range docs {
+		if d != nil {
+			d.Release()
+		}
+	}
+}

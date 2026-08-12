@@ -138,6 +138,7 @@ type UserPublic struct {
 
 type UserRegister struct {
 	document.DocumentModel `json:"-" anansi:"-"`
+	Permissions            []string       `anansi:"permissions,required=false,omitempty" json:"permissions,omitempty" input:"payload.permissions"`
 	Email                  string         `anansi:"email,required=true" json:"email" input:"payload.email"`
 	Name                   string         `anansi:"name,required=true" json:"name" input:"payload.name"`
 	Password               string         `anansi:"password,required=true" json:"password" input:"payload.password"`

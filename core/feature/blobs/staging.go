@@ -13,7 +13,6 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	blobutil "github.com/asaidimu/hestia/core/feature/blobs/store"
-	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -37,42 +36,41 @@ const (
 // by the caller and must not already exist unless ?overwrite=true.
 func NewBeginUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		nsID, _ := msg.Input().GetOr("arguments.ns", "").(string)
-		body, _ := msg.Input().GetOr("payload", nil).(map[string]any)
+		var input BlobBeginInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
 
-		key, _ := body["key"].(string)
+		key := input.Key
 		if key == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "payload.key is required")
 		}
-		size, _ := body["size"].(float64)
+		size := input.Size
 		if size <= 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "payload.size must be greater than 0")
 		}
-		contentType, _ := body["content_type"].(string)
+		contentType := input.ContentType
 
-		blockSize := int64(0)
-		if bs, ok := body["block_size"].(float64); ok && bs > 0 {
-			blockSize = int64(bs)
-		}
-		if blockSize < 0 || blockSize > int64(size) {
+		blockSize := input.BlockSize
+		if blockSize < 0 || blockSize > size {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "payload.block_size must be between 0 and the file size")
 		}
 
-		overwrite := msg.Input().GetOr("modifiers.overwrite", "") == "true"
-		if err := ensureKeyWritable(ctx, svc, nsID, key, overwrite); err != nil {
+		if err := ensureKeyWritable(ctx, svc, input.NS, key, input.Overwrite == "true"); err != nil {
 			return nil, err
 		}
 
 		if blockSize == 0 {
 			blockSize = defaultUploadBlockSize
-			if blockSize > int64(size) {
-				blockSize = int64(size)
+			if blockSize > size {
+				blockSize = size
 			}
 		}
 
-		sess, err := mgr.Begin(ctx, nsID, key, staging.BeginOptions{
+		sess, err := mgr.Begin(ctx, input.NS, key, staging.BeginOptions{
 			ContentType:  contentType,
-			ExpectedSize: int64(size),
+			ExpectedSize: size,
 			BlockSize:    blockSize,
 		})
 		if err != nil {
@@ -80,12 +78,12 @@ func NewBeginUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abstrac
 		}
 
 		return &abstract.Result{
-			Document: mustDoc(map[string]any{
-				"session_id": sess.ID,
-				"key":        sess.Key,
-				"offset":     sess.Offset,
-				"block_size": blockSize,
-			}, ctx),
+			Document: newDoc(ctx, &UploadBeginDocument{
+				SessionID: sess.ID,
+				Key:       sess.Key,
+				Offset:    sess.Offset,
+				BlockSize: blockSize,
+			}),
 		}, nil
 	}
 }
@@ -95,35 +93,37 @@ func NewBeginUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abstrac
 // check travel as headers.
 func NewUploadChunkHandler(mgr *staging.Manager) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		sessionID, _ := msg.Input().GetOr("headers.session_id", "").(string)
+		var input BlobChunkInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		payload := append([]byte(nil), input.Payload...)
+		msg.Input().Release()
+
+		sessionID := input.SessionID
 		if sessionID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "X-Session-ID header is required")
 		}
-		offsetStr, _ := msg.Input().GetOr("headers.offset", "").(string)
-		offset, err := strconv.ParseInt(offsetStr, 10, 64)
+		offset, err := strconv.ParseInt(input.Offset, 10, 64)
 		if err != nil || offset < 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "X-Offset header must be a non-negative integer")
 		}
 
-		raw, _ := msg.Input().Get("payload")
-		data, _ := raw.([]byte)
-		if len(data) == 0 {
+		if len(payload) == 0 {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "chunk request body is required")
 		}
-		if len(data) > maxUploadChunkBytes {
+		if len(payload) > maxUploadChunkBytes {
 			return nil, common.NewSystemError("VALIDATION_ERROR",
 				fmt.Sprintf("chunk exceeds %d byte limit", maxUploadChunkBytes))
 		}
 
-		expectedSHA, _ := msg.Input().GetOr("headers.sha256", "").(string)
-
-		total, err := mgr.WriteChunk(ctx, sessionID, offset, bytes.NewReader(data), expectedSHA)
+		total, err := mgr.WriteChunk(ctx, sessionID, offset, bytes.NewReader(payload), input.SHA256)
 		if err != nil {
 			return nil, mapStagingError(err)
 		}
 
 		return &abstract.Result{
-			Document: mustDoc(map[string]any{"total": total}, ctx),
+			Document: newDoc(ctx, &UploadChunkDocument{Total: total}),
 		}, nil
 	}
 }
@@ -132,7 +132,13 @@ func NewUploadChunkHandler(mgr *staging.Manager) abstract.MessageHandler {
 // into the blob store's chunking pipeline in a single pass.
 func NewCompleteUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		sessionID, _ := msg.Input().GetOr("headers.session_id", "").(string)
+		var input BlobCompleteInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		sessionID := input.SessionID
 		if sessionID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "X-Session-ID header is required")
 		}
@@ -143,7 +149,7 @@ func NewCompleteUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abst
 		}
 		defer cu.Close()
 
-		overwrite := msg.Input().GetOr("modifiers.overwrite", "") == "true"
+		overwrite := input.Overwrite == "true"
 		if !overwrite {
 			if err := ensureKeyWritable(ctx, svc, cu.NamespaceID, cu.Key, false); err != nil {
 				_ = mgr.Abort(sessionID)
@@ -157,9 +163,8 @@ func NewCompleteUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abst
 		}
 		cu.Finalize()
 
-		return &abstract.Result{
-			Document: mustDoc(util.StructToMap(*meta), ctx),
-		}, nil
+		view := blobMetaView(meta)
+		return &abstract.Result{Document: newDoc(ctx, &view)}, nil
 	}
 }
 
@@ -167,7 +172,13 @@ func NewCompleteUploadHandler(svc blobutil.BlobStore, mgr *staging.Manager) abst
 // received for a session, so an interrupted upload can resume.
 func NewProgressUploadHandler(mgr *staging.Manager) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		sessionID, _ := msg.Input().GetOr("modifiers.session_id", "").(string)
+		var input BlobProgressInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		sessionID := input.SessionID
 		if sessionID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "?session_id= query parameter is required")
 		}
@@ -179,20 +190,20 @@ func NewProgressUploadHandler(mgr *staging.Manager) abstract.MessageHandler {
 		blockSize, _ := mgr.BlockSize(sessionID)
 		expectedSize, _ := mgr.ExpectedSize(sessionID)
 
+		items := make([]ByteRange, len(ranges))
 		var total int64
-		items := make([]map[string]any, len(ranges))
 		for i, r := range ranges {
-			items[i] = map[string]any{"start": r.Start, "end": r.End}
+			items[i] = ByteRange{Start: r.Start, End: r.End}
 			total += r.End - r.Start
 		}
 
 		return &abstract.Result{
-			Document: mustDoc(map[string]any{
-				"total":         total,
-				"ranges":        items,
-				"block_size":    blockSize,
-				"expected_size": expectedSize,
-			}, ctx),
+			Document: newDoc(ctx, &UploadProgressDocument{
+				Total:        total,
+				Ranges:       items,
+				BlockSize:    blockSize,
+				ExpectedSize: expectedSize,
+			}),
 		}, nil
 	}
 }
@@ -200,7 +211,13 @@ func NewProgressUploadHandler(mgr *staging.Manager) abstract.MessageHandler {
 // NewAbortUploadHandler discards a staged upload's data and metadata.
 func NewAbortUploadHandler(mgr *staging.Manager) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		sessionID, _ := msg.Input().GetOr("headers.session_id", "").(string)
+		var input BlobAbortInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		sessionID := input.SessionID
 		if sessionID == "" {
 			return nil, common.NewSystemError("VALIDATION_ERROR", "X-Session-ID header is required")
 		}
