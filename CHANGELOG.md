@@ -1,3 +1,10 @@
+## [1.4.3](https://github.com/asaidimu/hestia/compare/v1.4.2...v1.4.3) (2026-08-12)
+
+
+### Bug Fixes
+
+* **client:** implement user creation in HestiaUsers store ([b84666b](https://github.com/asaidimu/hestia/commit/b84666b0e8a88b4c2e26797263685e5f47920e40))
+
 ## [1.4.2](https://github.com/asaidimu/hestia/compare/v1.4.1...v1.4.2) (2026-08-11)
 
 
