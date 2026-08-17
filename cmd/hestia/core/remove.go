@@ -28,7 +28,7 @@ var removeModuleCmd = &cobra.Command{
 			return
 		}
 		modName := args[0]
-		modDir := filepath.Join(rootDir, moduleTarget, modName)
+		modDir := filepath.Join(rootDir, modulesTarget(), modName)
 
 		if _, err := os.Stat(modDir); os.IsNotExist(err) {
 			fmt.Fprintf(os.Stderr, "Module %q not found at %s\n", modName, modDir)

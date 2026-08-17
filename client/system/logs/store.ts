@@ -37,7 +37,7 @@ export class HestiaLogs implements DocumentStore<AuditEntry, QueryDSL<AuditEntry
 
   async find(query?: QueryDSL<AuditEntry>): Promise<Page<AuditEntry>> {
     const res = await this.client.post<FindEnvelope>(
-      "/system/audit/log/query",
+      "/system/collections/audit_log/query",
       query ?? {},
     )
 

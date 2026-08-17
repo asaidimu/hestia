@@ -1,0 +1,300 @@
+package auth
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"time"
+
+	"github.com/asaidimu/go-anansi/v8/core/common"
+	"github.com/asaidimu/go-anansi/v8/core/document"
+
+	"github.com/asaidimu/hestia/core/abstract"
+	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
+	"github.com/asaidimu/hestia/core/system/auth/model"
+	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
+	"github.com/asaidimu/hestia/core/runtime"
+
+	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"go.uber.org/zap"
+)
+
+// AuthService handles the auth domain: sessions, password reset, API key
+// validation, bootstrap password setup, and privilege elevation. The persisted
+// models are initialized in the constructor from the runtime DI container.
+type AuthService struct {
+	users       *usersmodel.SystemUsers
+	apiKeys     *apikeysmodel.SystemAPIKeys
+	credProv    abstract.CredentialsProvider
+	apiKeyAuth  *APIKeyAuthenticator
+	adminUserID string
+	sessionTTL  time.Duration
+	notifier    abstract.Notifier
+	appURL      string
+}
+
+// AdminUserID is the DI key for the seeded admin user ID.
+type AdminUserID string
+
+// SessionTTL is the DI key for the session token time-to-live.
+type SessionTTL time.Duration
+
+// AppURL is the DI key for the application base URL used in email links.
+type AppURL string
+
+func NewAuthService(rt abstract.Container) (*AuthService, error) {
+	persist := abstract.MustResolve[persistence.Persistence](rt)
+	logger := abstract.MustResolve[*zap.Logger](rt)
+
+	users, err := usersmodel.InitSystemUsersModel(persist, logger)
+	if err != nil {
+		return nil, fmt.Errorf("init users model: %w", err)
+	}
+	apiKeys, err := apikeysmodel.InitSystemAPIKeysModel(persist, logger)
+	if err != nil {
+		return nil, fmt.Errorf("init api keys model: %w", err)
+	}
+
+	return &AuthService{
+		users:       users,
+		apiKeys:     apiKeys,
+		credProv:    abstract.MustResolve[abstract.CredentialsProvider](rt),
+		apiKeyAuth:  abstract.MustResolve[*APIKeyAuthenticator](rt),
+		adminUserID: string(abstract.MustResolve[AdminUserID](rt)),
+		sessionTTL:  time.Duration(abstract.MustResolve[SessionTTL](rt)),
+		notifier:    abstract.MustResolve[abstract.Notifier](rt),
+		appURL:      string(abstract.MustResolve[AppURL](rt)),
+	}, nil
+}
+
+// CreateSession authenticates a user and returns a session token document.
+//
+// @hestia.register(
+//   name="system:auth:session:create",
+//   intent="create",
+//   rule="public",
+//   bootstrap_safe="true",
+//   description="Authenticate and receive a session token",
+//   output="model.LoginOutput",
+// )
+func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, input *model.LoginInput) (*abstract.Result, error) {
+	user, err := s.users.GetByEmail(ctx, input.Email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	if !runtime.CheckPassword(input.Password, user.Password) {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	token, _, err := s.credProv.CreateSession(user.ID, s.sessionTTL)
+	if err != nil {
+		return nil, err
+	}
+
+	sctx := common.ContextWithCollectionName(ctx, "_user_")
+	sane, err := user.MustDocument().Sanitize(sctx)
+	if err != nil {
+		return nil, err
+	}
+
+	view := &model.LoginDocumentView{}
+	if sane != nil {
+		view.User = sane.ToMap()
+	}
+
+	resultDoc, err := document.New(view).Document()
+	if err != nil {
+		return nil, err
+	}
+	return &abstract.Result{Document: resultDoc, SessionToken: token}, nil
+}
+
+// DeleteSession logs out.
+//
+// @hestia.register(
+//   name="system:auth:session:delete",
+//   intent="delete",
+//   rule="authenticated",
+//   bootstrap_safe="true",
+//   description="Logout",
+// )
+func (s *AuthService) DeleteSession(ctx context.Context, msg abstract.Message, input *model.DeleteSessionInput) error {
+	return nil
+}
+
+// PasswordReset requests a password reset email.
+//
+// @hestia.register(
+//   name="system:auth:password:reset",
+//   intent="create",
+//   rule="authenticated",
+//   description="Request password reset email",
+//   output="model.MessageOutput",
+// )
+func (s *AuthService) PasswordReset(ctx context.Context, msg abstract.Message, input *model.PasswordResetInput) error {
+	user, err := s.users.GetByEmail(ctx, input.Email)
+	if err != nil {
+		return nil
+	}
+	token, err := s.credProv.IssueResetToken(user.ID)
+	if err != nil {
+		return err
+	}
+	if s.notifier != nil && s.appURL != "" {
+		if err := s.notifier.Send(ctx, abstract.Notification{
+			Recipient: abstract.Recipient{Email: input.Email},
+			Template:  "password_reset",
+			Data:      map[string]any{"token": url.QueryEscape(token), "app_url": s.appURL},
+			Channels:  []abstract.ChannelType{abstract.ChannelEmail},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// PasswordConfirm confirms a password reset with a token.
+//
+// @hestia.register(
+//   name="system:auth:password:confirm",
+//   intent="update",
+//   rule="public",
+//   description="Confirm password reset with token",
+//   output="model.MessageOutput",
+// )
+func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message, input *model.PasswordConfirmInput) error {
+	userID, err := s.credProv.ValidateResetToken(input.Token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired reset token")
+	}
+
+	hashed, err := runtime.HashPassword(input.Password)
+	if err != nil {
+		return err
+	}
+	if _, err := s.users.Update(ctx, userID, &usersmodel.SystemUser{Password: hashed}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ValidateSession validates a session token.
+//
+// @hestia.register(
+//   name="system:auth:session:validate",
+//   intent="read",
+//   rule="public",
+//   internal="true",
+//   description="Validate a session token",
+//   output="model.ClaimsOutput",
+// )
+func (s *AuthService) ValidateSession(ctx context.Context, msg abstract.Message) (*model.ClaimsDocumentView, error) {
+	doc := msg.Input()
+	token, _ := doc.GetOr("token", "").(string)
+
+	info, err := s.credProv.ValidateSession(token)
+	if err != nil {
+		return nil, err
+	}
+	return &model.ClaimsDocumentView{
+		UserID:    info.UserID,
+		SessionID: info.SessionID,
+		IssuedAt:  info.IssuedAt,
+		ExpiresAt: info.ExpiresAt,
+		CreatedAt: info.CreatedAt,
+	}, nil
+}
+
+// ValidateAPIKey validates an API key.
+//
+// @hestia.register(
+//   name="system:auth:apikey:validate",
+//   intent="read",
+//   rule="public",
+//   internal="true",
+//   description="Validate an API key",
+//   output="model.ClaimsOutput",
+// )
+func (s *AuthService) ValidateAPIKey(ctx context.Context, msg abstract.Message) (*model.APIKeyClaimsView, error) {
+	doc := msg.Input()
+	key, _ := doc.GetOr("api_key", "").(string)
+
+	claims, err := s.apiKeyAuth.Authenticate(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return &model.APIKeyClaimsView{
+		UserID:      claims.UserID,
+		Email:       claims.Email,
+		Permissions: claims.Scopes,
+		TokenType:   claims.TokenType,
+		TokenID:     claims.TokenID,
+		ExpiresAt:   claims.ExpiresAt,
+	}, nil
+}
+
+// SetBootstrapPassword sets the bootstrap admin password.
+//
+// @hestia.register(
+//   name="system:auth:bootstrap:password:set",
+//   intent="update",
+//   rule="administrator",
+//   bootstrap_safe="true",
+//   description="Set bootstrap admin password",
+//   output="model.MessageOutput",
+// )
+func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Message, input *model.BootstrapPasswordInput) error {
+	if input.CallerID != s.adminUserID {
+		return fmt.Errorf("only the seeded admin can change the bootstrap password")
+	}
+	if input.Email == "" {
+		return fmt.Errorf("replacement admin email is required")
+	}
+	hashed, err := runtime.HashPassword(input.Password)
+	if err != nil {
+		return err
+	}
+	if _, err := s.users.Update(ctx, s.adminUserID, &usersmodel.SystemUser{Password: hashed}); err != nil {
+		return err
+	}
+	if err := s.users.UpdateEmail(ctx, s.adminUserID, input.Email); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ElevateToken issues an ephemeral API key for privilege elevation.
+//
+// @hestia.register(
+//   name="system:auth:token:elevate",
+//   intent="create",
+//   rule="public",
+//   description="Issue an ephemeral API key for privilege elevation",
+//   output="model.ElevateOutput",
+// )
+func (s *AuthService) ElevateToken(ctx context.Context, msg abstract.Message, input *model.ElevateInput) (*model.ElevateDocumentView, error) {
+	user, err := s.users.GetByEmail(ctx, input.Email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	if !runtime.CheckPassword(input.Password, user.Password) {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	key, err := s.apiKeys.Generate()
+	if err != nil {
+		return nil, fmt.Errorf("generate elevation key: %w", err)
+	}
+
+	expiry := time.Now().Add(5 * time.Minute).Format(time.RFC3339)
+	if _, err := s.apiKeys.CreateKey(ctx, key, user.ID, &apikeysmodel.APIKeyCreate{
+		Name:   "elevation",
+		Expiry: &expiry,
+	}); err != nil {
+		return nil, fmt.Errorf("create elevation key: %w", err)
+	}
+
+	return document.New(&model.ElevateDocumentView{Key: key.FullKey}), nil
+}

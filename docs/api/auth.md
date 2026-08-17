@@ -2,11 +2,11 @@
 
 ## session
 
-### Authenticate and receive tokens
+### Authenticate and receive a session token
 
-**`POST`** `/system/auth/session`
+**`POST`** `/system/auth/session/create`
 
-Authenticate and receive tokens
+Authenticate and receive a session token
 
 - **Handler:** `system:auth:session:create`
 - **Bootstrap-safe:** Yes
@@ -15,35 +15,32 @@ Authenticate and receive tokens
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "login_input",
-  "description": "Login request",
   "fields": {
-    "payload": {
+    "019fba9e-d801-7a93-a95e-d13ae523fe9d": {
       "name": "payload",
-      "type": "object",
       "schema": {
-        "id": "login_payload"
-      }
+        "id": "019fba9e-d801-7efe-8371-9ef69a8bd03c"
+      },
+      "type": "object"
     }
   },
+  "name": "LoginInput",
   "schemas": {
-    "login_payload": {
-      "name": "LoginPayload",
+    "019fba9e-d801-7efe-8371-9ef69a8bd03c": {
       "fields": {
-        "email": {
+        "019fba9e-d801-78bc-b8c9-2d0d50a81572": {
           "name": "email",
-          "description": "User email address",
           "type": "string"
         },
-        "password": {
+        "019fba9e-d802-7eb1-9768-252807e42a5b": {
           "name": "password",
-          "description": "User password",
           "type": "string"
         }
-      }
+      },
+      "name": "payload"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -51,351 +48,108 @@ Authenticate and receive tokens
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "login_output",
-  "description": "Login response with tokens and user",
   "fields": {
-    "document": {
+    "019fba9e-d801-751c-beaa-13ba56df166a": {
       "name": "document",
-      "description": "Login response document",
-      "type": "object",
       "schema": {
-        "id": "login_document"
-      }
+        "id": "019fba9e-d801-740a-aae8-e722bf05ca9a"
+      },
+      "type": "object"
     }
   },
+  "name": "LoginOutput",
   "schemas": {
-    "login_document": {
-      "name": "LoginDocument",
+    "019fba9e-d801-740a-aae8-e722bf05ca9a": {
       "fields": {
-        "token": {
+        "019fba9e-d801-79bb-a148-a398cb2cd906": {
           "name": "token",
-          "description": "Token bundle",
-          "type": "object",
-          "schema": {
-            "id": "login_token"
-          }
+          "type": "string"
         },
-        "user": {
+        "019fba9e-d802-75db-a5bc-81bae5df4ef0": {
           "name": "user",
-          "description": "Authenticated user data",
           "type": "record"
         }
-      }
-    },
-    "login_token": {
-      "name": "LoginToken",
-      "fields": {
-        "access": {
-          "name": "access",
-          "description": "JWT access token",
-          "type": "string"
-        },
-        "refresh": {
-          "name": "refresh",
-          "description": "JWT refresh token",
-          "type": "string"
-        },
-        "type": {
-          "name": "type",
-          "description": "Token type (Bearer)",
-          "type": "string"
-        },
-        "validity": {
-          "name": "validity",
-          "description": "Token validity in seconds",
-          "type": "integer"
-        }
-      }
+      },
+      "name": "LoginDocumentView"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
 ---
 
-### Refresh via session token
+### Logout
 
-**`PATCH`** `/system/auth/session`
+**`DELETE`** `/system/auth/session/delete`
 
-Refresh via session token
+Logout
 
-- **Handler:** `system:auth:session:refresh`
+- **Handler:** `system:auth:session:delete`
+- **Bootstrap-safe:** Yes
 
 #### Request Body
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "refresh_session_input",
-  "description": "Refresh session token request",
-  "fields": {
-    "payload": {
-      "name": "payload",
-      "type": "object",
-      "schema": {
-        "id": "refresh_session_payload"
-      }
-    }
-  },
-  "schemas": {
-    "refresh_session_payload": {
-      "name": "RefreshSessionPayload",
-      "fields": {
-        "refresh_token": {
-          "name": "refresh_token",
-          "description": "Session token",
-          "type": "string"
-        }
-      }
-    }
-  }
+  "name": "DeleteSessionInput",
+  "version": "1.0.0"
 }
 ```
-
-#### Response
-
-```json
-{
-  "version": "1.0.0",
-  "name": "refresh_output",
-  "description": "Token refresh response",
-  "fields": {
-    "document": {
-      "name": "document",
-      "description": "Refresh response document",
-      "type": "object",
-      "schema": {
-        "id": "refresh_document"
-      }
-    }
-  },
-  "schemas": {
-    "refresh_document": {
-      "name": "RefreshDocument",
-      "fields": {
-        "token": {
-          "name": "token",
-          "description": "Token bundle",
-          "type": "object",
-          "schema": {
-            "id": "refresh_token"
-          }
-        }
-      }
-    },
-    "refresh_token": {
-      "name": "RefreshToken",
-      "fields": {
-        "access": {
-          "name": "access",
-          "description": "JWT access token",
-          "type": "string"
-        },
-        "refresh": {
-          "name": "refresh",
-          "description": "JWT refresh token",
-          "type": "string"
-        },
-        "type": {
-          "name": "type",
-          "description": "Token type (Bearer)",
-          "type": "string"
-        },
-        "validity": {
-          "name": "validity",
-          "description": "Token validity in seconds",
-          "type": "integer"
-        }
-      }
-    }
-  }
-}
-```
-
----
-
-### Logout and revoke current token
-
-**`DELETE`** `/system/auth/session`
-
-Logout and revoke current token
-
-- **Handler:** `system:auth:session:delete`
-- **Bootstrap-safe:** Yes
 
 ---
 
 ### Validate a session token
 
-**`GET`** `/system/auth/session`
+**`GET`** `/system/auth/session/validate`
 
 Validate a session token
 
 - **Handler:** `system:auth:session:validate`
+- **Internal:** Yes
 
 #### Response
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "claims",
-  "description": "Token claims with user identity and metadata",
   "fields": {
-    "document": {
+    "019fba9e-d801-77d5-b24d-88f0c2c151ed": {
       "name": "document",
-      "description": "Claims document",
-      "type": "object",
       "schema": {
-        "id": "claims_document"
-      }
+        "id": "019fba9e-d801-7224-9c13-8fac38791dbe"
+      },
+      "type": "object"
     }
   },
+  "name": "ClaimsOutput",
   "schemas": {
-    "claims_document": {
-      "name": "ClaimsDocument",
+    "019fba9e-d801-7224-9c13-8fac38791dbe": {
       "fields": {
-        "email": {
-          "name": "email",
-          "description": "User email address",
-          "type": "string"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "description": "Token expiration timestamp",
-          "type": "string"
-        },
-        "scopes": {
-          "name": "scopes",
-          "description": "Assigned permission scopes",
-          "type": "array",
-          "schema": {
-            "id": "",
-            "type": "string"
-          }
-        },
-        "token_id": {
-          "name": "token_id",
-          "description": "Unique token identifier",
-          "type": "string"
-        },
-        "token_type": {
-          "name": "token_type",
-          "description": "Token type (access/refresh)",
-          "type": "string"
-        },
-        "user_id": {
+        "019fba9e-d801-73da-a0fa-315a3e13b64c": {
           "name": "user_id",
-          "description": "Authenticated user ID",
           "type": "string"
+        },
+        "019fba9e-d802-7033-8709-835d6ba81c19": {
+          "name": "session_id",
+          "type": "string"
+        },
+        "019fba9e-d803-7a4d-9cd1-7b3b8a608f7b": {
+          "name": "issued_at",
+          "type": "integer"
+        },
+        "019fba9e-d804-7c77-ad70-2ab3df763b40": {
+          "name": "expires_at",
+          "type": "integer"
+        },
+        "019fba9e-d805-74d5-bc9f-5fbfd67c3596": {
+          "name": "created_at",
+          "type": "integer"
         }
-      }
-    }
-  }
-}
-```
-
----
-
-## user
-
-### Register a new user
-
-**`POST`** `/system/auth/user`
-
-Register a new user
-
-- **Handler:** `system:auth:user:register`
-
-#### Request Body
-
-```json
-{
-  "version": "1.0.0",
-  "name": "register_input",
-  "description": "User registration request",
-  "fields": {
-    "payload": {
-      "name": "payload",
-      "type": "object",
-      "schema": {
-        "id": "register_payload"
-      }
+      },
+      "name": "ClaimsDocumentView"
     }
   },
-  "schemas": {
-    "register_payload": {
-      "name": "RegisterPayload",
-      "fields": {
-        "email": {
-          "name": "email",
-          "description": "User email address",
-          "type": "string"
-        },
-        "name": {
-          "name": "name",
-          "description": "User display name",
-          "type": "string"
-        },
-        "password": {
-          "name": "password",
-          "description": "User password",
-          "type": "string"
-        }
-      }
-    }
-  }
-}
-```
-
-#### Response
-
-```json
-{
-  "version": "1.0.0",
-  "name": "user",
-  "description": "A user account",
-  "fields": {
-    "document": {
-      "name": "document",
-      "description": "User document",
-      "type": "object",
-      "schema": {
-        "id": "user_document"
-      }
-    }
-  },
-  "schemas": {
-    "user_document": {
-      "name": "UserDocument",
-      "fields": {
-        "_id": {
-          "name": "_id",
-          "description": "Unique user identifier",
-          "type": "string"
-        },
-        "email": {
-          "name": "email",
-          "description": "User email address",
-          "type": "string"
-        },
-        "name": {
-          "name": "name",
-          "description": "User display name",
-          "type": "string"
-        },
-        "scopes": {
-          "name": "scopes",
-          "description": "Assigned permission scopes",
-          "type": "array",
-          "schema": {
-            "id": "",
-            "type": "string"
-          }
-        }
-      }
-    }
-  }
+  "version": "1.0.0"
 }
 ```
 
@@ -405,7 +159,7 @@ Register a new user
 
 ### Request password reset email
 
-**`POST`** `/system/auth/password`
+**`POST`** `/system/auth/password/reset`
 
 Request password reset email
 
@@ -415,30 +169,28 @@ Request password reset email
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "password_reset_input",
-  "description": "Password reset request",
   "fields": {
-    "payload": {
+    "019fba9e-d801-7a72-91c5-a1009408610d": {
       "name": "payload",
-      "type": "object",
       "schema": {
-        "id": "password_reset_payload"
-      }
+        "id": "019fba9e-d801-724d-b83b-992e799e1eb2"
+      },
+      "type": "object"
     }
   },
+  "name": "PasswordResetInput",
   "schemas": {
-    "password_reset_payload": {
-      "name": "PasswordResetPayload",
+    "019fba9e-d801-724d-b83b-992e799e1eb2": {
       "fields": {
-        "email": {
+        "019fba9e-d801-7790-8c10-af01000d7364": {
           "name": "email",
-          "description": "Account email address",
           "type": "string"
         }
-      }
+      },
+      "name": "payload"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -446,16 +198,14 @@ Request password reset email
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "message",
-  "description": "A simple status message response",
   "fields": {
-    "message": {
+    "019fba9e-d801-774e-9b13-f3fb3563685c": {
       "name": "message",
-      "description": "Human-readable status message",
       "type": "string"
     }
-  }
+  },
+  "name": "MessageOutput",
+  "version": "1.0.0"
 }
 ```
 
@@ -463,7 +213,7 @@ Request password reset email
 
 ### Confirm password reset with token
 
-**`PATCH`** `/system/auth/password`
+**`PATCH`** `/system/auth/password/confirm`
 
 Confirm password reset with token
 
@@ -473,35 +223,32 @@ Confirm password reset with token
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "password_confirm_input",
-  "description": "Password confirmation with reset token",
   "fields": {
-    "payload": {
+    "019fba9e-d801-70f0-8af5-45599beb01dd": {
       "name": "payload",
-      "type": "object",
       "schema": {
-        "id": "password_confirm_payload"
-      }
+        "id": "019fba9e-d801-7201-96fb-cf7c6e0ef2aa"
+      },
+      "type": "object"
     }
   },
+  "name": "PasswordConfirmInput",
   "schemas": {
-    "password_confirm_payload": {
-      "name": "PasswordConfirmPayload",
+    "019fba9e-d801-7201-96fb-cf7c6e0ef2aa": {
       "fields": {
-        "password": {
-          "name": "password",
-          "description": "New password",
+        "019fba9e-d801-788a-b400-21038863f10b": {
+          "name": "token",
           "type": "string"
         },
-        "token": {
-          "name": "token",
-          "description": "Reset token",
+        "019fba9e-d802-74b5-b47f-86c33fc4705d": {
+          "name": "password",
           "type": "string"
         }
-      }
+      },
+      "name": "payload"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -509,133 +256,14 @@ Confirm password reset with token
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "message",
-  "description": "A simple status message response",
   "fields": {
-    "message": {
+    "019fba9e-d801-774e-9b13-f3fb3563685c": {
       "name": "message",
-      "description": "Human-readable status message",
       "type": "string"
     }
-  }
-}
-```
-
----
-
-## token
-
-### Validate a JWT access token
-
-**`GET`** `/system/auth/token`
-
-Validate a JWT access token
-
-- **Handler:** `system:auth:token:validate`
-- **Internal:** Yes
-
-#### Response
-
-```json
-{
-  "version": "1.0.0",
-  "name": "claims",
-  "description": "Token claims with user identity and metadata",
-  "fields": {
-    "document": {
-      "name": "document",
-      "description": "Claims document",
-      "type": "object",
-      "schema": {
-        "id": "claims_document"
-      }
-    }
   },
-  "schemas": {
-    "claims_document": {
-      "name": "ClaimsDocument",
-      "fields": {
-        "email": {
-          "name": "email",
-          "description": "User email address",
-          "type": "string"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "description": "Token expiration timestamp",
-          "type": "string"
-        },
-        "scopes": {
-          "name": "scopes",
-          "description": "Assigned permission scopes",
-          "type": "array",
-          "schema": {
-            "id": "",
-            "type": "string"
-          }
-        },
-        "token_id": {
-          "name": "token_id",
-          "description": "Unique token identifier",
-          "type": "string"
-        },
-        "token_type": {
-          "name": "token_type",
-          "description": "Token type (access/refresh)",
-          "type": "string"
-        },
-        "user_id": {
-          "name": "user_id",
-          "description": "Authenticated user ID",
-          "type": "string"
-        }
-      }
-    }
-  }
-}
-```
-
----
-
-### Check if a token is blocklisted
-
-**`POST`** `/system/auth/token/query`
-
-Check if a token is blocklisted
-
-- **Handler:** `system:auth:token:check`
-- **Internal:** Yes
-
-#### Response
-
-```json
-{
-  "version": "1.0.0",
-  "name": "blocklist_check",
-  "description": "Token blocklist check result",
-  "fields": {
-    "document": {
-      "name": "document",
-      "description": "Blocklist check result",
-      "type": "object",
-      "schema": {
-        "id": "blocklist_document"
-      }
-    }
-  },
-  "schemas": {
-    "blocklist_document": {
-      "name": "BlocklistDocument",
-      "fields": {
-        "blocklisted": {
-          "name": "blocklisted",
-          "description": "Whether the token is blocklisted",
-          "type": "boolean"
-        }
-      }
-    }
-  }
+  "name": "MessageOutput",
+  "version": "1.0.0"
 }
 ```
 
@@ -645,7 +273,7 @@ Check if a token is blocklisted
 
 ### Validate an API key
 
-**`GET`** `/system/auth/apikey`
+**`GET`** `/system/auth/apikey/validate`
 
 Validate an API key
 
@@ -656,60 +284,44 @@ Validate an API key
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "claims",
-  "description": "Token claims with user identity and metadata",
   "fields": {
-    "document": {
+    "019fba9e-d801-77d5-b24d-88f0c2c151ed": {
       "name": "document",
-      "description": "Claims document",
-      "type": "object",
       "schema": {
-        "id": "claims_document"
-      }
+        "id": "019fba9e-d801-7224-9c13-8fac38791dbe"
+      },
+      "type": "object"
     }
   },
+  "name": "ClaimsOutput",
   "schemas": {
-    "claims_document": {
-      "name": "ClaimsDocument",
+    "019fba9e-d801-7224-9c13-8fac38791dbe": {
       "fields": {
-        "email": {
-          "name": "email",
-          "description": "User email address",
-          "type": "string"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "description": "Token expiration timestamp",
-          "type": "string"
-        },
-        "scopes": {
-          "name": "scopes",
-          "description": "Assigned permission scopes",
-          "type": "array",
-          "schema": {
-            "id": "",
-            "type": "string"
-          }
-        },
-        "token_id": {
-          "name": "token_id",
-          "description": "Unique token identifier",
-          "type": "string"
-        },
-        "token_type": {
-          "name": "token_type",
-          "description": "Token type (access/refresh)",
-          "type": "string"
-        },
-        "user_id": {
+        "019fba9e-d801-73da-a0fa-315a3e13b64c": {
           "name": "user_id",
-          "description": "Authenticated user ID",
           "type": "string"
+        },
+        "019fba9e-d802-7033-8709-835d6ba81c19": {
+          "name": "session_id",
+          "type": "string"
+        },
+        "019fba9e-d803-7a4d-9cd1-7b3b8a608f7b": {
+          "name": "issued_at",
+          "type": "integer"
+        },
+        "019fba9e-d804-7c77-ad70-2ab3df763b40": {
+          "name": "expires_at",
+          "type": "integer"
+        },
+        "019fba9e-d805-74d5-bc9f-5fbfd67c3596": {
+          "name": "created_at",
+          "type": "integer"
         }
-      }
+      },
+      "name": "ClaimsDocumentView"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -719,7 +331,7 @@ Validate an API key
 
 ### Set bootstrap admin password
 
-**`PATCH`** `/system/auth/bootstrap`
+**`PATCH`** `/system/auth/bootstrap/password/set`
 
 Set bootstrap admin password
 
@@ -730,35 +342,36 @@ Set bootstrap admin password
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "bootstrap_password_input",
-  "description": "Bootstrap password change request",
   "fields": {
-    "payload": {
+    "019fba9e-d801-7062-82e3-387dc3f59bb3": {
       "name": "payload",
-      "type": "object",
       "schema": {
-        "id": "bootstrap_password_payload"
-      }
+        "id": "019fba9e-d801-7468-a9fe-a0f989eeacf4"
+      },
+      "type": "object"
     }
   },
+  "name": "BootstrapPasswordInput",
   "schemas": {
-    "bootstrap_password_payload": {
-      "name": "BootstrapPasswordPayload",
+    "019fba9e-d801-7468-a9fe-a0f989eeacf4": {
       "fields": {
-        "email": {
+        "019fba9e-d801-7f61-8de7-5c88a4c67026": {
           "name": "email",
-          "description": "New admin email",
           "type": "string"
         },
-        "password": {
+        "019fba9e-d802-75b8-bcf0-aa09314cda9f": {
           "name": "password",
-          "description": "New admin password",
+          "type": "string"
+        },
+        "019fba9e-d803-7e57-8151-5145ee97b082": {
+          "name": "caller_id",
           "type": "string"
         }
-      }
+      },
+      "name": "payload"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -766,16 +379,88 @@ Set bootstrap admin password
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "message",
-  "description": "A simple status message response",
   "fields": {
-    "message": {
+    "019fba9e-d801-774e-9b13-f3fb3563685c": {
       "name": "message",
-      "description": "Human-readable status message",
       "type": "string"
     }
-  }
+  },
+  "name": "MessageOutput",
+  "version": "1.0.0"
+}
+```
+
+---
+
+## token
+
+### Issue an ephemeral API key for privilege elevation
+
+**`POST`** `/system/auth/token/elevate`
+
+Issue an ephemeral API key for privilege elevation
+
+- **Handler:** `system:auth:token:elevate`
+
+#### Request Body
+
+```json
+{
+  "fields": {
+    "019fba9e-d801-7569-a78c-c495be5275ee": {
+      "name": "payload",
+      "schema": {
+        "id": "019fba9e-d801-7041-9540-bc83d5ed480b"
+      },
+      "type": "object"
+    }
+  },
+  "name": "ElevateInput",
+  "schemas": {
+    "019fba9e-d801-7041-9540-bc83d5ed480b": {
+      "fields": {
+        "019fba9e-d801-720a-96f2-c83b5de18367": {
+          "name": "email",
+          "type": "string"
+        },
+        "019fba9e-d802-736f-a260-5a4991fbfc4b": {
+          "name": "password",
+          "type": "string"
+        }
+      },
+      "name": "payload"
+    }
+  },
+  "version": "1.0.0"
+}
+```
+
+#### Response
+
+```json
+{
+  "fields": {
+    "019fba9e-d801-7cf9-af16-cd1cba54f07c": {
+      "name": "document",
+      "schema": {
+        "id": "019fba9e-d801-76eb-9002-c7c67184b522"
+      },
+      "type": "object"
+    }
+  },
+  "name": "ElevateOutput",
+  "schemas": {
+    "019fba9e-d801-76eb-9002-c7c67184b522": {
+      "fields": {
+        "019fba9e-d801-7cc2-b2da-060f24fe6c89": {
+          "name": "key",
+          "type": "string"
+        }
+      },
+      "name": "ElevateDocumentView"
+    }
+  },
+  "version": "1.0.0"
 }
 ```
 

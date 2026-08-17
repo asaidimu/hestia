@@ -63,8 +63,8 @@ describe("HestiaNotificationStore", () => {
 
       const result = await store.list()
       expect(result).toHaveLength(1)
-      expect(result[0].type).toBe("password_reset")
-      expect(result[0].read).toBe(false)
+      expect(result[0]!.type).toBe("password_reset")
+      expect(result[0]!.read).toBe(false)
     })
 
     it("returns empty array when no data", async () => {

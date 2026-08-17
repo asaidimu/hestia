@@ -37,7 +37,7 @@ func main() {
 go run main.go
 ```
 
-`Setup` loads configuration from the environment (or `.env`), applies migrations, hydrates the built-in features (auth, users, API keys, policies, blobs, audit, collections, operations, notifications, schedules, settings, tenants), and serves on `:8090` with an auto-documented HTTP API plus a CLI interface.
+`Setup` loads configuration from the environment (or `.env`), applies migrations, hydrates the built-in services (auth, users, API keys, policies, blobs, audit, collections, operations, notifications, schedules, settings, tenants), and serves on `:8090` with an auto-documented HTTP API plus a CLI interface.
 
 See `examples/basic/` for a minimal standalone server and `cmd/test-server/` for a wired example.
 
@@ -153,7 +153,7 @@ app.Close()
 
 ## Features
 
-Built-in features live under `core/feature/` and are wired together by generated code (`gen_features.go`). Each exposes a message contract (`module:feature:scope:action`), input/output schemas, and policy bindings.
+Built-in features live under `core/system/<feature>/` (one directory per feature) and are wired together by the system module under `core/system/` (generated wiring in `gen_features.go`). Each feature exposes a message contract (`module:feature:scope:action`), input/output schemas, and policy bindings.
 
 | Feature | Message scope | Purpose |
 |---|---|---|
@@ -174,7 +174,7 @@ Built-in features live under `core/feature/` and are wired together by generated
 
 ## Persistence
 
-hestia uses **[go-anansi/v8](https://github.com/asaidimu/go-anansi)** as its document store. Schemes are declared as plain `.schema.json` files under `core/feature/<feature>/model/`, and models/DTOs are generated from them.
+hestia uses **[go-anansi/v8](https://github.com/asaidimu/go-anansi)** as its document store. Schemas are declared as plain `.schema.json` files under `core/system/<feature>/model/`, and models/DTOs are generated from them.
 
 The default backend is **SQLite** (via `mattn/go-sqlite3`, WAL mode), embedded in-process — no separate database process to manage. A **Pebble-backed event bus** powers change notifications.
 
@@ -185,7 +185,7 @@ The default backend is **SQLite** (via `mattn/go-sqlite3`, WAL mode), embedded i
 3. `anansi migrate generate` to create the migration
 4. `anansi codegen golang` to regenerate model structs & DTOs
 
-See `docs/guide/writing_features.md` for the canonical feature layout (`Setup`, schema + projections, codegen, DTOs, domain methods, wiring, tests).
+See `core/system/users/` for the canonical feature layout (schema + projections, codegen, DTOs, domain methods, wiring, tests) and `todo/migrate_features.md` for the migration plan.
 
 ### Custom Backend
 
@@ -232,7 +232,7 @@ HTTP ─▶ fasthttp transport ─▶ auth middleware ─▶ route closure ─�
                                         ┌──────────────────────────┴──────────────────────┐
                                         │ bootstrap → secure → ratelimit → throttle       │
                                         │ → tenant → blob → recovery → audit              │
-                                        │ → LocalDispatcher                                │
+                                        │ → LocalDispatcher                               │
                                         └─────────────────────────────────────────────────┘
 ```
 
@@ -265,21 +265,21 @@ module:feature:scope:action
 
 | Message | HTTP |
 |---|---|
-| `system:auth:session:create` | `POST /api/auth/session` |
-| `system:users:user:get` | `GET /api/users/user/{user_id}` |
-| `system:auth:session:delete` | `DELETE /api/auth/session` |
-| `collection:articles:document:read` | `GET /api/collection/articles/document/{doc_id}` |
+| `system:auth:session:create` | `POST /api/system/auth/session/create` |
+| `system:users:user:get` | `GET /api/system/users/user/get/{user_id}` |
+| `system:auth:session:delete` | `DELETE /api/system/auth/session/delete` |
+| `system:collections:document:get` | `GET /api/system/collections/document/get/{name}/{doc_id}` |
 
 ### Result
 
 ```go
 type Result struct {
 	Kind            ResultKind          // explicit discriminant
-	Document        *data.Document
-	Documents       data.DocumentSet
+	Document        *document.Document
+	Documents       document.DocumentSet
 	Page            *Page
 	Blob            Blob
-	DocumentChannel <-chan *data.Document
+	DocumentChannel <-chan *document.Document
 	BlobChannel     <-chan Blob
 }
 ```
@@ -301,10 +301,22 @@ Results pool underlying resources. Call `result.Release()` once you've consumed 
 ```go
 type Module interface {
 	Name() string
-	Setup(ctx context.Context, persist base.Persistence) error
-	Capabilities() []Capability
+	// Setup registers the module's service providers into the shared runtime
+	// container rt. Boot pre-populates rt with base providers (persistence,
+	// logger, dispatcher); modules resolve them via abstract.MustResolve[T](rt).
+	Setup(ctx context.Context, rt abstract.Container) error
+	// Capabilities is called after every module has been set up and the shared
+	// container has been sealed (Rebuild). Resolve services from rt and return
+	// the message registrations they expose.
+	Capabilities(rt abstract.Container) ([]Capability, error)
+	Dependencies() []string
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+	Health(ctx context.Context) any
 }
 ```
+
+Modules embed `module.BaseModule` (from `github.com/asaidimu/hestia/core/runtime/module`) for the no-op `Dependencies`/`Start`/`Stop`/`Health`.
 
 The built-in system module provides auth, users, API keys, policies, audit, blobs, collections, operations, notifications, schedules, settings, and tenants. Extension modules register via `SetupConfig.Modules`.
 
@@ -325,7 +337,7 @@ System-internal dispatches (bootstrap, password reset, token validation) bypass 
 ## Bootstrap
 
 1. **First run** — no admin seed exists. Creates an admin user with random credentials, generates an ephemeral API key, `bootstrapped = false`.
-2. **Only bootstrap-safe routes** are exposed: `system:auth:session:create` (`POST /api/auth/session`) and `system:auth:bootstrap:password:set` (`PATCH /api/auth/bootstrap/password`).
+2. **Only bootstrap-safe routes** are exposed: `system:auth:session:create` (`POST /api/system/auth/session/create`) and `system:auth:bootstrap:password:set` (`PATCH /api/system/auth/bootstrap/password/set`).
 3. User sets the admin password via the CLI (`hestia --bootstrap`), the client SDK, or directly against the bootstrap password route with the ephemeral key, new password, and email.
 4. **On restart** — the stored password hash seed is compared to the current hash. If they differ (password was changed), `bootstrapped = true`.
 5. All routes become available.
@@ -336,38 +348,61 @@ System-internal dispatches (bootstrap, password reset, token validation) bypass 
 
 ```
 module/<name>/
-├── module.go
-└── feature/<feature>/
-    ├── register.go     // Registrations(deps) → []MessageRegistration
-    ├── handler.go      // business logic closures
-    ├── model.go        // persistence wrapper
-    ├── schema.go       // input/output schemas
-    ├── policies.go     // PolicyBindings() → permission scopes
-    ├── seed.go         // seed data (optional)
-    └── model/*.schema.json  // anansi schema declarations (collections)
+├── module.go          // Module: Name(), Setup(rt), Capabilities(rt)
+└── <feature>/
+    ├── feature.go     // Register(rt) + Registrations(rt) → []MessageRegistration
+    ├── handler.go     // service methods (annotate with @hestia.register)
+    └── model.go       // store + input/output types
 ```
 
-Handlers are stateless constructors returning closures:
+A module is a bundle of services. During the two-phase boot every module's
+`Setup` registers its service providers into the shared runtime container
+(`abstract.Register[T](rt, ctor)`); boot then seals the container once with
+`Rebuild`, and calls each module's `Capabilities` to collect message
+registrations:
 
 ```go
-type Dependencies struct {
-	UserModel *users.UserModel
+type Module struct {
+	module.BaseModule
 }
 
-func Registrations(deps Dependencies) []abstract.MessageRegistration {
-	return []abstract.MessageRegistration{
-		{Name: "mymodule:greeter:hello:create", Handler: newHandler(deps), Intent: abstract.Create},
-	}
+func New() *Module { return &Module{} }
+
+func (m *Module) Name() string { return "mymodule" }
+
+func (m *Module) Setup(ctx context.Context, rt abstract.Container) error {
+	return greeter.Register(rt) // registers the GreeterService provider
 }
 
-func newHandler(deps Dependencies) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		name, _ := msg.Input().GetOr("payload.name", "").(string)
-		doc := data.MustNewDocument(map[string]any{"greeting": "Hello, " + name}, ctx)
-		return dispatch.NewDocumentResult(doc), nil
+func (m *Module) Capabilities(rt abstract.Container) ([]abstract.Capability, error) {
+	regs, err := greeter.Registrations(rt)
+	if err != nil {
+		return nil, err
 	}
+	return []abstract.Capability{{Name: "mymodule", Messages: regs}}, nil
 }
 ```
+
+The feature registers a service constructor into the container and resolves it
+in `Registrations`; the handler is a method on that service:
+
+```go
+func Register(rt abstract.Container) error {
+	return abstract.Register[*GreeterService](rt, func(c abstract.Container) (*GreeterService, error) {
+		return NewGreeterService(c)
+	})
+}
+
+func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error) {
+	s := abstract.MustResolve[*GreeterService](rt)
+	return []abstract.MessageRegistration{
+		{Name: "mymodule:greeter:hello:create", Handler: dispatch.HandleDocument[HelloInput, *Greeting](s.Hello), Intent: abstract.Create},
+	}, nil
+}
+```
+
+Messages are named `module:feature:scope:action` (four segments). Boot validates
+this grammar and registers every handler on the dispatcher.
 
 Registration:
 
@@ -377,7 +412,9 @@ hestia.Setup(hestia.SetupConfig{
 })
 ```
 
-Built-in features follow the same pattern — there is no privileged path.
+Built-in features follow the same pattern — there is no privileged path. The
+built-in services live under `core/system/<feature>/` and are collected by
+`core/system/services.go` (generated by `hestia service generate --all`).
 
 ---
 
@@ -408,15 +445,23 @@ await pager.resize(50, 1)
 ## CLI Tool
 
 ```bash
-hestia init                        # scaffold a new project (hestia.json, entry point, Makefile)
-hestia generate modules            # generate internal/autogen/modules.go from module_sources
-hestia generate features           # [library dev only] regenerate core/feature/gen_features.go
-hestia module <name> [feature]     # scaffold a module (and optional feature)
-hestia add cmd <name>              # new server binary
-hestia remove module <name>        # remove a module
+hestia init                          # scaffold a new project (hestia.json, entry point, Makefile)
+hestia add module <name> [feature]   # scaffold a module (module.go + one feature service)
+hestia add cmd <name>                # new server binary
+hestia generate modules              # generate <autogen>/modules.go from the configured modules dirs
+hestia generate features             # [library dev only] regenerate core/system/gen_features.go
+hestia remove module <name>          # remove an external module
+hestia service new <module> <name>   # scaffold a service inside a module
+hestia service generate <module> <name>  # regenerate a service's registrations.go and policies.go
+hestia service generate --all        # regenerate every module's services + collectors
 ```
 
-`hestia.json` configures `module`, `module_sources`, `module_target`, and `autogen_target`. The generated `internal/autogen/modules.go` registry is passed to `SetupConfig.Modules`.
+`hestia.json` configures `module` (import path), `modules` (where modules live —
+a single dir or a list; new modules/services are scaffolded into the first
+entry), and `autogen` (where generated code, e.g. `modules.go`, is written).
+The generated `<autogen>/modules.go` registry is passed to `SetupConfig.Modules`.
+A module is a directory with a `module.go` plus service subdirectories; each
+module's `services.go` collector is generated by `hestia service`.
 
 ---
 
@@ -426,13 +471,14 @@ hestia remove module <name>        # remove a module
 ├── core/                          # framework
 │   ├── hestia.go                  # public API — Setup, Application, SetupConfig
 │   ├── abstract/                  # interfaces & envelope types (zero implementation)
-│   ├── feature/                   # built-in features (auth, users, apikeys, ...)
-│   │   ├── <feature>/
-│   │   │   ├── handler.go / register.go / model.go
-│   │   │   └── model/*.schema.json    # anansi schema declarations
-│   │   ├── module.go              # SystemModule (dispatcher chain, providers)
+│   ├── system/                    # the built-in system module: module + its services
+│   │   ├── module.go              # SystemModule wiring (dispatcher chain, providers)
+│   │   ├── services.go            # service collector (generated, wires all services)
 │   │   ├── gen_features.go        # generated feature wiring (DO NOT EDIT)
-│   │   └── provider.go, seeds.go, policies
+│   │   ├── provider.go, seeds.go, policies.go
+│   │   ├── <feature>/             # built-in services (auth, users, apikeys, ...)
+│   │   │   ├── registrations.go / service.go / policies.go / model.go
+│   │   │   └── model/*.schema.json    # anansi schema declarations
 │   ├── interface/
 │   │   ├── http/                  # fasthttp transport, auth middleware, routing
 │   │   └── cli/                   # CLI transport (version/help/bootstrap)
@@ -443,7 +489,7 @@ hestia remove module <name>        # remove a module
 │   └── runtime/                   # dispatchers, config, auth, policies, mailer, scheduler
 ├── client/                        # TypeScript SDK (@asaidimu/hestia)
 ├── cmd/
-│   ├── hestia/                    # CLI tool (init, generate, module, add, remove)
+│   ├── hestia/                    # CLI tool (init, add, generate, remove, service)
 │   ├── test-server/               # auto-reloading test server (:8070, auth bypass middleware)
 │   ├── docs-server/               # documentation site server
 │   ├── hestia-desktop/            # Wails desktop shell (WailsTransport)
@@ -471,8 +517,10 @@ hestia remove module <name>        # remove a module
 - **go-cron** — scheduler
 - **go-mail** — SMTP notifications
 - **wails/v2** — desktop bindings
-- **zap** — structured logging · **lumberjack** — log rotation
-- **cobra** — CLI framework · **google/uuid** — UUIDv7 message IDs
+- **zap** — structured logging 
+- **lumberjack** — log rotation
+- **cobra** — CLI framework 
+- **google/uuid** — UUIDv7 message IDs
 
 ---
 

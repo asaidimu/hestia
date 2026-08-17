@@ -53,7 +53,7 @@ func (o *Interface) installBootstrapSafeRegistrations() {
 
 func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	httpMethod := IntentToHTTPMethod(reg.Intent)
-	httpPath := DeriveRoute(reg.Name, reg.Input.Arguments)
+	httpPath := DeriveRoute(reg.Name, reg.Input.Args())
 	if o.opts.APIPrefix != "" {
 		httpPath = o.opts.APIPrefix + httpPath
 	}
@@ -183,7 +183,7 @@ func streamChannel[T any](src <-chan T, transform func(T) any) (Response, bool) 
 }
 
 func serializeStreamResult(result *abstract.Result) (Response, bool) {
-	if resp, ok := streamChannel(result.DocumentChannel, func(d data.Documenter) any {
+	if resp, ok := streamChannel(result.DocumentChannel, func(d *document.Document) any {
 		sane, _ := d.Sanitize()
 		return sane
 	}); ok {
@@ -202,7 +202,7 @@ func blobResponse(blob abstract.Blob) Response {
 	}
 }
 
-func drainChannelResponse(docCh <-chan data.Documenter) Response {
+func drainChannelResponse(docCh <-chan *document.Document) Response {
 	var docs []data.Documenter
 	for d := range docCh {
 		sane, _ := d.Sanitize()
@@ -242,19 +242,14 @@ func locationHeader(intent abstract.Verb, doc data.Documenter, httpPath string) 
 	return nil
 }
 
-func fieldExists(output *definition.Schema, name string) bool {
-	for _, f := range output.Fields {
-		if string(f.Name) == name {
-			return true
-		}
-	}
-	return false
-}
-
 func serializeOutputField(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) (Response, bool) {
 	status := createStatus(intent)
 
-	if result.Document != nil && fieldExists(output, "document") {
+	// The concrete result payload is the ground truth for the response body,
+	// not the output schema's declared shape: the schema is introspection only
+	// and may be a flat model schema (service codegen) or a wrapper envelope
+	// (feature DTOs). Serialize whichever result field the handler populated.
+	if result.Document != nil {
 		sane, _ := result.Document.Sanitize()
 		return Response{
 			Status:  status,
@@ -262,7 +257,7 @@ func serializeOutputField(result *abstract.Result, output *definition.Schema, in
 			Headers: locationHeader(intent, result.Document, httpPath),
 		}, true
 	}
-	if result.Documents != nil && fieldExists(output, "documents") {
+	if result.Documents != nil {
 		items := make([]data.Documenter, 0, len(result.Documents))
 		for _, d := range result.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {
@@ -271,7 +266,7 @@ func serializeOutputField(result *abstract.Result, output *definition.Schema, in
 		}
 		return Response{Status: statusOK, Body: items}, true
 	}
-	if result.Page != nil && fieldExists(output, "page") {
+	if result.Page != nil {
 		items := make([]data.Documenter, 0, len(result.Page.Documents))
 		for _, d := range result.Page.Documents {
 			if sane, _ := d.Sanitize(); sane != nil {

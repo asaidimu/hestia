@@ -2,53 +2,68 @@
 
 ## user
 
-### Query users collection
+### Create a new user
 
-**`POST`** `/system/users/user/query`
+**`POST`** `/system/users/user/create`
 
-Query users collection
+Create a new user
 
-- **Handler:** `system:users:user:query`
+- **Handler:** `system:users:user:create`
 
 #### Request Body
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_query",
-  "description": "Query users with optional filters",
   "fields": {
-    "payload": {
+    "019fba9e-d801-7ef2-8dac-08b21764bd18": {
       "name": "payload",
-      "description": "Query payload",
-      "type": "object",
+      "required": true,
       "schema": {
-        "id": "user_query_payload"
-      }
+        "id": "019fba9e-d801-7917-8feb-557cca9207ce"
+      },
+      "type": "object"
     }
   },
+  "name": "UserRegisterInput",
   "schemas": {
-    "user_query_payload": {
-      "name": "UserQueryPayload",
+    "019fba9e-d801-7917-8feb-557cca9207ce": {
       "fields": {
-        "cursor": {
-          "name": "cursor",
-          "description": "Pagination cursor",
+        "019fba9e-d801-7f9a-a695-916df2020bdc": {
+          "name": "permissions",
+          "schema": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "019fba9e-d802-7ca5-90e3-7ec2536de290": {
+          "name": "email",
+          "required": true,
           "type": "string"
         },
-        "limit": {
-          "name": "limit",
-          "description": "Maximum number of results",
-          "type": "integer"
+        "019fba9e-d803-7767-a4e9-7bdc312401e2": {
+          "name": "name",
+          "required": true,
+          "type": "string"
         },
-        "username": {
-          "name": "username",
-          "description": "Filter by username (prefix match)",
+        "019fba9e-d804-7860-a1ae-7313d6661e89": {
+          "name": "password",
+          "required": true,
+          "type": "string"
+        },
+        "019fba9e-d805-7ae9-8408-1c0d164cf6c9": {
+          "name": "data",
+          "type": "record"
+        },
+        "019fba9e-d806-7550-b087-d83c13a71c90": {
+          "name": "tenant_id",
+          "nullable": true,
           "type": "string"
         }
-      }
+      },
+      "name": "payload"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -56,97 +71,112 @@ Query users collection
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_query_result",
-  "description": "Paginated user query result",
   "fields": {
-    "page": {
-      "name": "page",
-      "description": "Paginated list of users",
-      "type": "object",
+    "019fba9e-d801-7b73-9a49-da8c608cf40c": {
+      "name": "permissions",
       "schema": {
-        "id": "user_page"
-      }
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "019fba9e-d802-705d-bf4f-82fcd6e5fd3d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d803-795d-88f1-815a323adb8e": {
+      "name": "email",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d804-73e4-aee1-2200c89568b7": {
+      "name": "name",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d805-7400-a34c-d732a98bd410": {
+      "name": "password",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d806-773c-868e-20ebbf2d29ab": {
+      "name": "_metadata_",
+      "nullable": true,
+      "schema": {
+        "id": "019fba9e-d801-7024-9b43-be87087f8458"
+      },
+      "type": "object"
+    },
+    "019fba9e-d807-7acb-ace1-be6053c77558": {
+      "name": "data",
+      "type": "record"
+    },
+    "019fba9e-d808-7416-b0e8-4b11cefacbb2": {
+      "default": -1,
+      "name": "disabled",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d809-7eb0-8079-a7e7d3926dad": {
+      "name": "settings",
+      "type": "record"
+    },
+    "019fba9e-d80a-7cbd-a7de-a608fc5bcaa5": {
+      "name": "tenant_id",
+      "nullable": true,
+      "type": "string"
+    },
+    "019fba9e-d80b-7709-9cea-b792246e513e": {
+      "default": 0,
+      "name": "token_version",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d80c-712c-86f6-618bc764a67a": {
+      "name": "verified",
+      "nullable": true,
+      "type": "boolean"
     }
   },
+  "name": "SystemUser",
   "schemas": {
-    "pagination_meta": {
-      "name": "PaginationMeta",
+    "019fba9e-d801-7024-9b43-be87087f8458": {
       "fields": {
-        "cursor": {
-          "name": "cursor",
-          "description": "Cursor for next page",
+        "019fba9e-d801-7c3e-b48e-ef2fc634a322": {
+          "name": "checksum",
+          "required": true,
           "type": "string"
         },
-        "limit": {
-          "name": "limit",
-          "description": "Number of results requested",
-          "type": "integer"
+        "019fba9e-d802-706e-812e-0e5450007937": {
+          "name": "created",
+          "required": true,
+          "type": "string"
         },
-        "total": {
-          "name": "total",
-          "description": "Total number of matching documents",
-          "type": "integer"
+        "019fba9e-d803-729f-85ab-28afa42d4136": {
+          "name": "updated",
+          "required": true,
+          "type": "string"
+        },
+        "019fba9e-d804-7db7-851a-c59a3a23ae8d": {
+          "name": "signature",
+          "nullable": true,
+          "type": "string"
+        },
+        "019fba9e-d805-740c-b8cb-ade460764958": {
+          "name": "trace_id",
+          "nullable": true,
+          "type": "string"
+        },
+        "019fba9e-d806-7471-b9e6-15f9086c8316": {
+          "name": "version",
+          "required": true,
+          "type": "number"
         }
-      }
-    },
-    "user_document": {
-      "name": "UserDocument",
-      "fields": {
-        "created_at": {
-          "name": "created_at",
-          "description": "Creation timestamp",
-          "type": "string"
-        },
-        "disabled": {
-          "name": "disabled",
-          "description": "Whether the user is disabled",
-          "type": "boolean"
-        },
-        "display_name": {
-          "name": "display_name",
-          "description": "Display name",
-          "type": "string"
-        },
-        "id": {
-          "name": "id",
-          "description": "User ID",
-          "type": "string"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "description": "Last update timestamp",
-          "type": "string"
-        },
-        "username": {
-          "name": "username",
-          "description": "Username",
-          "type": "string"
-        }
-      }
-    },
-    "user_page": {
-      "name": "UserPage",
-      "fields": {
-        "documents": {
-          "name": "documents",
-          "description": "Array of user documents",
-          "type": "array",
-          "schema": {
-            "id": "user_document"
-          }
-        },
-        "pagination": {
-          "name": "pagination",
-          "description": "Pagination metadata",
-          "type": "object",
-          "schema": {
-            "id": "pagination_meta"
-          }
-        }
-      }
+      },
+      "name": "SystemUserMetadata"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -154,7 +184,7 @@ Query users collection
 
 ### Get user by ID
 
-**`GET`** `/system/users/user/{user_id}`
+**`GET`** `/system/users/user/get/{user_id}`
 
 Get user by ID
 
@@ -164,30 +194,28 @@ Get user by ID
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_get_input",
-  "description": "User ID from path",
   "fields": {
-    "arguments": {
+    "019fba9e-d801-7379-a873-a7e23c26f810": {
       "name": "arguments",
-      "type": "object",
       "schema": {
-        "id": "user_get_arguments"
-      }
+        "id": "019fba9e-d801-7a0b-a0c5-c859d325a43a"
+      },
+      "type": "object"
     }
   },
+  "name": "UserGetInput",
   "schemas": {
-    "user_get_arguments": {
-      "name": "UserGetArguments",
+    "019fba9e-d801-7a0b-a0c5-c859d325a43a": {
       "fields": {
-        "user_id": {
+        "019fba9e-d801-7e40-9ca4-968566ff9685": {
           "name": "user_id",
-          "description": "The user ID",
           "type": "string"
         }
-      }
+      },
+      "name": "arguments"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -195,66 +223,122 @@ Get user by ID
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_output",
-  "description": "User output schema",
   "fields": {
-    "document": {
-      "name": "document",
-      "description": "The user document",
-      "type": "object",
+    "019fba9e-d801-7b73-9a49-da8c608cf40c": {
+      "name": "permissions",
       "schema": {
-        "id": "user_document"
-      }
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "019fba9e-d802-705d-bf4f-82fcd6e5fd3d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d803-795d-88f1-815a323adb8e": {
+      "name": "email",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d804-73e4-aee1-2200c89568b7": {
+      "name": "name",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d805-7400-a34c-d732a98bd410": {
+      "name": "password",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d806-773c-868e-20ebbf2d29ab": {
+      "name": "_metadata_",
+      "nullable": true,
+      "schema": {
+        "id": "019fba9e-d801-7024-9b43-be87087f8458"
+      },
+      "type": "object"
+    },
+    "019fba9e-d807-7acb-ace1-be6053c77558": {
+      "name": "data",
+      "type": "record"
+    },
+    "019fba9e-d808-7416-b0e8-4b11cefacbb2": {
+      "default": -1,
+      "name": "disabled",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d809-7eb0-8079-a7e7d3926dad": {
+      "name": "settings",
+      "type": "record"
+    },
+    "019fba9e-d80a-7cbd-a7de-a608fc5bcaa5": {
+      "name": "tenant_id",
+      "nullable": true,
+      "type": "string"
+    },
+    "019fba9e-d80b-7709-9cea-b792246e513e": {
+      "default": 0,
+      "name": "token_version",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d80c-712c-86f6-618bc764a67a": {
+      "name": "verified",
+      "nullable": true,
+      "type": "boolean"
     }
   },
+  "name": "SystemUser",
   "schemas": {
-    "user_document": {
-      "name": "UserDocument",
+    "019fba9e-d801-7024-9b43-be87087f8458": {
       "fields": {
-        "created_at": {
-          "name": "created_at",
-          "description": "Creation timestamp",
+        "019fba9e-d801-7c3e-b48e-ef2fc634a322": {
+          "name": "checksum",
+          "required": true,
           "type": "string"
         },
-        "disabled": {
-          "name": "disabled",
-          "description": "Whether the user is disabled",
-          "type": "boolean"
-        },
-        "display_name": {
-          "name": "display_name",
-          "description": "Display name",
+        "019fba9e-d802-706e-812e-0e5450007937": {
+          "name": "created",
+          "required": true,
           "type": "string"
         },
-        "id": {
-          "name": "id",
-          "description": "User ID",
+        "019fba9e-d803-729f-85ab-28afa42d4136": {
+          "name": "updated",
+          "required": true,
           "type": "string"
         },
-        "updated_at": {
-          "name": "updated_at",
-          "description": "Last update timestamp",
+        "019fba9e-d804-7db7-851a-c59a3a23ae8d": {
+          "name": "signature",
+          "nullable": true,
           "type": "string"
         },
-        "username": {
-          "name": "username",
-          "description": "Username",
+        "019fba9e-d805-740c-b8cb-ade460764958": {
+          "name": "trace_id",
+          "nullable": true,
           "type": "string"
+        },
+        "019fba9e-d806-7471-b9e6-15f9086c8316": {
+          "name": "version",
+          "required": true,
+          "type": "number"
         }
-      }
+      },
+      "name": "SystemUserMetadata"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
 ---
 
-### Update user
+### Update user profile
 
-**`PATCH`** `/system/users/user/{user_id}`
+**`PATCH`** `/system/users/user/update/{user_id}`
 
-Update user
+Update user profile
 
 - **Handler:** `system:users:user:update`
 
@@ -262,54 +346,78 @@ Update user
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_update_input",
-  "description": "User update with fields to modify",
   "fields": {
-    "arguments": {
-      "name": "arguments",
-      "description": "User ID argument",
-      "type": "object",
-      "schema": {
-        "id": "user_update_arguments"
-      }
-    },
-    "payload": {
+    "019fba9e-d801-7582-9ec5-2b2cf6944d30": {
       "name": "payload",
-      "description": "Fields to update",
-      "type": "object",
       "schema": {
-        "id": "user_update_payload"
-      }
+        "id": "019fba9e-d801-72a5-8568-2bdcd0ae22cb"
+      },
+      "type": "object"
+    },
+    "019fba9e-d802-7199-9b1f-89e5f8bc3291": {
+      "name": "arguments",
+      "required": true,
+      "schema": {
+        "id": "019fba9e-d802-7c57-b877-77012594cee0"
+      },
+      "type": "object"
     }
   },
+  "name": "UserUpdateInput",
   "schemas": {
-    "user_update_arguments": {
-      "name": "UserUpdateArguments",
+    "019fba9e-d801-72a5-8568-2bdcd0ae22cb": {
       "fields": {
-        "user_id": {
-          "name": "user_id",
-          "description": "The user ID",
-          "type": "string"
-        }
-      }
-    },
-    "user_update_payload": {
-      "name": "UserUpdatePayload",
-      "fields": {
-        "disabled": {
-          "name": "disabled",
-          "description": "Whether the user should be disabled",
-          "type": "boolean"
+        "019fba9e-d801-7617-aeb5-ebad258321bc": {
+          "name": "permissions",
+          "schema": {
+            "type": "string"
+          },
+          "type": "array"
         },
-        "display_name": {
-          "name": "display_name",
-          "description": "New display name",
+        "019fba9e-d802-7df8-a78d-655f5198f166": {
+          "name": "data",
+          "type": "record"
+        },
+        "019fba9e-d803-7199-95c7-052359b0d4be": {
+          "default": -1,
+          "name": "disabled",
+          "nullable": true,
+          "type": "integer"
+        },
+        "019fba9e-d804-7b10-93c5-e58dbb85d376": {
+          "name": "email",
+          "nullable": true,
+          "type": "string"
+        },
+        "019fba9e-d805-763e-9217-085629948e65": {
+          "name": "name",
+          "nullable": true,
+          "type": "string"
+        },
+        "019fba9e-d806-7ab8-b461-80766809734b": {
+          "name": "settings",
+          "type": "record"
+        },
+        "019fba9e-d807-70f0-b213-c89b2cac405c": {
+          "name": "verified",
+          "nullable": true,
+          "type": "boolean"
+        }
+      },
+      "name": "payload"
+    },
+    "019fba9e-d802-7c57-b877-77012594cee0": {
+      "fields": {
+        "019fba9e-d801-732a-955e-d3da1a9d8e78": {
+          "name": "user_id",
+          "required": true,
           "type": "string"
         }
-      }
+      },
+      "name": "arguments"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -317,66 +425,122 @@ Update user
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_output",
-  "description": "User output schema",
   "fields": {
-    "document": {
-      "name": "document",
-      "description": "The user document",
-      "type": "object",
+    "019fba9e-d801-7b73-9a49-da8c608cf40c": {
+      "name": "permissions",
       "schema": {
-        "id": "user_document"
-      }
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "019fba9e-d802-705d-bf4f-82fcd6e5fd3d": {
+      "name": "_id_",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d803-795d-88f1-815a323adb8e": {
+      "name": "email",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d804-73e4-aee1-2200c89568b7": {
+      "name": "name",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d805-7400-a34c-d732a98bd410": {
+      "name": "password",
+      "required": true,
+      "type": "string"
+    },
+    "019fba9e-d806-773c-868e-20ebbf2d29ab": {
+      "name": "_metadata_",
+      "nullable": true,
+      "schema": {
+        "id": "019fba9e-d801-7024-9b43-be87087f8458"
+      },
+      "type": "object"
+    },
+    "019fba9e-d807-7acb-ace1-be6053c77558": {
+      "name": "data",
+      "type": "record"
+    },
+    "019fba9e-d808-7416-b0e8-4b11cefacbb2": {
+      "default": -1,
+      "name": "disabled",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d809-7eb0-8079-a7e7d3926dad": {
+      "name": "settings",
+      "type": "record"
+    },
+    "019fba9e-d80a-7cbd-a7de-a608fc5bcaa5": {
+      "name": "tenant_id",
+      "nullable": true,
+      "type": "string"
+    },
+    "019fba9e-d80b-7709-9cea-b792246e513e": {
+      "default": 0,
+      "name": "token_version",
+      "nullable": true,
+      "type": "integer"
+    },
+    "019fba9e-d80c-712c-86f6-618bc764a67a": {
+      "name": "verified",
+      "nullable": true,
+      "type": "boolean"
     }
   },
+  "name": "SystemUser",
   "schemas": {
-    "user_document": {
-      "name": "UserDocument",
+    "019fba9e-d801-7024-9b43-be87087f8458": {
       "fields": {
-        "created_at": {
-          "name": "created_at",
-          "description": "Creation timestamp",
+        "019fba9e-d801-7c3e-b48e-ef2fc634a322": {
+          "name": "checksum",
+          "required": true,
           "type": "string"
         },
-        "disabled": {
-          "name": "disabled",
-          "description": "Whether the user is disabled",
-          "type": "boolean"
-        },
-        "display_name": {
-          "name": "display_name",
-          "description": "Display name",
+        "019fba9e-d802-706e-812e-0e5450007937": {
+          "name": "created",
+          "required": true,
           "type": "string"
         },
-        "id": {
-          "name": "id",
-          "description": "User ID",
+        "019fba9e-d803-729f-85ab-28afa42d4136": {
+          "name": "updated",
+          "required": true,
           "type": "string"
         },
-        "updated_at": {
-          "name": "updated_at",
-          "description": "Last update timestamp",
+        "019fba9e-d804-7db7-851a-c59a3a23ae8d": {
+          "name": "signature",
+          "nullable": true,
           "type": "string"
         },
-        "username": {
-          "name": "username",
-          "description": "Username",
+        "019fba9e-d805-740c-b8cb-ade460764958": {
+          "name": "trace_id",
+          "nullable": true,
           "type": "string"
+        },
+        "019fba9e-d806-7471-b9e6-15f9086c8316": {
+          "name": "version",
+          "required": true,
+          "type": "number"
         }
-      }
+      },
+      "name": "SystemUserMetadata"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
 ---
 
-### Delete user
+### Delete user account
 
-**`DELETE`** `/system/users/user/{user_id}`
+**`DELETE`** `/system/users/user/delete/{user_id}`
 
-Delete user
+Delete user account
 
 - **Handler:** `system:users:user:delete`
 
@@ -384,47 +548,28 @@ Delete user
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_delete_input",
-  "description": "Delete user by ID",
   "fields": {
-    "arguments": {
+    "019fba9e-d801-75b7-9651-370ed0e1b4ec": {
       "name": "arguments",
-      "type": "object",
       "schema": {
-        "id": "user_get_arguments"
-      }
-    },
-    "modifiers": {
-      "name": "modifiers",
-      "type": "object",
-      "schema": {
-        "id": "delete_modifiers"
-      }
+        "id": "019fba9e-d801-7c5d-b770-7db110088426"
+      },
+      "type": "object"
     }
   },
+  "name": "UserDeleteInput",
   "schemas": {
-    "delete_modifiers": {
-      "name": "DeleteModifiers",
+    "019fba9e-d801-7c5d-b770-7db110088426": {
       "fields": {
-        "permanent": {
-          "name": "permanent",
-          "description": "Whether to permanently delete",
-          "type": "boolean"
-        }
-      }
-    },
-    "user_get_arguments": {
-      "name": "UserGetArguments",
-      "fields": {
-        "user_id": {
+        "019fba9e-d801-79c5-8d19-b3bca28954f8": {
           "name": "user_id",
-          "description": "The user ID",
           "type": "string"
         }
-      }
+      },
+      "name": "arguments"
     }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 
@@ -432,11 +577,11 @@ Delete user
 
 ## password
 
-### Change user password
+### Change account password
 
-**`PATCH`** `/system/users/password/{user_id}`
+**`PATCH`** `/system/users/password/change/{user_id}`
 
-Change user password
+Change account password
 
 - **Handler:** `system:users:password:change`
 
@@ -444,69 +589,48 @@ Change user password
 
 ```json
 {
-  "version": "1.0.0",
-  "name": "user_change_password_input",
-  "description": "Change password with current and new password",
   "fields": {
-    "arguments": {
+    "019fba9e-d801-71ae-b73d-99d634601df7": {
       "name": "arguments",
-      "type": "object",
       "schema": {
-        "id": "user_get_arguments"
-      }
+        "id": "019fba9e-d801-75a7-bbcf-fd53e2f932ea"
+      },
+      "type": "object"
     },
-    "payload": {
+    "019fba9e-d802-731e-933b-1cd62476ffcd": {
       "name": "payload",
-      "type": "object",
       "schema": {
-        "id": "change_password_payload"
-      }
+        "id": "019fba9e-d802-758f-a202-9cec2f60d82b"
+      },
+      "type": "object"
     }
   },
+  "name": "UserChangePasswordInput",
   "schemas": {
-    "change_password_payload": {
-      "name": "ChangePasswordPayload",
+    "019fba9e-d801-75a7-bbcf-fd53e2f932ea": {
       "fields": {
-        "current": {
+        "019fba9e-d801-7da1-a054-34da82dd4d19": {
+          "name": "user_id",
+          "type": "string"
+        }
+      },
+      "name": "arguments"
+    },
+    "019fba9e-d802-758f-a202-9cec2f60d82b": {
+      "fields": {
+        "019fba9e-d801-7eb8-abf3-4444a7321857": {
           "name": "current",
-          "description": "Current password",
           "type": "string"
         },
-        "new": {
+        "019fba9e-d802-71af-9065-52432a2d6935": {
           "name": "new",
-          "description": "New password",
           "type": "string"
         }
-      }
-    },
-    "user_get_arguments": {
-      "name": "UserGetArguments",
-      "fields": {
-        "user_id": {
-          "name": "user_id",
-          "description": "The user ID",
-          "type": "string"
-        }
-      }
+      },
+      "name": "payload"
     }
-  }
-}
-```
-
-#### Response
-
-```json
-{
-  "version": "1.0.0",
-  "name": "user_message",
-  "description": "A simple status message response",
-  "fields": {
-    "message": {
-      "name": "message",
-      "description": "Human-readable status message",
-      "type": "string"
-    }
-  }
+  },
+  "version": "1.0.0"
 }
 ```
 

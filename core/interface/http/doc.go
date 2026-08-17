@@ -80,7 +80,7 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 
 	if rootField(input.Schema, "arguments") {
 		args := make(map[string]any)
-		for _, argDef := range input.Arguments {
+		for _, argDef := range input.Args() {
 			if v, ok := req.PathParams[argDef.Name]; ok {
 				args[argDef.Name] = v
 			}
@@ -96,7 +96,7 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 
 	if rootField(input.Schema, "modifiers") {
 		modifiers := make(map[string]any)
-		for name := range input.Modifiers {
+		for name := range input.Mods() {
 			if vals, ok := req.Query[name]; ok && len(vals) > 0 {
 				modifiers[name] = vals[0]
 			}
@@ -111,7 +111,7 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 	}
 
 	if rootField(input.Schema, "payload") {
-		if input.Payload == definition.FieldTypeBytes {
+		if input.PayloadType() == definition.FieldTypeBytes {
 			p, err := json.Marshal(req.Body)
 			if err != nil {
 				return nil, err

@@ -41,24 +41,22 @@ Flags:
 		}
 
 		cfg := Config{
-			Module:        modPath,
-			ModuleSources: []string{"module"},
-			ModuleTarget:  "module",
+			Module:  modPath,
+			Modules: Modules{"module"},
 		}
 		writeConfig(dir, cfg)
 
 		// Seed global vars so helpers can use them
 		rootDir = dir
 		modulePath = modPath
-		moduleSources = cfg.ModuleSources
-		moduleTarget = cfg.ModuleTarget
-		autogenTarget = cfg.AutogenTarget
-		if autogenTarget == "" {
-			autogenTarget = "internal/autogen"
+		modulesDirs = cfg.Modules
+		autogenDir = cfg.Autogen
+		if autogenDir == "" {
+			autogenDir = "internal/autogen"
 		}
 
-		// Create module source directory
-		for _, src := range moduleSources {
+		// Create module source directories
+		for _, src := range modulesDirs {
 			srcDir := filepath.Join(rootDir, src)
 			os.MkdirAll(srcDir, 0755)
 		}
@@ -81,7 +79,7 @@ import (
 	"os"
 
 	hestia "github.com/asaidimu/hestia/core"
-	"%s/internal/autogen"
+	"%s/%s"
 )
 
 var version = "dev"
@@ -105,7 +103,7 @@ func main() {
 	os.Stdout.Sync()
 	select {}
 }
-`, modulePath, modName)
+`, modulePath, filepath.ToSlash(autogenDir), modName)
 
 		if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", mainPath, err)

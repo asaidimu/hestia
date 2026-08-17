@@ -138,7 +138,7 @@ test-server
 .env
 node_modules
 docs/.vitepress
-hestia
+/hestia
 tmp
 .commit-message.md
 .readme.md

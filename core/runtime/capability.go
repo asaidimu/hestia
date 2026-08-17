@@ -3,10 +3,25 @@ package runtime
 import (
 	"context"
 
-	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 
 	"github.com/asaidimu/hestia/core/abstract"
 )
+
+// CapabilityItem is the wire shape of one registered handler capability.
+type CapabilityItem struct {
+	Name          string `anansi:"name"`
+	IntentType    string `anansi:"intent_type"`
+	Description   string `anansi:"description"`
+	Enabled       bool   `anansi:"enabled"`
+	BootstrapSafe bool   `anansi:"bootstrap_safe"`
+}
+
+// CapabilitiesDocument is the body of a capabilities list response.
+type CapabilitiesDocument struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Capabilities           []CapabilityItem `anansi:"capabilities"`
+}
 
 func NewSetCapabilityEnabledHandler(registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
@@ -26,9 +41,20 @@ func NewSetCapabilityEnabledHandler(registry abstract.Registry) abstract.Message
 func NewListCapabilitiesHandler(registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		all := registry.ListHandlers()
-		doc := data.MustNewDocument(map[string]any{
-			"capabilities": all,
-		}, ctx)
+		items := make([]CapabilityItem, len(all))
+		for i, h := range all {
+			items[i] = CapabilityItem{
+				Name:          h.Name,
+				IntentType:    string(h.IntentType),
+				Description:   h.Description,
+				Enabled:       h.Enabled,
+				BootstrapSafe: h.BootstrapSafe,
+			}
+		}
+		doc, err := document.New(&CapabilitiesDocument{Capabilities: items}).Document()
+		if err != nil {
+			return nil, err
+		}
 		return &abstract.Result{Document: doc}, nil
 	}
 }

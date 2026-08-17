@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
@@ -20,7 +20,7 @@ func TestMustNewID(t *testing.T) {
 
 func TestNewMessage(t *testing.T) {
 	ctx := context.Background()
-	doc := &data.Document{}
+	doc := &document.Document{}
 	msg := NewMessage("test.msg", ctx, doc)
 	if msg.ID() == "" {
 		t.Fatal("NewMessage ID is empty")
@@ -43,7 +43,7 @@ func TestNewMessage(t *testing.T) {
 }
 
 func TestNewDocumentResult(t *testing.T) {
-	doc := &data.Document{}
+	doc := &document.Document{}
 	r := NewDocumentResult(doc)
 	if r.Kind != abstract.ResultKindDocument {
 		t.Errorf("Kind = %d, want %d", r.Kind, abstract.ResultKindDocument)
@@ -54,7 +54,7 @@ func TestNewDocumentResult(t *testing.T) {
 }
 
 func TestNewDocumentsResult(t *testing.T) {
-	docs := data.DocumentSet{&data.Document{}}
+	docs := []*document.Document{&document.Document{}}
 	r := NewDocumentsResult(docs)
 	if r.Kind != abstract.ResultKindDocuments {
 		t.Errorf("Kind = %d, want %d", r.Kind, abstract.ResultKindDocuments)
@@ -65,7 +65,7 @@ func TestNewDocumentsResult(t *testing.T) {
 }
 
 func TestNewPageResult(t *testing.T) {
-	page := &abstract.Page{Documents: data.DocumentSet{}, Pagination: nil}
+	page := &abstract.Page{Documents: []*document.Document{}, Pagination: nil}
 	r := NewPageResult(page)
 	if r.Kind != abstract.ResultKindPage {
 		t.Errorf("Kind = %d, want %d", r.Kind, abstract.ResultKindPage)
@@ -87,7 +87,7 @@ func TestNewBlobResult(t *testing.T) {
 }
 
 func TestNewDocumentChannelResult(t *testing.T) {
-	ch := make(chan data.Documenter)
+	ch := make(chan *document.Document)
 	r := NewDocumentChannelResult(ch)
 	if r.Kind != abstract.ResultKindDocumentChannel {
 		t.Errorf("Kind = %d, want %d", r.Kind, abstract.ResultKindDocumentChannel)

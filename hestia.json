@@ -1,0 +1,5 @@
+{
+  "module": "github.com/asaidimu/hestia",
+  "modules": ["core/system"],
+  "autogen": "internal/autogen"
+}

@@ -13,7 +13,7 @@ export interface CreateRuleRequest {
   ruleType?: string
   syntax?: string
   expression?: string
-  rules?: Record<string, unknown>
+  rules?: RuleNode
   description?: string
 }
 
@@ -21,7 +21,7 @@ export interface UpdateRuleRequest {
   ruleType?: string
   syntax?: string
   expression?: string
-  rules?: Record<string, unknown>
+  rules?: RuleNode
   description?: string
   protected?: boolean
 }

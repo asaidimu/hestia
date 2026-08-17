@@ -41,7 +41,7 @@ export class HestiaUsers implements DocumentStore<
     const res = await this.client.dispatch<{
       data: Document<UserData>[];
       metadata?: { page?: any };
-    }>("system:users:user:query", { payload: query ?? {} });
+    }>("system:collections:user:query", { payload: query ?? {} });
     const data = res.data?.data ?? [];
     const pageMeta = res.data?.metadata?.page ?? {
       number: 1,

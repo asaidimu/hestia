@@ -40,7 +40,7 @@ func TestIntentToHTTPMethod(t *testing.T) {
 }
 
 func TestDeriveRouteWithArgs(t *testing.T) {
-	got := DeriveRoute("system:auth:session:create", []abstract.ArgDef{{Name: "id", Type: definition.FieldTypeString}})
+	got := DeriveRoute("system:auth:session:create", []abstract.ArgumentDefinition{{Name: "id", Type: definition.FieldTypeString}})
 	want := "/system/auth/session/create/{id}"
 	if got != want {
 		t.Fatalf("DeriveRoute() = %q, want %q", got, want)

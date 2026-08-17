@@ -14,9 +14,9 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/interface/cli"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/internal/boot"
-	"github.com/asaidimu/hestia/core/feature/users/model"
+	"github.com/asaidimu/hestia/core/system/users/model"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -37,7 +37,7 @@ type SystemModule interface {
 	UserModel() *model.SystemUsers
 }
 
-type Middleware = httpapi.Middleware
+type Middleware = http.Middleware
 type Module = abstract.Module
 type Capability = abstract.Capability
 type MessageRegistration = abstract.MessageRegistration
@@ -79,10 +79,10 @@ func (a *Application) SystemModule() SystemModule {
 func (a *Application) Registrations() []abstract.MessageRegistration { return a.inner.Registrations }
 func (a *Application) RegisterModules(m ...Module) error             { return a.inner.RegisterModules(m...) }
 
-func (a *Application) NewHTTPInterface(cfg httpapi.Config) runtime.Interface {
+func (a *Application) NewHTTPInterface(cfg http.Config) runtime.Interface {
 	mod := a.inner.SystemModule()
 	chain := mod.DispatcherChain(a.inner.Dispatcher())
-	return httpapi.New(httpapi.Options{
+	return http.New(http.Options{
 		Dispatcher:          chain,
 		InternalDispatcher:  a.inner.Dispatcher(),
 		CredentialsProvider: mod.CredentialsProvider(),
@@ -301,6 +301,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 			return nil, fmt.Errorf("user migrations: %w", err)
 		}
 	}
+
 	for _, m := range cfg.Modules {
 		if err := application.RegisterModules(m); err != nil {
 			application.Close()
@@ -313,7 +314,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 			application.AddInterface(i)
 		}
 	} else {
-		application.AddInterface(appWrapper.NewHTTPInterface(httpapi.ConfigFromRuntime(conf)))
+		application.AddInterface(appWrapper.NewHTTPInterface(http.ConfigFromRuntime(conf)))
 		application.AddInterface(appWrapper.NewCLIInterface(cli.Config{Version: cfg.Version}))
 		for _, fn := range cfg.Interfaces {
 			application.AddInterface(fn(application.Dispatcher()))

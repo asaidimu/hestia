@@ -2,8 +2,8 @@
 This codebase relies on **go-anansi** for database operations and its proprietary query language.
 
 * **Local Development Path:** `~/projects/go-anansi` for reference.
-* **Before writing or migrating any feature, read `docs/guide/writing_features.md`** — it is the canonical how-to (layout, schema+projections, codegen workflow, DTOs, domain methods, wiring, tests), distilled from the migrated `users` (reference) and `apikeys` features.
-* Schemas that contribute towards a collection go into `core/feature/<feature>/model/*.schema.json` as plain JSON files (package `model`).
+* **Before writing or migrating any feature, follow the `core/system/<name>/users` reference service** — it is the canonical how-to (layout, schema+projections, codegen workflow, DTOs, domain methods, wiring, tests), and see `todo/migrate_features.md` for the migration plan.
+* Schemas that contribute towards a collection go into `core/system/<feature>/model/*.schema.json` as plain JSON files (package `model`).
 * The meta schema reference is at `~/projects/go-anansi/core/schema/meta/schema.json`.
 
 ## IAM Layer
@@ -35,29 +35,30 @@ To discover and understand all available registered commands within the system, 
 
 ---
 
-## Making Anansi Schema Changes
+## Writing TODOs
 
-When updating the database schema, strictly adhere to the following workflow:
+When starting on a new taks, write the steps to a file under the `todo` folder.
 
-1. **Edit the Schema:** Modify the schema files directly.
-* *Do not* alter existing IDs.
-* Only modify field properties.
-* If introducing a new field, set its ID to match the field's name.
-* If deleting a field, remove it's entry completely preserving the other fields.
+### Rules & Best Practices
 
+* **Provide Enough Context:** Because tasks may be picked up by another agent or across different sessions, **never create single-phrase TODOs**. Each task must include enough background, intent, relevant file paths, links, or specific requirements so any agent can take over seamlessly without asking for context.
+* **Track State Clearly:** Update task statuses promptly as work progresses.
 
-2. **Preview Changes:** Validate and preview the migration by running:
-```bash
-anansi migrate generate --dry-run
+### Task Status Identifiers
+
+* `[ ]` Tasks that are planned.
+* `[-]` Tasks that are in progress.
+* `[*]` Tasks that are done.
+* `[=]` Tasks that are skipped (include brief reasoning).
+* `[X]` Tasks that are blocked (include the blocker details).
+
+### Format Example
+
+```markdown
+- [ ] Implement user auth middleware
+  - **Context:** Required for protecting `/api/v1/dashboard` routes.
+  - **Details:** Use JWT validation based on existing spec in `docs/auth.md`.
+  - **Files:** Modify `src/middleware/auth.js` and add unit tests to `tests/auth.test.js`.
 
 ```
 
-3. **Generate Migration:** Finalize and generate the required migration files by running:
-```bash
-anansi migrate generate
-```
-
-4. **Re-Generate Structs and DTO'S :** Finalize and generate the required code modification by running:
-```bash
-anansi codegen golang
-```

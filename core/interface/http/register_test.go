@@ -65,7 +65,7 @@ func TestBuildDoc_PathParams(t *testing.T) {
 	}
 	input := runtime.Input{
 		Schema:    dispatch.SchemaFromTypeWithTag[userGetInput]("input", true),
-		Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
+		Arguments: []abstract.ArgumentDefinition{{Name: "user_id", Type: definition.FieldTypeString}},
 	}
 
 	req := Request{
@@ -183,7 +183,7 @@ func TestBuildDoc_ArgsOnlyWhenDeclared(t *testing.T) {
 	}
 	input := runtime.Input{
 		Schema:    dispatch.SchemaFromTypeWithTag[createInput]("input", true),
-		Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
+		Arguments: []abstract.ArgumentDefinition{{Name: "user_id", Type: definition.FieldTypeString}},
 	}
 
 	req := Request{
@@ -204,7 +204,7 @@ func TestBuildDoc_ArgsOnlyWhenDeclared(t *testing.T) {
 }
 
 func TestSerializeResponse_Create(t *testing.T) {
-	doc := data.MustNewDocument(map[string]any{"email": "a@b.com"})
+	doc := document.NewRecordView(map[string]any{"email": "a@b.com"})
 	result := &abstract.Result{Document: doc}
 	output := &definition.Schema{
 		BaseSchema: definition.BaseSchema{
@@ -227,7 +227,7 @@ func TestSerializeResponse_Delete(t *testing.T) {
 }
 
 func TestSerializeResponse_Read(t *testing.T) {
-	doc := data.MustNewDocument(map[string]any{"id": "abc"})
+	doc := document.NewRecordView(map[string]any{"id": "abc"})
 	result := &abstract.Result{Document: doc}
 	output := &definition.Schema{
 		BaseSchema: definition.BaseSchema{
@@ -270,7 +270,20 @@ func TestRegisterDispatcher_CreatesRoute(t *testing.T) {
 		},
 		Intent: abstract.Read,
 		Input: runtime.Input{
-			Arguments: []abstract.ArgDef{{Name: "user_id", Type: definition.FieldTypeString}},
+			Schema: dispatch.MustFromJSON([]byte(`{
+				"name": "TestUserGetInput",
+				"fields": {
+					"arguments": { "name": "arguments", "type": "object", "schema": { "id": "arguments" } }
+				},
+				"schemas": {
+					"arguments": {
+						"name": "arguments",
+						"fields": {
+							"user_id": { "name": "user_id", "type": "string" }
+						}
+					}
+				}
+			}`)),
 		},
 	}
 
@@ -317,7 +330,7 @@ func TestRegisterDispatcher_QueryRoute(t *testing.T) {
 }
 
 func TestDeriveRoute_WithArguments(t *testing.T) {
-	path := DeriveRoute("system:blobs:blob:download", []abstract.ArgDef{{Name: "ns", Type: definition.FieldTypeString}, {Name: "key", Type: definition.FieldTypeString}})
+	path := DeriveRoute("system:blobs:blob:download", []abstract.ArgumentDefinition{{Name: "ns", Type: definition.FieldTypeString}, {Name: "key", Type: definition.FieldTypeString}})
 	if path != "/system/blobs/blob/download/{ns}/{key}" {
 		t.Fatalf("expected /system/blobs/blob/download/{ns}/{key}, got %s", path)
 	}

@@ -36,11 +36,8 @@ var addCmdCmd = &cobra.Command{
 		if cfg.Module == "" {
 			cfg.Module = detectModulePath(rootDir)
 		}
-		if len(cfg.ModuleSources) == 0 {
-			cfg.ModuleSources = []string{"module"}
-		}
-		if cfg.ModuleTarget == "" {
-			cfg.ModuleTarget = "module"
+		if len(cfg.Modules) == 0 {
+			cfg.Modules = Modules{"module"}
 		}
 
 		alreadyRegistered := false
@@ -96,7 +93,7 @@ func main() {
 	os.Stdout.Sync()
 	select {}
 }
-`, modulePath+"/internal/autogen", modName)
+`, modulePath+"/"+filepath.ToSlash(autogenDir), modName)
 
 		mainPath := filepath.Join(cmdDir, "main.go")
 		if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {

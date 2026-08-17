@@ -3,7 +3,7 @@ package abstract
 import (
 	"encoding/json"
 
-	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 )
 
@@ -68,10 +68,9 @@ func (v *Verb) UnmarshalJSON(b []byte) error {
 }
 
 type Page struct {
-	Documents  data.DocumentSet
+	Documents  []*document.Document
 	Pagination *query.PaginationInfo
 }
-
 
 type ResultKind int
 
@@ -84,13 +83,17 @@ const (
 	ResultKindBlobChannel
 )
 
+// Result is the single envelope every handler returns. Its document-bearing
+// fields are typed concretely as *document.Document (never the data.Documenter
+// interface), so a deprecated data.Document construction path can't be
+// smuggled into a result: the compile-time type closes that off structurally.
 type Result struct {
 	Kind            ResultKind
-	Document        data.Documenter
-	Documents       data.DocumentSet
+	Document        *document.Document
+	Documents       []*document.Document
 	Page            *Page
 	Blob            Blob
-	DocumentChannel <-chan data.Documenter
+	DocumentChannel <-chan *document.Document
 	BlobChannel     <-chan Blob
 	SessionToken    string
 	Metadata        map[string]any
@@ -124,7 +127,7 @@ func (r *Result) Release() {
 	r.Blob.Free()
 }
 
-func releaseDocs(docs data.DocumentSet) {
+func releaseDocs(docs []*document.Document) {
 	for _, d := range docs {
 		if d != nil {
 			d.Release()

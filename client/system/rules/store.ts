@@ -10,7 +10,7 @@ import type {
   ReloadResult,
 } from "./types"
 
-export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
+export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, string> {
   constructor(private client: Transport) {}
 
   async find(_query?: Record<string, unknown>): Promise<Page<PolicyRule>> {

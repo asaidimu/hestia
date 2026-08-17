@@ -48,11 +48,11 @@ func main() {
 			continue
 		}
 		method := httpapi.IntentToHTTPMethod(r.Intent)
-		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments)
+		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Args())
 		route := httpapi.IntentToHTTPPath(r.Intent, httpPath)
 
-		args := make([]string, len(r.Input.Arguments))
-		for i, a := range r.Input.Arguments {
+		args := make([]string, len(r.Input.Args()))
+		for i, a := range r.Input.Args() {
 			args[i] = a.Name
 		}
 

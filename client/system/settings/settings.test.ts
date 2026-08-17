@@ -59,7 +59,7 @@ describe("HestiaSettingStore", () => {
 
       const result = await store.list()
       expect(result).toHaveLength(1)
-      expect(result[0].key).toBe("theme")
+      expect(result[0]!.key).toBe("theme")
     })
 
     it("returns empty array when no data", async () => {

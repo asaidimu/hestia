@@ -1,15 +1,28 @@
 package runtime
 
 import (
-	"os"
 	"testing"
 
-	"go.uber.org/zap"
-
-	"github.com/asaidimu/go-anansi/v8/core/data"
+	"github.com/asaidimu/hestia/core/runtime/di"
 )
 
-func TestMain(m *testing.M) {
-	_ = data.ConfigureDocumentFactory(data.DocumentFactoryConfig{}, zap.NewNop())
-	os.Exit(m.Run())
+func TestRuntimeResolvesDeps(t *testing.T) {
+	rt := NewRuntime()
+
+	rt.RegisterInstance[string]("hello")
+	if err := rt.Build(); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	if got := rt.MustResolve[string](); got != "hello" {
+		t.Fatalf("MustResolve[string] = %q, want %q", got, "hello")
+	}
+}
+
+func TestRuntimePromotesContainer(t *testing.T) {
+	rt := NewRuntime()
+	if rt.Container == nil {
+		t.Fatal("Runtime should embed a non-nil di.Container")
+	}
+	var _ *di.Container = rt.Container
 }

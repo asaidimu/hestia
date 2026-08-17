@@ -7,12 +7,39 @@ import (
 	"path/filepath"
 )
 
+// Config is the project configuration read from hestia.json. Fields:
+//
+//   - module:   the Go module import path (e.g. github.com/user/app).
+//   - modules:  directories where modules live. Accepts a single string or a
+//     list; modules are scanned from every entry, and new modules/services are
+//     scaffolded into the first entry. Defaults to ["module"].
+//   - autogen:  where generated code (the module registry) is written.
+//     Defaults to "internal/autogen".
+//   - cmds:     names of entry points created via 'add cmd' (bookkeeping).
 type Config struct {
-	Module        string   `json:"module,omitempty"`
-	ModuleSources []string `json:"module_sources,omitempty"`
-	ModuleTarget  string   `json:"module_target,omitempty"`
-	Cmds          []string `json:"cmds,omitempty"`
-	AutogenTarget string   `json:"autogen_target,omitempty"`
+	Module  string   `json:"module,omitempty"`
+	Modules Modules  `json:"modules,omitempty"`
+	Autogen string   `json:"autogen,omitempty"`
+	Cmds    []string `json:"cmds,omitempty"`
+}
+
+// Modules is a list of directories that hold modules. It unmarshals from
+// either a single string or a JSON array; the first entry is the target used
+// when scaffolding new modules/services.
+type Modules []string
+
+func (m *Modules) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*m = Modules{single}
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return err
+	}
+	*m = Modules(list)
+	return nil
 }
 
 func readConfig(root string) Config {

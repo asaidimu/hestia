@@ -18,9 +18,9 @@ export interface ThrottleConfig {
 }
 
 export interface Policy {
-  id: string
-  operationName: string
-  ruleName: string
+  operation: string
+  key: string
+  rule: string
   enabled: boolean
   protected: boolean
   rateLimit?: RateLimitConfig
@@ -28,13 +28,13 @@ export interface Policy {
 }
 
 export interface CreatePolicyRequest {
-  ruleName: string
+  rule: string
   rateLimit?: RateLimitConfig
   throttle?: ThrottleConfig
 }
 
 export interface UpdatePolicyRuleRequest {
-  ruleName: string
+  rule: string
 }
 
 export interface SetPolicyEnabledRequest {
@@ -42,7 +42,7 @@ export interface SetPolicyEnabledRequest {
 }
 
 export interface UpdatePolicyRequest {
-  ruleName?: string
+  rule?: string
   enabled?: boolean
   rateLimit?: RateLimitConfig | null
   throttle?: ThrottleConfig | null

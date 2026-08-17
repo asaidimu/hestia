@@ -49,8 +49,8 @@ describe("HestiaPolicies", () => {
         okResponse({
           data: {
             id: "019f7b30bc9b7ec4bc0d245db4b1e0f0",
-            operationName: "system:apikeys:key:create",
-            ruleName: "administrator",
+            operation: "system:apikeys:key:create",
+            rule: "administrator",
             enabled: false,
             protected: true,
           },
@@ -59,11 +59,11 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.setEnabled("system:apikeys:key:create", false)
 
-      expect(result.data.enabled).toBe(false)
-      expect(result.data.ruleName).toBe("administrator")
-      expect(result.data.operationName).toBe("system:apikeys:key:create")
-      expect(result.data.id).toBe("019f7b30bc9b7ec4bc0d245db4b1e0f0")
-      expect(result.data.protected).toBe(true)
+      expect(result.enabled).toBe(false)
+      expect(result.rule).toBe("administrator")
+      expect(result.operation).toBe("system:apikeys:key:create")
+      expect(result.id).toBe("019f7b30bc9b7ec4bc0d245db4b1e0f0")
+      expect(result.protected).toBe(true)
     })
 
     it("sends PATCH with enabled:true", async () => {
@@ -71,8 +71,8 @@ describe("HestiaPolicies", () => {
         okResponse({
           data: {
             id: "019f7b30bc9b7ec4bc0d245db4b1e0f0",
-            operationName: "system:apikeys:key:create",
-            ruleName: "administrator",
+            operation: "system:apikeys:key:create",
+            rule: "administrator",
             enabled: true,
             protected: true,
           },
@@ -81,7 +81,7 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.setEnabled("system:apikeys:key:create", true)
 
-      expect(result.data.enabled).toBe(true)
+      expect(result.enabled).toBe(true)
     })
   })
 
@@ -106,29 +106,9 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.query({})
       expect(result.data).toHaveLength(1)
-      expect(result.data[0].data?.operationName).toBe("system:apikeys:key:create")
-      expect(result.data[0].data?.ruleName).toBe("administrator")
-      expect(result.data[0].data?.enabled).toBe(true)
-    })
-
-    it("defaults ruleName to empty string when rule field is missing", async () => {
-      raw.post.mockResolvedValueOnce(
-        okResponse({
-          data: [
-            {
-              _id_: "doc-2",
-              _metadata_: { created: "1000", updated: "1000", version: 1, checksum: "abc" },
-              operation: "system:test:op",
-              enabled: false,
-              protected: false,
-            },
-          ],
-        }),
-      )
-
-      const result = await policies.query({})
-      expect(result.data[0].data?.ruleName).toBe("")
-      expect(result.data[0].data?.enabled).toBe(false)
+      expect(result.data[0]!.operation).toBe("system:apikeys:key:create")
+      expect(result.data[0]!.rule).toBe("administrator")
+      expect(result.data[0]!.enabled).toBe(true)
     })
 
     it("maps rateLimit and throttle from doc fields", async () => {
@@ -151,14 +131,14 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.query({})
       expect(result.data).toHaveLength(1)
-      const p = result.data[0].data
-      expect(p!.rateLimit).toBeDefined()
-      expect(p!.rateLimit!.identity).toBe("ip")
-      expect(p!.rateLimit!.capacity).toBe(5)
-      expect(p!.throttle).toBeDefined()
-      expect(p!.throttle!.limit).toBe(10)
-      expect(p!.throttle!.action).toBeDefined()
-      expect(p!.throttle!.action!.message).toBe("system:users:user:disable")
+      const p = result.data[0]!
+      expect(p.rateLimit).toBeDefined()
+      expect(p.rateLimit!.identity).toBe("ip")
+      expect(p.rateLimit!.capacity).toBe(5)
+      expect(p.throttle).toBeDefined()
+      expect(p.throttle!.limit).toBe(10)
+      expect(p.throttle!.action).toBeDefined()
+      expect(p.throttle!.action!.message).toBe("system:users:user:disable")
     })
   })
 
@@ -168,7 +148,7 @@ describe("HestiaPolicies", () => {
         okResponse({
           data: {
             policies: [
-              { id: "p1", operationName: "system:test:op", ruleName: "administrator", enabled: true, protected: true },
+              { id: "p1", operation: "system:test:op", rule: "administrator", enabled: true, protected: true },
             ],
           },
         }),
@@ -176,7 +156,7 @@ describe("HestiaPolicies", () => {
 
       const result = await policies.list()
       expect(result.data).toHaveLength(1)
-      expect(result.data[0].data?.operationName).toBe("system:test:op")
+      expect(result.data[0]!.operation).toBe("system:test:op")
     })
 
     it("includes rateLimit and throttle in list response", async () => {
@@ -186,8 +166,8 @@ describe("HestiaPolicies", () => {
             policies: [
               {
                 id: "p2",
-                operationName: "system:auth:session:create",
-                ruleName: "administrator",
+                operation: "system:auth:session:create",
+                rule: "administrator",
                 enabled: true,
                 protected: true,
                 rateLimit: { enabled: true, identity: "ip", capacity: 5, refill: 5, period: 60 },
@@ -199,8 +179,8 @@ describe("HestiaPolicies", () => {
       )
 
       const result = await policies.list()
-      expect(result.data[0].data?.rateLimit?.identity).toBe("ip")
-      expect(result.data[0].data?.throttle?.limit).toBe(10)
+      expect(result.data[0]!.rateLimit?.identity).toBe("ip")
+      expect(result.data[0]!.throttle?.limit).toBe(10)
     })
   })
 
@@ -210,8 +190,8 @@ describe("HestiaPolicies", () => {
         okResponse({
           data: {
             id: "new-1",
-            operationName: "system:auth:session:create",
-            ruleName: "administrator",
+            operation: "system:auth:session:create",
+            rule: "administrator",
             enabled: true,
             protected: false,
           },
@@ -220,7 +200,7 @@ describe("HestiaPolicies", () => {
 
       await policies.create({
         data: {
-          ruleName: "administrator",
+          rule: "administrator",
           rateLimit: { enabled: true, identity: "ip", capacity: 5, refill: 5, period: 60 },
           throttle: { limit: 10, window: 300, action: { message: "system:users:user:disable", input: { "arguments.id": "{{.claims.user_id}}" } } },
         },
@@ -242,8 +222,8 @@ describe("HestiaPolicies", () => {
         okResponse({
           data: {
             id: "upd-1",
-            operationName: "system:auth:session:create",
-            ruleName: "administrator",
+            operation: "system:auth:session:create",
+            rule: "administrator",
             enabled: true,
             protected: false,
             rateLimit: { enabled: true, identity: "ip", capacity: 10, refill: 10, period: 60 },

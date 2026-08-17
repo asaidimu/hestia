@@ -13,10 +13,10 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/feature"
 	"github.com/asaidimu/hestia/core/internal/migrations"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/system"
 )
 
 func validateMessageName(name string) error {
@@ -35,12 +35,32 @@ type Application struct {
 	Interfaces         []runtime.Interface
 	Registrations      []abstract.MessageRegistration
 	Modules            []abstract.Module
-	systemMod          *feature.SystemModule
+	systemMod          *system.SystemModule
+	rt                 *runtime.Runtime
 }
 
-func (a *Application) SystemModule() *feature.SystemModule { return a.systemMod }
+func (a *Application) SystemModule() *system.SystemModule { return a.systemMod }
 
-func (a *Application) SetSystemModule(m *feature.SystemModule) { a.systemMod = m }
+func (a *Application) SetSystemModule(m *system.SystemModule) { a.systemMod = m }
+
+// Runtime returns the shared application runtime container, seeding it with
+// the base providers (persistence, logger, dispatcher) on first use so that
+// modules can resolve them during Setup.
+func (a *Application) Runtime() *runtime.Runtime {
+	if a.rt == nil {
+		rt := runtime.NewRuntime()
+		if a.PersistenceManager != nil {
+			_ = rt.RegisterInstance[base.Persistence](a.PersistenceManager.Persistence())
+		}
+		_ = rt.RegisterInstance[*zap.Logger](a.Loggers.File)
+		_ = rt.RegisterInstance[*runtime.LocalDispatcher](a.Disp)
+		a.rt = rt
+	}
+	return a.rt
+}
+
+// runtime is the unexported alias used by RegisterModules.
+func (a *Application) runtime() *runtime.Runtime { return a.Runtime() }
 
 func New(cfg *runtime.Config) *Application {
 	loggers := NewLoggers(cfg)
@@ -68,7 +88,7 @@ func (a *Application) Boot(ctx context.Context, opts dispatch.SystemOptions) err
 		return fmt.Errorf("migrations: %w", err)
 	}
 
-	mod := feature.New(a.Config, a.Dispatcher(), opts)
+	mod := system.New(a.Config, a.Dispatcher(), opts)
 	if err := a.RegisterModules(mod); err != nil {
 		return err
 	}
@@ -106,11 +126,28 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	}
 	a.Modules = append(a.Modules, sorted...)
 
+	// Phase 1: every module registers its service providers into the shared
+	// runtime container. The container is seeded with base providers first, so
+	// modules can resolve persistence/logger/dispatcher via abstract helpers.
+	rt := a.runtime()
 	for _, mod := range sorted {
-		if err := mod.Setup(ctx, a.PersistenceManager.Persistence()); err != nil {
+		if err := mod.Setup(ctx, rt); err != nil {
 			return fmt.Errorf("module %s setup: %w", mod.Name(), err)
 		}
-		for _, cap := range mod.Capabilities() {
+	}
+
+	// Phase 2: seal the container once after all modules have registered.
+	if err := rt.Rebuild(); err != nil {
+		return fmt.Errorf("runtime rebuild: %w", err)
+	}
+
+	// Phase 3: collect and validate message registrations from each module.
+	for _, mod := range sorted {
+		caps, err := mod.Capabilities(rt)
+		if err != nil {
+			return fmt.Errorf("module %s capabilities: %w", mod.Name(), err)
+		}
+		for _, cap := range caps {
 			for _, mr := range cap.Messages {
 				if err := validateMessageName(mr.Name); err != nil {
 					a.Loggers.File.Warn("Message name grammar violation", zap.String("module", mod.Name()), zap.String("name", mr.Name), zap.Error(err))
@@ -292,7 +329,7 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 		a.Loggers.File.Fatal("Failed to apply migrations on reset", zap.Error(err))
 	}
 
-	mod := feature.New(cfg, a.Dispatcher(), dispatch.SystemOptions{
+	mod := system.New(cfg, a.Dispatcher(), dispatch.SystemOptions{
 		Logger:            a.Loggers.File,
 		AdminEmail:        cfg.AdminEmail,
 		AdminPassword:     cfg.AdminPassword,

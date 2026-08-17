@@ -2,6 +2,14 @@ import { type Transport } from "../../core/client"
 import type { Document, Page } from "../../core/types"
 import type { Binding } from "./types"
 
+function toDocument(b: Binding): Document<Binding> {
+  return {
+    ...b,
+    _id_: b.name,
+    _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+  }
+}
+
 export class HestiaOperations {
   constructor(private client: Transport) {}
 
@@ -11,7 +19,7 @@ export class HestiaOperations {
     )
     const items = res.data?.data?.bindings ?? []
     return {
-      data: items.map(o => ({ data: o, metadata: {} })),
+      data: items.map(o => toDocument(o)),
       loading: false,
       page: { number: 1, size: items.length, count: items.length, total: items.length, pages: 1 },
       error: null,
@@ -25,7 +33,7 @@ export class HestiaOperations {
         { arguments: { name } },
       )
       if (!res.data?.data) return undefined
-      return { data: res.data.data, metadata: {} }
+      return toDocument(res.data.data)
     } catch (err: any) {
       if (err?.code === "SYNC-001-NF" || err?.code === "NOT_FOUND") return undefined
       throw err

@@ -7,7 +7,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-func DeriveRoute(name string, arguments []abstract.ArgDef) string {
+func DeriveRoute(name string, arguments []abstract.ArgumentDefinition) string {
 	parts := strings.Split(name, ":")
 	path := "/" + strings.Join(parts, "/")
 	for _, arg := range arguments {

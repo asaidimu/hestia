@@ -12,8 +12,6 @@ github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8
 github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
 github.com/asaidimu/blobs v1.3.1 h1:rmoFHeM0OQGQ7kMWJ43WRhCJO3oFfaiPAlOuzks8P3A=
 github.com/asaidimu/blobs v1.3.1/go.mod h1:XSvHkdSZrDGBvAzSf40kECiPcfBWj2jaRHpMcxzvwi4=
-github.com/asaidimu/go-anansi/v8 v8.5.6 h1:17jaioxEkBKXe90+gUIX371BCQF/7lE9o0JmzxXe5w4=
-github.com/asaidimu/go-anansi/v8 v8.5.6/go.mod h1:m7ZfeG8PYHO3c4ziWj4TYoq4U3AlRFOIBi8VvEEr3+E=
 github.com/asaidimu/go-anansi/v8 v8.5.7 h1:TnEunuwq7mIVm64KvMTx+HBbx5j3SMrv20n5VfQUr5Y=
 github.com/asaidimu/go-anansi/v8 v8.5.7/go.mod h1:m7ZfeG8PYHO3c4ziWj4TYoq4U3AlRFOIBi8VvEEr3+E=
 github.com/asaidimu/go-events v1.1.0 h1:uT2NT6EyMGMR34Pjfu2XzkDRm/0BowvAX2pdXCpflmI=

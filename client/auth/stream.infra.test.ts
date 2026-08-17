@@ -25,7 +25,7 @@ describe("SSE stream — audit log", () => {
 
     await new Promise((r) => setTimeout(r, 500))
 
-    await container.logs.find({ pagination: { limit: 1 } }).catch(() => {})
+    await container.logs.find({ pagination: { type: "offset", offset: 0, limit: 1 } }).catch(() => {})
 
     await new Promise((r) => setTimeout(r, 1500))
 
@@ -35,7 +35,7 @@ describe("SSE stream — audit log", () => {
     if (streamErr) throw streamErr
 
     expect(received.length).toBeGreaterThan(0)
-    const parsed = JSON.parse(received[0])
+    const parsed = JSON.parse(received[0]!)
     expect(parsed).toHaveProperty("data")
   }, 15000)
 
