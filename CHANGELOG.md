@@ -1,3 +1,10 @@
+## [1.4.6](https://github.com/asaidimu/hestia/compare/v1.4.5...v1.4.6) (2026-08-17)
+
+
+### Bug Fixes
+
+* reorganize core features to system architecture ([295bd84](https://github.com/asaidimu/hestia/commit/295bd84502a10765f8bca0da7405677713dad27c))
+
 ## [1.4.5](https://github.com/asaidimu/hestia/compare/v1.4.4...v1.4.5) (2026-08-12)
 
 
