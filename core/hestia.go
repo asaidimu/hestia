@@ -17,6 +17,7 @@ import (
 	"github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/internal/boot"
 	"github.com/asaidimu/hestia/core/system/users/model"
+	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -148,6 +149,7 @@ type SetupConfig struct {
 	BlobsDir          string
 	ProjectName       string
 	Version           string
+	SelfUpdate        *runtime.SelfUpdateConfig
 	BcryptCost        int
 	SessionTTL        time.Duration
 	IdleTTL           time.Duration
@@ -239,6 +241,12 @@ func (cfg SetupConfig) applyTo(conf *runtime.Config) {
 	if cfg.PersistenceFactory != nil {
 		conf.PersistenceFactory = cfg.PersistenceFactory
 	}
+	if cfg.Version != "" {
+		conf.Version = cfg.Version
+	}
+	if cfg.SelfUpdate != nil {
+		conf.SelfUpdate = cfg.SelfUpdate
+	}
 }
 
 func Setup(cfg SetupConfig) (*Application, error) {
@@ -252,6 +260,9 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		return nil, err
 	}
 	cfg.applyTo(conf)
+	if err := runtime.ApplyEnvOverrides(conf); err != nil {
+		return nil, err
+	}
 
 	if conf.SessionSecret == "" {
 		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret or SESSION_SECRET env var")
@@ -260,6 +271,16 @@ func Setup(cfg SetupConfig) (*Application, error) {
 	// Phase 1: wiring — no I/O
 	application := boot.New(conf)
 	appWrapper := &Application{inner: application}
+
+	// Pre-boot self-update: consume a --perform-update launch (waiting for
+	// the old process, swapping the executable) and remove leftover staged
+	// binaries. Runs before migrations and before the CLI arg parse.
+	if conf.SelfUpdate != nil {
+		if err := updates.HandleStartup(conf.SelfUpdate, conf); err != nil {
+			application.Close()
+			return nil, err
+		}
+	}
 
 	bootstrap := true
 	if cfg.Bootstrap != nil {
@@ -280,7 +301,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 			}
 		},
 		OnReset: func() {
-			application.Reset(conf, cfg.Version)
+			application.Reset(conf, conf.Version)
 			if cfg.OnReset != nil {
 				cfg.OnReset()
 			}
@@ -315,7 +336,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		}
 	} else {
 		application.AddInterface(appWrapper.NewHTTPInterface(http.ConfigFromRuntime(conf)))
-		application.AddInterface(appWrapper.NewCLIInterface(cli.Config{Version: cfg.Version}))
+		application.AddInterface(appWrapper.NewCLIInterface(cli.Config{Version: conf.Version}))
 		for _, fn := range cfg.Interfaces {
 			application.AddInterface(fn(application.Dispatcher()))
 		}

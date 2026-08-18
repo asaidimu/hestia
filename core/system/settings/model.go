@@ -2,7 +2,7 @@ package settings
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
@@ -10,6 +10,9 @@ import (
 )
 
 const settingsCollectionName = "_settings_"
+
+// ErrNotFound is returned by Get when no setting matches the key.
+var ErrNotFound = errors.New("setting not found")
 
 type SettingsModel struct {
 	persistence base.Persistence
@@ -42,7 +45,7 @@ func (m *SettingsModel) Get(ctx context.Context, tenantID, key string) (any, err
 		return nil, err
 	}
 	if result.Count == 0 {
-		return nil, fmt.Errorf("setting not found")
+		return nil, ErrNotFound
 	}
 	return result.Data[0].Get("value")
 }

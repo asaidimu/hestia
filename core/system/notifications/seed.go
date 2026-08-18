@@ -26,6 +26,23 @@ var defaultNotificationTemplates = map[string]any{
 			"in_app": "A password reset was requested for your account.",
 		},
 	},
+	"notify:template:update_available": map[string]any{
+		"subject": "Update Available",
+		"bodies": map[string]string{
+			"email": `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
+<h2>Update Available</h2>
+<p>A new version ({{ .version }}) is available for this server.</p>
+<p>Review the changelog and apply the update in a maintenance window.</p>
+<p>Changelog:</p>
+<p style="white-space: pre-wrap;">{{ .changelog }}</p>
+</body>
+</html>`,
+			"in_app": "A new version ({{ .version }}) is available. Review and apply it in a maintenance window.",
+		},
+	},
 }
 
 func SeedNotificationTemplates(ctx context.Context, persist base.Persistence) error {

@@ -11,9 +11,11 @@ import (
 	"github.com/asaidimu/go-anansi/v8"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
-	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/updater"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
+
+	"github.com/asaidimu/hestia/core/abstract"
 )
 
 const (
@@ -50,6 +52,9 @@ type Config struct {
 	IdleTTL       time.Duration
 	RefreshTTL    time.Duration
 
+	Version     string
+	SelfUpdate  *SelfUpdateConfig
+
 	InteractorFactory  InteractorFactory
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
@@ -62,6 +67,31 @@ type Config struct {
 	AllowedOrigins    []string
 	Mailer            MailerConfig
 	AppURL            string
+}
+
+// SelfUpdateConfig enables hestia's built-in self-update service. It lives in
+// runtime (a leaf package) because both core/hestia.go and the updates service
+// need it, and neither can import the service without a cycle.
+type SelfUpdateConfig struct {
+	// Provider is where updates come from: updater.NewGitHubProvider,
+	// updater.NewServerProvider, or a custom updater.Provider. When nil, the
+	// provider is resolved from UPDATE_GITHUB_* / UPDATE_SERVER_* env vars.
+	Provider updater.Provider
+
+	// CheckSchedule is a cron expression for the recurring check; empty
+	// disables the scheduled job (manual checks still work). Default "@every 24h".
+	CheckSchedule string
+
+	// DataDir is where staged update binaries live. Defaults to conf.DataDir.
+	DataDir string
+	// ExecutablePath is where the new binary is copied on swap. Defaults to os.Executable().
+	ExecutablePath string
+
+	// ForwardArguments restores the original CLI arguments after the swap.
+	ForwardArguments bool
+	// AutoApply applies an available update automatically during the scheduled
+	// check. Default false — ApplyUpdate is always the explicit admin action.
+	AutoApply bool
 }
 
 type CookieConfig struct {
@@ -139,8 +169,10 @@ func envBool(key string) (bool, bool) {
 }
 
 func LoadConfig(projectName string) (*Config, error) {
-	_ = godotenv.Load()
-	_ = godotenv.Load(".env.dev")
+	// Precedence (lowest wins last): process env < .env < .env.dev. Overload
+	// (not Load) so each file overrides the layer below it.
+	_ = godotenv.Overload()
+	_ = godotenv.Overload(".env.dev")
 
 	cfg := DefaultConfig()
 

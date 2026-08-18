@@ -13,6 +13,14 @@ func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
 		Version:       version,
 		SessionSecret: "my-test-secret",
+		// SelfUpdate: &runtime.SelfUpdateConfig{
+		// 	Provider: &updater.Github{
+		// 		Owner:       "your-org",
+		// 		Repo:        "your-repo",
+		// 		AssetPattern: "your-app-{{ .version }}-{{ .os }}_{{ .arch }}",
+		// 	},
+		// 	CheckSchedule: "@daily",
+		// },
 	})
 
 	if err != nil {

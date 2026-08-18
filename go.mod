@@ -26,9 +26,11 @@ require (
 	cel.dev/expr v0.24.0 // indirect
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaidimu/go-events v1.1.0 // indirect
+	github.com/asaidimu/updater v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

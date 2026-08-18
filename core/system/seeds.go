@@ -33,7 +33,7 @@ type SeedResult struct {
 // 3. policies + rules (only when not already bootstrapped)
 // 4. notification templates.
 // All operations are idempotent.
-func SeedAll(ctx context.Context, ps *ProviderSet, opts SeedOptions) (result SeedResult, err error) {
+func SeedAll(ctx context.Context, ps *ProviderSet, opts SeedOptions, defaults []policies.Policy) (result SeedResult, err error) {
 	tenantID, err := seedTenant(ctx, ps)
 	if err != nil {
 		return result, fmt.Errorf("seed tenant: %w", err)
@@ -51,7 +51,7 @@ func SeedAll(ctx context.Context, ps *ProviderSet, opts SeedOptions) (result See
 	}
 
 	if !bootstrapped {
-		if err := policies.SeedPolicies(ctx, ps.Policies, allDefaultPolicyBindings); err != nil {
+		if err := policies.SeedPolicies(ctx, ps.Policies, defaults); err != nil {
 			return result, fmt.Errorf("seed policies: %w", err)
 		}
 	}

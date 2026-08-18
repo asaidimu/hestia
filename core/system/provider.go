@@ -3,14 +3,17 @@ package system
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-iam/v2/iam"
+	"github.com/asaidimu/updater"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime/notification"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
@@ -22,6 +25,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/schedules"
 	"github.com/asaidimu/hestia/core/system/settings"
 	"github.com/asaidimu/hestia/core/system/tenants"
+	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
 	"github.com/asaidimu/hestia/core/system/users/model"
 )
@@ -56,6 +60,10 @@ type ProviderSet struct {
 	LiveRules    collection.LiveCollection[iam.FunctionRule]
 	LivePolicies collection.LiveCollection[*policies.Policy]
 	LiveUsers    collection.LiveCollection[*users.UserClaims]
+
+	Updater   *updater.Updater
+	UpdStore  *updates.Store
+	Updates   *updates.UpdatesService
 }
 
 func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger) *ProviderSet {
@@ -120,6 +128,66 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	}
 	ps.AppURL = ps.Config.AppURL
 
+	if err := ps.initUpdates(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// initUpdates wires the self-update service when SelfUpdate is configured:
+// builds the updater over the resolved provider, persists to the settings
+// collection, reconciles any pre-boot swap remnants, registers the scheduled
+// check, and exposes the service for registration.
+func (ps *ProviderSet) initUpdates(ctx context.Context) error {
+	cfg := ps.Config.SelfUpdate
+	if cfg == nil {
+		return nil
+	}
+	dataDir := cfg.DataDir
+	if dataDir == "" {
+		dataDir = ps.Config.DataDir
+	}
+	exe := cfg.ExecutablePath
+	if exe == "" {
+		var err error
+		exe, err = os.Executable()
+		if err != nil {
+			return fmt.Errorf("resolve executable: %w", err)
+		}
+	}
+	store := updates.NewStore(ps.Settings)
+	u, err := updater.New(cfg.Provider, updater.Config{
+		Version:          ps.Config.Version,
+		DataDir:          dataDir,
+		ExecutablePath:   exe,
+		ForwardArguments: cfg.ForwardArguments,
+		Store:            store,
+	})
+	if err != nil {
+		return fmt.Errorf("init updater: %w", err)
+	}
+	ps.Updater = u
+	ps.UpdStore = store
+	if err := ps.UpdStore.Reconcile(ctx, ps.Config.Version); err != nil {
+		ps.Logger.Warn("updates: reconcile pending update failed", zap.Error(err))
+	}
+	ps.Updates = updates.NewService(
+		ps.Updater,
+		ps.UpdStore,
+		ps.Notifier,
+		ps.Users,
+		ps.Logger,
+		ps.AppURL,
+		ps.Config.Mailer.SMTPHost != "",
+		cfg.AutoApply,
+		ps.Config.Version,
+	)
+	if cfg.CheckSchedule != "" {
+		ps.Scheduler.Register("updates:check", cfg.CheckSchedule, func(ctx context.Context) error {
+			return ps.Updates.RunScheduledCheck(runtimecontext.SystemContext(ctx))
+		})
+	}
 	return nil
 }
 
@@ -133,5 +201,18 @@ func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistrati
 	// Every other feature's registrations live in core/system/* and arrive via
 	// svcRegs.
 	all := audit.StreamRegistration(ps.Persist)
+	if ps.Config.SelfUpdate != nil {
+		all = append(all, updates.Registrations(updates.Dependencies{
+			Updater:   ps.Updater,
+			Store:     ps.UpdStore,
+			Notifier:  ps.Notifier,
+			Users:     ps.Users,
+			Logger:    ps.Logger,
+			AppURL:    ps.AppURL,
+			HasMailer: ps.Config.Mailer.SMTPHost != "",
+			AutoApply: ps.Config.SelfUpdate.AutoApply,
+			Version:   ps.Config.Version,
+		})...)
+	}
 	return append(all, svcRegs...)
 }

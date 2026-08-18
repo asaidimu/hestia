@@ -6,6 +6,8 @@ github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/DataDog/zstd v1.4.5 h1:EndNeuB0l9syBZhut0wns3gV1hL8zX8LIu6ZiVHWLIQ=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
+github.com/Masterminds/semver/v3 v3.3.1 h1:QtNSWtVZ3nBfk8mAOu/B6v7FMJ+NHTIgUPi7rj+4nv4=
+github.com/Masterminds/semver/v3 v3.3.1/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/andybalholm/brotli v1.2.2 h1:HzTuoo2ErYQqf5qvcJInB8uvqSVxRttzkFexPWtnceM=
 github.com/andybalholm/brotli v1.2.2/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=
@@ -22,6 +24,8 @@ github.com/asaidimu/go-iam/v2 v2.0.0 h1:VshaB5K5RHekMY74anFV2rUCCAoscEbvPN0NJvb6
 github.com/asaidimu/go-iam/v2 v2.0.0/go.mod h1:jKN7uK2f+LuVCwei5Q6Jre1fftkAiSUs2swAcrSGSYM=
 github.com/asaidimu/go-store/v3 v3.3.0 h1:pwz1CaLnanr2md0pkuK9a2FFxIPWMPZ4B1iXDD6WlEE=
 github.com/asaidimu/go-store/v3 v3.3.0/go.mod h1:nw20hez9oDLNBALq/RqY/MSDkBCXjYfbUwyFb+U0hjA=
+github.com/asaidimu/updater v1.1.0 h1:nB3FXBwohEUQxBgCI6tWzC/cMrlTRRRco0MyLYdkvXA=
+github.com/asaidimu/updater v1.1.0/go.mod h1:UCVscE/pNYOh114zE2XmSFIh1fS5ixpwNsZNflrZtt0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bep/debounce v1.2.1 h1:v67fRdBA9UQu2NhLFXrSg0Brw7CexQekrBwDMM8bzeY=

@@ -28,6 +28,7 @@ import (
 	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	"github.com/asaidimu/hestia/core/system/schedules"
+	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
 	"github.com/asaidimu/hestia/core/system/users/model"
 
@@ -217,7 +218,11 @@ func (m *SystemModule) Capabilities(rt abstract.Container) ([]abstract.Capabilit
 		return nil, err
 	}
 	m.messages = m.providers.CollectRegistrations(svcRegs)
-	m.providers.Policies.SetKnownBindings(collectAllPolicyBindings())
+	knownBindings := collectAllPolicyBindings()
+	if m.providers.Config.SelfUpdate != nil {
+		knownBindings = append(knownBindings, updates.PolicyBindings()...)
+	}
+	m.providers.Policies.SetKnownBindings(knownBindings)
 	return []abstract.Capability{
 		{
 			Name:     "system",
@@ -240,7 +245,7 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 		AdminEmail:        adminEmail,
 		AdminPassword:     adminPassword,
 		ForceBootstrapped: m.opts.ForceBootstrapped,
-	})
+	}, m.allDefaultPolicies())
 	if err != nil {
 		return err
 	}
@@ -263,7 +268,7 @@ func (m *SystemModule) initPermissions(ctx context.Context) error {
 	opColl, err := m.providers.Persist.Collection(ctx, "_operation_policy_")
 	if err != nil {
 		m.opts.Logger.Warn("Failed to open _operation_policy_ collection, using static defaults", zap.Error(err))
-		m.providers.PermMgr = policies.NewLivePermissionManager(nil, allDefaultPolicyBindings)
+		m.providers.PermMgr = policies.NewLivePermissionManager(nil, m.allDefaultPolicies())
 		return nil
 	}
 
@@ -275,14 +280,14 @@ func (m *SystemModule) initPermissions(ctx context.Context) error {
 	})
 	if err != nil {
 		m.opts.Logger.Warn("Failed to create live policy repository, using static defaults", zap.Error(err))
-		m.providers.PermMgr = policies.NewLivePermissionManager(nil, allDefaultPolicyBindings)
+		m.providers.PermMgr = policies.NewLivePermissionManager(nil, m.allDefaultPolicies())
 		return nil
 	}
 	m.providers.LivePolicies = livePolicies
 	if liveColl, ok := livePolicies.(base.Collection); ok {
 		m.providers.Policies.SetPolicyColl(liveColl)
 	}
-	m.providers.PermMgr = policies.NewLivePermissionManager(livePolicies, allDefaultPolicyBindings)
+	m.providers.PermMgr = policies.NewLivePermissionManager(livePolicies, m.allDefaultPolicies())
 	return nil
 }
 
@@ -466,8 +471,25 @@ func (m *SystemModule) Health(ctx context.Context) any {
 	}
 }
 
+// allDefaultPolicies returns the static default policies plus, when self-update
+// is configured, the updates service bindings.
+func (m *SystemModule) allDefaultPolicies() []policies.Policy {
+	all := allDefaultPolicyBindings
+	if m.providers.Config.SelfUpdate == nil {
+		return all
+	}
+	for _, b := range updates.PolicyBindings() {
+		rule := b.RuleKey
+		if rule == "" {
+			rule = "administrator"
+		}
+		all = append(all, policies.Policy{Operation: b.Name, Rule: rule, Enabled: true})
+	}
+	return all
+}
+
 func (m *SystemModule) SeedPolicies(ctx context.Context) error {
-	if err := policies.SeedPolicies(ctx, m.providers.Policies, allDefaultPolicyBindings); err != nil {
+	if err := policies.SeedPolicies(ctx, m.providers.Policies, m.allDefaultPolicies()); err != nil {
 		return fmt.Errorf("seed policies: %w", err)
 	}
 

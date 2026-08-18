@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/asaidimu/hestia/core"
 	"github.com/asaidimu/hestia/core/abstract"
@@ -14,6 +15,21 @@ import (
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
+// version is set via -ldflags "-X main.version=..." (used by the self-update
+// E2E to bake distinct releases); defaults to dev.
+var version = "dev"
+
+// serverPort lets the E2E run an isolated instance on a free port instead of
+// colliding with the always-on :8070 test server.
+func serverPort() int {
+	if v := os.Getenv("PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 8070
+}
+
 func main() {
 	tmpDir, err := os.MkdirTemp("", "hestiav2-test-*")
 	if err != nil {
@@ -22,6 +38,7 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	app, err := hestia.Setup(hestia.SetupConfig{
+		Version:           version,
 		DataDir:           tmpDir,
 		DBPath:            ":memory:",
 		SessionSecret:     "test-secret-do-not-use-in-production",
@@ -31,7 +48,7 @@ func main() {
 		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
 			return []runtime.Interface{
 				app.NewHTTPInterface(httpapi.Config{
-					Port: 8070,
+					Port: serverPort(),
 					Middleware: []httpapi.Middleware{
 						func(ctx context.Context, req httpapi.Request, next httpapi.HandlerFunc) (httpapi.Response, error) {
 							claims := &abstract.Claims{
