@@ -1,3 +1,10 @@
+## [1.4.8](https://github.com/asaidimu/hestia/compare/v1.4.7...v1.4.8) (2026-08-18)
+
+
+### Bug Fixes
+
+* **runtime:** add self-update service ([1e5462b](https://github.com/asaidimu/hestia/commit/1e5462ba0585027aa999fb6cf73e6e32fef92e8a))
+
 ## [1.4.7](https://github.com/asaidimu/hestia/compare/v1.4.6...v1.4.7) (2026-08-18)
 
 
