@@ -1,111 +1,34 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
-import { HestiaSettingStore } from "./store"
-import { HttpTransport, type IdentityProvider } from "../../core/client"
-import type { ApiResponse } from "@asaidimu/network-client"
+import { describe, expect, it, afterAll } from "vitest"
+import { makeClient, uniqueId } from "../../tests/helpers"
 
-vi.mock("@asaidimu/network-client", () => {
-  const mockRaw = {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    put: vi.fn(),
-    delete: vi.fn(),
-  }
-  return {
-    createNetworkClient: vi.fn(() => mockRaw),
-  }
-})
+describe("HestiaSettingStore — E2E", () => {
+  const container = makeClient()
+  const key = uniqueId("setting-e2e")
+  const value = { mode: "dark", retries: 3 }
 
-import { createNetworkClient } from "@asaidimu/network-client"
-
-function makeProvider(): IdentityProvider {
-  return {
-    identity: () => null,
-    setIdentity: vi.fn(),
-    clear: vi.fn(),
-  }
-}
-
-function okResponse<T>(data: T): ApiResponse<T> {
-  return { success: true, status: 200, data, raw: new Response(), headers: new Headers() }
-}
-
-describe("HestiaSettingStore", () => {
-  let store: HestiaSettingStore
-  let raw: any
-
-  beforeEach(() => {
-    const client = new HttpTransport("http://test.local", "/api")
-    const mock = (createNetworkClient as ReturnType<typeof vi.fn>).mock
-    raw = mock.results[mock.results.length - 1]!.value
-    vi.clearAllMocks()
-    store = new HestiaSettingStore(client)
+  afterAll(async () => {
+    await container.settings.delete(key).catch(() => {})
   })
 
-  describe("list", () => {
-    it("returns setting documents", async () => {
-      raw.get.mockResolvedValueOnce(
-        okResponse({
-          data: [
-            {
-              _id_: "s1",
-              key: "theme",
-              value: { mode: "dark" },
-              _metadata_: {},
-            },
-          ],
-        }),
-      )
-
-      const result = await store.list()
-      expect(result).toHaveLength(1)
-      expect(result[0]!.key).toBe("theme")
-    })
-
-    it("returns empty array when no data", async () => {
-      raw.get.mockResolvedValueOnce(okResponse({}))
-      const result = await store.list()
-      expect(result).toEqual([])
-    })
+  it("sets a setting", async () => {
+    await container.settings.set(key, value)
   })
 
-  describe("get", () => {
-    it("returns the setting document", async () => {
-      raw.get.mockResolvedValueOnce(
-        okResponse({
-          data: {
-            _id_: "s1",
-            key: "theme",
-            value: { mode: "dark" },
-            _metadata_: {},
-          },
-        }),
-      )
-
-      const result = await store.get("theme")
-      expect(result).toBeDefined()
-      expect(result!.key).toBe("theme")
-      expect(result!.value).toEqual({ mode: "dark" })
-    })
-
-    it("returns undefined when setting not found", async () => {
-      raw.get.mockRejectedValueOnce(new Error("not found"))
-      const result = await store.get("missing")
-      expect(result).toBeUndefined()
-    })
+  it("gets a setting by key", async () => {
+    const doc = await container.settings.get(key)
+    expect(doc).toBeDefined()
+    expect(doc!.key).toBe(key)
+    expect(doc!.value).toEqual(value)
   })
 
-  describe("set", () => {
-    it("resolves on success", async () => {
-      raw.post.mockResolvedValueOnce(okResponse({}))
-      await expect(store.set("theme", { mode: "light" })).resolves.toBeUndefined()
-    })
+  it("lists settings", async () => {
+    const docs = await container.settings.list()
+    expect(docs.some((d) => d.key === key)).toBe(true)
   })
 
-  describe("delete", () => {
-    it("resolves on success", async () => {
-      raw.delete.mockResolvedValueOnce(okResponse({}))
-      await expect(store.delete("theme")).resolves.toBeUndefined()
-    })
+  it("deletes a setting", async () => {
+    await container.settings.delete(key)
+    const doc = await container.settings.get(key)
+    expect(doc).toBeUndefined()
   })
 })

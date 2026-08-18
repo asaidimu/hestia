@@ -1,4 +1,4 @@
-import type { Document } from "../core/types"
+import type { Document } from "../../core/types"
 
 export interface NamespaceInfo {
   id: string
@@ -24,7 +24,7 @@ export interface ListBlobsRequest {
 
 export interface CreateNamespaceRequest {
   display_name?: string
-  ns?: string
+  ns: string
 }
 
 export interface UploadBeginResult {

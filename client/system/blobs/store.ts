@@ -1,10 +1,10 @@
 import type { QueryDSL } from "@asaidimu/query";
 import type { SimplePersistence } from "@asaidimu/utils-persistence";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
-import { type Transport } from "../core/client";
-import { createPagedController } from "../core/pager";
-import type { Document, Page, PagedData, StoreEvent } from "../core/types";
-import type { DocumentStore } from "../core/types";
+import { type Transport } from "../../core/client";
+import { createPagedController } from "../../core/pager";
+import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
+import type { DocumentStore } from "../../core/types";
 import type {
     BlobDocument,
     BlobMeta,
@@ -1209,7 +1209,7 @@ export class HestiaBlobClient {
   async createNamespace(data: CreateNamespaceRequest): Promise<NamespaceInfo> {
     const res = await this.client.dispatch<{ data: NamespaceInfo }>(
       "system:blobs:namespace:create",
-      { payload: data },
+      { arguments: { ns: data.ns }, payload: { display_name: data.display_name } },
     );
     return res.data!.data;
   }

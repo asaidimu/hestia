@@ -1,5 +1,5 @@
 import type { SchemaDefinition } from "@asaidimu/utils-schema"
-import type { Document } from "../core/types"
+import type { Document } from "../../core/types"
 
 export interface CollectionMeta {
   name: string
@@ -8,4 +8,4 @@ export interface CollectionMeta {
   updated: string
 }
 
-export type CollectionDocument = Document<{ schema: any }>
+export type CollectionDocument = Document<{ schema: SchemaDefinition }>

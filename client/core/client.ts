@@ -5,7 +5,7 @@ import {
 } from "@asaidimu/network-client";
 import { SystemError } from "@asaidimu/utils-error";
 import { parseErrorBody, toSystemError } from "./errors";
-import type { UserIdentity } from "../system/identity/types";
+import type { UserIdentity } from "../system/users/types";
 
 export interface IdentityProvider {
   identity(): UserIdentity | null;

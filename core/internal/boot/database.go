@@ -23,9 +23,9 @@ func NewDatabase(cfg *runtime.Config, logger *zap.Logger) (*Database, error) {
 	var dsn string
 	switch cfg.DBPath {
 	case ":memory:":
-		dsn = ":memory:?cache=shared"
+		dsn = ":memory:?cache=shared&_busy_timeout=5000"
 	default:
-		dsn = fmt.Sprintf("file:%s?cache=shared&_fk=1", cfg.DBPath)
+		dsn = fmt.Sprintf("file:%s?cache=shared&_fk=1&_busy_timeout=5000", cfg.DBPath)
 	}
 
 	db, err := sql.Open("sqlite3", dsn)

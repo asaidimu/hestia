@@ -1,41 +1,33 @@
-import { type Transport } from "../core/client"
-import { HestiaCollection } from "../core/collection"
-import type { Document, Page, PagedData, StoreEvent } from "../core/types"
-import type { DocumentStore } from "../core/types"
+import { type Transport } from "../../core/client"
+import { HestiaCollection } from "../../core/collection"
+import type { Document, Page, PagedData, StoreEvent } from "../../core/types"
+import type { DocumentStore } from "../../core/types"
 import type { CollectionMeta } from "./types"
+import type { SchemaDefinition } from "@asaidimu/utils-schema"
 
 export class HestiaCollections implements DocumentStore<CollectionMeta, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
   constructor(private client: Transport) {}
 
   async find(_query?: Record<string, unknown>): Promise<Page<CollectionMeta>> {
     const res = await this.client.dispatch<{
-      data: { name: string; schema: any; created: string; updated: string }[]
+      data: Document<CollectionMeta>[]
     }>("system:collections:collection:list")
     const items = res.data?.data ?? []
-    const docs: Document<CollectionMeta>[] = items.map((i) => ({
-      _id_: i.name,
-      _metadata_: { checksum: "", created: i.created, updated: i.updated, version: 1 },
-      name: i.name,
-      schema: i.schema,
-      created: i.created,
-      updated: i.updated,
-    }))
     return {
-      data: docs,
+      data: items,
       loading: false,
-      page: { number: 1, size: docs.length, count: docs.length, total: docs.length, pages: 1 },
+      page: { number: 1, size: items.length, count: items.length, total: items.length, pages: 1 },
     }
   }
 
   async read(name: string): Promise<Document<CollectionMeta> | undefined> {
     try {
-      const res = await this.client.dispatch<{ data: { name: string; schema: any; created: string; updated: string } }>(
+      const res = await this.client.dispatch<{ data: Document<CollectionMeta> }>(
         "system:collections:collection:get",
         { arguments: { name } },
       )
       if (!res.data) return undefined
-      const d = res.data.data
-      return { _id_: d.name, _metadata_: { checksum: "", created: d.created, updated: d.updated, version: 1 }, name: d.name, schema: d.schema, created: d.created, updated: d.updated }
+      return res.data.data
     } catch (err: any) {
       if (err?.code === "SYNC-001-NF") return undefined
       throw err
@@ -43,9 +35,10 @@ export class HestiaCollections implements DocumentStore<CollectionMeta, Record<s
   }
 
   async create(props: { data: Partial<CollectionMeta> }): Promise<Document<CollectionMeta> | undefined> {
+    const schema = (props.data.schema ?? props.data) as unknown as SchemaDefinition
     const res = await this.client.dispatch<{ data: Document<{ schema: any }> }>(
       "system:collections:collection:create",
-      { payload: props.data },
+      { payload: schema },
     )
     return res.data!.data as any as Document<CollectionMeta>
   }

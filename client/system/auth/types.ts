@@ -1,4 +1,4 @@
-import type { UserIdentity } from "../system/identity/types"
+import type { UserIdentity } from "../users/types"
 
 export interface LoginResult {
   user: UserIdentity

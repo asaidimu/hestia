@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest"
-import { HestiaClient } from "../container"
+import { HestiaClient } from "../../container"
 import { SystemError } from "@asaidimu/utils-error"
 
 const BASE_URL = "http://localhost:8070"

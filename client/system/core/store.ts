@@ -2,7 +2,7 @@ import { type Transport } from "../../core/client";
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
 import type { DocumentStore } from "../../core/types";
 
-export class HestiaCapabilities implements DocumentStore<any, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
+export class HestiaCore implements DocumentStore<any, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
   constructor(
     private client: Transport,
   ) {

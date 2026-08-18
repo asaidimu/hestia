@@ -3,10 +3,11 @@ import type { Document, Page } from "../../core/types"
 import type { Binding } from "./types"
 
 function toDocument(b: Binding): Document<Binding> {
+  const raw = b as Document<Binding>
   return {
     ...b,
-    _id_: b.name,
-    _metadata_: { checksum: "", created: "", updated: "", version: 1 },
+    _id_: raw._id_ ?? b.name,
+    _metadata_: raw._metadata_ ?? { checksum: "", created: "", updated: "", version: 1 },
   }
 }
 

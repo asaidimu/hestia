@@ -1,22 +1,22 @@
 import type { SimplePersistence } from "@asaidimu/utils-persistence";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
-import { HestiaAuth } from "./auth/store";
-import { HestiaCollections } from "./collections/store";
+import { HestiaAuth } from "./system/auth/store";
+import { HestiaCollections } from "./system/collections/store";
 import {
     HttpTransport,
     type Transport,
     type IdentityProvider,
 } from "./core/client";
 import { WailsTransport } from "./core/wails-transport";
-import { HestiaKeyStore } from "./system/api-keys/store";
-import { HestiaUsers } from "./system/identity/store";
-import type { UserIdentity } from "./system/identity/types";
-import { HestiaLogs } from "./system/logs/store";
+import { HestiaKeyStore } from "./system/apikeys/store";
+import { HestiaUsers } from "./system/users/store";
+import type { UserIdentity } from "./system/users/types";
+import { HestiaLogs } from "./system/audit/store";
 import { HestiaPolicies } from "./system/policies/store";
-import { HestiaRules } from "./system/rules/store";
-import { HestiaBlobClient } from "./blobs/store";
-import type { UploadPersistence } from "./blobs/types";
-import { HestiaCapabilities } from "./system/capabilities/store";
+import { HestiaRules } from "./system/policies/rules";
+import { HestiaBlobClient } from "./system/blobs/store";
+import type { UploadPersistence } from "./system/blobs/types";
+import { HestiaCore } from "./system/core/store";
 import { HestiaNotificationStore } from "./system/notifications/store";
 import { HestiaScheduleStore } from "./system/schedules/store";
 import { HestiaSettingStore } from "./system/settings/store";
@@ -44,7 +44,7 @@ export class HestiaClient {
   readonly logs: HestiaLogs;
   readonly collections: HestiaCollections;
   readonly blobs: HestiaBlobClient;
-  readonly capabilities: HestiaCapabilities
+  readonly core: HestiaCore
   readonly notifications: HestiaNotificationStore;
   readonly schedules: HestiaScheduleStore;
   readonly settings: HestiaSettingStore;
@@ -98,7 +98,7 @@ export class HestiaClient {
     );
     this.collections = new HestiaCollections(this.client);
     this.blobs = new HestiaBlobClient(this.client, apiPrefix, config.uploadPersistence);
-    this.capabilities = new HestiaCapabilities(this.client)
+    this.core = new HestiaCore(this.client)
     this.notifications = new HestiaNotificationStore(this.client)
     this.schedules = new HestiaScheduleStore(this.client)
     this.settings = new HestiaSettingStore(this.client)

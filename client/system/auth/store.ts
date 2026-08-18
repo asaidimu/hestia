@@ -1,4 +1,4 @@
-import { type Transport, type IdentityProvider } from "../core/client";
+import { type Transport, type IdentityProvider } from "../../core/client";
 import type { LoginResult, ServerHealth } from "./types";
 
 export class HestiaAuth {

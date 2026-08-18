@@ -6,17 +6,17 @@ export * from "./core/errors"
 export * from "./core/types"
 export { createPagedController } from "./core/pager"
 
-// Auth
-export * from "./auth/store"
-export * from "./auth/types"
+// System: auth
+export * from "./system/auth/store"
+export * from "./system/auth/types"
 
-// System: identity
-export * from "./system/identity/store"
-export * from "./system/identity/types"
+// System: users
+export * from "./system/users/store"
+export * from "./system/users/types"
 
-// System: api-keys
-export * from "./system/api-keys/store"
-export * from "./system/api-keys/types"
+// System: apikeys
+export * from "./system/apikeys/store"
+export * from "./system/apikeys/types"
 
 // System: operations
 export * from "./system/operations/store"
@@ -24,23 +24,20 @@ export * from "./system/operations/types"
 
 // System: policies
 export * from "./system/policies/store"
+export * from "./system/policies/rules"
 export * from "./system/policies/types"
 
-// System: rules
-export * from "./system/rules/store"
-export * from "./system/rules/types"
+// System: audit
+export * from "./system/audit/store"
+export * from "./system/audit/types"
 
-// System: logs
-export * from "./system/logs/store"
-export * from "./system/logs/types"
+// System: blobs
+export * from "./system/blobs/store"
+export * from "./system/blobs/types"
 
-// Blobs
-export * from "./blobs/store"
-export * from "./blobs/types"
-
-// Collections
-export * from "./collections/store"
-export * from "./collections/types"
+// System: collections
+export * from "./system/collections/store"
+export * from "./system/collections/types"
 
 // System: notifications
 export * from "./system/notifications/store"
@@ -53,6 +50,9 @@ export * from "./system/schedules/types"
 // System: settings
 export * from "./system/settings/store"
 export * from "./system/settings/types"
+
+// System: core
+export * from "./system/core/store"
 
 // Container
 export { HestiaClient } from "./container"
