@@ -1,3 +1,10 @@
+## [1.4.7](https://github.com/asaidimu/hestia/compare/v1.4.6...v1.4.7) (2026-08-18)
+
+
+### Bug Fixes
+
+* **client:** Write end-to-end integration tests ([c6bcb97](https://github.com/asaidimu/hestia/commit/c6bcb977d94e2af5cad2a4d89cec0330ff79481e))
+
 ## [1.4.6](https://github.com/asaidimu/hestia/compare/v1.4.5...v1.4.6) (2026-08-17)
 
 
