@@ -148,7 +148,7 @@ func (o *Interface) runBootstrap() {
 	}
 
 	pwdMsg := dispatch.NewMessage("system:auth:bootstrap:password:set", ctx, data.MustNewDocument(map[string]any{
-		"payload": map[string]any{"password": password, "email": email, "caller_id": o.opts.AdminUserID},
+		"payload": map[string]any{"password": password, "email": email},
 	}, ctx))
 	if res, err := o.opts.Dispatcher.Send(pwdMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Bootstrap failed: %v\n", err)

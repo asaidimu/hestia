@@ -19,7 +19,6 @@ type PasswordConfirmInput struct {
 type BootstrapPasswordInput struct {
 	Email    string `input:"payload.email"`
 	Password string `input:"payload.password"`
-	CallerID string `input:"payload.caller_id"`
 }
 
 type ElevateInput struct {

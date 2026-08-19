@@ -9,6 +9,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/auth/model"
 )
 
+
 // RegisterService registers the auth service in the runtime DI
 // container so other services can resolve it as a dependency.
 func RegisterService(rt abstract.Container) error {

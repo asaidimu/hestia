@@ -72,6 +72,11 @@ func (a *Application) printFirstRunKey() {
 // modules can resolve them during Setup.
 func (a *Application) Runtime() *runtime.Runtime {
 	if a.rt == nil {
+		// @note #b3muvk todo : Add lifecyle methods to the runtime
+		// so that downstream users such as the auth module can
+		// influence runtime
+		// @see #ra2yqz
+		// @see #8uuufn
 		rt := runtime.NewRuntime()
 		if a.PersistenceManager != nil {
 			_ = rt.RegisterInstance[base.Persistence](a.PersistenceManager.Persistence())
