@@ -185,6 +185,9 @@ func envBool(key string) (bool, bool) {
 	return false, false
 }
 
+// @note #r9i7ec issue : This code is duplicated in ApplyEnvOverrides
+// We need to centralize env resolution
+
 func LoadConfig(projectName string) (*Config, error) {
 	// Precedence (lowest wins last): process env < .env < .env.dev. Overload
 	// (not Load) so each file overrides the layer below it.

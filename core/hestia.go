@@ -3,6 +3,7 @@ package hestia
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,10 +17,10 @@ import (
 	"github.com/asaidimu/hestia/core/interface/cli"
 	"github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/internal/boot"
-	"github.com/asaidimu/hestia/core/system/users/model"
-	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/system/updates"
+	"github.com/asaidimu/hestia/core/system/users/model"
 )
 
 func projectName(projectName string) string {
@@ -162,11 +163,12 @@ type SetupConfig struct {
 	AdminPassword     string
 	Mailer            runtime.MailerConfig
 	AppURL            string
+	StaticFS          fs.FS
 
 	Modules             []Module
 	DispatcherChainFunc func(chain abstract.ChainEditor)
 	Interfaces          []func(abstract.Dispatcher) runtime.Interface
-	BuildInterfaces     func(app *Application) []runtime.Interface
+	BuildInterfaces     func(app *Application, cfg ...*runtime.Config) []runtime.Interface
 
 	OnBootstrapped func()
 	OnReset        func()
@@ -246,6 +248,9 @@ func (cfg SetupConfig) applyTo(conf *runtime.Config) {
 	}
 	if cfg.SelfUpdate != nil {
 		conf.SelfUpdate = cfg.SelfUpdate
+	}
+	if cfg.StaticFS != nil {
+		conf.StaticFS = cfg.StaticFS
 	}
 }
 
@@ -327,7 +332,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 	}
 
 	if cfg.BuildInterfaces != nil {
-		for _, i := range cfg.BuildInterfaces(appWrapper) {
+		for _, i := range cfg.BuildInterfaces(appWrapper, conf) {
 			application.AddInterface(i)
 		}
 	} else {
