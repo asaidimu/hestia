@@ -1,3 +1,10 @@
+## [1.4.9](https://github.com/asaidimu/hestia/compare/v1.4.8...v1.4.9) (2026-08-19)
+
+
+### Bug Fixes
+
+* **system:** add systemd-native self-update support ([16c7fcb](https://github.com/asaidimu/hestia/commit/16c7fcb225983f9de778d649b0ebb25800bd5d32))
+
 ## [1.4.8](https://github.com/asaidimu/hestia/compare/v1.4.7...v1.4.8) (2026-08-18)
 
 
