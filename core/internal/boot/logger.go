@@ -30,6 +30,10 @@ func (u *UserOutput) Print(args ...any) {
 	fmt.Fprint(u.w, args...)
 }
 
+func (u *UserOutput) Println(args ...any) {
+	fmt.Fprintln(u.w, args...)
+}
+
 func (u *UserOutput) Banner() {
 	banner := `
  Hestia Platform — ERP Template Server

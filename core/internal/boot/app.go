@@ -43,6 +43,30 @@ func (a *Application) SystemModule() *system.SystemModule { return a.systemMod }
 
 func (a *Application) SetSystemModule(m *system.SystemModule) { a.systemMod = m }
 
+// printFirstRunKey surfaces the ephemeral API key on the console whenever the
+// system starts without having been bootstrapped. The key is generated fresh
+// on every boot and grants admin access, so it must be printed each time it is
+// active — and never once the system is bootstrapped.
+func (a *Application) printFirstRunKey() {
+	mod := a.SystemModule()
+	if mod == nil || mod.Bootstrapped() || mod.EphemeralKey() == "" {
+		return
+	}
+	u := a.Loggers.Stdout
+	u.Println()
+	u.Println("System is not bootstrapped. Bootstrap it via the server using this API key:")
+	u.Println()
+	u.Printf("  X-API-Key: %s\n", mod.EphemeralKey())
+	u.Printf("  Authorization: Bearer %s\n", mod.EphemeralKey())
+	if a.Config.AdminEmail == "" && mod.AdminEmail() != "" {
+		u.Printf("  Admin email (auto-generated): %s\n", mod.AdminEmail())
+	}
+	u.Println()
+	u.Println("Use the key to set a bootstrap admin password (system:auth:bootstrap:password:set)")
+	u.Println("and mark the system bootstrapped (system:core:bootstrap:mark).")
+	u.Println()
+}
+
 // Runtime returns the shared application runtime container, seeding it with
 // the base providers (persistence, logger, dispatcher) on first use so that
 // modules can resolve them during Setup.
@@ -93,6 +117,7 @@ func (a *Application) Boot(ctx context.Context, opts dispatch.SystemOptions) err
 		return err
 	}
 	a.SetSystemModule(mod)
+	a.printFirstRunKey()
 	return nil
 }
 
@@ -340,6 +365,7 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 	})
 	a.RegisterModules(mod)
 	a.SetSystemModule(mod)
+	a.printFirstRunKey()
 
 	rpcIface, cliIface := BuildInterfaces(a, version, httpapi.ConfigFromRuntime(cfg), cli.Config{})
 	a.Interfaces = nil
