@@ -1,3 +1,10 @@
+## [1.4.11](https://github.com/asaidimu/hestia/compare/v1.4.10...v1.4.11) (2026-08-19)
+
+
+### Bug Fixes
+
+* **boot:** surface ephemeral API key on first run ([c1cd346](https://github.com/asaidimu/hestia/commit/c1cd3465e24f0109e2895c1726f42344523ded0d))
+
 ## [1.4.10](https://github.com/asaidimu/hestia/compare/v1.4.9...v1.4.10) (2026-08-19)
 
 
