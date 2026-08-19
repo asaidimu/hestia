@@ -1,3 +1,10 @@
+## [1.4.12](https://github.com/asaidimu/hestia/compare/v1.4.11...v1.4.12) (2026-08-19)
+
+
+### Bug Fixes
+
+* **auth:** consolidate auth handlers and remove deprecated bootstrap logic ([8ae1133](https://github.com/asaidimu/hestia/commit/8ae1133013d7352503e06bd64126d0e279153665))
+
 ## [1.4.11](https://github.com/asaidimu/hestia/compare/v1.4.10...v1.4.11) (2026-08-19)
 
 
