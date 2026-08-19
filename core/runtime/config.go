@@ -92,6 +92,14 @@ type SelfUpdateConfig struct {
 	// AutoApply applies an available update automatically during the scheduled
 	// check. Default false — ApplyUpdate is always the explicit admin action.
 	AutoApply bool
+
+	// SystemdMode deploys the process as a systemd-managed daemon. Instead of
+	// the spawn-and-swap handoff (ApplyUpdate spawning a --perform-update
+	// child that replaces the executable), apply copies the staged binary over
+	// the executable in place and then exits cleanly, letting systemd's
+	// Restart=always launch the new binary as a tracked unit. Requires the
+	// executable path to be writable by the service user.
+	SystemdMode bool
 }
 
 type CookieConfig struct {

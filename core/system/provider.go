@@ -48,6 +48,12 @@ type ProviderSet struct {
 	Notifications *notifications.NotificationModel
 	Schedules     *schedules.ScheduleModel
 
+	UpdStore *updates.Store
+	Updater  *updater.Updater
+	Updates  *updates.UpdatesService
+	UpdExe   string
+	UpdData  string
+
 	BlobSvc      *blobutil.Service
 	Notifier     abstract.Notifier
 	Scheduler    *scheduler.Scheduler
@@ -60,10 +66,6 @@ type ProviderSet struct {
 	LiveRules    collection.LiveCollection[iam.FunctionRule]
 	LivePolicies collection.LiveCollection[*policies.Policy]
 	LiveUsers    collection.LiveCollection[*users.UserClaims]
-
-	Updater   *updater.Updater
-	UpdStore  *updates.Store
-	Updates   *updates.UpdatesService
 }
 
 func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger) *ProviderSet {
@@ -169,6 +171,8 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 	}
 	ps.Updater = u
 	ps.UpdStore = store
+	ps.UpdExe = exe
+	ps.UpdData = dataDir
 	if err := ps.UpdStore.Reconcile(ctx, ps.Config.Version); err != nil {
 		ps.Logger.Warn("updates: reconcile pending update failed", zap.Error(err))
 	}
@@ -182,6 +186,9 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 		ps.Config.Mailer.SMTPHost != "",
 		cfg.AutoApply,
 		ps.Config.Version,
+		cfg.SystemdMode,
+		exe,
+		dataDir,
 	)
 	if cfg.CheckSchedule != "" {
 		ps.Scheduler.Register("updates:check", cfg.CheckSchedule, func(ctx context.Context) error {
@@ -212,6 +219,9 @@ func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistrati
 			HasMailer: ps.Config.Mailer.SMTPHost != "",
 			AutoApply: ps.Config.SelfUpdate.AutoApply,
 			Version:   ps.Config.Version,
+			Systemd:   ps.Config.SelfUpdate.SystemdMode,
+			ExePath:   ps.UpdExe,
+			DataDir:   ps.UpdData,
 		})...)
 	}
 	return append(all, svcRegs...)

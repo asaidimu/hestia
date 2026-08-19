@@ -3,7 +3,9 @@ package updates
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/asaidimu/updater"
 	"go.uber.org/zap"
@@ -37,7 +39,25 @@ func newTestService(t *testing.T, provider *stubProvider, currentVersion string)
 	if err != nil {
 		t.Fatalf("new updater: %v", err)
 	}
-	svc := NewService(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion)
+	svc := NewService(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, false, "", "")
+	return svc, store
+}
+
+// newSystemdService returns a service in SystemdMode whose staged update lands
+// in dataDir and whose swap target is exePath.
+func newSystemdService(t *testing.T, provider *stubProvider, currentVersion, dataDir, exePath string) (*UpdatesService, *Store) {
+	t.Helper()
+	p := testutil.NewPersistence(t)
+	store := NewStore(settings.NewSettingsModel(p))
+	u, err := updater.New(provider, updater.Config{
+		Version: currentVersion,
+		DataDir: dataDir,
+		Store:   store,
+	})
+	if err != nil {
+		t.Fatalf("new updater: %v", err)
+	}
+	svc := NewService(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, true, exePath, dataDir)
 	return svc, store
 }
 
@@ -149,5 +169,82 @@ func TestApplyFailsWithoutPreparedUpdate(t *testing.T) {
 	svc, _ := newTestService(t, &stubProvider{}, "1.0.0")
 	if _, err := svc.Apply(ctx, nil, nil); err == nil {
 		t.Fatal("expected apply to fail without a prepared update")
+	}
+}
+
+// TestSystemdApplySwapsExecutableAndExits verifies the systemd-native apply
+// path: after check+stage, apply copies the staged binary over the executable
+// and schedules a clean process exit instead of the spawn-and-swap handoff.
+func TestSystemdApplySwapsExecutableAndExits(t *testing.T) {
+	ctx := context.Background()
+	dataDir := t.TempDir()
+	exePath := filepath.Join(t.TempDir(), "hestia")
+	if err := os.WriteFile(exePath, []byte("old-binary"), 0755); err != nil {
+		t.Fatalf("seed executable: %v", err)
+	}
+
+	svc, _ := newSystemdService(t, &stubProvider{info: &updater.UpdateInfo{Version: "1.2.0"}}, "1.0.0", dataDir, exePath)
+	if _, err := svc.Check(ctx, nil, nil); err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if !svc.updater.HasPreparedUpdate() {
+		t.Fatal("expected prepared update binary")
+	}
+
+	exited := make(chan int, 1)
+	exitProcess = func(code int) { exited <- code }
+	defer func() { exitProcess = os.Exit }()
+
+	view, err := svc.Apply(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if view.Message == "" {
+		t.Fatal("expected an ack message")
+	}
+	select {
+	case code := <-exited:
+		if code != 0 {
+			t.Fatalf("expected clean exit code 0, got %d", code)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected a scheduled process exit after apply")
+	}
+
+	got, err := os.ReadFile(exePath)
+	if err != nil {
+		t.Fatalf("read swapped executable: %v", err)
+	}
+	if string(got) != "fake-binary" {
+		t.Fatalf("executable not swapped: got %q, want fake-binary", got)
+	}
+	if pending, _ := svc.store.PendingUpdate(ctx); pending == nil {
+		t.Fatal("expected pending metadata to survive the swap")
+	}
+}
+
+// TestSystemdApplyUpToDateDoesNothing verifies apply is a no-op when the app
+// is already running the latest version.
+func TestSystemdApplyUpToDateDoesNothing(t *testing.T) {
+	ctx := context.Background()
+	dataDir := t.TempDir()
+	exePath := filepath.Join(t.TempDir(), "hestia")
+	if err := os.WriteFile(exePath, []byte("old-binary"), 0755); err != nil {
+		t.Fatalf("seed executable: %v", err)
+	}
+	svc, _ := newSystemdService(t, &stubProvider{}, "1.0.0", dataDir, exePath)
+	view, err := svc.Apply(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if view.Message == "" {
+		t.Fatal("expected an ack message")
+	}
+	got, err := os.ReadFile(exePath)
+	if err != nil {
+		t.Fatalf("read executable: %v", err)
+	}
+	if string(got) != "old-binary" {
+		t.Fatalf("executable must not change when up to date: got %q", got)
 	}
 }

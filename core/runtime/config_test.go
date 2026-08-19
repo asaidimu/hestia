@@ -82,6 +82,7 @@ func TestApplySelfUpdateEnvGithubProvider(t *testing.T) {
 	t.Setenv("UPDATE_GITHUB_ASSET_PATTERN", "app-{{ .version }}-{{ .os }}_{{ .arch }}")
 	t.Setenv("UPDATE_CHECK_SCHEDULE", "@every 12h")
 	t.Setenv("UPDATE_AUTO_APPLY", "true")
+	t.Setenv("UPDATE_SYSTEMD", "true")
 
 	conf := DefaultConfig()
 	if err := ApplyEnvOverrides(conf); err != nil {
@@ -98,6 +99,9 @@ func TestApplySelfUpdateEnvGithubProvider(t *testing.T) {
 	}
 	if !conf.SelfUpdate.AutoApply {
 		t.Error("expected AutoApply from UPDATE_AUTO_APPLY")
+	}
+	if !conf.SelfUpdate.SystemdMode {
+		t.Error("expected SystemdMode from UPDATE_SYSTEMD")
 	}
 }
 

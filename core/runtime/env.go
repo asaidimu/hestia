@@ -150,6 +150,9 @@ func applySelfUpdateEnv(conf *Config) error {
 	if b, ok := envBool("UPDATE_AUTO_APPLY"); ok {
 		su.AutoApply = b
 	}
+	if b, ok := envBool("UPDATE_SYSTEMD"); ok {
+		su.SystemdMode = b
+	}
 	return nil
 }
 

@@ -56,11 +56,14 @@ type Dependencies struct {
 	HasMailer bool
 	AutoApply bool
 	Version   string
+	Systemd   bool
+	ExePath   string
+	DataDir   string
 }
 
 // Registrations returns the updates service message registrations.
 func Registrations(deps Dependencies) []abstract.MessageRegistration {
-	svc := NewService(deps.Updater, deps.Store, deps.Notifier, deps.Users, deps.Logger, deps.AppURL, deps.HasMailer, deps.AutoApply, deps.Version)
+	svc := NewService(deps.Updater, deps.Store, deps.Notifier, deps.Users, deps.Logger, deps.AppURL, deps.HasMailer, deps.AutoApply, deps.Version, deps.Systemd, deps.ExePath, deps.DataDir)
 	return []abstract.MessageRegistration{
 		{
 			Input:       abstract.Input{Schema: dispatch.SchemaFromType[NoInput]()},
