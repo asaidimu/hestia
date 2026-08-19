@@ -142,8 +142,8 @@ func TestNewConfigMissingSessionSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewConfig() error: %v", err)
 	}
-	if cfg.SessionSecret != "" {
-		t.Errorf("SessionSecret = %q, want empty", cfg.SessionSecret)
+	if cfg.SessionSecret != runtime.DefaultSessionSecret {
+		t.Errorf("SessionSecret = %q, want default %q", cfg.SessionSecret, runtime.DefaultSessionSecret)
 	}
 }
 
