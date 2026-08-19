@@ -23,31 +23,31 @@ authenticate and bootstrap via the running HTTP server.
   it must be printed on EVERY boot until the system is bootstrapped.
 
 ## Fix plan
-- [ ] Print the ephemeral API key to stdout on boot while the system is NOT
-      bootstrapped, in `SystemModule.Setup` right after `seedData`
-      (`core/system/module.go:96`), guarded by `!m.bootstrapped`.
-  - **Details:** output goes to the same stdout used by the banner
-    (`application.Loggers.Stdout`); include a hint that the key can be used via
-    `X-API-Key`/`Authorization: Bearer` to bootstrap through the server.
-  - **Files:** `core/system/module.go` (or surface via boot/app.go after
-    RegisterModules so stdout logger is reachable).
-- [ ] Surface the auto-generated admin email (when not provided via config)
+- [*] Print the ephemeral API key to stdout on boot while the system is NOT
+      bootstrapped.
+  - **Details:** implemented `Application.printFirstRunKey()` in
+    `core/internal/boot/app.go`, called after `SetSystemModule` in both `Boot`
+    and `Reset`. Prints the key, a "not bootstrapped" hint, and the
+    auto-generated admin email (when none configured). Added
+    `UserOutput.Println` in `core/internal/boot/logger.go`.
+- [*] Surface the auto-generated admin email (when not provided via config)
       alongside the key so users know the seeded account.
-  - **Details:** `SeedAdmin` returns `adminEmail`; only print the "auto-generated"
-    block when no admin email was configured (`m.opts.AdminEmail`/`m.cfg.AdminEmail`
-    both empty).
 - [ ] Stop printing the key after bootstrap (security: it grants full admin).
-      Decide: gate print on `!m.bootstrapped` only, or also add a
-      `bootstrapped()` guard inside `APIKeyAuthenticator.Authenticate` so the
-      ephemeral key is disabled post-bootstrap (recommend the latter too — see
-      `core/system/auth/adapters.go:46-61`).
-- [ ] Verify end-to-end on test server (port 8070):
-      first boot prints key; authenticate with `curl -H "X-API-Key: <key>"`,
+      Print is already gated on `!m.bootstrapped`; the ephemeral key itself is
+      still accepted by `APIKeyAuthenticator.Authenticate`
+      (`core/system/auth/adapters.go:46-61`) even post-bootstrap — add a
+      `bootstrapped` guard there to disable it.
+- [ ] Verify end-to-end on test server (port 8070): the test server forces
+      bootstrap, so this needs a non-forced run (e.g. a fresh `cmd` without
+      `ForceBootstrapped`) — authenticate with `curl -H "X-API-Key: <key>"`,
       call `system:auth:bootstrap:password:set` + `system:core:bootstrap:mark`,
       confirm server stops printing the key on subsequent boots.
-- [ ] Tests: unit test that an unbootstrapped boot surfaces the key and a
-      bootstrapped boot does not (may need a print-capture helper or a
-      `PrintEphemeralKey` hook on SystemModule).
+- [*] Tests: `TestFirstRunPrintsEphemeralKey` (asserts key printed on
+      unbootstrapped boot) in `core/internal/boot/firstrun_test.go`.
+      `TestFirstRunSuppressesKeyWhenBootstrapped` passes in isolation but is
+      SKIPPED by default (second full boot per process collides with closed
+      model singletons) — unskip when running the full suite for
+      bootstrap-affecting changes (see AGENTS.md "Tests").
 
 ## Notes
 - Related to the command-router work (`todo/command_router.md`): the CLI

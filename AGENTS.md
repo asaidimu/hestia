@@ -35,6 +35,22 @@ To discover and understand all available registered commands within the system, 
 
 ---
 
+## Tests
+
+The generated model collections are **process-wide singletons** bound to the
+persistence of the first full boot. Consequently a full application boot can
+only happen **once per test process** — a second boot hits the closed
+database. Tests that need a second boot are therefore **skipped by default**
+and must be **unskipped** (remove the `t.Skip`) when running the full suite for
+changes that affect bootstrap, so regressions are caught.
+
+Current skipped boot tests:
+* `TestFirstRunSuppressesKeyWhenBootstrapped` in
+  `core/internal/boot/firstrun_test.go` (passes in isolation; run with
+  `go test -run TestFirstRunSuppressesKeyWhenBootstrapped ./core/internal/boot/`).
+
+---
+
 ## Writing TODOs
 
 When starting on a new taks, write the steps to a file under the `todo` folder.

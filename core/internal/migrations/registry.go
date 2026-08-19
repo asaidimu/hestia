@@ -23,17 +23,17 @@ type Migration struct {
 
 // Plain holds all plain (non-squashed) migrations sorted by UUID.
 var Plain = []Migration{
-	{UUID: "01a0192d-8dec-7e49-aa26-4ed6f5346f29", Collection: "_api_key_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8dec-7e49-aa26-4ed6f5346f29__api_key__major.go", Plan: _api_key__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7138-8f73-9e849a7c18b8", Collection: "_audit_log_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7138-8f73-9e849a7c18b8__audit_log__major.go", Plan: _audit_log__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7332-875f-b66a3672a01a", Collection: "_token_blocklist_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7332-875f-b66a3672a01a__token_blocklist__major.go", Plan: _token_blocklist__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7433-b3dc-0d71f826d4a1", Collection: "_notifications_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7433-b3dc-0d71f826d4a1__notifications__major.go", Plan: _notifications__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7702-83f4-ee63c2b1f7ac", Collection: "_seed_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7702-83f4-ee63c2b1f7ac__seed__major.go", Plan: _seed__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-79d6-a7a6-c598d33e332c", Collection: "_iam_rule_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-79d6-a7a6-c598d33e332c__iam_rule__major.go", Plan: _iam_rule__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7ba7-aab9-df8ca481a7cd", Collection: "_operation_policy_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7ba7-aab9-df8ca481a7cd__operation_policy__major.go", Plan: _operation_policy__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8ded-7dbd-894f-5f61d62ed21f", Collection: "_scheduled_messages_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8ded-7dbd-894f-5f61d62ed21f__scheduled_messages__major.go", Plan: _scheduled_messages__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8dee-701e-8a61-bf969d0b9120", Collection: "_settings_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8dee-701e-8a61-bf969d0b9120__settings__major.go", Plan: _settings__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8dee-71af-8a38-c3504ab93f7d", Collection: "_tenant_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8dee-71af-8a38-c3504ab93f7d__tenant__major.go", Plan: _tenant__0_0_0_to_1_0_0},
-	{UUID: "01a0192d-8def-7595-97b7-a20285ab022f", Collection: "_user_", From: "0.0.0", To: "1.0.0", File: "01a0192d-8def-7595-97b7-a20285ab022f__user__major.go", Plan: _user__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a4-76a2-8ba6-33d79e4a2761", Collection: "_api_key_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a4-76a2-8ba6-33d79e4a2761__api_key__major.go", Plan: _api_key__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a4-7b30-adac-fe4f12d1996e", Collection: "_audit_log_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a4-7b30-adac-fe4f12d1996e__audit_log__major.go", Plan: _audit_log__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a4-7e86-a0f8-1ec99ad83c17", Collection: "_token_blocklist_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a4-7e86-a0f8-1ec99ad83c17__token_blocklist__major.go", Plan: _token_blocklist__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-71a0-98bc-b3c6c180b9d6", Collection: "_notifications_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-71a0-98bc-b3c6c180b9d6__notifications__major.go", Plan: _notifications__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-740d-a057-ae5889bfc0a8", Collection: "_seed_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-740d-a057-ae5889bfc0a8__seed__major.go", Plan: _seed__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-7695-a835-beeb6e0453bd", Collection: "_iam_rule_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-7695-a835-beeb6e0453bd__iam_rule__major.go", Plan: _iam_rule__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-7954-b424-3e2e34c3110f", Collection: "_operation_policy_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-7954-b424-3e2e34c3110f__operation_policy__major.go", Plan: _operation_policy__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-7c6a-80ce-1817bb67ab75", Collection: "_scheduled_messages_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-7c6a-80ce-1817bb67ab75__scheduled_messages__major.go", Plan: _scheduled_messages__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a5-7e66-b780-dae9d08b2293", Collection: "_settings_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a5-7e66-b780-dae9d08b2293__settings__major.go", Plan: _settings__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a6-70ab-8209-4c96f452c789", Collection: "_tenant_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a6-70ab-8209-4c96f452c789__tenant__major.go", Plan: _tenant__0_0_0_to_1_0_0},
+	{UUID: "01a0196e-07a6-7282-8427-cb9546cb72fc", Collection: "_user_", From: "0.0.0", To: "1.0.0", File: "01a0196e-07a6-7282-8427-cb9546cb72fc__user__major.go", Plan: _user__0_0_0_to_1_0_0},
 }
 
 // Squash holds all squash migrations sorted by UUID.
