@@ -7,9 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/asaidimu/hestia/core"
+	hestia "github.com/asaidimu/hestia/core"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/runtime"
 )
 
 func main() {
@@ -26,7 +25,6 @@ func main() {
 		ForceBootstrapped: true,
 		AdminEmail:        "gen@routes.local",
 		AdminPassword:     "password123",
-		BuildInterfaces:   func(a *hestia.Application) []runtime.Interface { return nil },
 	})
 	if err != nil {
 		panic(err)

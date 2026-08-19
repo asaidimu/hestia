@@ -41,7 +41,7 @@ func TestProgrammaticSelfUpdatePersistsPending(t *testing.T) {
 		Version:           "1.0.0",
 		ForceBootstrapped: true,
 		SelfUpdate:        &runtime.SelfUpdateConfig{Provider: p},
-		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
+		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
 			// No CLI interface: it flag-parses os.Args and os.Exit(1)s on
 			// unknown args (e.g. go test's own -test.* flags).
 			return nil

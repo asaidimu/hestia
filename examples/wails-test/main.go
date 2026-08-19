@@ -4,7 +4,6 @@ import (
 	"log"
 
 	hestia "github.com/asaidimu/hestia/core"
-	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/utils/wails"
 
 	wailsruntime "github.com/wailsapp/wails/v2"
@@ -18,9 +17,6 @@ func main() {
 		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
-			return nil
-		},
 	})
 	if err != nil {
 		log.Fatal(err)

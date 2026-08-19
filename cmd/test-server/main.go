@@ -45,7 +45,7 @@ func main() {
 		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
-		BuildInterfaces: func(app *hestia.Application) []runtime.Interface {
+		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
 			return []runtime.Interface{
 				app.NewHTTPInterface(httpapi.Config{
 					Port: serverPort(),
