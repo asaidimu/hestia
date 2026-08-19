@@ -279,6 +279,12 @@ func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateI
 				"changelog": info.Changelog,
 				"app_url":   s.appURL,
 			},
+			Actions: []abstract.NotificationAction{
+				{
+					Label:   "Apply update",
+					Message: "system:updates:update:apply",
+				},
+			},
 			Channels: channels,
 		}); err != nil {
 			return err

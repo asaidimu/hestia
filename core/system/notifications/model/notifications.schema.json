@@ -48,6 +48,17 @@
       "name": "user_id",
       "required": true,
       "type": "string"
+    },
+    "01a01913-3a93-73ba-a724-8c6b11f8ccd9": {
+      "name": "actions",
+      "schema": {
+        "id": "01a01913-3a93-73bc-b9f0-14406a0ae1a0"
+      },
+      "type": "array"
+    },
+    "01a01913-3a93-73bb-b081-85de461621ee": {
+      "name": "expires_at",
+      "type": "integer"
     }
   },
   "indexes": {
@@ -102,7 +113,29 @@
         }
       },
       "name": "_metadata_"
+    },
+    "01a01913-3a93-73bc-b9f0-14406a0ae1a0": {
+      "fields": {
+        "01a01913-3a93-73bd-85e8-1bd3646b954d": {
+          "name": "label",
+          "required": true,
+          "type": "string"
+        },
+        "01a01913-3a93-73be-bb70-ab7c99d04e35": {
+          "name": "message",
+          "type": "string"
+        },
+        "01a01913-3a93-73bf-9148-9ab17b2f0dd6": {
+          "name": "arguments",
+          "type": "record"
+        },
+        "01a01913-3a93-73c0-bd21-6da3d09d672c": {
+          "name": "url",
+          "type": "string"
+        }
+      },
+      "name": "notification_action"
     }
   },
-  "version": "0.1.0"
+  "version": "1.0.0"
 }

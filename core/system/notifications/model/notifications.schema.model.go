@@ -22,6 +22,13 @@ import (
 	"sync"
 )
 
+type NotificationAction struct {
+	Label     string         `anansi:"label,required=true" json:"label"`
+	Arguments map[string]any `anansi:"arguments,required=false,omitempty" json:"arguments,omitempty"`
+	Message   *string        `anansi:"message,required=false,omitempty" json:"message,omitempty"`
+	URL       *string        `anansi:"url,required=false,omitempty" json:"url,omitempty"`
+}
+
 type SystemNotificationsMetadata struct {
 	Checksum  string  `anansi:"checksum,required=true" json:"checksum"`
 	Created   string  `anansi:"created,required=true" json:"created"`
@@ -33,6 +40,7 @@ type SystemNotificationsMetadata struct {
 
 type SystemNotifications struct {
 	document.DocumentModel
+	Actions   []NotificationAction         `anansi:"actions,required=false,omitempty" json:"actions,omitempty"`
 	ID        string                       `anansi:"_id_,required=true" json:"_id_"`
 	Subject   string                       `anansi:"subject,required=true" json:"subject"`
 	Type      string                       `anansi:"type,required=true" json:"type"`
@@ -41,6 +49,7 @@ type SystemNotifications struct {
 	Body      *string                      `anansi:"body,required=false,omitempty" json:"body,omitempty"`
 	CreatedAt *int64                       `anansi:"created_at,required=false,omitempty" json:"created_at,omitempty"`
 	Data      map[string]any               `anansi:"data,required=false,omitempty" json:"data,omitempty"`
+	ExpiresAt *int64                       `anansi:"expires_at,required=false,omitempty" json:"expires_at,omitempty"`
 	Read      *bool                        `anansi:"read,required=false,omitempty" json:"read,omitempty"`
 	TenantID  *string                      `anansi:"tenant_id,required=false,omitempty" json:"tenant_id,omitempty"`
 }

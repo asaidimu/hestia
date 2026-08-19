@@ -11,19 +11,24 @@ import (
 	"github.com/asaidimu/hestia/core/system/notifications/model"
 
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
+	"go.uber.org/zap"
 )
 
 // NotificationsService is the service for the in-app notifications domain. It
-// wraps the hand-rolled NotificationModel (raw persistence over the
-// _notifications_ collection) rather than the generated collection.
+// wraps the generated SystemNotificationss model collection.
 type NotificationsService struct {
-	model *model.NotificationModel
+	model *model.SystemNotificationss
 }
 
 func NewNotificationsService(rt abstract.Container) (*NotificationsService, error) {
 	persist := abstract.MustResolve[persistence.Persistence](rt)
+	logger := abstract.MustResolve[*zap.Logger](rt)
 
-	return &NotificationsService{model: model.NewNotificationModel(persist)}, nil
+	m, err := model.InitSystemNotificationssModel(persist, logger)
+	if err != nil {
+		return nil, err
+	}
+	return &NotificationsService{model: m}, nil
 }
 
 func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
@@ -49,9 +54,16 @@ func (s *NotificationsService) ListNotifications(ctx context.Context, msg abstra
 	}
 	tenantID := runtimecontext.GetTenantID(ctx)
 
-	docs, err := s.model.List(ctx, userID, tenantID, 50, 0)
+	models, err := s.model.List(ctx, userID, tenantID, 50, 0)
 	if err != nil {
 		return nil, err
+	}
+	docs := make([]*document.Document, len(models))
+	for i, n := range models {
+		docs[i], err = n.Document()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return docs, nil
 }

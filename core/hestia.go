@@ -264,10 +264,6 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		return nil, err
 	}
 
-	if conf.SessionSecret == "" {
-		return nil, fmt.Errorf("SessionSecret is required: set it via SetupConfig.SessionSecret or SESSION_SECRET env var")
-	}
-
 	// Phase 1: wiring — no I/O
 	application := boot.New(conf)
 	appWrapper := &Application{inner: application}

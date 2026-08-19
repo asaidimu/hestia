@@ -46,6 +46,23 @@ func (c *inAppChannel) Send(ctx context.Context, n abstract.Notification) error 
 		"read":       false,
 		"created_at": time.Now().UnixMilli(),
 	})
+	if len(n.Actions) > 0 {
+		actions := make([]map[string]any, 0, len(n.Actions))
+		for _, a := range n.Actions {
+			m := map[string]any{"label": a.Label}
+			if a.Message != "" {
+				m["message"] = a.Message
+				if len(a.Arguments) > 0 {
+					m["arguments"] = a.Arguments
+				}
+			}
+			if a.URL != "" {
+				m["url"] = a.URL
+			}
+			actions = append(actions, m)
+		}
+		doc.Set("actions", actions)
+	}
 	if n.TenantID != "" {
 		doc.Set("tenant_id", n.TenantID)
 	}

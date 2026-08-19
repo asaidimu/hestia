@@ -19,7 +19,7 @@ import (
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
 	"github.com/asaidimu/hestia/core/system/audit"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
-	"github.com/asaidimu/hestia/core/system/notifications"
+	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	"github.com/asaidimu/hestia/core/system/schedules"
@@ -45,7 +45,7 @@ type ProviderSet struct {
 	Audit         *audit.AuditModel
 	Tenants       *tenants.TenantModel
 	Settings      *settings.SettingsModel
-	Notifications *notifications.NotificationModel
+	Notifications *notificationsmodel.SystemNotificationss
 	Schedules     *schedules.ScheduleModel
 
 	UpdStore *updates.Store
@@ -103,7 +103,11 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	ps.Tenants = tenants.NewTenantModel(ps.Persist)
 	ps.Settings = settings.NewSettingsModel(ps.Persist)
 
-	ps.Notifications = notifications.NewNotificationModel(ps.Persist)
+	notifsModel, err := notificationsmodel.InitSystemNotificationssModel(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system notifications model: %w", err)
+	}
+	ps.Notifications = notifsModel
 	ps.Schedules = schedules.NewScheduleModel(ps.Persist)
 
 	ps.Scheduler = scheduler.New(ps.Logger)

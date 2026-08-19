@@ -32,6 +32,7 @@ const (
 
 	DefaultAPIPrefix     = "/api"
 	DefaultSessionCookie = "session"
+	DefaultSessionSecret = "3ecb5a2ef5014f88-8a00-8227db8b7298"
 	DefaultSessionPath   = "/"
 )
 
@@ -52,8 +53,8 @@ type Config struct {
 	IdleTTL       time.Duration
 	RefreshTTL    time.Duration
 
-	Version     string
-	SelfUpdate  *SelfUpdateConfig
+	Version    string
+	SelfUpdate *SelfUpdateConfig
 
 	InteractorFactory  InteractorFactory
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
@@ -116,6 +117,7 @@ func DefaultConfig() *Config {
 		Port:           DefaultPort,
 		BcryptCost:     DefaultBcryptCost,
 		SessionTTL:     DefaultSessionTTL,
+		SessionSecret:  DefaultSessionSecret,
 		IdleTTL:        DefaultIdleTTL,
 		RefreshTTL:     DefaultRefreshTTL,
 		LogMaxSize:     DefaultLogMaxSize,
@@ -147,6 +149,13 @@ func resolveDataDir(projectName string) string {
 		return d
 	}
 	return "./data"
+}
+
+func envString(key string) (string, bool) {
+	if v := os.Getenv(key); v != "" {
+			return v, true
+	}
+	return "", false
 }
 
 func envInt(key string) (int, bool) {
@@ -201,7 +210,9 @@ func LoadConfig(projectName string) (*Config, error) {
 	cfg.BlobsDir = blobsDir
 	_ = os.MkdirAll(cfg.BlobsDir, 0700)
 
-	cfg.SessionSecret = os.Getenv("SESSION_SECRET")
+	if secret, ok := envString("SESSION_SECRET"); ok {
+		cfg.SessionSecret = secret
+	}
 
 	if n, ok := envInt("PORT"); ok {
 		cfg.Port = n
