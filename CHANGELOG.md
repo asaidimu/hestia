@@ -1,3 +1,10 @@
+## [1.4.13](https://github.com/asaidimu/hestia/compare/v1.4.12...v1.4.13) (2026-08-19)
+
+
+### Bug Fixes
+
+* **core:** add StaticFS support to SetupConfig ([72c305e](https://github.com/asaidimu/hestia/commit/72c305ec2e99084b33f54469615d8adf558393f9))
+
 ## [1.4.12](https://github.com/asaidimu/hestia/compare/v1.4.11...v1.4.12) (2026-08-19)
 
 
