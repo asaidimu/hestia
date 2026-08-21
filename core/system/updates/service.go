@@ -95,6 +95,35 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 	}), nil
 }
 
+// @note #review2-20260821-004 issue P1 #review,#api-design,#p2p : system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)
+//
+// Despite the doc comment calling this "the read-only check", Check() always
+// calls checkAndStage() (below), which both checks for a new version AND
+// downloads + prepares it via s.updater.PrepareUpdate whenever one is found.
+// There is no way to ask "is a newer version available" without triggering a
+// download and disk write. The registered message name itself says
+// "check:create" (Intent: abstract.Create) rather than a Read intent, which
+// is the tell -- this was never actually a read operation.
+//
+// This is a real problem for a P2P/fleet deployment, not just a naming
+// nit: a coordinator that wants to poll version availability across N nodes
+// (e.g. before deciding whether to trigger a staged rollout) cannot do so
+// without every node downloading the update artifact, even nodes that won't
+// end up applying it. At fleet scale that's N redundant downloads for a
+// single availability check, and it removes the option of a lightweight
+// "any updates available?" health-check message that's safe to poll on a
+// short interval.
+//
+// Resolution: split into two messages/methods:
+//   - system:updates:check:get (Read) -> calls only s.updater.CheckForUpdate,
+//     returns {Available bool, Version string} with no side effects.
+//   - system:updates:stage:create (Create) -> calls PrepareUpdate, keeping
+//     today's staging + notify-admins behavior.
+// Check() (or a thin wrapper) can still exist for backward compatibility,
+// calling both in sequence, but the two effects should be independently
+// callable. RunScheduledCheck can keep calling both back to back since a
+// cron job doing its own check-then-stage is the correct behavior there.
+//
 // Check runs the read-only check, stages a newer version when available, and
 // notifies admins when a release was newly staged. With AutoApply it applies
 // immediately (the process exits on success).

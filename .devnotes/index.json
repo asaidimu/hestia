@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-21T11:43:18.404916851Z",
+  "generatedAt": "2026-08-21T11:56:49.870690031Z",
   "root": ".",
   "notes": {
     "8uuufn": {
@@ -1355,6 +1355,68 @@
       },
       "hash": "8f09490a97f43070"
     },
+    "review2-20260821-003": {
+      "id": "review2-20260821-003",
+      "category": "issue",
+      "status": "open",
+      "priority": "P2",
+      "tags": [
+        "review",
+        "api-design"
+      ],
+      "title": "InsertBefore/InsertAfter never set Name on the new link",
+      "body": "InsertBefore inserts link before the link named name (no-op if name isn't\nfound); InsertAfter is the symmetric case. Both build the new LinkEntry as\nLinkEntry{Link: link} -- Name is left as the zero value \"\". Once inserted,\nthat link can never be targeted again: a later InsertBefore(\"\", ...) would\nsilently match the *first* unnamed link ever inserted (since the loop\ncompares l.Name == name and \"\" == \"\" is true), and Remove(\"\") has the same\nproblem. In practice this means only the initial links passed to\nNewDispatcherChain can be reliably referenced afterward; anything added via\nInsertBefore/InsertAfter is a write-once, unaddressable node in the chain.\n\nThis matters for anyone building a dynamic middleware chain at runtime\n(e.g. a P2P transport link inserted conditionally) -- there is currently no\nway to remove or re-anchor around it later without keeping a side-channel\nreference to the exact position.\n\nResolution: change both signatures to InsertBefore(name string, newName\nstring, link abstract.DispatcherLink) (or accept a LinkEntry directly) and\nstore it as LinkEntry{Name: newName, Link: link}.\n",
+      "location": {
+        "file": "core/runtime/chain.go",
+        "startLine": 31,
+        "startCol": 3,
+        "endLine": 50,
+        "endCol": 3
+      },
+      "hash": "8f001f0f5190c447"
+    },
+    "review2-20260821-004": {
+      "id": "review2-20260821-004",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "review",
+        "api-design",
+        "p2p"
+      ],
+      "title": "system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)",
+      "body": "Despite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success).\n",
+      "location": {
+        "file": "core/system/updates/service.go",
+        "startLine": 97,
+        "startCol": 3,
+        "endLine": 128,
+        "endCol": 3
+      },
+      "hash": "85dd674ef3b51909"
+    },
+    "review2-20260821-005": {
+      "id": "review2-20260821-005",
+      "category": "issue",
+      "status": "open",
+      "priority": "P0",
+      "tags": [
+        "review",
+        "arch",
+        "p2p"
+      ],
+      "title": "Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant",
+      "body": "Every implementation in the chain -- LocalDispatcher, SecureDispatcher,\nRateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,\nBootstrapDispatcher -- wraps the next Dispatcher and calls Send() as a\ndirect, blocking Go function call that returns (*Result, error) on the\nsame goroutine. LocalDispatcher.Send (core/runtime/local-dispatcher.go:52)\nis the base case: it does `return entry.fn(msg.Context(), msg)` with no\nqueue, no channel handoff, and no notion of \"this might take a network\nround-trip.\" Every transport (HTTP, CLI, Wails) calls Dispatcher.Send and\nblocks the calling goroutine until it returns.\n\nThis is fine for a single-process monolith (net/http already gives you\nper-request concurrency via goroutines, so throughput isn't the problem)\nbut it is the central architectural blocker for the P2P node deployment\ngoal: there is currently no seam where a message could be routed to a\n*different* node instead of a local handler. Adding that seam later\nwithout an async story means either (a) blocking a goroutine per in-flight\nremote call indefinitely, or (b) a breaking change to this interface.\n\nResolution -- concretely, in order of increasing scope:\n 1. Add a context.Context parameter to Send itself: Send(ctx, msg) instead\n    of relying on msg.Context(). This is a prerequisite for #2 and #3\n    because a remote dispatcher needs the caller's ctx for cancellation/\n    deadline propagation independent of what's embedded in the message.\n 2. Introduce a second interface alongside Dispatcher, not a replacement:\n    type AsyncDispatcher interface {\n    SendAsync(ctx context.Context, msg Message) (\u003c-chan Result, error)\n    }\n    LocalDispatcher can implement this trivially by running entry.fn in a\n    goroutine and writing to a buffered chan of size 1. A future\n    RemoteDispatcher (or P2PDispatcher) implements the same interface by\n    serializing msg, publishing it over the network transport, and\n    resolving the channel when a correlated response arrives (or the ctx\n    deadline fires). Existing synchronous callers are unaffected; new\n    transports (or existing ones once ready) adopt SendAsync incrementally.\n 3. Every DispatcherLink.Wrap in the chain needs an Async-aware equivalent\n    so cross-cutting concerns (auth, rate-limit, audit, tenant scoping)\n    still apply uniformly whether the terminal handler is local or remote.\n    Concretely: change DispatcherLink.Wrap to operate on the AsyncDispatcher\n    interface, and provide a `SyncFromAsync` adapter (blocks and unwraps\n    the channel) so the existing Dispatcher call sites in HTTP/CLI/Wails\n    don't all need to change on day one.\n 4. Message routing needs an explicit locality concept before any of this\n    is useful: something has to decide \"is this message's target handler\n    local to this node, or does it need to go over the wire to node X\".\n    abstract.Message today has no notion of a target node/peer -- TenantID\n    is the closest thing, and tenant != node. This is a bigger design\n    question (service discovery / handler advertisement across the mesh)\n    that should be settled before committing to the exact shape of #2.\n",
+      "location": {
+        "file": "core/abstract/dispatcher.go",
+        "startLine": 4,
+        "startCol": 3,
+        "endLine": 53,
+        "endCol": 3
+      },
+      "hash": "a1cde5b1ef0e93a3"
+    },
     "sec-20260821-003": {
       "id": "sec-20260821-003",
       "category": "issue",
@@ -1764,7 +1826,10 @@
       "hash": "f3b4b17ca72306dc"
     },
     "core/abstract/dispatcher.go": {
-      "hash": "9eaea078bcaebddb"
+      "hash": "1a70060e5b58b5b6",
+      "noteIds": [
+        "review2-20260821-005"
+      ]
     },
     "core/abstract/message.go": {
       "hash": "4cb622730f0495d4"
@@ -1999,7 +2064,10 @@
       "hash": "c5bb826c4ebc4a33"
     },
     "core/runtime/chain.go": {
-      "hash": "d48d7624efb52569"
+      "hash": "ef6755a3fc9fa3d2",
+      "noteIds": [
+        "review2-20260821-003"
+      ]
     },
     "core/runtime/chain_test.go": {
       "hash": "82446217eb86331c"
@@ -2696,7 +2764,10 @@
       "hash": "3cf29cba7b86fd14"
     },
     "core/system/updates/service.go": {
-      "hash": "676e374eeed99ad6"
+      "hash": "81f06236d8990c59",
+      "noteIds": [
+        "review2-20260821-004"
+      ]
     },
     "core/system/updates/service_test.go": {
       "hash": "6567d14cc59dd5c5"
