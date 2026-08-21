@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-21T09:46:43.63123319Z",
+  "generatedAt": "2026-08-21T10:31:40.810093719Z",
   "root": ".",
   "notes": {
     "8uuufn": {
@@ -260,21 +260,6 @@
         "endCol": 3
       },
       "hash": "3218b4b0bd8fab30"
-    },
-    "bench-20260821-003": {
-      "id": "bench-20260821-003",
-      "category": "todo",
-      "status": "open",
-      "title": "HTTP transport needs latency benchmarks",
-      "body": "HTTP transport is the entry point for all external requests. Current\nimplementation lacks benchmarks for:\n\n1. Request parsing latency (headers, body, query params)\n2. Response serialization latency (JSON, streaming)\n3. Router lookup performance\n4. Middleware chain overhead\n5. Connection handling under load (1000+ concurrent connections)\n\nFor HFT: HTTP latency directly impacts trading performance.\nFor IoT: HTTP overhead must be minimal for resource-constrained devices.\n\nResolution: Add benchmarks in transport_bench_test.go:\n- BenchmarkRequestParsing\n- BenchmarkResponseSerialization\n- BenchmarkRouterLookup\n- BenchmarkMiddlewareChain\n- BenchmarkConcurrentConnections\n",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 14,
-        "startCol": 3,
-        "endLine": 33,
-        "endCol": 3
-      },
-      "hash": "36ad563f05e4e419"
     },
     "cmd-cruft-20260821-001": {
       "id": "cmd-cruft-20260821-001",
@@ -966,21 +951,6 @@
       },
       "hash": "26f071925ba98b5b"
     },
-    "perf-20260821-005": {
-      "id": "perf-20260821-005",
-      "category": "issue",
-      "status": "open",
-      "title": "Response serialization uses encoding/json instead of anansi encoder",
-      "body": "writeSuccess (line 381) uses json.NewEncoder(ctx).Encode(map[string]any{\n  \"data\": resp.Body, \"metadata\": meta,\n})\n\nThis is wrong because:\n1. Creates an intermediate map[string]any allocation\n2. encoding/json calls Document.MarshalJSON() through the map\n3. MarshalJSON is slower than SerializeJSON (schema-driven direct serialization)\n4. Double serialization: document → MarshalJSON → encode in map → write\n\nThe anansi encoder (SerializeJSON) writes directly from container slots.\nThe correct approach is to embed the document directly in an envelope:\n\n  1. Define envelope schema with \"data\" as object type:\n     { \"data\": { type: \"object\", schema: {id: \"\u003cresponse-schema\u003e\"} },\n       \"metadata\": { type: \"record\" } }\n\n  2. Cache envelope pools per response schema (sync.Map)\n\n  3. In writeSuccess:\n     pool := envelopePool(outputSchema)\n     doc, _ := pool.New()\n     doc.SetObject(\"data\", responseDoc)  // embed directly\n     doc.SetRecord(\"metadata\", meta)\n     jsonBytes, _ := SerializeJSON(doc.CompiledSchema(), doc.Data())\n     ctx.Write(jsonBytes)\n\nThis is faster because:\n- No bytes/base64 encoding (document embedded as object)\n- No pre-serialization of document\n- Schema-driven serializer handles entire tree in one pass\n- Envelope pools cached per response type\n- Format-agnostic (envelope schema works with any codec)\n\nImpact:\n- Eliminates map allocation per response\n- Eliminates document serialization round-trip\n- Uses optimized schema-driven serializer\n- For IoT/HFT: Critical for reducing response latency\n\nResolution: Define envelope schemas per response type, cache pools,\nembed documents directly, serialize with SerializeJSON.\n",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 308,
-        "startCol": 3,
-        "endLine": 351,
-        "endCol": 3
-      },
-      "hash": "58cf6e81a1efb5bd"
-    },
     "r9i7ec": {
       "id": "r9i7ec",
       "category": "issue",
@@ -1340,36 +1310,6 @@
       },
       "hash": "c7154d0aa9dd2084"
     },
-    "sec-20260821-001": {
-      "id": "sec-20260821-001",
-      "category": "issue",
-      "status": "open",
-      "title": "10 GiB request body limit enables memory exhaustion",
-      "body": "maxRequestBodySize is set to 10 GiB (line 131). This allows a single\nmalicious request to consume 10 GiB of memory, enabling trivial DoS attacks.\nThe comment says this is for \"resumable-upload chunks\" but blob handlers\nenforce their own per-op limits anyway.\n\nFor IoT/HFT deployments, this is critical:\n- IoT devices have limited memory\n- HFT systems need predictable memory usage\n\nResolution: Reduce to a reasonable default (e.g., 100 MiB) and make it\nconfigurable via TransportOptions. Individual blob handlers can override\nif needed.",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 14,
-        "endCol": 3
-      },
-      "hash": "d17b4b510941acd7"
-    },
-    "sec-20260821-002": {
-      "id": "sec-20260821-002",
-      "category": "issue",
-      "status": "open",
-      "title": "Client IP extraction trusts client-controlled headers",
-      "body": "clientIP (line 460-468) trusts X-Forwarded-For and X-Real-IP headers without\nvalidation. An attacker can spoof their IP address by setting these headers.\n\nThis affects:\n- Rate limiting (IP-based limits can be bypassed)\n- Audit logging (incorrect actor identification)\n- IP-based access control\n\nFor IoT/HFT: Rate limiting bypass is critical for HFT fair-use policies.\n\nResolution:\n1. Add a TrustedProxies configuration option\n2. Only trust X-Forwarded-For from known proxies\n3. For direct connections, always use RemoteAddr()\n4. Consider stripping client-provided headers unless behind a trusted proxy\n",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 572,
-        "startCol": 3,
-        "endLine": 588,
-        "endCol": 3
-      },
-      "hash": "533ea5f137062854"
-    },
     "sec-20260821-003": {
       "id": "sec-20260821-003",
       "category": "issue",
@@ -1384,36 +1324,6 @@
         "endCol": 3
       },
       "hash": "fb130035389517fc"
-    },
-    "sec-20260821-004": {
-      "id": "sec-20260821-004",
-      "category": "issue",
-      "status": "open",
-      "title": "Static file serving leaks file existence",
-      "body": "serveStatic (line 372) has two information disclosure issues:\n\n1. When a file doesn't exist, it falls back to index.html (SPA fallback).\n   This means attackers can't distinguish between non-existent files and\n   files that exist but are protected.\n\n2. The SPA fallback returns the same content type as the original request,\n   which could leak information about the application structure.\n\nFor IoT/HFT: Attackers could map application structure by probing paths.\n\nResolution:\n1. Add a configuration option to disable SPA fallback\n2. Return 404 for all non-existent paths when SPA mode is off\n3. Consider adding path traversal protection (though fs.ReadFile handles this)\n4. Log access to non-existent paths for security monitoring\n",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 466,
-        "startCol": 3,
-        "endLine": 483,
-        "endCol": 3
-      },
-      "hash": "5114fc42d8938a52"
-    },
-    "sec-20260821-005": {
-      "id": "sec-20260821-005",
-      "category": "issue",
-      "status": "open",
-      "title": "Request body read without size validation",
-      "body": "The Request object is created with ctx.Request.Body() which reads the\nentire body into memory. While MaxRequestBodySize limits total size,\nthere's no per-request validation of body content.\n\nAttackers could:\n1. Send many medium-sized requests to exhaust memory\n2. Send deeply nested JSON to cause stack overflow\n3. Send malformed data to cause excessive CPU usage\n\nFor IoT/HFT: Memory exhaustion could crash devices or trading systems.\n\nResolution:\n1. Add io.LimitReader to body reading\n2. Validate body structure before creating Request\n3. Add request timeout enforcement\n",
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 204,
-        "startCol": 3,
-        "endLine": 220,
-        "endCol": 3
-      },
-      "hash": "18b2b42d165bff8d"
     },
     "so98l5": {
       "id": "so98l5",
@@ -1436,7 +1346,7 @@
       "hash": "46a0039f89e7b6e3"
     },
     "client/container.ts": {
-      "hash": "6d9e5506bc813376"
+      "hash": "345623c3c14ff3a1"
     },
     "client/core/client.ts": {
       "hash": "7f2790b21210d3b6"
@@ -1454,10 +1364,10 @@
       "hash": "3edda2b41145c7bd"
     },
     "client/core/routes.gen.ts": {
-      "hash": "a9fcaecd99322a74"
+      "hash": "7a521fd1150c09be"
     },
     "client/core/routes.test.ts": {
-      "hash": "ba7c1af4e58abc57"
+      "hash": "6d83abd2c0c54428"
     },
     "client/core/types.ts": {
       "hash": "d6cf3163d8a9d897"
@@ -1466,13 +1376,13 @@
       "hash": "6527ced247596e56"
     },
     "client/dist/index.cjs": {
-      "hash": "51b53dd53f9ba3a1"
+      "hash": "f7d9c4afe6eb9bfa"
     },
     "client/dist/index.mjs": {
-      "hash": "ff34552155524419"
+      "hash": "3def4935bfabb522"
     },
     "client/index.ts": {
-      "hash": "83a137dd1728cc3b"
+      "hash": "bb2cddd55d10effd"
     },
     "client/system/apikeys/store.test.ts": {
       "hash": "94b1f227b94fdee1"
@@ -1587,6 +1497,12 @@
     },
     "client/system/settings/types.ts": {
       "hash": "36228c286e2634c4"
+    },
+    "client/system/updates/store.ts": {
+      "hash": "57c9f8d0a910785c"
+    },
+    "client/system/updates/types.ts": {
+      "hash": "2a371014f020294a"
     },
     "client/system/users/store.test.ts": {
       "hash": "3fac70cc89e1ea27"
@@ -1724,7 +1640,7 @@
       "hash": "ea5454b8269d3a4e"
     },
     "cmd/gen-routes/main.go": {
-      "hash": "7b3326f9b2e37e73"
+      "hash": "a44577c5a8714098"
     },
     "cmd/hestia-desktop/main.go": {
       "hash": "847d594d6487c4f3"
@@ -1915,15 +1831,7 @@
       ]
     },
     "core/interface/http/transport_fasthttp.go": {
-      "hash": "0118b1b12e79594a",
-      "noteIds": [
-        "bench-20260821-003",
-        "perf-20260821-005",
-        "sec-20260821-001",
-        "sec-20260821-002",
-        "sec-20260821-004",
-        "sec-20260821-005"
-      ]
+      "hash": "90bea95be5aa96dd"
     },
     "core/interface/http/transport_fasthttp_test.go": {
       "hash": "dd090e5820ecb0c2"
