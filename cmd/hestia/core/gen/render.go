@@ -1,3 +1,14 @@
+// @note #cmd-cruft-20260821-004 issue status=open priority=P3 tags=#cruft,#duplication : Duplicate title() function in gen/render.go and core/module.go
+//
+// The title() function (lines 277-282) is identical to the one in
+// cmd/hestia/core/module.go (lines 176-181). Both are:
+//   strings.ToUpper(s[:1]) + s[1:]
+//
+// Since core and gen are separate packages, this is not a compilation error,
+// but it is a maintenance concern — changes to one must be mirrored in the other.
+//
+// Resolution: Export the function from one package (e.g., gen.Title()) and
+// import it in the other, or create a shared utility package.
 package gen
 
 import (

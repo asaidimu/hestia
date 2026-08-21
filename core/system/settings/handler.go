@@ -1,3 +1,15 @@
+// @note #cruft-20260821-008 issue status=open priority=P1 tags=#cruft,#dead-code : Old-style handler functions superseded by service methods
+// @see #8uuufn
+//
+// This file contains NewListSettingsHandler, NewGetSettingHandler,
+// NewSetSettingHandler, and NewDeleteSettingHandler — all using the old
+// pattern of manual input extraction via doc.GetString/getOr.
+//
+// The generated registrations in settings/registrations.go use the typed
+// service methods from settings/service.go (ListSettings, GetSetting, etc.)
+// with dispatch.Handle[T] for automatic input binding.
+//
+// Resolution: delete this file; it is not referenced anywhere in production code.
 package settings
 
 import (

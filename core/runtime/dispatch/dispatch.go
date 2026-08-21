@@ -1,3 +1,14 @@
+// @note #arch-20260821-006 issue status=open priority=P2 tags=#arch,#duplication : Duplicate message implementation in dispatch package
+//
+// dispatchMessage (dispatch.go:20-41) and genericMessage (message.go:13-35)
+// both implement abstract.Message with identical method bodies delegating to
+// runtimecontext.GetTenantID(m.ctx), runtimecontext.GetTraceID(m.ctx), etc.
+//
+// This is 14 lines of pure duplication across two files in the same package.
+//
+// Resolution: Unify into a single type or embed a shared implementation.
+// One option is to make dispatchMessage embed a genericMessage field and
+// override only the methods that differ (InputChannel and BlobInputChannel).
 package dispatch
 
 import (
@@ -40,6 +51,14 @@ func (m *dispatchMessage) UserAgent() string  { return runtimecontext.GetUserAge
 func (m *dispatchMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
 func (m *dispatchMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
 
+// @note #review-20260821-016 issue status=open priority=P2 tags=#review,#design : Magic number in stream channel buffer
+// The stream channel is created with a buffer size of 1, which means the
+// dispatcher will block after sending the first document if the consumer
+// hasn't started reading yet. This could cause deadlocks in certain
+// scenarios where the dispatcher and consumer are not properly synchronized.
+//
+// Consider making the buffer size configurable or documenting the assumption
+// that the consumer must be ready before the dispatcher sends.
 func Dispatch(disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, error) {
 	msgID := in.ID
 	if msgID == "" {

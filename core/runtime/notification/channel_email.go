@@ -1,3 +1,16 @@
+// @note #arch-20260821-008 issue status=open priority=P1 tags=#arch,#dependency : Subpackage imports parent runtime package
+//
+// notification/channel_email.go imports its own parent runtime package (for *runtime.Mailer).
+// This violates expected hierarchical dependency direction — subpackages should not import
+// their parent.
+//
+// The Mailer type (or its interface) should live in a shared location like:
+// - A new `core/config` package (alongside other config types)
+// - The `abstract` package (as an interface)
+// - A dedicated `core/mailer` package
+//
+// Resolution: Extract a Mailer interface in abstract or the new config package
+// so notification does not need to import runtime.
 package notification
 
 import (

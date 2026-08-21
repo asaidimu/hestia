@@ -1,3 +1,14 @@
+// @note #cruft-20260821-009 issue status=open priority=P2 tags=#cruft,#dead-code : Stale schema functions in apikeys/model/data_transfer_objects.go
+// @see #8uuufn
+//
+// The schema functions (APIKeyListInputSchema, APIKeyGetInputSchema,
+// APIKeyDeleteInputSchema, APIKeyRotateInputSchema, APIKeyCreateInputSchema,
+// APIKeyUpdateInputSchema, APIKeyOutputSchema, APIKeyListOutputSchema) are
+// dead code. The generated registrations use dispatch.SchemaFromTypeWithTag
+// and dispatch.SchemaFromType directly.
+//
+// Resolution: remove the schema functions. The input/output types themselves
+// are still used by the service methods and registrations.
 package model
 
 import (

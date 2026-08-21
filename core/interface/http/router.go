@@ -5,6 +5,27 @@ import (
 	"strings"
 )
 
+// @note #perf-20260821-003 issue status=open priority=P3 tags=#performance,#struct-packing : trieNode uses slice for children
+//
+// trieNode struct (line 8) uses a slice for children:
+//
+// - segment: string (16 bytes)
+// - children: []*trieNode (24 bytes - slice)
+// - paramChild: *trieNode (8 bytes)
+// - paramName: string (16 bytes)
+// - handlers: map (8 bytes)
+//
+// Most trie nodes have 1-2 children. Using a slice causes:
+// 1. Heap allocation for the slice header
+// 2. Indirection for each child access
+// 3. GC pressure from small allocations
+//
+// For IoT/HFT: Route lookup is on the hot path for every request.
+//
+// Resolution:
+// 1. Use [2]*trieNode for small child counts with fallback to slice
+// 2. Or use a fixed-size array with linear search for 1-2 children
+// 3. Consider embedding the first child inline
 type trieNode struct {
 	segment    string
 	children   []*trieNode

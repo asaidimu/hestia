@@ -51,6 +51,19 @@ func (o *Interface) installBootstrapSafeRegistrations() {
 	}
 }
 
+// @note #mem-20260821-002 issue status=open priority=P1 tags=#memory,#panic : Document pool creation panics on error
+//
+// installRegistration (line 54) panics if document.NewDocumentPool fails.
+// This is a startup-time error, but panicking is bad practice:
+//
+// 1. Prevents graceful error handling
+// 2. Makes testing difficult
+// 3. Can leave resources in inconsistent state
+//
+// For IoT/HFT: Panics during startup could leave devices in bricked state.
+//
+// Resolution: Return an error from installRegistration and handle it
+// gracefully. Log the error and skip the registration instead of panicking.
 func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	httpMethod := IntentToHTTPMethod(reg.Intent)
 	httpPath := DeriveRoute(reg.Name, reg.Input.Args())
@@ -168,6 +181,22 @@ func serializeResponse(result *abstract.Result, output *definition.Schema, inten
 	return emptyResponse(intent)
 }
 
+// @note #mem-20260821-003 issue status=open priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
+//
+// streamChannel (line 171) creates a channel with buffer size 64. If the
+// consumer stops reading (e.g., client disconnects), the producer goroutine
+// blocks indefinitely, causing a goroutine leak.
+//
+// For IoT/HFT:
+// - IoT devices may disconnect frequently
+// - HFT systems need clean resource management
+// - Goroutine leaks accumulate over time
+//
+// Resolution:
+// 1. Use a select with context cancellation when sending
+// 2. Add a timeout or context to the producer goroutine
+// 3. Consider using a bounded buffer with overflow handling
+// 4. Monitor goroutine count for leak detection
 func streamChannel[T any](src <-chan T, transform func(T) any) (Response, bool) {
 	if src == nil {
 		return Response{}, false

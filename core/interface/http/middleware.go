@@ -12,6 +12,21 @@ import (
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
+// @note #sec-20260821-003 issue status=open priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
+//
+// authMiddleware (line 15) has no rate limiting on authentication attempts.
+// An attacker can brute-force passwords or API keys without restriction.
+//
+// The existing RateLimitDispatcher only limits message dispatch, not the
+// authentication flow itself. Attackers can attempt unlimited logins.
+//
+// For IoT/HFT: Credential stuffing attacks could compromise device fleets.
+//
+// Resolution:
+// 1. Add rate limiting to login endpoint (system:auth:session:create)
+// 2. Implement account lockout after N failed attempts
+// 3. Add progressive delays between attempts
+// 4. Log failed attempts for intrusion detection
 func (o *Interface) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
 	if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok && claims.UserID != "" {
 		return next(ctx, req)

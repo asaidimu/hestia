@@ -1,3 +1,12 @@
+// @note #cruft-20260821-004 issue status=open priority=P1 tags=#cruft,#dead-code : Stale schema functions in collections/inputs.go
+// @see #8uuufn
+//
+// The schema functions (CollectionGetInputSchema, CollectionCreateInputSchema,
+// etc.) at the bottom of this file are dead code. The generated registrations
+// in collections/registrations.go use dispatch.SchemaFromTypeWithTag directly.
+//
+// Resolution: remove the schema functions. The input types themselves are still
+// used by the service methods and registrations.
 package collections
 
 import (

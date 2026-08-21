@@ -51,6 +51,10 @@ export * from "./system/schedules/types"
 export * from "./system/settings/store"
 export * from "./system/settings/types"
 
+// System: updates
+export * from "./system/updates/store"
+export * from "./system/updates/types"
+
 // System: core
 export * from "./system/core/store"
 

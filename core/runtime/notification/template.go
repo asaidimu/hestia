@@ -1,3 +1,17 @@
+// @note #arch-20260821-012 issue status=open priority=P2 tags=#arch,#error-handling : Notification template resolver silently swallows errors
+//
+// The Render method silently returns (name, "", nil) for multiple error conditions:
+// - Collection open failure (line 40-42)
+// - Query failure or empty result (line 45-48)
+// - Get failure on value field (line 50-53)
+// - Type assertion failure (line 54-57)
+// - Missing subject in template (line 72-74)
+//
+// This makes debugging template issues impossible in production. The caller
+// receives an empty body with no indication of what went wrong.
+//
+// Resolution: Log warnings for these conditions or return a sentinel error
+// that callers can handle differently from "template not found."
 package notification
 
 import (
@@ -25,6 +39,16 @@ func NewSettingsResolver(persist base.Persistence) abstract.TemplateResolver {
 	return &settingsResolver{persist: persist}
 }
 
+// @note #review-20260821-011 issue status=open priority=P2 tags=#review,#error-handling : Silent error swallowing in template resolution
+// The Render method silently returns (name, "", nil) for multiple error conditions:
+// - Collection open failure
+// - Query failure or empty result
+// - Get failure on value field
+// - Missing subject in template
+//
+// This makes debugging template issues difficult. Consider logging warnings
+// for these conditions or returning a sentinel error that callers can handle
+// differently from "template not found."
 func (r *settingsResolver) Render(ctx context.Context, channel abstract.ChannelType, name string, data map[string]any) (subject, body string, err error) {
 	col, err := r.persist.Collection(ctx, settingsCollection)
 	if err != nil {

@@ -1,3 +1,21 @@
+// @note #org-20260821-001 todo status=open priority=P2 tags=#organization,#refactor : Split module.go into focused files
+//
+// module.go currently contains 4 unrelated concerns in 175 lines:
+// - Input, ArgumentDefinition (message input schema)
+// - Module interface (lifecycle)
+// - Capability, MessageRegistration (message registration)
+//
+// A human looking for Input would guess input.go, not module.go.
+// This hurts discoverability and increases modification risk.
+//
+// Resolution:
+// 1. Create input.go with Input, ArgumentDefinition, and their methods
+// 2. Keep module.go with Module interface only
+// 3. Create registration.go with Capability and MessageRegistration
+//
+// Files affected:
+// - core/abstract/module.go (split into 3 files)
+// - All files importing these types (no code changes needed, just file moves)
 package abstract
 
 import (
@@ -12,6 +30,14 @@ type ArgumentDefinition struct {
 	Type definition.FieldType
 }
 
+// @note #review-20260821-020 issue status=open priority=P1 tags=#review,#design : Abstraction leak in Input struct
+// The Input struct contains a comment "THIS IS AN ABSTRACTION LEAK" for
+// HeaderFields, indicating known technical debt. The struct also has multiple
+// deprecated fields (Arguments, Modifiers, Payload) that should be removed
+// once all callers have migrated to the schema-based approach.
+//
+// Consider creating a migration plan to remove the deprecated fields and
+// properly encapsulate the abstraction leak.
 type Input struct {
 	// THIS IS AN ABSTRACTION LEAK
 	HeaderFields map[string]string

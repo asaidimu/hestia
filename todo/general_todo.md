@@ -14,3 +14,13 @@
   - **Context:** The in-app and email channels target a single `Recipient`; the updates `update_available` alert must reach all admins, which today means a manual per-admin fan-out in the updates service.
   - **Details:** Add a broadcast path to the notifier (e.g. `abstract.Notifier.Broadcast` or a recipient resolver on channels) so one send reaches every user holding a permission/role; then consume it from the updates service.
   - **Files:** `core/abstract/notification.go`, `core/runtime/notification/notifier.go`, consumer `core/system/updates/`.
+- [ ] Replace sync.Map caches with anansi cache
+  - **Context:** Multiple caches use unbounded `sync.Map` which never evicts. The anansi framework provides a production-grade cache at `~/projects/go-anansi/core/cache` with sharding, TTL, CLOCK eviction, and stats.
+  - **Details:** Replace `docValidators` (dispatch/input.go:159), `fieldsCache` (util/structmap.go:15), `inputPoolCache` (testutil/inputdoc.go:13), and future `envelopeSchemas` with anansi cache. Configure appropriate `MaxEntries` and TTL for each.
+  - **Files:** `core/runtime/dispatch/input.go`, `core/internal/util/structmap.go`, `core/internal/testutil/inputdoc.go`, `core/interface/http/transport_fasthttp.go`.
+  - **Status:** See `todo/cache-audit.md` for full analysis.
+- [ ] Future correctness review
+  - **Context:** Comprehensive review of correctness issues in core framework, excluding core system features. Focus on production correctness for IoT/HFT deployments.
+  - **Details:** Review error handling, nil safety, resource cleanup, type assertions, boundary conditions, HTTP middleware, dispatch chain, config loading, document operations, and boot sequence.
+  - **Files:** See `todo/future-review.md` for complete list.
+  - **Status:** Planning complete, ready for execution.

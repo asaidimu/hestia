@@ -1,3 +1,17 @@
+// @note #cruft-20260821-023 observation status=open priority=P2 tags=#cruft,#note : Old-style handler functions in schedules/handler.go
+// @see #8uuufn
+//
+// This file contains ScheduleHandlers with Create, List, Get, Update, and
+// Delete methods — all using the old pattern of manual input extraction via
+// msg.Input().GetOr("payload", nil).(map[string]any) and msg.Input().GetString("arguments.id").
+//
+// Unlike other packages, these handlers are NOT superseded by generated
+// registrations. They are registered via a hand-written Registrations()
+// function in schedules/registrations.go that wraps these methods. The
+// service layer delegates to these handlers.
+//
+// Resolution: no action needed — these handlers are wrapped by the service
+// layer and are not part of the generated registration pattern.
 package schedules
 
 import (

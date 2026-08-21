@@ -1,3 +1,21 @@
+// @note #org-20260821-002 todo status=open priority=P2 tags=#organization,#refactor : Split result.go into verb.go and result.go
+//
+// result.go contains 3 unrelated concerns in 136 lines:
+// - Verb type and constants (message intent)
+// - ResultKind type and constants (response type)
+// - Result struct and Page (response envelope)
+//
+// A human looking for Verb would guess verb.go, not result.go.
+// Verb is used by MessageRegistration and annotate package independently
+// of Result.
+//
+// Resolution:
+// 1. Create verb.go with Verb type, constants, String(), MarshalJSON, UnmarshalJSON
+// 2. Keep result.go with ResultKind, Result, Page, and releaseDocs
+//
+// Files affected:
+// - core/abstract/result.go (split into 2 files)
+// - core/hestia/annotate/annotate.go (imports Verb)
 package abstract
 
 import (

@@ -1,3 +1,19 @@
+// @note #cruft-20260821-017 observation status=open priority=P2 tags=#cruft,#note : Old-style handler functions in operations/handler.go
+// @see #8uuufn
+//
+// This file contains NewHeartbeatHandler, NewSystemStatusHandler,
+// NewDocumentationHandler, NewLogAccessHandler, NewMarkBootstrappedHandler,
+// NewResetHandler, and NewSchedulerListHandler — all using the old pattern
+// of returning abstract.MessageHandler directly.
+//
+// Unlike other packages, these handlers are NOT superseded by generated
+// registrations. They are used directly by the runtime bootstrap code
+// (core/internal/boot/app.go) and are not registered via the message
+// dispatch system. These are legitimate old-style handlers that serve a
+// different purpose.
+//
+// Resolution: no action needed — these handlers are not part of the
+// generated registration pattern.
 package operations
 
 import (

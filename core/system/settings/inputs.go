@@ -1,3 +1,15 @@
+// @note #cruft-20260821-006 issue status=open priority=P1 tags=#cruft,#duplicate : Duplicate input types in settings/inputs.go and settings/model/inputs.go
+// @see #8uuufn
+//
+// This file defines SettingKeyInput and SetSettingInput, which are duplicated
+// in settings/model/inputs.go. The generated registrations use the model/
+// versions. Additionally, SettingListInput is defined only in model/inputs.go.
+//
+// The schema functions (SettingKeyInputSchema, SetSettingInputSchema) are
+// dead code — the registrations use dispatch.SchemaFromTypeWithTag directly.
+//
+// Resolution: delete this file entirely; all consumers should import from
+// settings/model.
 package settings
 
 import (

@@ -1,3 +1,20 @@
+// @note #cruft-20260821-020 observation status=open priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
+// @see #8uuufn
+//
+// This file contains NewListNamespacesHandler, NewCreateNamespaceHandler,
+// NewDeleteNamespaceHandler, NewListBlobsHandler, NewHeadBlobHandler,
+// NewUploadBlobHandler, NewDownloadBlobHandler, NewUpdateBlobHandler,
+// NewDeleteBlobHandler, and other blob handlers — all using the old pattern
+// of returning abstract.MessageHandler directly with manual input extraction.
+//
+// Unlike other packages, these handlers are NOT superseded by generated
+// registrations. They are registered dynamically via RegisterBlobHandlers
+// when a new namespace is created, which is a runtime operation that cannot
+// be handled by static registrations. These are legitimate old-style handlers
+// that serve a different purpose.
+//
+// Resolution: no action needed — these handlers are dynamically registered
+// and cannot be replaced by generated registrations.
 package blobs
 
 import (

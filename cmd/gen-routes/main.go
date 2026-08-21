@@ -1,14 +1,19 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/asaidimu/updater"
+
 	hestia "github.com/asaidimu/hestia/core"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 func main() {
@@ -18,14 +23,40 @@ func main() {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	app, err := hestia.Setup(hestia.SetupConfig{
+	cfg := hestia.SetupConfig{
 		DataDir:           tmpDir,
 		DBPath:            ":memory:",
 		SessionSecret:     "gen-routes-secret",
 		ForceBootstrapped: true,
 		AdminEmail:        "gen@routes.local",
 		AdminPassword:     "password123",
-	})
+		Version:           "0.0.0-gen",
+	}
+
+	// When UPDATE_ENABLED=true is set, pass SelfUpdate so the updates routes
+	// are registered and appear in the generated route table.
+	if os.Getenv("UPDATE_ENABLED") == "true" {
+		// Generate a dummy key for route generation only
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			panic(err)
+		}
+		provider, err := updater.NewServerProvider(updater.ServerConfig{
+			ServerURL:      "http://localhost:8080",
+			AppName:        "hestia",
+			ClientToken:    "gen-routes-token",
+			ClientID:       "gen-routes-client",
+			ServerPublicKey: &key.PublicKey,
+		})
+		if err != nil {
+			panic(err)
+		}
+		cfg.SelfUpdate = &runtime.SelfUpdateConfig{
+			Provider: provider,
+		}
+	}
+
+	app, err := hestia.Setup(cfg)
 	if err != nil {
 		panic(err)
 	}

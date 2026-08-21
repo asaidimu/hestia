@@ -1,3 +1,22 @@
+// @note #org-20260821-004 todo status=open priority=P1 tags=#organization,#refactor : Consolidate env.go into config.go
+//
+// env.go (243 lines) and config.go (321 lines) have near-identical env loading.
+// Both LoadConfig and ApplyEnvOverrides read the same env vars independently.
+// This is #arch-20260821-001's root cause.
+//
+// Resolution:
+// 1. Merge ApplyEnvOverrides into LoadConfig as a single canonical function
+// 2. Move SelfUpdateConfig, CookieConfig to types.go
+// 3. Move providerFromEnv, parseRSAPublicKey to config.go (they're config loading)
+// 4. Delete env.go entirely
+//
+// This eliminates the duplication and makes config.go the single source of
+// truth for all configuration loading.
+//
+// Files affected:
+// - core/runtime/env.go (delete)
+// - core/runtime/config.go (absorb env.go contents)
+// - core/hestia.go (calls ApplyEnvOverrides - update to use LoadConfig)
 package runtime
 
 import (

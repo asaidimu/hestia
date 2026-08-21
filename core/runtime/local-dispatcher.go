@@ -1,3 +1,17 @@
+// @note #arch-20260821-005 issue status=open priority=P1 tags=#arch,#errors : Inconsistent error handling in dispatchers
+//
+// LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,
+// but the project convention is to use common.SystemError for consistency with
+// the rest of the codebase (see core/runtime/errors.go).
+//
+// The same issue exists in bootstrap-dispatcher.go line 29.
+//
+// Meanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,
+// ErrAuthRequired, ErrRateLimited etc.
+//
+// Resolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go
+// and bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,
+// ErrValidation/ErrAccessDenied with WithOperation).
 package runtime
 
 import (
@@ -28,6 +42,13 @@ func NewLocalDispatcher() *LocalDispatcher {
 	}
 }
 
+// @note #review-20260821-001 todo status=open priority=P1 tags=#review,#errors : Use SystemError for handler dispatch errors
+// LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,
+// but the review guide recommends using common.SystemError for consistency with
+// the rest of the codebase (see core/runtime/errors.go).
+//
+// Consider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation
+// for better error classification and client-facing error codes.
 func (d *LocalDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	if msg.Context() == nil {
 		return nil, fmt.Errorf("message %s has nil context", msg.Name())
@@ -44,6 +65,10 @@ func (d *LocalDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
 	return entry.fn(msg.Context(), msg)
 }
 
+// @note #review-20260821-002 todo status=open priority=P1 tags=#review,#errors : Use SystemError for duplicate handler registration
+// The error returned when a handler is already registered should use
+// ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for
+// consistent error handling across the codebase.
 func (d *LocalDispatcher) RegisterHandler(name string, handler abstract.MessageHandler, info abstract.HandlerInfo) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -101,6 +126,13 @@ func (d *LocalDispatcher) IsHandlerBootstrapSafe(name string) bool {
 	return entry.bootstrapSafe
 }
 
+// @note #review-20260821-014 issue status=open priority=P2 tags=#review,#consistency : DeleteHandler returns nil for non-existent handlers
+// DeleteHandler silently succeeds when deleting a non-existent handler, while
+// other methods (GetHandler, SetHandlerEnabled) return an error. This inconsistency
+// could mask bugs where code assumes a handler exists after deletion.
+//
+// Consider returning an error when the handler doesn't exist, or document
+// that this is intentional (e.g., for idempotent cleanup).
 func (d *LocalDispatcher) DeleteHandler(name string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

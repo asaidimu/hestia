@@ -20,6 +20,7 @@ import { HestiaCore } from "./system/core/store";
 import { HestiaNotificationStore } from "./system/notifications/store";
 import { HestiaScheduleStore } from "./system/schedules/store";
 import { HestiaSettingStore } from "./system/settings/store";
+import { HestiaUpdates } from "./system/updates/store";
 
 export interface HestiaConfig {
   baseUrl: string;
@@ -48,6 +49,7 @@ export class HestiaClient {
   readonly notifications: HestiaNotificationStore;
   readonly schedules: HestiaScheduleStore;
   readonly settings: HestiaSettingStore;
+  readonly updates: HestiaUpdates;
   private tokenProvider: IdentityProvider;
 
   private onAuthStateChanged?: () => void;
@@ -102,6 +104,7 @@ export class HestiaClient {
     this.notifications = new HestiaNotificationStore(this.client)
     this.schedules = new HestiaScheduleStore(this.client)
     this.settings = new HestiaSettingStore(this.client)
+    this.updates = new HestiaUpdates(this.client)
   }
 
   onAuthStateChange(callback: () => void) {

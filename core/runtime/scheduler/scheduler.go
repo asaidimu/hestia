@@ -1,3 +1,15 @@
+// @note #arch-20260821-011 issue status=open priority=P2 tags=#arch,#lifecycle : Scheduler jobs have no lifecycle context
+//
+// The Register method wraps the job function with context.Background() (line 51),
+// which means scheduled jobs have no access to the application's lifecycle context.
+//
+// This could be problematic for:
+// 1. Graceful shutdown - jobs can't be cancelled
+// 2. Tracing - jobs can't be linked to the parent trace
+// 3. Timeout control - jobs run indefinitely
+//
+// Resolution: Store the context passed to Start() and use it for job execution,
+// or accept a context factory function at registration time.
 package scheduler
 
 import (
@@ -37,6 +49,16 @@ func New(logger *zap.Logger) *Scheduler {
 	}
 }
 
+// @note #review-20260821-022 issue status=open priority=P2 tags=#review,#design : Context.Background() in scheduler jobs
+// The Register method wraps the job function with context.Background(), which
+// means scheduled jobs have no access to the application's lifecycle context.
+// This could be problematic for:
+// 1. Graceful shutdown - jobs can't be cancelled
+// 2. Tracing - jobs can't be linked to the parent trace
+// 3. Timeout control - jobs run indefinitely
+//
+// Consider storing the context passed to Start() and using it for job execution,
+// or accepting a context factory function at registration time.
 func (s *Scheduler) Register(name, expr string, fn func(context.Context) error) {
 	_, err := s.c.AddFunc(expr, func() { fn(context.Background()) },
 		cron.WithName(name),

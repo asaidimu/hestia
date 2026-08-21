@@ -35,10 +35,13 @@ func Handle[TIn any](fn Handler[TIn]) abstract.MessageHandler {
 	}
 }
 
-// HandleDocument composes Handle with the Document-result boilerplate every
-// Get/Create/Update-shaped handler repeats by hand: call the business
-// method, propagate its error, wrap a successful model into a Result.
-// Built on Handle — input bind/release happens exactly once, in one place.
+// @note #review-20260821-021 issue status=open priority=P2 tags=#review,#design : Ambiguous nil check in HandleDocument
+// The check `if any(model) == any(zero)` is intended to detect nil interfaces,
+// but it may not work as expected for all types. For example, if TOut is a
+// pointer type, a nil pointer won't equal the zero value of the interface.
+//
+// Consider using reflection to check for nil, or requiring callers to explicitly
+// return nil instead of relying on this comparison.
 func HandleDocument[TIn any, TOut documentModel](fn func(ctx context.Context, msg abstract.Message, input *TIn) (TOut, error)) abstract.MessageHandler {
 	return Handle(func(ctx context.Context, msg abstract.Message, input *TIn) (*abstract.Result, error) {
 		var zero TOut

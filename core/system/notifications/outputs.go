@@ -1,3 +1,12 @@
+// @note #cruft-20260821-024 issue status=open priority=P2 tags=#cruft,#dead-code : Stale schema functions in notifications/outputs.go
+// @see #8uuufn
+//
+// The schema functions (notificationsListOutputSchema, messageOutputSchema,
+// unreadCountOutputSchema) are dead code. The generated registrations use
+// dispatch.SchemaFromType directly.
+//
+// Resolution: remove the schema functions. The output types themselves are
+// still used by the service methods and registrations.
 package notifications
 
 import (

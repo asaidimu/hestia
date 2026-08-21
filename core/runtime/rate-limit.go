@@ -1,3 +1,17 @@
+// @note #arch-20260821-004 issue status=open priority=P2 tags=#arch,#duplication : Separate rate store instances per dispatcher
+// @see #arch-20260821-003
+//
+// RateLimitDispatcher creates its own ratestore.New() instance at line 61.
+// ThrottleDispatcher (throttle.go:78) creates a separate ratestore.New() instance.
+//
+// Each dispatcher creates an independent InMemoryStore instance with its own
+// eviction goroutine and shard array. This doubles memory usage and means
+// rate limits and throttles are tracked in separate stores even when they
+// could share infrastructure.
+//
+// Resolution: Pass the RateLimitStore via DI or constructor instead of creating
+// new instances internally in each dispatcher. This allows sharing a single
+// store instance across dispatchers.
 package runtime
 
 import (

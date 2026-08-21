@@ -1,3 +1,17 @@
+// @note #cruft-20260821-003 issue status=open priority=P1 tags=#cruft,#dead-code : Old-style handler functions superseded by service methods
+// @see #8uuufn
+//
+// This file contains NewCreateSessionHandler, NewDeleteSessionHandler,
+// NewPasswordResetHandler, NewPasswordConfirmHandler, NewSetBootstrapPasswordHandler,
+// NewValidateSessionHandler, and NewValidateAPIKeyHandler — all using the old
+// pattern of manual input extraction via doc.GetOr("payload", nil).(map[string]any).
+//
+// The generated registrations in auth/registrations.go use the typed service
+// methods from auth/service.go (CreateSession, DeleteSession, etc.) with
+// dispatch.Handle[T] for automatic input binding.
+//
+// These handler functions are only used in auth_test.go. The tests should be
+// migrated to use the service methods directly, then this file can be deleted.
 package auth
 
 import (

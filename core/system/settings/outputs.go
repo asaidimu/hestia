@@ -1,3 +1,14 @@
+// @note #cruft-20260821-007 issue status=open priority=P1 tags=#cruft,#duplicate : Duplicate output types in settings/outputs.go and settings/model/outputs.go
+// @see #8uuufn
+//
+// This file defines SettingDocumentView, SettingOutput, SettingsListOutput,
+// and MessageOutput — all duplicated in settings/model/outputs.go.
+// The generated registrations use the model/ versions.
+//
+// The schema functions (settingOutputSchema, etc.) are dead code.
+//
+// Resolution: delete this file entirely; all consumers should import from
+// settings/model.
 package settings
 
 import (

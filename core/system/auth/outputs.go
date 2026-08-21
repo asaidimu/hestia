@@ -1,3 +1,14 @@
+// @note #cruft-20260821-002 issue status=open priority=P1 tags=#cruft,#duplicate : Duplicate output types in auth/outputs.go and auth/model/outputs.go
+// @see #8uuufn
+//
+// This file defines LoginDocumentView, LoginOutput, MessageOutput,
+// ElevateDocumentView, ElevateOutput, ClaimsDocumentView, APIKeyClaimsView,
+// and ClaimsOutput — all duplicated in auth/model/outputs.go.
+// The generated registrations use the model/ versions.
+//
+// The schema functions (loginOutputSchema, etc.) are dead code.
+//
+// Resolution: delete this file; consumers should import from auth/model.
 package auth
 
 import (

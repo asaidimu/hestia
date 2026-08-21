@@ -1,3 +1,16 @@
+// @note #cruft-20260821-025 observation status=open priority=P3 tags=#cruft,#note : Old-style handler function in audit/handler.go
+// @see #8uuufn
+//
+// This file contains logStreamHandler — an old-style handler that returns
+// abstract.MessageHandler directly. It uses a streaming pattern with
+// DocumentChannel that is not supported by the generated registration system.
+//
+// This handler is used by the audit service for real-time log streaming,
+// which is a specialized use case that cannot be handled by the generated
+// registration pattern.
+//
+// Resolution: no action needed — this handler serves a specialized streaming
+// purpose that is not covered by the generated registration system.
 package audit
 
 import (

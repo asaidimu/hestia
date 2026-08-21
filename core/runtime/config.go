@@ -1,3 +1,27 @@
+// @note #org-20260821-003 todo status=open priority=P2 tags=#organization,#refactor : Split config.go into types.go, defaults.go, and env.go
+//
+// config.go currently contains 3 unrelated concerns in 321 lines:
+// - Config, SelfUpdateConfig, CookieConfig types (data structures)
+// - Default constants and DefaultConfig() (defaults)
+// - LoadConfig, env helpers, resolveDataDir (env loading)
+//
+// A human looking for Config struct would guess config.go (correct), but
+// a human looking for env helpers would guess env.go (which exists but
+// only has ApplyEnvOverrides). The file mixes type definitions with
+// runtime behavior.
+//
+// Resolution:
+// 1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs
+// 2. Create defaults.go with Default* constants and DefaultConfig()
+// 3. Keep config.go with LoadConfig, env helpers, resolveDataDir
+//    (or rename to load.go for clarity)
+//
+// This also addresses #so98l5 and #r9i7ec by consolidating env resolution.
+//
+// Files affected:
+// - core/runtime/config.go (split into 3 files)
+// - core/runtime/env.go (consider merging ApplyEnvOverrides into config.go)
+// - core/hestia.go (imports Config)
 package runtime
 
 import (
@@ -17,6 +41,13 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 )
+
+// @note #so98l5 todo : Define a proper config package.
+// Consider the state of this collection of adhoc helpers
+// that are duplicated everywhere. It would be best to define
+// a single package that holds all configs, arbitary or otherwise,
+// backed by a schema generated from a struct. Anansi is not just a
+// data layer but a data contract.
 
 const (
 	DefaultPort          = 8090
@@ -151,6 +182,10 @@ func resolveDataDir(projectName string) string {
 	return "./data"
 }
 
+// @note #review-20260821-019 issue status=open priority=P3 tags=#review,#style : Inconsistent indentation in envString
+// The envString function has inconsistent indentation in the return statement
+// (extra tab). This is a minor style issue but could indicate copy-paste errors
+// or lack of gofmt/goimports in the development workflow.
 func envString(key string) (string, bool) {
 	if v := os.Getenv(key); v != "" {
 			return v, true

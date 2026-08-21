@@ -1,3 +1,9 @@
+// @note #cruft-20260821-013 observation status=open priority=P3 tags=#cruft,#note : Canonical input types for auth
+// @see #cruft-20260821-001
+//
+// This is the canonical location for auth input types. The duplicate
+// definitions in auth/inputs.go should be deleted (see #cruft-20260821-001).
+// The generated registrations and service methods import from this package.
 package model
 
 type LoginInput struct {

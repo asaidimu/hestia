@@ -1,3 +1,33 @@
+// @note #arch-20260821-014 issue status=open priority=P2 tags=#arch,#concurrency : Lock ordering inconsistency in ratestore
+//
+// The evictStale method (line 150) acquires shard.mu and then bucket.mu,
+// while other methods (CheckAndConsume, Increment) acquire bucket.mu first.
+//
+// This lock ordering inconsistency could lead to deadlocks if concurrent
+// operations are happening. For example:
+// - Thread A: evictStale holds shard.mu, waits for bucket.mu
+// - Thread B: CheckAndConsume holds bucket.mu, waits for shard.mu
+//
+// Resolution: Use a consistent lock ordering throughout, or use a different
+// eviction strategy that doesn't require holding both locks simultaneously.
+// @note #bench-20260821-001 todo status=open priority=P1 tags=#benchmark,#performance : Rate limiting needs benchmarks
+//
+// Rate limiting is critical for HFT fair-use policies and IoT device
+// management. Current implementation lacks benchmarks for:
+//
+// 1. CheckAndConsume under high concurrency (1000+ goroutines)
+// 2. Memory usage with millions of keys
+// 3. Eviction performance under load
+// 4. Comparison with Redis-backed rate limiting
+//
+// For HFT: Rate limiting latency directly impacts trading performance.
+// For IoT: Rate limiting must handle thousands of devices simultaneously.
+//
+// Resolution: Add benchmarks in ratestore/inmemory_bench_test.go:
+// - BenchmarkCheckAndConsume_Serial
+// - BenchmarkCheckAndConsume_Parallel
+// - BenchmarkMemoryUsage_1MKeys
+// - BenchmarkEviction_UnderLoad
 package ratestore
 
 import (
@@ -139,6 +169,14 @@ func (s *InMemoryStore) evictLoop() {
 	}
 }
 
+// @note #review-20260821-018 issue status=open priority=P2 tags=#review,#concurrency : Potential deadlock in evictStale
+// The evictStale method acquires shard.mu and then bucket.mu, while other
+// methods acquire bucket.mu first (e.g., CheckAndConsume, Increment). This
+// lock ordering inconsistency could lead to deadlocks if concurrent operations
+// are happening.
+//
+// Consider using a consistent lock ordering throughout, or using a different
+// eviction strategy that doesn't require holding both locks simultaneously.
 func (s *InMemoryStore) evictStale() {
 	deadline := Now().Add(-10 * time.Minute)
 	for _, sh := range s.shards {

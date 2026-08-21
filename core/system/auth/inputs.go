@@ -1,3 +1,16 @@
+// @note #cruft-20260821-001 issue status=open priority=P1 tags=#cruft,#duplicate : Duplicate input types in auth/inputs.go and auth/model/inputs.go
+// @see #8uuufn
+//
+// This file defines LoginInput, DeleteSessionInput, PasswordResetInput,
+// PasswordConfirmInput, BootstrapPasswordInput, and ElevateInput — all of
+// which are duplicated verbatim in auth/model/inputs.go. The generated
+// registrations in auth/registrations.go use the model/ versions.
+//
+// Additionally, the schema functions (LoginInputSchema, etc.) at the bottom
+// are dead code — the registrations use dispatch.SchemaFromTypeWithTag directly.
+//
+// Resolution: delete this file entirely; all consumers should import from
+// auth/model. The schema functions are unnecessary.
 package auth
 
 import (

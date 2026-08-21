@@ -1,3 +1,12 @@
+// @note #cruft-20260821-005 issue status=open priority=P1 tags=#cruft,#dead-code : Stale schema functions in collections/outputs.go
+// @see #8uuufn
+//
+// The schema functions (collectionListOutputSchema, collectionOutputSchema,
+// collectionQueryOutputSchema, collectionDocumentOutputSchema) are dead code.
+// The generated registrations use dispatch.SchemaFromType directly.
+//
+// Resolution: remove the schema functions. The output types themselves are
+// still used by the service methods and registrations.
 package collections
 
 import (

@@ -1,3 +1,28 @@
+// @note #cmd-cruft-20260821-001 issue status=open priority=P2 tags=#cruft,#dead-code : Deprecated selfMode flag declared but never read
+//
+// The variable `selfMode` (line 32) is bound to the --self flag (lines 112-113)
+// but is never read anywhere in the codebase. The flag is deprecated in favor
+// of `hestia generate features`.
+//
+// Resolution: Remove the variable declaration and flag registration entirely.
+// @note #cmd-cruft-20260821-002 issue status=open priority=P1 tags=#cruft,#hardcoded : Hardcoded type-to-expression mapping in fieldToExpr
+//
+// The fieldToExpr function (lines 236-296) contains a large, hardcoded switch
+// statement that maps dependency type names to specific struct field expressions.
+// Every new dependency type added to a feature's Dependencies struct requires
+// a manual case here.
+//
+// This is:
+// - Fragile: If a developer adds a new dependency type and forgets to add a case,
+//   fieldToExpr falls through to the generic default which may produce incorrect code
+// - Tightly coupled: Embeds knowledge of the entire system module's architecture
+// - Not extensible: Downstream projects using hestia generate features with their
+//   own dependency types would silently get incorrect code generation
+//
+// Resolution: Consider a more extensible approach such as:
+// 1. A registry of type-to-expression mappings that can be extended
+// 2. Convention-based naming (e.g., type name -> field name mapping)
+// 3. Configuration in hestia.json for custom type mappings
 package core
 
 import (

@@ -130,6 +130,13 @@ func (o *Interface) Start(bootstrapped bool) {
 	}()
 }
 
+// @note #review-20260821-015 issue status=open priority=P2 tags=#review,#reliability : Shutdown error ignored in Restart
+// The Restart method ignores the error from o.trans.Shutdown(context.Background()).
+// If the shutdown fails (e.g., due to in-flight requests), the transport may be
+// in an inconsistent state when the new transport is created.
+//
+// Consider logging the error or returning it to the caller, and using a
+// timeout context instead of context.Background().
 func (o *Interface) Restart(bootstrapped bool) {
 	_ = o.trans.Shutdown(context.Background())
 	o.bootstrapped = bootstrapped
