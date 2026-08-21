@@ -1,3 +1,10 @@
+## [1.4.14](https://github.com/asaidimu/hestia/compare/v1.4.13...v1.4.14) (2026-08-21)
+
+
+### Bug Fixes
+
+* **updates:** add update management system ([8c85ff4](https://github.com/asaidimu/hestia/commit/8c85ff4719ba1133483349bd6d0f567554a83b35))
+
 ## [1.4.13](https://github.com/asaidimu/hestia/compare/v1.4.12...v1.4.13) (2026-08-19)
 
 
