@@ -63,6 +63,9 @@ func (s *SessionService) Refresh(st *SessionToken) (string, *SessionToken, error
 	return token, refreshed, nil
 }
 
+// @note #review2-20260821-001 issue P1 #security,#auth,#review : SessionService.Validate does not check ExpiresAt
+//
+// Validate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.
 func (s *SessionService) Validate(token string) (*SessionToken, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {

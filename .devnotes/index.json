@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-21T10:31:40.810093719Z",
+  "generatedAt": "2026-08-21T11:43:18.404916851Z",
   "root": ".",
   "notes": {
     "8uuufn": {
@@ -1310,6 +1310,51 @@
       },
       "hash": "c7154d0aa9dd2084"
     },
+    "review2-20260821-001": {
+      "id": "review2-20260821-001",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "security",
+        "auth",
+        "review"
+      ],
+      "title": "SessionService.Validate does not check ExpiresAt",
+      "body": "Validate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.\n",
+      "location": {
+        "file": "core/system/auth/session_service.go",
+        "startLine": 65,
+        "startCol": 3,
+        "endLine": 67,
+        "endCol": 3
+      },
+      "hash": "1ce63d39d777502a"
+    },
+    "review2-20260821-002": {
+      "id": "review2-20260821-002",
+      "category": "issue",
+      "status": "open",
+      "priority": "P2",
+      "tags": [
+        "security",
+        "auth",
+        "review"
+      ],
+      "title": "ValidateSession result used without checking ExpiresAt",
+      "body": "Two call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt \u003e time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.\n",
+      "references": [
+        "#review2-20260821-001"
+      ],
+      "location": {
+        "file": "utils/wails/dispatch.go",
+        "startLine": 244,
+        "startCol": 3,
+        "endLine": 247,
+        "endCol": 3
+      },
+      "hash": "8f09490a97f43070"
+    },
     "sec-20260821-003": {
       "id": "sec-20260821-003",
       "category": "issue",
@@ -1374,12 +1419,6 @@
     },
     "client/core/wails-transport.ts": {
       "hash": "6527ced247596e56"
-    },
-    "client/dist/index.cjs": {
-      "hash": "f7d9c4afe6eb9bfa"
-    },
-    "client/dist/index.mjs": {
-      "hash": "3def4935bfabb522"
     },
     "client/index.ts": {
       "hash": "bb2cddd55d10effd"
@@ -1539,9 +1578,6 @@
     },
     "client/vitest.config.ts": {
       "hash": "244f47e211874a49"
-    },
-    "cmd/auth-test/main.go": {
-      "hash": "13aef5b9319647c6"
     },
     "cmd/docs-server/main.go": {
       "hash": "7b2e8add9e66cc9f"
@@ -2297,7 +2333,10 @@
       ]
     },
     "core/system/auth/session_service.go": {
-      "hash": "c48121c6580017e7"
+      "hash": "c520105b98845af2",
+      "noteIds": [
+        "review2-20260821-001"
+      ]
     },
     "core/system/auth/token.go": {
       "hash": "fbafdf0bc3e7d473"
@@ -2707,35 +2746,8 @@
     "examples/basic/main.go": {
       "hash": "ffe0be65c044466a"
     },
-    "examples/wails-test/frontend/dist/assets/index-CDqmYwUY.js": {
-      "hash": "5ff9fb35f2b48799"
-    },
-    "examples/wails-test/frontend/src/main.ts": {
-      "hash": "23b884ac1f7b6d6b"
-    },
-    "examples/wails-test/frontend/vite.config.ts": {
-      "hash": "d948f09b75640a96"
-    },
-    "examples/wails-test/frontend/wailsjs/go/models.ts": {
-      "hash": "0dd30a485a3a55e3"
-    },
-    "examples/wails-test/frontend/wailsjs/go/wails/Adapter.d.ts": {
-      "hash": "9a4213667fc41a4b"
-    },
-    "examples/wails-test/frontend/wailsjs/go/wails/Adapter.js": {
-      "hash": "e89b1a9767ab5a3d"
-    },
-    "examples/wails-test/frontend/wailsjs/runtime/runtime.d.ts": {
-      "hash": "8f4ec03cac22770b"
-    },
-    "examples/wails-test/frontend/wailsjs/runtime/runtime.js": {
-      "hash": "e25fe86d3c590de7"
-    },
     "examples/wails-test/main.go": {
       "hash": "78aa7ab5a2e884ba"
-    },
-    "scripts/generate-docs.ts": {
-      "hash": "a55ef94a02e587cf"
     },
     "tests/e2e/update/main_test.go": {
       "hash": "96f654595761a913"
@@ -2747,7 +2759,10 @@
       "hash": "3ff9f7a5143489a0"
     },
     "utils/wails/dispatch.go": {
-      "hash": "5e309e70f4c45743"
+      "hash": "d76bb0e3041377f9",
+      "noteIds": [
+        "review2-20260821-002"
+      ]
     }
   }
 }
