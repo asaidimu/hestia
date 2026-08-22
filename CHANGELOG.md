@@ -1,3 +1,10 @@
+## [1.4.15](https://github.com/asaidimu/hestia/compare/v1.4.14...v1.4.15) (2026-08-22)
+
+
+### Bug Fixes
+
+* **updates:** split update check into availability and staging ([93d65cd](https://github.com/asaidimu/hestia/commit/93d65cd894bb7840c46e3218ae0f382d562d438d))
+
 ## [1.4.14](https://github.com/asaidimu/hestia/compare/v1.4.13...v1.4.14) (2026-08-21)
 
 
