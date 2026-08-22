@@ -25,7 +25,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/asaidimu/updater"
 )
@@ -36,92 +35,7 @@ import (
 // absent values leave conf untouched. SelfUpdate is resolved from UPDATE_*
 // env vars when it is not (or not fully) configured in code.
 func ApplyEnvOverrides(conf *Config) error {
-	if v := os.Getenv("APP_VERSION"); v != "" {
-		conf.Version = v
-	}
-	if n, ok := envInt("PORT"); ok {
-		conf.Port = n
-	}
-	if v := os.Getenv("SESSION_SECRET"); v != "" {
-		conf.SessionSecret = v
-	}
-	if v := os.Getenv("DB_PATH"); v != "" {
-		conf.DBPath = v
-	}
-	if v := os.Getenv("LOG_PATH"); v != "" {
-		conf.LogPath = v
-	}
-	if v := os.Getenv("BLOBS_DIR"); v != "" {
-		conf.BlobsDir = v
-	}
-	if n, ok := envInt("BCRYPT_COST"); ok {
-		conf.BcryptCost = n
-	}
-	if d, ok := envDuration("SESSION_TTL"); ok {
-		conf.SessionTTL = d
-	}
-	if d, ok := envDuration("SESSION_IDLE_TTL"); ok {
-		conf.IdleTTL = d
-	}
-	if d, ok := envDuration("SESSION_REFRESH_TTL"); ok {
-		conf.RefreshTTL = d
-	}
-	if v := os.Getenv("API_PREFIX"); v != "" {
-		conf.APIPrefix = v
-	}
-	if v := os.Getenv("COOKIE_DOMAIN"); v != "" {
-		conf.CookieConfig.Domain = v
-	}
-	if b, ok := envBool("COOKIE_SECURE"); ok {
-		conf.CookieConfig.Secure = b
-	}
-	if v := os.Getenv("COOKIE_SAMESITE"); v != "" {
-		conf.CookieConfig.SameSite = parseSameSite(v)
-	}
-	if v := os.Getenv("SESSION_COOKIE_NAME"); v != "" {
-		conf.CookieConfig.SessionName = v
-	}
-	if v := os.Getenv("SESSION_COOKIE_PATH"); v != "" {
-		conf.CookieConfig.SessionPath = v
-	}
-	if v := os.Getenv("ALLOWED_ORIGINS"); v != "" {
-		parts := strings.Split(v, ",")
-		conf.AllowedOrigins = make([]string, 0, len(parts))
-		for _, p := range parts {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				conf.AllowedOrigins = append(conf.AllowedOrigins, p)
-			}
-		}
-	}
-	if b, ok := envBool("FORCE_BOOTSTRAPPED"); ok {
-		conf.ForceBootstrapped = b
-	}
-	if v := os.Getenv("SMTP_HOST"); v != "" {
-		conf.Mailer.SMTPHost = v
-	}
-	if n, ok := envInt("SMTP_PORT"); ok {
-		conf.Mailer.SMTPPort = n
-	}
-	if v := os.Getenv("SMTP_USERNAME"); v != "" {
-		conf.Mailer.SMTPUsername = v
-	}
-	if v := os.Getenv("SMTP_PASSWORD"); v != "" {
-		conf.Mailer.SMTPPassword = v
-	}
-	if v := os.Getenv("SMTP_FROM"); v != "" {
-		conf.Mailer.FromAddress = v
-	}
-	if v := os.Getenv("SMTP_FROM_NAME"); v != "" {
-		conf.Mailer.FromName = v
-	}
-	if v := os.Getenv("SMTP_AUTH_TYPE"); v != "" {
-		conf.Mailer.SMTPAuthType = v
-	}
-	if v := os.Getenv("APP_URL"); v != "" {
-		conf.AppURL = v
-	}
-
+	applyCommonEnvOverrides(conf)
 	return applySelfUpdateEnv(conf)
 }
 

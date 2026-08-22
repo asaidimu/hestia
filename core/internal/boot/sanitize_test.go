@@ -8,35 +8,26 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/sanitize"
 )
 
-// TestSanitizeConfig_SecretPatternsRedact pins the global sanitization policy:
-// every secret-bearing field name (password, hash, secret, token, api_key,
-// credential) is redacted by pattern, while auth-shaped values are hashed.
-func TestSanitizeConfig_SecretPatternsRedact(t *testing.T) {
+// TestSanitizeConfig_GlobalIsPreserveOnly pins the global sanitization
+// policy: it must carry no patterns and no field rules at all. Policies are
+// type-blind (masked values are always strings), so any name-based global
+// rule risks matching a non-string field of a user-defined collection and
+// failing Document.Sanitize for whole documents — which silently empties
+// query responses. See go-anansi devnote #sanitize-type-blindness.
+func TestSanitizeConfig_GlobalIsPreserveOnly(t *testing.T) {
 	cfg := sanitizeConfig()
 	if cfg.Global == nil {
 		t.Fatal("expected global sanitize config")
 	}
 
-	patternPolicy := map[string]sanitize.MaskedFieldPolicy{}
-	for _, p := range cfg.Global.Patterns {
-		patternPolicy[p.Pattern] = p.Policy
+	if len(cfg.Global.Patterns) != 0 {
+		t.Errorf("global config must have no patterns, got %d", len(cfg.Global.Patterns))
 	}
-
-	expectRedact := []string{
-		`(?i)password`,
-		`(?i)hash`,
-		`(?i)secret`,
-		`(?i)token`,
-		`(?i)api[_-]?key`,
-		`(?i)credential`,
+	if len(cfg.Global.Fields) != 0 {
+		t.Errorf("global config must have no field rules, got %d", len(cfg.Global.Fields))
 	}
-	for _, expr := range expectRedact {
-		if patternPolicy[expr] != sanitize.MaskRedact {
-			t.Errorf("pattern %q must be MaskRedact, got %q", expr, patternPolicy[expr])
-		}
-	}
-	if patternPolicy[`(?i)auth`] != sanitize.MaskHash {
-		t.Errorf("pattern (?i)auth must be MaskHash, got %q", patternPolicy[`(?i)auth`])
+	if cfg.Global.DefaultPolicy != sanitize.MaskPreserve {
+		t.Errorf("global default policy must be MaskPreserve, got %q", cfg.Global.DefaultPolicy)
 	}
 }
 
@@ -66,11 +57,22 @@ func TestSanitizeConfig_ScopedOverrides(t *testing.T) {
 	if keyCfg.Fields["hash"] != sanitize.MaskRedact {
 		t.Errorf("_api_key_.hash must be MaskRedact, got %q", keyCfg.Fields["hash"])
 	}
+
+	logCfg := cfg.Scoped["_access_log_"]
+	if logCfg == nil {
+		t.Fatal("expected _access_log_ scoped config")
+	}
+	if logCfg.Fields["integrity_hash"] != sanitize.MaskRedact {
+		t.Errorf("_access_log_.integrity_hash must be MaskRedact, got %q", logCfg.Fields["integrity_hash"])
+	}
 }
 
-// TestSanitizeConfig_AppliesToDocuments exercises the real registry: after
-// Configure, sensitive fields are masked while safe fields survive.
-func TestSanitizeConfig_AppliesToDocuments(t *testing.T) {
+// TestSanitizeConfig_GlobalPreservesUnknownCollections exercises the real
+// registry: with the preserve-only global policy, documents from unknown or
+// user-defined collections — including array-typed fields that used to trip
+// masking patterns (the `notes.authors` regression) — survive sanitization
+// untouched.
+func TestSanitizeConfig_GlobalPreservesUnknownCollections(t *testing.T) {
 	sanitize.ResetForTesting()
 	if err := sanitize.Configure(sanitizeConfig(), zap.NewNop()); err != nil {
 		t.Fatalf("Configure: %v", err)
@@ -81,6 +83,7 @@ func TestSanitizeConfig_AppliesToDocuments(t *testing.T) {
 		t.Fatal("expected global sanitizer after Configure")
 	}
 
+	authors := []any{"alice", "bob"}
 	out := global.SanitizeDocumentDeep(map[string]any{
 		"password":     "hunter2",
 		"access_token": "tok-abc",
@@ -88,20 +91,24 @@ func TestSanitizeConfig_AppliesToDocuments(t *testing.T) {
 		"secret":       "s3cr3t",
 		"hash":         "$2a$10$abc",
 		"credential":   "crd",
-		"token_version": int64(3),
+		"authors":      authors,
 		"name":         "visible",
 	})
-	for _, field := range []string{"password", "access_token", "api_key", "secret", "hash", "credential"} {
-		if out[field] != "***" {
-			t.Errorf("field %q should be redacted, got %v", field, out[field])
+	for field, want := range map[string]any{
+		"password":     "hunter2",
+		"access_token": "tok-abc",
+		"api_key":      "key-xyz",
+		"secret":       "s3cr3t",
+		"hash":         "$2a$10$abc",
+		"credential":   "crd",
+		"name":         "visible",
+	} {
+		if out[field] != want {
+			t.Errorf("field %q should be preserved, got %v", field, out[field])
 		}
 	}
-	// token_version is explicitly preserved (it is not secret).
-	if out["token_version"] != int64(3) {
-		t.Errorf("token_version should be preserved, got %v", out["token_version"])
-	}
-	if out["name"] != "visible" {
-		t.Errorf("name should be preserved, got %v", out["name"])
+	if got, ok := out["authors"].([]any); !ok || len(got) != 2 || got[0] != "alice" {
+		t.Errorf("authors array should survive intact, got %v", out["authors"])
 	}
 }
 

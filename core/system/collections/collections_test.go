@@ -10,6 +10,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/system/collections"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -108,7 +109,7 @@ func TestCollectionCreateAndDelete(t *testing.T) {
 	createHandler := collections.NewCollectionCreateHandler(p, stubPolicyStore{}, stubRegistry{}, logger)
 	deleteHandler := collections.NewCollectionDeleteHandler(p, stubPolicyStore{}, stubRegistry{}, logger)
 
-	input := testutil.InputDoc(t, collections.CollectionCreateInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[collections.CollectionCreateInput]("input", true), `{
 		"payload": {
 			"name":    "test_collection",
 			"version": "1.0.0",
@@ -141,7 +142,7 @@ func TestCollectionCreateAndDelete(t *testing.T) {
 		t.Fatal("collection was not created")
 	}
 
-	delInput := testutil.InputDoc(t, collections.CollectionDeleteInputSchema(), `{
+	delInput := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[collections.CollectionDeleteInput]("input", true), `{
 		"arguments": { "name": "test_collection" }
 	}`)
 	delMsg := testMessage{name: "delete", ctx: ctx, input: delInput}

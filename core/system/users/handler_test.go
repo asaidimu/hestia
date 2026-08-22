@@ -6,6 +6,7 @@ import (
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"github.com/asaidimu/hestia/core/system/users/model"
 	usermodel "github.com/asaidimu/hestia/core/system/users/model"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 // TestUpdateUserHandlerPreservesUnsetValues guards the end-to-end profile
@@ -33,7 +34,7 @@ func TestUpdateUserHandlerPreservesUnsetValues(t *testing.T) {
 	}
 	hashBefore := before.Password
 
-	doc := testutil.InputDoc(t, usermodel.UserUpdateInputSchema(), `{
+	doc := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserUpdateInput]("input", true), `{
 		"arguments": { "user_id": "`+id+`" },
 		"payload": { "name": "Renamed" }
 	}`)

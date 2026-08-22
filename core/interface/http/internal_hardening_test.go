@@ -69,6 +69,9 @@ func decodeSessionInfo(token string) (*abstract.SessionInfo, error) {
 	if err := json.Unmarshal(b, &info); err != nil {
 		return nil, err
 	}
+	if time.Now().Unix() > info.ExpiresAt {
+		return nil, fmt.Errorf("token expired")
+	}
 	return &info, nil
 }
 

@@ -124,29 +124,15 @@ func (a *Application) NewCLIInterface(cfg cli.Config) runtime.Interface {
 		Stdout:      stdout,
 	})
 }
-// @note #review-20260821-012 issue status=open priority=P2 tags=#review,#design : Context.Background() used in Start method
-// The Start method uses context.Background() for SeedPolicies, which means
-// there's no way to cancel or timeout the seeding operation. This could be
-// problematic in graceful shutdown scenarios or when the seeding takes longer
-// than expected.
-//
-// Consider accepting a context.Context parameter or using a context derived
-// from the application's lifecycle context.
 func (a *Application) Start() error {
-	if sysMod := a.inner.SystemModule(); sysMod != nil {
-		if err := sysMod.SeedPolicies(context.Background()); err != nil {
-			return err
-		}
+	if err := a.SeedPolicies(); err != nil {
+		return err
 	}
 	a.inner.Start()
 	return nil
 }
 func (a *Application) Shutdown(ctx context.Context) error { return a.inner.Shutdown(ctx) }
 func (a *Application) Close()                             { a.inner.Close() }
-// @note #review-20260821-013 issue status=open priority=P2 tags=#review,#design : Duplicate SeedPolicies method with context.Background()
-// This method duplicates the SeedPolicies logic from Start() and also uses
-// context.Background(). Consider consolidating these or accepting a context
-// parameter for better control.
 func (a *Application) SeedPolicies() error {
 	if sysMod := a.inner.SystemModule(); sysMod != nil {
 		return sysMod.SeedPolicies(context.Background())

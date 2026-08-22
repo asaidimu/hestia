@@ -42,10 +42,8 @@ func ClaimsFromContext(ctx context.Context) (*abstract.Claims, bool) {
 	return claims, ok
 }
 
-var SystemScopePrefix = "system"
-
 var systemIdentity = iam.Identity{
-	Permissions: []string{SystemScopePrefix + ":http"},
+	Permissions: []string{abstract.SystemScopePrefix + ":http"},
 	Properties:  map[string]any{"system": "http"},
 }
 

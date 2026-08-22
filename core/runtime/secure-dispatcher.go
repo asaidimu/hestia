@@ -27,14 +27,6 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-// @note #review-20260821-008 issue status=open priority=P2 tags=#review,#security : Unchecked type assertion in stringSlice
-// The stringSlice function performs a type assertion on each element of []any
-// without handling the case where the assertion fails (element is skipped silently).
-// While this is defensive, it could mask data issues where non-string values
-// appear in the operations list.
-//
-// Consider logging a warning when non-string elements are encountered, or
-// returning an error to alert callers of malformed data.
 func stringSlice(v any) ([]string, bool) {
 	switch s := v.(type) {
 	case []string:
@@ -79,6 +71,11 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 		// auth), only named operations are permitted. A nil/missing
 		// property means "allow all" (backward-compatible with keys
 		// created before this feature).
+
+		// @note #83l69u todo : Investigate other methods of identification
+		//
+		// We need to investiagate other auth methods such as a list of trusted domains so that external events such as
+		// Webhooks can be processed without requiring API Keys
 		if ident, ok := iam.GetIdentity(msg.Context()); ok {
 			if props, ok := ident.Properties.(map[string]any); ok {
 				if raw, ok := props["operations"]; ok {
@@ -98,6 +95,7 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		if !enabled {
 			if isAnonymous(msg.Context()) {
 				return nil, ErrAuthRequired
@@ -113,6 +111,7 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 		if ex, ok := msg.(abstract.ResourceContextExtractor); ok {
 			resource = ex.ResourceContext()
 		}
+
 		can := d.ac.Can(msg.Context(), ruleKey, resource, nil)
 		if !can {
 			if isAnonymous(msg.Context()) {

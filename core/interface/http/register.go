@@ -10,6 +10,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
+	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
@@ -35,7 +36,9 @@ func (o *Interface) installDispatcherRegistrations() {
 		if reg.Internal {
 			continue
 		}
-		o.installRegistration(reg)
+		if err := o.installRegistration(reg); err != nil {
+			o.opts.Logger.Error("failed to install registration", zap.String("name", reg.Name), zap.Error(err))
+		}
 	}
 }
 
@@ -47,24 +50,13 @@ func (o *Interface) installBootstrapSafeRegistrations() {
 		if !reg.BootstrapSafe {
 			continue
 		}
-		o.installRegistration(reg)
+		if err := o.installRegistration(reg); err != nil {
+			o.opts.Logger.Error("failed to install bootstrap-safe registration", zap.String("name", reg.Name), zap.Error(err))
+		}
 	}
 }
 
-// @note #mem-20260821-002 issue status=open priority=P1 tags=#memory,#panic : Document pool creation panics on error
-//
-// installRegistration (line 54) panics if document.NewDocumentPool fails.
-// This is a startup-time error, but panicking is bad practice:
-//
-// 1. Prevents graceful error handling
-// 2. Makes testing difficult
-// 3. Can leave resources in inconsistent state
-//
-// For IoT/HFT: Panics during startup could leave devices in bricked state.
-//
-// Resolution: Return an error from installRegistration and handle it
-// gracefully. Log the error and skip the registration instead of panicking.
-func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
+func (o *Interface) installRegistration(reg abstract.MessageRegistration) error {
 	httpMethod := IntentToHTTPMethod(reg.Intent)
 	httpPath := DeriveRoute(reg.Name, reg.Input.Args())
 	if o.opts.APIPrefix != "" {
@@ -76,7 +68,7 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 	if reg.Input.Schema != nil {
 		p, err := document.NewDocumentPool(reg.Input.Schema)
 		if err != nil {
-			panic(fmt.Sprintf("install %s: input pool: %v", reg.Name, err))
+			return fmt.Errorf("install %s: input pool: %w", reg.Name, err)
 		}
 		pool = p
 	}
@@ -135,6 +127,7 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) {
 		resp = o.attachCookieToResponse(resp, result, reg.Name)
 		return resp, nil
 	}))
+	return nil
 }
 
 func buildDoc(ctx context.Context, req Request, input runtime.Input, pool *document.DocumentPool) (data.Documenter, error) {

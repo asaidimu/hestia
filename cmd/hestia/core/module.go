@@ -1,21 +1,9 @@
-// @note #cmd-cruft-20260821-003 issue status=open priority=P3 tags=#cruft,#duplication : Duplicate title() function in module.go and gen/render.go
-//
-// The title() function (lines 176-181) is identical to the one in
-// cmd/hestia/core/gen/render.go (lines 277-282). Both are:
-//   strings.ToUpper(s[:1]) + s[1:]
-//
-// Since gen is a separate package, this is not a compilation error, but it
-// is a maintenance concern — changes to one must be mirrored in the other.
-//
-// Resolution: Export the function from one package (e.g., gen.Title()) and
-// import it in the other, or create a shared utility package.
 package core
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -115,7 +103,7 @@ func (m *Module) Capabilities(rt abstract.Container) ([]abstract.Capability, err
 }
 
 func scaffoldHandler(modName, featureName string) string {
-	t := title(featureName)
+	t := gen.Title(featureName)
 	return fmt.Sprintf(`package %s
 
 import (
@@ -155,7 +143,7 @@ func (s *%sService) Ping(ctx context.Context, msg abstract.Message, input *%sPin
 }
 
 func scaffoldModel(featureName string) string {
-	t := title(featureName)
+	t := gen.Title(featureName)
 	return fmt.Sprintf(`package %s
 
 import (
@@ -182,11 +170,4 @@ type %sPingResult struct {
 	Pong bool
 }
 `, featureName, t, t, t, t, t, t, t, t, t)
-}
-
-func title(s string) string {
-	if s == "" {
-		return ""
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }

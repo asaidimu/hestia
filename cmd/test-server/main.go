@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 
@@ -74,6 +76,13 @@ func main() {
 		panic(err)
 	}
 	defer app.Close()
+
+	// Dev-only pprof sidecar for latency/CPU investigations.
+	if p := os.Getenv("PPROF_PORT"); p != "" {
+		go func() {
+			_ = http.ListenAndServe("localhost:"+p, nil)
+		}()
+	}
 
 	fmt.Println("8070")
 	os.Stdout.Sync()

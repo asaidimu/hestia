@@ -130,7 +130,11 @@ func (m *SystemUsers) ChangePassword(ctx context.Context, id, currentPassword, n
 	}
 
 	// 3. Authenticate current credentials
-	if !runtime.CheckPassword(currentPassword, user.Password) {
+	ok, err := runtime.CheckPassword(currentPassword, user.Password)
+	if err != nil {
+		return fmt.Errorf("check password: %w", err)
+	}
+	if !ok {
 		return runtime.ErrInvalidCredentials.WithOperation("change_password")
 	}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/system/blobs"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"go.uber.org/zap"
@@ -138,7 +139,7 @@ func TestMapBlobError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := testutil.InputDoc(t, blobs.BlobKeyInputSchema(), `{
+			input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobKeyInput]("input", true), `{
 				"arguments": {
 					"ns":  "test-ns",
 					"key": "test-key"
@@ -182,7 +183,7 @@ func TestListBlobsHandler(t *testing.T) {
 		},
 	}
 	handler := blobs.NewListBlobsHandler(store)
-	input := testutil.InputDoc(t, blobs.BlobListInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobListInput]("input", true), `{
 		"arguments": { "ns": "ns1" }
 	}`)
 	msg := testMessage{ctx: ctx, input: input}
@@ -222,7 +223,7 @@ func TestUploadBlobHandler(t *testing.T) {
 	}}
 	handler := blobs.NewUploadBlobHandler(store)
 
-	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUploadInput]("input", true), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"},
 		"headers": {"content_type": "text/plain"},
 		"payload": "aGVsbG8gd29ybGQ="
@@ -251,7 +252,7 @@ func TestUploadBlobHandlerRejectsExistingKey(t *testing.T) {
 	store := mockBlobStore{ns: mockBlobNamespace{}} // Head succeeds → key exists
 	handler := blobs.NewUploadBlobHandler(store)
 
-	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUploadInput]("input", true), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"},
 		"payload": "aGVsbG8gd29ybGQ="
 	}`)
@@ -271,7 +272,7 @@ func TestUploadBlobHandlerOverwriteAllowsExistingKey(t *testing.T) {
 	store := mockBlobStore{ns: mockBlobNamespace{}} // Head succeeds → key exists
 	handler := blobs.NewUploadBlobHandler(store)
 
-	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUploadInput]("input", true), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"},
 		"modifiers": {"overwrite": "true"},
 		"payload": "aGVsbG8gd29ybGQ="
@@ -291,7 +292,7 @@ func TestUploadBlobHandlerEmptyPayload(t *testing.T) {
 	store := mockBlobStore{ns: mockBlobNamespace{}}
 	handler := blobs.NewUploadBlobHandler(store)
 
-	input := testutil.InputDoc(t, blobs.BlobUploadInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUploadInput]("input", true), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"}
 	}`)
 	msg := testMessage{ctx: ctx, input: input}

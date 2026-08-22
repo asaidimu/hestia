@@ -1,9 +1,25 @@
 import type { Document } from "../../core/types"
 import { type Transport } from "../../core/client"
-import type { Notification, NotificationAction, UnreadCount } from "./types"
+import type {
+  Notification,
+  NotificationAction,
+  UnreadCount,
+  CreateNotificationInput,
+} from "./types"
 
 export class HestiaNotificationStore {
   constructor(private client: Transport<string>) {}
+
+  /**
+   * Create an in-app notification for a user (administrator-gated). Content
+   * is taken verbatim — no template rendering.
+   */
+  async create(input: CreateNotificationInput): Promise<Document<Notification>> {
+    const res = await this.client.dispatch<{
+      data: Document<Notification>
+    }>("system:notifications:notification:create", { payload: input })
+    return res.data!.data
+  }
 
   async list(): Promise<Document<Notification>[]> {
     const res = await this.client.dispatch<{ data: Document<Notification>[] }>(

@@ -182,13 +182,9 @@ func resolveDataDir(projectName string) string {
 	return "./data"
 }
 
-// @note #review-20260821-019 issue status=open priority=P3 tags=#review,#style : Inconsistent indentation in envString
-// The envString function has inconsistent indentation in the return statement
-// (extra tab). This is a minor style issue but could indicate copy-paste errors
-// or lack of gofmt/goimports in the development workflow.
 func envString(key string) (string, bool) {
 	if v := os.Getenv(key); v != "" {
-			return v, true
+		return v, true
 	}
 	return "", false
 }
@@ -220,9 +216,6 @@ func envBool(key string) (bool, bool) {
 	return false, false
 }
 
-// @note #r9i7ec issue : This code is duplicated in ApplyEnvOverrides
-// We need to centralize env resolution
-
 func LoadConfig(projectName string) (*Config, error) {
 	// Precedence (lowest wins last): process env < .env < .env.dev. Overload
 	// (not Load) so each file overrides the layer below it.
@@ -248,10 +241,15 @@ func LoadConfig(projectName string) (*Config, error) {
 	cfg.BlobsDir = blobsDir
 	_ = os.MkdirAll(cfg.BlobsDir, 0700)
 
-	if secret, ok := envString("SESSION_SECRET"); ok {
-		cfg.SessionSecret = secret
-	}
+	applyCommonEnvOverrides(cfg)
 
+	return cfg, nil
+}
+
+// applyCommonEnvOverrides applies environment-backed knobs that are shared
+// between LoadConfig (startup) and ApplyEnvOverrides (Setup). Non-empty env
+// values override; absent values leave conf untouched.
+func applyCommonEnvOverrides(cfg *Config) {
 	if n, ok := envInt("PORT"); ok {
 		cfg.Port = n
 	}
@@ -285,11 +283,17 @@ func LoadConfig(projectName string) (*Config, error) {
 	if v := os.Getenv("SESSION_COOKIE_PATH"); v != "" {
 		cfg.CookieConfig.SessionPath = v
 	}
+	if secret, ok := envString("SESSION_SECRET"); ok {
+		cfg.SessionSecret = secret
+	}
 	if v := os.Getenv("DB_PATH"); v != "" {
 		cfg.DBPath = v
 	}
 	if v := os.Getenv("LOG_PATH"); v != "" {
 		cfg.LogPath = v
+	}
+	if v := os.Getenv("BLOBS_DIR"); v != "" {
+		cfg.BlobsDir = v
 	}
 	if v := os.Getenv("ALLOWED_ORIGINS"); v != "" {
 		parts := strings.Split(v, ",")
@@ -304,7 +308,6 @@ func LoadConfig(projectName string) (*Config, error) {
 	if b, ok := envBool("FORCE_BOOTSTRAPPED"); ok {
 		cfg.ForceBootstrapped = b
 	}
-
 	if v := os.Getenv("SMTP_HOST"); v != "" {
 		cfg.Mailer.SMTPHost = v
 	}
@@ -329,8 +332,9 @@ func LoadConfig(projectName string) (*Config, error) {
 	if v := os.Getenv("APP_URL"); v != "" {
 		cfg.AppURL = v
 	}
-
-	return cfg, nil
+	if v := os.Getenv("APP_VERSION"); v != "" {
+		cfg.Version = v
+	}
 }
 
 func parseSameSite(s string) abstract.SameSite {

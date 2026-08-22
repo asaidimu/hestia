@@ -14,12 +14,11 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 var systemIdentity = iam.Identity{
-	Permissions: []string{runtime.SystemScopePrefix + ":cli"},
+	Permissions: []string{abstract.SystemScopePrefix + ":cli"},
 	Properties:  map[string]any{"system": "cli"},
 }
 

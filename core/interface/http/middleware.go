@@ -46,15 +46,6 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 			}
 
 			now := time.Now().Unix()
-
-			// Absolute expiry check
-			if now > info.ExpiresAt {
-				if action != nil {
-					action.Clear = true
-				}
-				return Response{Status: 401}, runtime.ErrUnauthorized
-			}
-
 			elapsed := now - info.IssuedAt
 
 			// Idle timeout — session expired

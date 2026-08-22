@@ -118,6 +118,90 @@ func TestCheckUpToDate(t *testing.T) {
 	}
 }
 
+// TestCheckAvailabilityHasNoSideEffects pins the read-only contract of
+// system:updates:check:get: a newer release is reported but nothing may be
+// downloaded, staged, or recorded — that's what makes it safe for fleet
+// coordinators to poll (see #review2-20260821-004).
+func TestCheckAvailabilityHasNoSideEffects(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version:   "1.2.0",
+		Changelog: "release notes",
+	}}, "1.0.0")
+
+	view, err := svc.CheckAvailability(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("check availability: %v", err)
+	}
+	if !view.Available || view.Version != "1.2.0" {
+		t.Fatalf("unexpected availability view: %+v", view)
+	}
+
+	if pending, _ := store.PendingUpdate(ctx); pending != nil {
+		t.Fatalf("availability check must not stage an update, got %+v", pending)
+	}
+	if svc.updater.HasPreparedUpdate() {
+		t.Fatal("availability check must not download/prepare the binary")
+	}
+	if _, err := store.Settings.Get(ctx, "", lastCheckKey); err == nil {
+		t.Fatal("availability check must not record the last-check time")
+	}
+}
+
+func TestCheckAvailabilityUpToDate(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t, &stubProvider{}, "1.0.0")
+	view, err := svc.CheckAvailability(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("check availability: %v", err)
+	}
+	if view.Available || view.Version != "" {
+		t.Fatalf("expected no availability, got %+v", view)
+	}
+}
+
+func TestStageDownloadsWithoutApplying(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version: "1.2.0",
+	}}, "1.0.0")
+
+	view, err := svc.Stage(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+	if !view.Staged || view.Version != "1.2.0" {
+		t.Fatalf("unexpected stage view: %+v", view)
+	}
+	if !svc.updater.HasPreparedUpdate() {
+		t.Fatal("expected prepared update binary")
+	}
+	pending, err := store.PendingUpdate(ctx)
+	if err != nil || pending == nil || pending.Version != "1.2.0" {
+		t.Fatalf("expected staged 1.2.0 pending row, got %+v (err=%v)", pending, err)
+	}
+	// Staging records the last-check time; applying must stay manual.
+	v, err := store.Settings.Get(ctx, "", lastCheckKey)
+	if err != nil {
+		t.Fatalf("last check not recorded: %v", err)
+	}
+	if _, ok := v.(map[string]any); !ok {
+		t.Fatalf("last check value should be a record, got %T", v)
+	}
+}
+
+func TestStageUpToDateIsNoOp(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t, &stubProvider{}, "1.0.0")
+	view, err := svc.Stage(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+	if view.Staged || view.Version != "" {
+		t.Fatalf("expected a staging no-op, got %+v", view)
+	}
+}
+
 func TestCheckIgnoresOlderVersion(t *testing.T) {
 	ctx := context.Background()
 	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{Version: "0.9.0"}}, "1.0.0")

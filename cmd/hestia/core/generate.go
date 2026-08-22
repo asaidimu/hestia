@@ -1,10 +1,3 @@
-// @note #cmd-cruft-20260821-001 issue status=open priority=P2 tags=#cruft,#dead-code : Deprecated selfMode flag declared but never read
-//
-// The variable `selfMode` (line 32) is bound to the --self flag (lines 112-113)
-// but is never read anywhere in the codebase. The flag is deprecated in favor
-// of `hestia generate features`.
-//
-// Resolution: Remove the variable declaration and flag registration entirely.
 // @note #cmd-cruft-20260821-002 issue status=open priority=P1 tags=#cruft,#hardcoded : Hardcoded type-to-expression mapping in fieldToExpr
 //
 // The fieldToExpr function (lines 236-296) contains a large, hardcoded switch
@@ -54,7 +47,6 @@ var (
 	modulePath  string
 	modulesDirs []string
 	autogenDir  string
-	selfMode    bool
 	forceMode   bool
 )
 
@@ -133,9 +125,6 @@ func init() {
 	GenerateCmd.AddCommand(GenerateFeaturesCmd)
 	GenerateCmd.AddCommand(GenerateModulesCmd)
 	GenerateCmd.Flags().BoolVar(&forceMode, "force", false, "Force module registry generation even when running inside the hestia library repo")
-	// Keep --self as a deprecated top-level flag for backward compat
-	GenerateCmd.Flags().BoolVar(&selfMode, "self", false, "[DEPRECATED] Use 'generate features' instead")
-	GenerateCmd.Flags().MarkDeprecated("self", "use 'hestia generate features' instead")
 }
 
 func scanFeatures() []featureInfo {
@@ -370,7 +359,8 @@ func genFeatures(features []featureInfo) {
 }
 
 func isHestiaModule(root string) bool {
-	// Walk up from root looking for go.mod with "module github.com/asaidimu/hestia"
+	// Walk up from root looking for go.mod matching the configured hestia
+	// module path (hestia.json "module", e.g. github.com/asaidimu/hestia).
 	dir := root
 	for {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
@@ -383,7 +373,7 @@ func isHestiaModule(root string) bool {
 					}
 					line := string(data[:end])
 					if strings.HasPrefix(line, "module ") {
-						return strings.TrimSpace(line[7:]) == "github.com/asaidimu/hestia/core"
+						return strings.TrimSpace(line[7:]) == modulePath
 					}
 					return false
 				}

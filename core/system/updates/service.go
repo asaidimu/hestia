@@ -95,7 +95,14 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 	}), nil
 }
 
-// @note #review2-20260821-004 issue P1 #review,#api-design,#p2p : system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)
+// @note #review2-20260821-004 issue resolved P1 #review,#api-design,#p2p : system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)
+// @assignee opencode
+// Split shipped: system:updates:check:get (read-only availability, no download/staging/last-check writes) and system:updates:stage:create (PrepareUpdate + last-check record + notify-admins). check:create kept as the legacy check-then-stage wrapper; RunScheduledCheck still uses checkAndStage. Hand-wired registrations kept for now — migration to codegen tracked as #migrate-20260822-001.
+//
+// RESOLVED 2026-08-22: split into system:updates:check:get (read-only
+// availability) and system:updates:stage:create (download+prepare+notify);
+// check:create kept as the backward-compatible check-then-stage wrapper and
+// RunScheduledCheck still drives both effects back to back via checkAndStage.
 //
 // Despite the doc comment calling this "the read-only check", Check() always
 // calls checkAndStage() (below), which both checks for a new version AND
@@ -119,6 +126,7 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 //     returns {Available bool, Version string} with no side effects.
 //   - system:updates:stage:create (Create) -> calls PrepareUpdate, keeping
 //     today's staging + notify-admins behavior.
+//
 // Check() (or a thin wrapper) can still exist for backward compatibility,
 // calling both in sequence, but the two effects should be independently
 // callable. RunScheduledCheck can keep calling both back to back since a
@@ -126,7 +134,9 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 //
 // Check runs the read-only check, stages a newer version when available, and
 // notifies admins when a release was newly staged. With AutoApply it applies
-// immediately (the process exits on success).
+// immediately (the process exits on success). Kept for backward
+// compatibility; prefer system:updates:check:get +
+// system:updates:stage:create so each effect stays independently callable.
 func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInput) (*CheckView, error) {
 	staged, newly, err := s.checkAndStage(ctx)
 	if err != nil {
@@ -149,6 +159,65 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 		if err := s.apply(ctx); err != nil {
 			return nil, err
 		}
+	}
+	return document.New(view), nil
+}
+
+// CheckAvailability asks whether a newer release exists without any side
+// effects: no download, no staging, no last-check bookkeeping. Safe for fleet
+// coordinators to poll on a short interval.
+//
+// @hestia.register(
+//
+//	name="system:updates:check:get",
+//	intent="read",
+//	rule="administrator",
+//	description="Check whether a newer version is available",
+//	output="updates.AvailabilityView",
+//
+// )
+func (s *UpdatesService) CheckAvailability(ctx context.Context, _ abstract.Message, _ *NoInput) (*AvailabilityView, error) {
+	info, err := s.updater.CheckForUpdate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	view := &AvailabilityView{}
+	if info != nil {
+		view.Available = true
+		view.Version = info.Version
+	}
+	return document.New(view), nil
+}
+
+// Stage downloads and prepares the newest available release without applying
+// it, recording the last-check time and notifying admins when a release was
+// newly staged.
+//
+// @hestia.register(
+//
+//	name="system:updates:stage:create",
+//	intent="create",
+//	rule="administrator",
+//	description="Download and stage the latest update",
+//	output="updates.StageView",
+//
+// )
+func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInput) (*StageView, error) {
+	staged, newly, err := s.stageLatest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.recordLastCheck(ctx); err != nil {
+		return nil, err
+	}
+	if newly && staged != nil {
+		if err := s.notifyAdmins(ctx, staged); err != nil {
+			s.logger.Warn("updates: notify update_available failed", zap.Error(err))
+		}
+	}
+	view := &StageView{Staged: staged != nil}
+	if staged != nil {
+		view.Version = staged.Version
 	}
 	return document.New(view), nil
 }
@@ -269,6 +338,13 @@ func (s *UpdatesService) checkAndStage(ctx context.Context) (staged *updater.Upd
 	if info == nil {
 		return nil, false, nil
 	}
+	return s.stageLatest(ctx)
+}
+
+// stageLatest downloads and prepares the newest release, reporting the staged
+// UpdateInfo (nil when already up to date) and whether it was newly staged
+// relative to the pending row.
+func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.UpdateInfo, newlyStaged bool, err error) {
 	prev, _ := s.store.PendingUpdate(ctx)
 	staged, err = s.updater.PrepareUpdate(ctx)
 	if err != nil {

@@ -7,6 +7,7 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the notifications service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
+		{Name: "system:notifications:notification:create", RuleKey: "administrator", Description: "Create an in-app notification for a user"},
 		{Name: "system:notifications:notification:list", RuleKey: "authenticated", Description: "List notifications for the current user"},
 		{Name: "system:notifications:notification:read", RuleKey: "authenticated", Description: "Mark a notification as read"},
 		{Name: "system:notifications:read:all", RuleKey: "authenticated", Description: "Mark all notifications as read"},

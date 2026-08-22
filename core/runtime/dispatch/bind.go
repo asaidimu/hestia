@@ -35,13 +35,9 @@ func Handle[TIn any](fn Handler[TIn]) abstract.MessageHandler {
 	}
 }
 
-// @note #review-20260821-021 issue status=open priority=P2 tags=#review,#design : Ambiguous nil check in HandleDocument
-// The check `if any(model) == any(zero)` is intended to detect nil interfaces,
-// but it may not work as expected for all types. For example, if TOut is a
-// pointer type, a nil pointer won't equal the zero value of the interface.
-//
-// Consider using reflection to check for nil, or requiring callers to explicitly
-// return nil instead of relying on this comparison.
+// HandleDocument wraps a handler that returns a document model, binding and
+// releasing the input document exactly once. If fn returns a nil model (without
+// error), the result is nil — useful for write operations that produce no output.
 func HandleDocument[TIn any, TOut documentModel](fn func(ctx context.Context, msg abstract.Message, input *TIn) (TOut, error)) abstract.MessageHandler {
 	return Handle(func(ctx context.Context, msg abstract.Message, input *TIn) (*abstract.Result, error) {
 		var zero TOut

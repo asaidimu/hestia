@@ -21,3 +21,13 @@ export interface Notification {
 export interface UnreadCount {
   count: number
 }
+
+export interface CreateNotificationInput {
+  user_id: string
+  subject: string
+  type?: string
+  body?: string
+  data?: Record<string, unknown>
+  actions?: NotificationAction[]
+  expires_at?: number
+}

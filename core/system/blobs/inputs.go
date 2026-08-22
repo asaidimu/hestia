@@ -1,20 +1,4 @@
-// @note #cruft-20260821-018 issue status=open priority=P2 tags=#cruft,#dead-code : Stale schema functions in blobs/inputs.go
-// @see #8uuufn
-//
-// The schema functions (NsInputSchema, NsCreateInputSchema, BlobKeyInputSchema,
-// BlobListInputSchema, BlobUpdateInputSchema, BlobUploadInputSchema,
-// BlobBeginInputSchema, BlobChunkInputSchema, BlobCompleteInputSchema,
-// BlobAbortInputSchema, BlobProgressInputSchema) are dead code. The generated
-// registrations use dispatch.SchemaFromTypeWithTag directly.
-//
-// Resolution: remove the schema functions. The input types themselves are
-// still used by the service methods and registrations.
 package blobs
-
-import (
-	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
-)
 
 type NsInput struct {
 	NS string `input:"arguments.ns"`
@@ -82,20 +66,4 @@ type BlobAbortInput struct {
 type BlobProgressInput struct {
 	NS        string `input:"arguments.ns"`
 	SessionID string `input:"modifiers.session_id"`
-}
-
-func NsInputSchema() *definition.Schema         { return dispatch.SchemaFromTypeWithTag[NsInput]("input", true) }
-func NsCreateInputSchema() *definition.Schema   { return dispatch.SchemaFromTypeWithTag[NsCreateInput]("input", true) }
-func BlobKeyInputSchema() *definition.Schema    { return dispatch.SchemaFromTypeWithTag[BlobKeyInput]("input", true) }
-func BlobListInputSchema() *definition.Schema   { return dispatch.SchemaFromTypeWithTag[BlobListInput]("input", true) }
-func BlobUpdateInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[BlobUpdateInput]("input", true) }
-func BlobUploadInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[BlobUploadInput]("input", true) }
-func BlobBeginInputSchema() *definition.Schema  { return dispatch.SchemaFromTypeWithTag[BlobBeginInput]("input", true) }
-func BlobChunkInputSchema() *definition.Schema  { return dispatch.SchemaFromTypeWithTag[BlobChunkInput]("input", true) }
-func BlobCompleteInputSchema() *definition.Schema {
-	return dispatch.SchemaFromTypeWithTag[BlobCompleteInput]("input", true)
-}
-func BlobAbortInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[BlobAbortInput]("input", true) }
-func BlobProgressInputSchema() *definition.Schema {
-	return dispatch.SchemaFromTypeWithTag[BlobProgressInput]("input", true)
 }

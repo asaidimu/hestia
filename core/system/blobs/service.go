@@ -225,3 +225,11 @@ func (s *BlobsService) ProgressUpload(ctx context.Context, msg abstract.Message,
 func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, input *model.BlobAbortInput) (*abstract.Result, error) {
 	return NewAbortUploadHandler(s.staging)(ctx, msg)
 }
+
+
+// @note #storage-leak-blobs-never-compact-ad27adbb issue P1 #storage-leak,#blobs : Storage leak: blobs never compacted after deletion
+//
+// When blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,
+// the physical segment files (.vol, .wal) remain on disk because Compact is never called.
+// The blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.
+// Need to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.

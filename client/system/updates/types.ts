@@ -18,6 +18,16 @@ export interface UpdateCheckResult {
   auto_apply: boolean
 }
 
+export interface UpdateAvailability {
+  available: boolean
+  version: string
+}
+
+export interface UpdateStageResult {
+  staged: boolean
+  version: string
+}
+
 export interface UpdateApplyResult {
   message: string
 }

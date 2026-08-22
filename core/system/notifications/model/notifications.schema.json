@@ -137,5 +137,56 @@
       "name": "notification_action"
     }
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "metadata": {
+    "projections": {
+      "NotificationCreate": {
+        "fields": {
+          "include": [
+            "user_id",
+            "subject",
+            "type",
+            "body",
+            "data",
+            "actions",
+            "expires_at"
+          ],
+          "optional": [
+            "type",
+            "body",
+            "data",
+            "actions",
+            "expires_at"
+          ],
+          "required": [
+            "user_id",
+            "subject"
+          ],
+          "tags": {
+            "user_id": {
+              "input": "payload.{name}"
+            },
+            "subject": {
+              "input": "payload.{name}"
+            },
+            "type": {
+              "input": "payload.{name}"
+            },
+            "body": {
+              "input": "payload.{name}"
+            },
+            "data": {
+              "input": "payload.{name}"
+            },
+            "actions": {
+              "input": "payload.{name}"
+            },
+            "expires_at": {
+              "input": "payload.{name}"
+            }
+          }
+        }
+      }
+    }
+  }
 }

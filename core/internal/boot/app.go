@@ -328,15 +328,6 @@ func (a *Application) Close() {
 	_ = a.Loggers.Close()
 }
 
-// @note #review-20260821-017 issue status=open priority=P1 tags=#review,#reliability : Fatal calls in Reset method
-// The Reset method calls a.Loggers.File.Fatal in multiple places, which
-// terminates the process immediately. This is problematic because:
-// 1. The caller has no way to handle the error gracefully
-// 2. In-flight requests are dropped without proper shutdown
-// 3. Resources may not be properly cleaned up
-//
-// Consider returning errors instead of calling Fatal, and let the caller
-// decide how to handle the failure (e.g., retry, log and continue, or exit).
 func (a *Application) Reset(cfg *runtime.Config, version string) {
 	_ = a.Loggers.File.Sync()
 	if a.PersistenceManager != nil {
@@ -360,12 +351,14 @@ func (a *Application) Reset(cfg *runtime.Config, version string) {
 
 	pm, err := NewPersistenceManager(cfg, a.Loggers.File)
 	if err != nil {
-		a.Loggers.File.Fatal("Failed to setup persistence manager on reset", zap.Error(err))
+		a.Loggers.File.Error("Failed to setup persistence manager on reset", zap.Error(err))
+		return
 	}
 	a.PersistenceManager = pm
 
 	if err := migrations.Apply(context.Background(), a.PersistenceManager.Persistence()); err != nil {
-		a.Loggers.File.Fatal("Failed to apply migrations on reset", zap.Error(err))
+		a.Loggers.File.Error("Failed to apply migrations on reset", zap.Error(err))
+		return
 	}
 
 	mod := system.New(cfg, a.Dispatcher(), dispatch.SystemOptions{

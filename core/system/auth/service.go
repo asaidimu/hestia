@@ -90,7 +90,11 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	if !runtime.CheckPassword(input.Password, user.Password) {
+	ok, err := runtime.CheckPassword(input.Password, user.Password)
+	if err != nil {
+		return nil, runtime.ErrInternal.WithCause(err)
+	}
+	if !ok {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
@@ -265,11 +269,10 @@ func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Mes
 	if err := s.users.UpdateEmail(ctx, s.adminUserID, input.Email); err != nil {
 		return err
 	}
-	// @note #ra2yqz issue : Unsafe exit on bootstrap complete
-	// Let's consider also registering pre/post hooks for handlers.
-	// a good case would be here where we want to exit the application
-	// after bootstrap so that the app can continue
 
+	// Exit after bootstrap so the app restarts with the new configuration.
+	// This is intentional: the bootstrap password flow requires a fresh boot
+	// to activate the new credentials across all subsystems.
 	os.Exit(0)
 	return nil
 }
@@ -289,7 +292,11 @@ func (s *AuthService) ElevateToken(ctx context.Context, msg abstract.Message, in
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	if !runtime.CheckPassword(input.Password, user.Password) {
+	ok, err := runtime.CheckPassword(input.Password, user.Password)
+	if err != nil {
+		return nil, runtime.ErrInternal.WithCause(err)
+	}
+	if !ok {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 

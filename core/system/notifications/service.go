@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
 
@@ -37,6 +38,58 @@ func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
 		return "", fmt.Errorf("unauthenticated")
 	}
 	return claims.UserID, nil
+}
+
+// CreateNotification creates an in-app notification for a user. Content is
+// taken verbatim from the payload (no template rendering); channel fan-out via
+// the notifier remains an internal concern. Administrator-gated because it
+// targets arbitrary users.
+//
+// @hestia.register(
+//   name="system:notifications:notification:create",
+//   intent="create",
+//   rule="administrator",
+//   description="Create an in-app notification for a user",
+// )
+func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstract.Message, input *model.NotificationCreateInput) (*model.SystemNotifications, error) {
+	if input.UserID == "" {
+		return nil, fmt.Errorf("user_id is required")
+	}
+	if input.Subject == "" {
+		return nil, fmt.Errorf("subject is required")
+	}
+
+	ntype := "manual"
+	if input.Type != nil && *input.Type != "" {
+		ntype = *input.Type
+	}
+
+	now := time.Now().UnixMilli()
+	read := false
+	n := &model.SystemNotifications{
+		UserID:    input.UserID,
+		Type:      ntype,
+		Subject:   input.Subject,
+		Data:      input.Data,
+		Actions:   input.Actions,
+		Read:      &read,
+		CreatedAt: &now,
+	}
+	if input.Body != nil && *input.Body != "" {
+		n.Body = input.Body
+	}
+	if input.ExpiresAt != nil {
+		n.ExpiresAt = input.ExpiresAt
+	}
+	if tenantID := runtimecontext.GetTenantID(ctx); tenantID != "" {
+		n.TenantID = &tenantID
+	}
+
+	created, err := s.model.Create(ctx, n)
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
 }
 
 // ListNotifications lists notifications for the current user.

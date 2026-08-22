@@ -1,18 +1,9 @@
-// @note #cmd-cruft-20260821-005 issue status=open priority=P3 tags=#cruft,#dead-code : Blank identifier usage in gen_test.go
-//
-// The line `var _ = strings.TrimSpace` (line 178) serves no purpose. The
-// strings package is already imported and used elsewhere in the file. This
-// appears to be a leftover from when someone was ensuring the import was
-// exercised.
-//
-// Resolution: Remove the line.
 package gen
 
 import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -183,4 +174,3 @@ func writeFile(path, content string) {
 	}
 }
 
-var _ = strings.TrimSpace

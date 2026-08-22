@@ -259,7 +259,7 @@ func New%sService(rt abstract.Container) (*%sService, error) {
 	}
 	return &%sService{model: m}, nil
 }
-`, name, modelImport, title(name), name, title(name), title(entity)+"s", title(name), title(name), title(entity)+"s", title(name))
+`, name, modelImport, gen.Title(name), name, gen.Title(name), gen.Title(entity)+"s", gen.Title(name), gen.Title(name), gen.Title(entity)+"s", gen.Title(name))
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
 			os.Exit(1)
@@ -280,7 +280,7 @@ type %sService struct{}
 func New%sService(rt abstract.Container) (*%sService, error) {
 	return &%sService{}, nil
 }
-`, name, title(name), name, title(name), title(name), title(name), title(name))
+`, name, gen.Title(name), name, gen.Title(name), gen.Title(name), gen.Title(name), gen.Title(name))
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
 		os.Exit(1)

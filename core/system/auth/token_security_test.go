@@ -127,23 +127,19 @@ func TestSessionToken_CarriesTokenVersion(t *testing.T) {
 
 // TestSessionService_ValidateDoesNotEnforceExpiry documents the responsibility
 // boundary: SessionService.Validate verifies authenticity ONLY. Expiry and
-// token_version revocation are enforced in the HTTP auth middleware
-// (core/interface/http/middleware.go), NOT here. If this changes, the
-// middleware must be re-audited.
-func TestSessionService_ValidateDoesNotEnforceExpiry(t *testing.T) {
+// TestSessionService_ValidateRejectsExpiredToken verifies that Validate
+// enforces ExpiresAt, so callers don't need to check expiry themselves.
+func TestSessionService_ValidateRejectsExpiredToken(t *testing.T) {
 	svc := NewSessionService(testSecret)
 
-	// An already-expired token (negative TTL) still passes Validate.
+	// An already-expired token (negative TTL) must be rejected.
 	token, _, err := svc.Create("u1", -time.Hour, 0)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	st, err := svc.Validate(token)
-	if err != nil {
-		t.Fatalf("Validate must not enforce expiry, got: %v", err)
-	}
-	if st.ExpiresAt >= time.Now().Unix() {
-		t.Fatal("test precondition failed: token should be expired")
+	_, err = svc.Validate(token)
+	if err == nil {
+		t.Fatal("Validate must reject expired tokens")
 	}
 }
 

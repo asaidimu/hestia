@@ -29,23 +29,21 @@ func docFactoryConfig() data.DocumentFactoryConfig {
 	}
 }
 
+// sanitizeConfig intentionally registers masking rules per system collection
+// using exact field names, and keeps the global policy preserve-only.
+//
+// Sanitization policies match by field NAME alone and masked values are
+// always strings; the sanitizer does not know a field's declared type. A
+// broad pattern (e.g. `(?i)auth` matching an `authors` array) therefore
+// fails Document.Sanitize for the entire document ("cannot store sanitized
+// value ... in array slot"), which silently empties query responses. See
+// go-anansi devnote #sanitize-type-blindness. Because dynamic collections
+// are user-defined, no global rule can be proven type-safe — never add
+// Patterns here.
 func sanitizeConfig() sanitize.Config {
 	return sanitize.Config{
 		Global: &sanitize.FieldMaskConfig{
 			DefaultPolicy: sanitize.MaskPreserve,
-			Fields: map[string]sanitize.MaskedFieldPolicy{
-				"hash":          sanitize.MaskRedact,
-				"token_version": sanitize.MaskPreserve,
-			},
-			Patterns: []sanitize.PatternRule{
-				sanitize.MustCompilePattern(`(?i)password`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)hash`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)secret`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)token`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)api[_-]?key`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)credential`, sanitize.MaskRedact),
-				sanitize.MustCompilePattern(`(?i)auth`, sanitize.MaskHash),
-			},
 		},
 		Scoped: map[string]*sanitize.FieldMaskConfig{
 			"_user_": {
@@ -60,6 +58,12 @@ func sanitizeConfig() sanitize.Config {
 				DefaultPolicy: sanitize.MaskPreserve,
 				Fields: map[string]sanitize.MaskedFieldPolicy{
 					"hash": sanitize.MaskRedact,
+				},
+			},
+			"_access_log_": {
+				DefaultPolicy: sanitize.MaskPreserve,
+				Fields: map[string]sanitize.MaskedFieldPolicy{
+					"integrity_hash": sanitize.MaskRedact,
 				},
 			},
 		},

@@ -75,8 +75,8 @@ func TestDispatcherChain_InsertAfter(t *testing.T) {
 	rec := &orderRecorder{}
 	base := recordingDispatcher{name: "base", rec: rec, next: noopDispatcher{}}
 	chain := NewDispatcherChain(LinkEntry{Name: "a", Link: recordingLink{"a", rec}})
-	chain.InsertAfter("a", recordingLink{"after-a", rec})
-	chain.InsertAfter("missing", recordingLink{"never", rec}) // no-op on unknown name
+	chain.InsertAfter("a", "after-a", recordingLink{"after-a", rec})
+	chain.InsertAfter("missing", "never", recordingLink{"never", rec}) // no-op on unknown name
 	disp := chain.Build(base)
 	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
@@ -88,7 +88,7 @@ func TestDispatcherChain_InsertBefore(t *testing.T) {
 	rec := &orderRecorder{}
 	base := recordingDispatcher{name: "base", rec: rec, next: noopDispatcher{}}
 	chain := NewDispatcherChain(LinkEntry{Name: "b", Link: recordingLink{"b", rec}})
-	chain.InsertBefore("b", recordingLink{"before-b", rec})
+	chain.InsertBefore("b", "before-b", recordingLink{"before-b", rec})
 	disp := chain.Build(base)
 	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
@@ -156,7 +156,7 @@ func TestInsertBeforeSecureRunsBeforeAuthz(t *testing.T) {
 
 	secure := NewSecureDispatcher(base, permMgr, ac)
 	chain := NewDispatcherChain(LinkEntry{Name: "secure", Link: secure})
-	chain.InsertBefore("secure", recordingLink{"custom", rec})
+	chain.InsertBefore("secure", "custom", recordingLink{"custom", rec})
 	disp := chain.Build(base)
 
 	// Anonymous is denied for an admin-scoped message, but the custom link
@@ -172,7 +172,7 @@ func TestInsertBeforeSecureRunsBeforeAuthz(t *testing.T) {
 	rec2 := &orderRecorder{}
 	secure2 := NewSecureDispatcher(base, permMgr, ac)
 	chain2 := NewDispatcherChain(LinkEntry{Name: "secure", Link: secure2})
-	chain2.InsertAfter("secure", recordingLink{"after-secure", rec2})
+	chain2.InsertAfter("secure", "after-secure", recordingLink{"after-secure", rec2})
 	disp2 := chain2.Build(base)
 
 	_, err = disp2.Send(testMessage{ctx: anonymousContext(), name: "admin:only"})

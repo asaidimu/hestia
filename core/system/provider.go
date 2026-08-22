@@ -110,7 +110,7 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	ps.Notifications = notifsModel
 	ps.Schedules = schedules.NewScheduleModel(ps.Persist)
 
-	ps.Scheduler = scheduler.New(ps.Logger)
+	ps.Scheduler = scheduler.New(context.Background(), ps.Logger)
 	ps.Scheduler.Register("notifications:cleanup", "@every 1h", func(ctx context.Context) error {
 		deleted, err := ps.Notifications.DeleteExpired(ctx)
 		if err != nil {

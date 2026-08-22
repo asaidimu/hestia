@@ -22,6 +22,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 	s := abstract.MustResolve[*NotificationsService](rt)
 	return []abstract.MessageRegistration{
 		{
+			Name:        "system:notifications:notification:create",
+			Description: "Create an in-app notification for a user",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.NotificationCreateInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.SystemNotifications](),
+			Handler: dispatch.HandleDocument[model.NotificationCreateInput, *model.SystemNotifications](s.CreateNotification),
+		},
+		{
 			Name:        "system:notifications:notification:list",
 			Description: "List notifications for the current user",
 			Intent:      abstract.Read,

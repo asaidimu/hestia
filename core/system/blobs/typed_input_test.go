@@ -8,6 +8,7 @@ import (
 	"github.com/asaidimu/blobs/staging"
 
 	"github.com/asaidimu/hestia/core/system/blobs"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -17,7 +18,7 @@ func TestProbeTypedInputs(t *testing.T) {
 	t.Run("list prefix+limit", func(t *testing.T) {
 		store := mockBlobStore{ns: mockBlobNamespace{}}
 		h := blobs.NewListBlobsHandler(store)
-		in := testutil.InputDoc(t, blobs.BlobListInputSchema(), `{
+		in := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobListInput]("input", true), `{
 			"arguments": {"ns": "ns1"},
 			"payload": {"prefix": "x/", "limit": 25}
 		}`)
@@ -35,7 +36,7 @@ func TestProbeTypedInputs(t *testing.T) {
 			headErr: &bserrors.NotFoundError{NamespaceID: "ns1", Key: "big.bin"},
 		}}
 		h := blobs.NewBeginUploadHandler(store, mgr)
-		in := testutil.InputDoc(t, blobs.BlobBeginInputSchema(), `{
+		in := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobBeginInput]("input", true), `{
 			"arguments": {"ns": "ns1"},
 			"payload": {"key": "big.bin", "size": 10485760, "content_type": "application/octet-stream", "block_size": 2097152}
 		}`)
@@ -57,7 +58,7 @@ func TestProbeTypedInputs(t *testing.T) {
 			headErr: &bserrors.NotFoundError{NamespaceID: "ns1", Key: "a.txt"},
 		}}
 		h := blobs.NewUpdateBlobHandler(store)
-		in := testutil.InputDoc(t, blobs.BlobUpdateInputSchema(), `{
+		in := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUpdateInput]("input", true), `{
 			"arguments": {"ns": "ns1", "key": "a.txt"},
 			"payload": {"custom": {"author": "x", "tier": "1"}}
 		}`)

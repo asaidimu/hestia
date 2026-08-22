@@ -51,14 +51,8 @@ func (m *dispatchMessage) UserAgent() string  { return runtimecontext.GetUserAge
 func (m *dispatchMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
 func (m *dispatchMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
 
-// @note #review-20260821-016 issue status=open priority=P2 tags=#review,#design : Magic number in stream channel buffer
-// The stream channel is created with a buffer size of 1, which means the
-// dispatcher will block after sending the first document if the consumer
-// hasn't started reading yet. This could cause deadlocks in certain
-// scenarios where the dispatcher and consumer are not properly synchronized.
-//
-// Consider making the buffer size configurable or documenting the assumption
-// that the consumer must be ready before the dispatcher sends.
+const streamChannelBuffer = 1
+
 func Dispatch(disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, error) {
 	msgID := in.ID
 	if msgID == "" {
@@ -73,7 +67,7 @@ func Dispatch(disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, err
 	}
 
 	if in.Intent == abstract.Stream {
-		msg.inputCh = make(chan data.Documenter, 1)
+		msg.inputCh = make(chan data.Documenter, streamChannelBuffer)
 	}
 
 	result, err := disp.Send(msg)

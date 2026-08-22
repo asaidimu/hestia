@@ -126,13 +126,9 @@ func (d *LocalDispatcher) IsHandlerBootstrapSafe(name string) bool {
 	return entry.bootstrapSafe
 }
 
-// @note #review-20260821-014 issue status=open priority=P2 tags=#review,#consistency : DeleteHandler returns nil for non-existent handlers
-// DeleteHandler silently succeeds when deleting a non-existent handler, while
-// other methods (GetHandler, SetHandlerEnabled) return an error. This inconsistency
-// could mask bugs where code assumes a handler exists after deletion.
-//
-// Consider returning an error when the handler doesn't exist, or document
-// that this is intentional (e.g., for idempotent cleanup).
+// DeleteHandler removes a handler. It is idempotent — deleting a non-existent
+// handler returns nil, which is intentional for cleanup paths (e.g. removing
+// ns-scoped handlers when a namespace is deleted).
 func (d *LocalDispatcher) DeleteHandler(name string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

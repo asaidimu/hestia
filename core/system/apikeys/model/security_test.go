@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/internal/testutil"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func newTestKeyModel(t *testing.T) *SystemAPIKeys {
@@ -177,7 +178,7 @@ func TestAPIKey_PublicProjectionExcludesHash(t *testing.T) {
 	}
 
 	// The output schema (serialized JSON contract) must not contain hash either.
-	schema := APIKeyOutputSchema()
+	schema := dispatch.SchemaFromType[APIKeyOutput]()
 	for _, f := range schema.Fields {
 		if strings.EqualFold(string(f.Name), "hash") {
 			t.Fatalf("output schema must not expose a hash field, got %q", f.Name)

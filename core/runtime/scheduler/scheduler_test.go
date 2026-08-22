@@ -10,7 +10,7 @@ import (
 )
 
 func TestRegisterAndList(t *testing.T) {
-	s := scheduler.New(zap.NewNop())
+	s := scheduler.New(context.Background(), zap.NewNop())
 
 	named := make(chan string, 5)
 	s.Register("job:a", "@every 1s", func(ctx context.Context) error {
@@ -40,7 +40,7 @@ func TestRegisterAndList(t *testing.T) {
 }
 
 func TestSchedulerStartStop(t *testing.T) {
-	s := scheduler.New(zap.NewNop())
+	s := scheduler.New(context.Background(), zap.NewNop())
 
 	ran := make(chan struct{}, 5)
 	s.Register("test:run", "@every 1s", func(ctx context.Context) error {
@@ -67,7 +67,7 @@ func TestSchedulerStartStop(t *testing.T) {
 }
 
 func TestJobInfoFields(t *testing.T) {
-	s := scheduler.New(zap.NewNop())
+	s := scheduler.New(context.Background(), zap.NewNop())
 
 	s.Register("test:info", "@every 5m", func(ctx context.Context) error {
 		return nil

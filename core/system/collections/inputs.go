@@ -1,18 +1,4 @@
-// @note #cruft-20260821-004 issue status=open priority=P1 tags=#cruft,#dead-code : Stale schema functions in collections/inputs.go
-// @see #8uuufn
-//
-// The schema functions (CollectionGetInputSchema, CollectionCreateInputSchema,
-// etc.) at the bottom of this file are dead code. The generated registrations
-// in collections/registrations.go use dispatch.SchemaFromTypeWithTag directly.
-//
-// Resolution: remove the schema functions. The input types themselves are still
-// used by the service methods and registrations.
 package collections
-
-import (
-	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
-)
 
 type CollectionGetInput struct {
 	Name string `input:"arguments.name"`
@@ -51,12 +37,3 @@ type CollectionDocDeleteInput struct {
 	Name  string `input:"arguments.name"`
 	DocID string `input:"arguments.doc_id"`
 }
-
-func CollectionGetInputSchema() *definition.Schema       { return dispatch.SchemaFromTypeWithTag[CollectionGetInput]("input", true) }
-func CollectionCreateInputSchema() *definition.Schema    { return dispatch.SchemaFromTypeWithTag[CollectionCreateInput]("input", true) }
-func CollectionDeleteInputSchema() *definition.Schema    { return dispatch.SchemaFromTypeWithTag[CollectionDeleteInput]("input", true) }
-func CollectionDocQueryInputSchema() *definition.Schema  { return dispatch.SchemaFromTypeWithTag[CollectionDocQueryInput]("input", true) }
-func CollectionDocCreateInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[CollectionDocCreateInput]("input", true) }
-func CollectionDocGetInputSchema() *definition.Schema    { return dispatch.SchemaFromTypeWithTag[CollectionDocGetInput]("input", true) }
-func CollectionDocUpdateInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[CollectionDocUpdateInput]("input", true) }
-func CollectionDocDeleteInputSchema() *definition.Schema { return dispatch.SchemaFromTypeWithTag[CollectionDocDeleteInput]("input", true) }

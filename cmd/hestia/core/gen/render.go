@@ -1,14 +1,3 @@
-// @note #cmd-cruft-20260821-004 issue status=open priority=P3 tags=#cruft,#duplication : Duplicate title() function in gen/render.go and core/module.go
-//
-// The title() function (lines 277-282) is identical to the one in
-// cmd/hestia/core/module.go (lines 176-181). Both are:
-//   strings.ToUpper(s[:1]) + s[1:]
-//
-// Since core and gen are separate packages, this is not a compilation error,
-// but it is a maintenance concern — changes to one must be mirrored in the other.
-//
-// Resolution: Export the function from one package (e.g., gen.Title()) and
-// import it in the other, or create a shared utility package.
 package gen
 
 import (
@@ -81,9 +70,9 @@ func renderRegistrations(pkg string, regs []annotate.Annotation) (string, error)
 
 	// The service constructor type is <Pkg>Service per the scaffold convention;
 	// fall back to it when no annotations are present to name the service.
-	svc := title(pkg) + "Service"
+	svc := Title(pkg) + "Service"
 	if len(regs) > 0 {
-		svc = title(regs[0].Service)
+		svc = Title(regs[0].Service)
 	}
 
 	fmt.Fprintf(&b, "// RegisterService registers the %s service in the runtime DI\n", pkg)
@@ -285,7 +274,8 @@ func renderCollector(pkg string, services []Service) (string, error) {
 	return b.String(), nil
 }
 
-func title(s string) string {
+// Title capitalizes the first letter of s.
+func Title(s string) string {
 	if s == "" {
 		return s
 	}

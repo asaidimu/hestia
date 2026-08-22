@@ -1,8 +1,23 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-21T11:56:49.870690031Z",
+  "generatedAt": "2026-08-22T20:42:35.155733267Z",
   "root": ".",
   "notes": {
+    "83l69u": {
+      "id": "83l69u",
+      "category": "todo",
+      "status": "open",
+      "title": "Investigate other methods of identification",
+      "body": "We need to investiagate other auth methods such as a list of trusted domains so that external events such as\nWebhooks can be processed without requiring API Keys\n",
+      "location": {
+        "file": "core/runtime/secure-dispatcher.go",
+        "startLine": 74,
+        "startCol": 3,
+        "endLine": 77,
+        "endCol": 3
+      },
+      "hash": "04e9a380d3f203ca"
+    },
     "8uuufn": {
       "id": "8uuufn",
       "category": "todo",
@@ -17,21 +32,6 @@
         "endCol": 3
       },
       "hash": "ff1e5f19449cf55c"
-    },
-    "arch-20260821-002": {
-      "id": "arch-20260821-002",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate SystemScopePrefix variable",
-      "body": "SystemScopePrefix is defined in both:\n- runtime/auth.go:14 (with ldflags override comment)\n- runtime/context/identity.go:45\n\nBoth are mutable `var` and can diverge independently. The one in auth.go has\nan ldflags override comment. The one in context/identity.go is used to construct\nsystemIdentity (lines 47-50). These must be kept in sync manually.\n\nResolution: Move to a single canonical location (probably the config package\nor abstract package) and reference it from both locations.\n",
-      "location": {
-        "file": "core/runtime/auth.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 11,
-        "endCol": 3
-      },
-      "hash": "e1955979edbf1dfb"
     },
     "arch-20260821-003": {
       "id": "arch-20260821-003",
@@ -96,21 +96,6 @@
       },
       "hash": "3a1bae2dcb2416e5"
     },
-    "arch-20260821-007": {
-      "id": "arch-20260821-007",
-      "category": "issue",
-      "status": "open",
-      "title": "Global mutable state and unbounded cache in dispatch/input.go",
-      "body": "This file contains multiple pieces of global mutable state:\n\n1. InputMetaSchemaJSON (line 12) - exported mutable byte slice\n2. inputMetaSchema (line 106) - package-init singleton\n3. inputSchemaValidator (line 110) - global lazy singleton via sync.Once\n4. docValidators (line 121) - global sync.Map cache that never evicts\n\nThe validatorOnce.Do callback ignores the error from definition.NewDocumentValidator\n(line 116). If the validator fails to initialize, inputSchemaValidator will be nil\nand the subsequent Validate call will panic with a nil pointer dereference.\n\nThe docValidators cache grows unboundedly, which could be a memory issue in\nlong-running applications with many schemas.\n\nResolution: Store the validator error and return it from ValidateInputSchema,\nor panic immediately with a clear message. Consider adding eviction to\ndocValidators or using a bounded cache.\n",
-      "location": {
-        "file": "core/runtime/dispatch/input.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 18,
-        "endCol": 3
-      },
-      "hash": "0ac3738cee0c141a"
-    },
     "arch-20260821-008": {
       "id": "arch-20260821-008",
       "category": "issue",
@@ -170,21 +155,6 @@
         "endCol": 3
       },
       "hash": "04a11627c1767301"
-    },
-    "arch-20260821-012": {
-      "id": "arch-20260821-012",
-      "category": "issue",
-      "status": "open",
-      "title": "Notification template resolver silently swallows errors",
-      "body": "The Render method silently returns (name, \"\", nil) for multiple error conditions:\n- Collection open failure (line 40-42)\n- Query failure or empty result (line 45-48)\n- Get failure on value field (line 50-53)\n- Type assertion failure (line 54-57)\n- Missing subject in template (line 72-74)\n\nThis makes debugging template issues impossible in production. The caller\nreceives an empty body with no indication of what went wrong.\n\nResolution: Log warnings for these conditions or return a sentinel error\nthat callers can handle differently from \"template not found.\"\n",
-      "location": {
-        "file": "core/runtime/notification/template.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 13,
-        "endCol": 3
-      },
-      "hash": "6612a123c450d5b0"
     },
     "arch-20260821-013": {
       "id": "arch-20260821-013",
@@ -261,21 +231,6 @@
       },
       "hash": "3218b4b0bd8fab30"
     },
-    "cmd-cruft-20260821-001": {
-      "id": "cmd-cruft-20260821-001",
-      "category": "issue",
-      "status": "open",
-      "title": "Deprecated selfMode flag declared but never read",
-      "body": "The variable `selfMode` (line 32) is bound to the --self flag (lines 112-113)\nbut is never read anywhere in the codebase. The flag is deprecated in favor\nof `hestia generate features`.\n\nResolution: Remove the variable declaration and flag registration entirely.",
-      "location": {
-        "file": "cmd/hestia/core/generate.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 7,
-        "endCol": 3
-      },
-      "hash": "4b6181e38048353b"
-    },
     "cmd-cruft-20260821-002": {
       "id": "cmd-cruft-20260821-002",
       "category": "issue",
@@ -284,57 +239,12 @@
       "body": "The fieldToExpr function (lines 236-296) contains a large, hardcoded switch\nstatement that maps dependency type names to specific struct field expressions.\nEvery new dependency type added to a feature's Dependencies struct requires\na manual case here.\n\nThis is:\n- Fragile: If a developer adds a new dependency type and forgets to add a case,\n  fieldToExpr falls through to the generic default which may produce incorrect code\n- Tightly coupled: Embeds knowledge of the entire system module's architecture\n- Not extensible: Downstream projects using hestia generate features with their\n  own dependency types would silently get incorrect code generation\n\nResolution: Consider a more extensible approach such as:\n1. A registry of type-to-expression mappings that can be extended\n2. Convention-based naming (e.g., type name -\u003e field name mapping)\n3. Configuration in hestia.json for custom type mappings\n",
       "location": {
         "file": "cmd/hestia/core/generate.go",
-        "startLine": 7,
+        "startLine": 0,
         "startCol": 3,
-        "endLine": 24,
+        "endLine": 17,
         "endCol": 3
       },
       "hash": "57759c0731687ace"
-    },
-    "cmd-cruft-20260821-003": {
-      "id": "cmd-cruft-20260821-003",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate title() function in module.go and gen/render.go",
-      "body": "The title() function (lines 176-181) is identical to the one in\ncmd/hestia/core/gen/render.go (lines 277-282). Both are:\n  strings.ToUpper(s[:1]) + s[1:]\n\nSince gen is a separate package, this is not a compilation error, but it\nis a maintenance concern — changes to one must be mirrored in the other.\n\nResolution: Export the function from one package (e.g., gen.Title()) and\nimport it in the other, or create a shared utility package.\n",
-      "location": {
-        "file": "cmd/hestia/core/module.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "ab758e274fb24647"
-    },
-    "cmd-cruft-20260821-004": {
-      "id": "cmd-cruft-20260821-004",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate title() function in gen/render.go and core/module.go",
-      "body": "The title() function (lines 277-282) is identical to the one in\ncmd/hestia/core/module.go (lines 176-181). Both are:\n  strings.ToUpper(s[:1]) + s[1:]\n\nSince core and gen are separate packages, this is not a compilation error,\nbut it is a maintenance concern — changes to one must be mirrored in the other.\n\nResolution: Export the function from one package (e.g., gen.Title()) and\nimport it in the other, or create a shared utility package.\n",
-      "location": {
-        "file": "cmd/hestia/core/gen/render.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "294925038e201dca"
-    },
-    "cmd-cruft-20260821-005": {
-      "id": "cmd-cruft-20260821-005",
-      "category": "issue",
-      "status": "open",
-      "title": "Blank identifier usage in gen_test.go",
-      "body": "The line `var _ = strings.TrimSpace` (line 178) serves no purpose. The\nstrings package is already imported and used elsewhere in the file. This\nappears to be a leftover from when someone was ensuring the import was\nexercised.\n\nResolution: Remove the line.\n",
-      "location": {
-        "file": "cmd/hestia/core/gen/gen_test.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 7,
-        "endCol": 3
-      },
-      "hash": "f2c7fcc8c174e77c"
     },
     "cruft-20260821-001": {
       "id": "cruft-20260821-001",
@@ -390,168 +300,6 @@
       },
       "hash": "c2663b2034459fb3"
     },
-    "cruft-20260821-004": {
-      "id": "cruft-20260821-004",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in collections/inputs.go",
-      "body": "The schema functions (CollectionGetInputSchema, CollectionCreateInputSchema,\netc.) at the bottom of this file are dead code. The generated registrations\nin collections/registrations.go use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: remove the schema functions. The input types themselves are still\nused by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/collections/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "aaf6945a11d9a34d"
-    },
-    "cruft-20260821-005": {
-      "id": "cruft-20260821-005",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in collections/outputs.go",
-      "body": "The schema functions (collectionListOutputSchema, collectionOutputSchema,\ncollectionQueryOutputSchema, collectionDocumentOutputSchema) are dead code.\nThe generated registrations use dispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/collections/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "839ccb80922154f6"
-    },
-    "cruft-20260821-006": {
-      "id": "cruft-20260821-006",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate input types in settings/inputs.go and settings/model/inputs.go",
-      "body": "This file defines SettingKeyInput and SetSettingInput, which are duplicated\nin settings/model/inputs.go. The generated registrations use the model/\nversions. Additionally, SettingListInput is defined only in model/inputs.go.\n\nThe schema functions (SettingKeyInputSchema, SetSettingInputSchema) are\ndead code — the registrations use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: delete this file entirely; all consumers should import from\nsettings/model.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/settings/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 11,
-        "endCol": 3
-      },
-      "hash": "bee3b1da0c0edc75"
-    },
-    "cruft-20260821-007": {
-      "id": "cruft-20260821-007",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate output types in settings/outputs.go and settings/model/outputs.go",
-      "body": "This file defines SettingDocumentView, SettingOutput, SettingsListOutput,\nand MessageOutput — all duplicated in settings/model/outputs.go.\nThe generated registrations use the model/ versions.\n\nThe schema functions (settingOutputSchema, etc.) are dead code.\n\nResolution: delete this file entirely; all consumers should import from\nsettings/model.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/settings/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "9fd1ab870a1b7720"
-    },
-    "cruft-20260821-008": {
-      "id": "cruft-20260821-008",
-      "category": "issue",
-      "status": "open",
-      "title": "Old-style handler functions superseded by service methods",
-      "body": "This file contains NewListSettingsHandler, NewGetSettingHandler,\nNewSetSettingHandler, and NewDeleteSettingHandler — all using the old\npattern of manual input extraction via doc.GetString/getOr.\n\nThe generated registrations in settings/registrations.go use the typed\nservice methods from settings/service.go (ListSettings, GetSetting, etc.)\nwith dispatch.Handle[T] for automatic input binding.\n\nResolution: delete this file; it is not referenced anywhere in production code.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/settings/handler.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 11,
-        "endCol": 3
-      },
-      "hash": "43bdd9448d5c736e"
-    },
-    "cruft-20260821-009": {
-      "id": "cruft-20260821-009",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in apikeys/model/data_transfer_objects.go",
-      "body": "The schema functions (APIKeyListInputSchema, APIKeyGetInputSchema,\nAPIKeyDeleteInputSchema, APIKeyRotateInputSchema, APIKeyCreateInputSchema,\nAPIKeyUpdateInputSchema, APIKeyOutputSchema, APIKeyListOutputSchema) are\ndead code. The generated registrations use dispatch.SchemaFromTypeWithTag\nand dispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The input/output types themselves\nare still used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/apikeys/model/data_transfer_objects.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "305d2e1eb372a235"
-    },
-    "cruft-20260821-010": {
-      "id": "cruft-20260821-010",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in users/model/data_transfer_objects.go",
-      "body": "The schema functions (UserQueryInputSchema, UserQueryOutputSchema,\nUserOutputSchema, UserUpdateInputSchema, UserGetInputSchema,\nUserRegisterInputSchema, UserChangePasswordInputSchema, UserDeleteInputSchema,\nMessageOutputSchema) are dead code. The generated registrations use\ndispatch.SchemaFromTypeWithTag and dispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The input/output types themselves\nare still used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/users/model/data_transfer_objects.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "90a5363367c306d1"
-    },
-    "cruft-20260821-011": {
-      "id": "cruft-20260821-011",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in settings/model/inputs.go",
-      "body": "The schema functions (SettingKeyInputSchema, SetSettingInputSchema) are\ndead code. The generated registrations use dispatch.SchemaFromTypeWithTag\ndirectly.\n\nResolution: remove the schema functions. The input types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/settings/model/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "a34d97c10a1c7142"
-    },
-    "cruft-20260821-012": {
-      "id": "cruft-20260821-012",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in settings/model/outputs.go",
-      "body": "The schema functions (settingOutputSchema, settingsListOutputSchema,\nmessageOutputSchema) are dead code. The generated registrations use\ndispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/settings/model/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "f118f562993fb40d"
-    },
     "cruft-20260821-013": {
       "id": "cruft-20260821-013",
       "category": "observation",
@@ -588,42 +336,6 @@
       },
       "hash": "097f162c784f90ac"
     },
-    "cruft-20260821-015": {
-      "id": "cruft-20260821-015",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema function in operations/inputs.go",
-      "body": "The schema function CapabilityNameInputSchema() is dead code. The generated\nregistrations use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: remove the schema function. The CapabilityNameInput type itself\nis still used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/operations/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 7,
-        "endCol": 3
-      },
-      "hash": "9194745760521f91"
-    },
-    "cruft-20260821-016": {
-      "id": "cruft-20260821-016",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in operations/outputs.go",
-      "body": "The schema functions (healthOutputSchema, documentationOutputSchema,\ncapabilitiesOutputSchema, messageOutputSchema, schedulerListOutputSchema)\nare dead code. The generated registrations use dispatch.SchemaFromType\ndirectly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/operations/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 9,
-        "endCol": 3
-      },
-      "hash": "5a7b0f1a0bbe33ba"
-    },
     "cruft-20260821-017": {
       "id": "cruft-20260821-017",
       "category": "observation",
@@ -641,42 +353,6 @@
         "endCol": 3
       },
       "hash": "76c0e61a6bf80eef"
-    },
-    "cruft-20260821-018": {
-      "id": "cruft-20260821-018",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in blobs/inputs.go",
-      "body": "The schema functions (NsInputSchema, NsCreateInputSchema, BlobKeyInputSchema,\nBlobListInputSchema, BlobUpdateInputSchema, BlobUploadInputSchema,\nBlobBeginInputSchema, BlobChunkInputSchema, BlobCompleteInputSchema,\nBlobAbortInputSchema, BlobProgressInputSchema) are dead code. The generated\nregistrations use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: remove the schema functions. The input types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/blobs/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "73ebe30333ad4002"
-    },
-    "cruft-20260821-019": {
-      "id": "cruft-20260821-019",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in blobs/outputs.go",
-      "body": "The schema functions (nsListOutputSchema, nsOutputSchema, blobListOutputSchema,\nblobMetaOutputSchema, uploadBeginOutputSchema, uploadChunkOutputSchema,\nuploadProgressOutputSchema) are dead code. The generated registrations use\ndispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/blobs/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 9,
-        "endCol": 3
-      },
-      "hash": "6c879986c6b309d4"
     },
     "cruft-20260821-020": {
       "id": "cruft-20260821-020",
@@ -696,42 +372,6 @@
       },
       "hash": "5c8300153952d44a"
     },
-    "cruft-20260821-021": {
-      "id": "cruft-20260821-021",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in schedules/inputs.go",
-      "body": "The schema functions (ScheduleCreateInputSchema, ScheduleGetInputSchema,\nScheduleUpdateInputSchema, ScheduleDeleteInputSchema) are dead code. The\ngenerated registrations use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: remove the schema functions. The input types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/schedules/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "0b6bb6559aecbdbb"
-    },
-    "cruft-20260821-022": {
-      "id": "cruft-20260821-022",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in schedules/outputs.go",
-      "body": "The schema functions (schedulesListOutputSchema, scheduleOutputSchema,\nmessageOutputSchema) are dead code. The generated registrations use\ndispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/schedules/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "c0bf518901632ee3"
-    },
     "cruft-20260821-023": {
       "id": "cruft-20260821-023",
       "category": "observation",
@@ -749,24 +389,6 @@
         "endCol": 3
       },
       "hash": "70d23dfaf9c933a6"
-    },
-    "cruft-20260821-024": {
-      "id": "cruft-20260821-024",
-      "category": "issue",
-      "status": "open",
-      "title": "Stale schema functions in notifications/outputs.go",
-      "body": "The schema functions (notificationsListOutputSchema, messageOutputSchema,\nunreadCountOutputSchema) are dead code. The generated registrations use\ndispatch.SchemaFromType directly.\n\nResolution: remove the schema functions. The output types themselves are\nstill used by the service methods and registrations.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/notifications/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 8,
-        "endCol": 3
-      },
-      "hash": "452498a8bcfab8d2"
     },
     "cruft-20260821-025": {
       "id": "cruft-20260821-025",
@@ -786,36 +408,6 @@
       },
       "hash": "eb9898bf8286a09f"
     },
-    "mem-20260821-001": {
-      "id": "mem-20260821-001",
-      "category": "issue",
-      "status": "open",
-      "title": "Unbounded validator cache grows indefinitely",
-      "body": "docValidators (line 140) is a sync.Map that caches DocumentValidator\ninstances but never evicts them. In long-running applications:\n\n- Each unique schema creates a new validator entry\n- Validators are never removed even if schemas are deleted\n- Memory grows linearly with schema count\n\nFor IoT/HFT deployments:\n- IoT devices have limited memory\n- HFT systems need predictable memory usage\n- Memory leaks cause OOM kills\n\nResolution:\n1. Use a bounded cache with LRU eviction (e.g., sync.Pool or go-cache)\n2. Add TTL-based eviction for unused validators\n3. Consider caching by schema hash instead of pointer (allows GC)\n4. Add metrics to monitor cache size\n",
-      "location": {
-        "file": "core/runtime/dispatch/input.go",
-        "startLine": 139,
-        "startCol": 3,
-        "endLine": 157,
-        "endCol": 3
-      },
-      "hash": "ac5a23de2afc4654"
-    },
-    "mem-20260821-002": {
-      "id": "mem-20260821-002",
-      "category": "issue",
-      "status": "open",
-      "title": "Document pool creation panics on error",
-      "body": "installRegistration (line 54) panics if document.NewDocumentPool fails.\nThis is a startup-time error, but panicking is bad practice:\n\n1. Prevents graceful error handling\n2. Makes testing difficult\n3. Can leave resources in inconsistent state\n\nFor IoT/HFT: Panics during startup could leave devices in bricked state.\n\nResolution: Return an error from installRegistration and handle it\ngracefully. Log the error and skip the registration instead of panicking.\n",
-      "location": {
-        "file": "core/interface/http/register.go",
-        "startLine": 53,
-        "startCol": 3,
-        "endLine": 65,
-        "endCol": 3
-      },
-      "hash": "8d8b4675faf3984d"
-    },
     "mem-20260821-003": {
       "id": "mem-20260821-003",
       "category": "issue",
@@ -824,12 +416,27 @@
       "body": "streamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\n",
       "location": {
         "file": "core/interface/http/register.go",
-        "startLine": 183,
+        "startLine": 176,
         "startCol": 3,
-        "endLine": 198,
+        "endLine": 191,
         "endCol": 3
       },
       "hash": "94a98ea930809cda"
+    },
+    "migrate-20260822-001": {
+      "id": "migrate-20260822-001",
+      "category": "todo",
+      "status": "open",
+      "title": "Migrate updates' hand-wired Registrations/PolicyBindings to hestia codegen",
+      "body": "Every other feature declares its messages via @hestia.register annotations\non service methods and gets registrations.go/policies.go generated by\n`hestia generate features` (see AGENTS.md and the users reference\nservice). The updates feature is wired manually here because it registers\nconditionally — only when SelfUpdate is configured (Registrations takes\nDependencies and PolicyBindings is appended outside the static\ngen_features.go wiring) — and it predates the codegen workflow. The two\nnewer messages (system:updates:check:get, system:updates:stage:create)\nalready carry @hestia.register annotations on their service methods, so a\nmigration needs to solve conditional registration in the generator, then\ndelete this file's manual lists.\n\nCheckView is the wire shape of the legacy check-then-stage call.\n",
+      "location": {
+        "file": "core/system/updates/register.go",
+        "startLine": 13,
+        "startCol": 3,
+        "endLine": 27,
+        "endCol": 3
+      },
+      "hash": "0622f258f58e4970"
     },
     "org-20260821-001": {
       "id": "org-20260821-001",
@@ -951,35 +558,6 @@
       },
       "hash": "26f071925ba98b5b"
     },
-    "r9i7ec": {
-      "id": "r9i7ec",
-      "category": "issue",
-      "status": "open",
-      "title": "This code is duplicated in ApplyEnvOverrides",
-      "location": {
-        "file": "core/runtime/config.go",
-        "startLine": 222,
-        "startCol": 3,
-        "endLine": 223,
-        "endCol": 3
-      },
-      "hash": "eba97d5169c50023"
-    },
-    "ra2yqz": {
-      "id": "ra2yqz",
-      "category": "issue",
-      "status": "open",
-      "title": "Unsafe exit on bootstrap complete",
-      "body": "a good case would be here where we want to exit the application\nafter bootstrap so that the app can continue\n",
-      "location": {
-        "file": "core/system/auth/service.go",
-        "startLine": 267,
-        "startCol": 3,
-        "endLine": 270,
-        "endCol": 3
-      },
-      "hash": "c591bcf8c934ad53"
-    },
     "review-20260821-001": {
       "id": "review-20260821-001",
       "category": "todo",
@@ -1010,36 +588,6 @@
       },
       "hash": "a4f00b55946dcdf0"
     },
-    "review-20260821-003": {
-      "id": "review-20260821-003",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate BcryptCost constant",
-      "body": "is also defined in config.go with the same value. This duplication can lead\nto inconsistencies if one is updated without the other.\n\nConsider removing the constant here and using DefaultBcryptCost from config.go,\nor consolidating both into a single constants package.\n",
-      "location": {
-        "file": "core/runtime/password.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 6,
-        "endCol": 3
-      },
-      "hash": "29cab4f703b93b96"
-    },
-    "review-20260821-004": {
-      "id": "review-20260821-004",
-      "category": "issue",
-      "status": "open",
-      "title": "CheckPassword swallows bcrypt errors",
-      "body": "bcrypt.CompareHashAndPassword. While this is a common pattern for\npassword verification, it means malformed hashes or other internal errors\nare indistinguishable from wrong passwords.\n\nConsider returning (bool, error) for better observability, or at minimum\nlogging the error for debugging purposes.\n",
-      "location": {
-        "file": "core/runtime/password.go",
-        "startLine": 25,
-        "startCol": 3,
-        "endLine": 32,
-        "endCol": 3
-      },
-      "hash": "e0fe1f1999e92389"
-    },
     "review-20260821-005": {
       "id": "review-20260821-005",
       "category": "todo",
@@ -1063,9 +611,9 @@
       "body": "(ident.Properties.(map[string]any) then props[\"operations\"]). This pattern is\nrepeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).\n\nConsider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or\ndefining a typed IdentityProperties struct to reduce duplication and improve type safety.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 67,
+        "startLine": 59,
         "startCol": 3,
-        "endLine": 73,
+        "endLine": 65,
         "endCol": 3
       },
       "hash": "5923e29db65db391"
@@ -1078,27 +626,12 @@
       "body": "nested type assertion pattern found in extractUserID (rate-limit.go),\nextractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).\n\nConsider consolidating these into a single helper function in a shared package\n(e.g., runtime/identity) to reduce duplication and ensure consistent behavior.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 131,
+        "startLine": 130,
         "startCol": 3,
-        "endLine": 137,
+        "endLine": 136,
         "endCol": 3
       },
       "hash": "b32f9154f9fa0244"
-    },
-    "review-20260821-008": {
-      "id": "review-20260821-008",
-      "category": "issue",
-      "status": "open",
-      "title": "Unchecked type assertion in stringSlice",
-      "body": "without handling the case where the assertion fails (element is skipped silently).\nWhile this is defensive, it could mask data issues where non-string values\nappear in the operations list.\n\nConsider logging a warning when non-string elements are encountered, or\nreturning an error to alert callers of malformed data.\n",
-      "location": {
-        "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 29,
-        "startCol": 3,
-        "endLine": 36,
-        "endCol": 3
-      },
-      "hash": "b9b2fd447b473283"
     },
     "review-20260821-009": {
       "id": "review-20260821-009",
@@ -1115,126 +648,6 @@
       },
       "hash": "cf2986f8b3c668fd"
     },
-    "review-20260821-010": {
-      "id": "review-20260821-010",
-      "category": "issue",
-      "status": "open",
-      "title": "Swallowed error in ValidateInputSchema",
-      "body": "If the validator fails to initialize, inputSchemaValidator will be nil and the\nsubsequent Validate call will panic with a nil pointer dereference.\n\nConsider storing the error and returning it from ValidateInputSchema, or\npanicking immediately with a clear message if the validator cannot be created.\n",
-      "location": {
-        "file": "core/runtime/dispatch/input.go",
-        "startLine": 117,
-        "startCol": 3,
-        "endLine": 123,
-        "endCol": 3
-      },
-      "hash": "fb3db0f3cd22872f"
-    },
-    "review-20260821-011": {
-      "id": "review-20260821-011",
-      "category": "issue",
-      "status": "open",
-      "title": "Silent error swallowing in template resolution",
-      "body": "- Collection open failure\n- Query failure or empty result\n- Get failure on value field\n- Missing subject in template\n\nThis makes debugging template issues difficult. Consider logging warnings\nfor these conditions or returning a sentinel error that callers can handle\ndifferently from \"template not found.\"\n",
-      "location": {
-        "file": "core/runtime/notification/template.go",
-        "startLine": 41,
-        "startCol": 3,
-        "endLine": 50,
-        "endCol": 3
-      },
-      "hash": "11ed7da469fd8b4b"
-    },
-    "review-20260821-012": {
-      "id": "review-20260821-012",
-      "category": "issue",
-      "status": "open",
-      "title": "Context.Background() used in Start method",
-      "body": "there's no way to cancel or timeout the seeding operation. This could be\nproblematic in graceful shutdown scenarios or when the seeding takes longer\nthan expected.\n\nConsider accepting a context.Context parameter or using a context derived\nfrom the application's lifecycle context.\n",
-      "location": {
-        "file": "core/hestia.go",
-        "startLine": 126,
-        "startCol": 3,
-        "endLine": 133,
-        "endCol": 3
-      },
-      "hash": "edbf91e67aaaa2e5"
-    },
-    "review-20260821-013": {
-      "id": "review-20260821-013",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate SeedPolicies method with context.Background()",
-      "body": "context.Background(). Consider consolidating these or accepting a context\nparameter for better control.\n",
-      "location": {
-        "file": "core/hestia.go",
-        "startLine": 145,
-        "startCol": 3,
-        "endLine": 148,
-        "endCol": 3
-      },
-      "hash": "a09dfb4b46e67857"
-    },
-    "review-20260821-014": {
-      "id": "review-20260821-014",
-      "category": "issue",
-      "status": "open",
-      "title": "DeleteHandler returns nil for non-existent handlers",
-      "body": "other methods (GetHandler, SetHandlerEnabled) return an error. This inconsistency\ncould mask bugs where code assumes a handler exists after deletion.\n\nConsider returning an error when the handler doesn't exist, or document\nthat this is intentional (e.g., for idempotent cleanup).\n",
-      "location": {
-        "file": "core/runtime/local-dispatcher.go",
-        "startLine": 128,
-        "startCol": 3,
-        "endLine": 134,
-        "endCol": 3
-      },
-      "hash": "b06fe80eb456c89c"
-    },
-    "review-20260821-015": {
-      "id": "review-20260821-015",
-      "category": "issue",
-      "status": "open",
-      "title": "Shutdown error ignored in Restart",
-      "body": "If the shutdown fails (e.g., due to in-flight requests), the transport may be\nin an inconsistent state when the new transport is created.\n\nConsider logging the error or returning it to the caller, and using a\ntimeout context instead of context.Background().\n",
-      "location": {
-        "file": "core/interface/http/server.go",
-        "startLine": 132,
-        "startCol": 3,
-        "endLine": 138,
-        "endCol": 3
-      },
-      "hash": "d96e68f73f79b578"
-    },
-    "review-20260821-016": {
-      "id": "review-20260821-016",
-      "category": "issue",
-      "status": "open",
-      "title": "Magic number in stream channel buffer",
-      "body": "dispatcher will block after sending the first document if the consumer\nhasn't started reading yet. This could cause deadlocks in certain\nscenarios where the dispatcher and consumer are not properly synchronized.\n\nConsider making the buffer size configurable or documenting the assumption\nthat the consumer must be ready before the dispatcher sends.\n",
-      "location": {
-        "file": "core/runtime/dispatch/dispatch.go",
-        "startLine": 53,
-        "startCol": 3,
-        "endLine": 60,
-        "endCol": 3
-      },
-      "hash": "444a1447c9e03b4e"
-    },
-    "review-20260821-017": {
-      "id": "review-20260821-017",
-      "category": "issue",
-      "status": "open",
-      "title": "Fatal calls in Reset method",
-      "body": "terminates the process immediately. This is problematic because:\n1. The caller has no way to handle the error gracefully\n2. In-flight requests are dropped without proper shutdown\n3. Resources may not be properly cleaned up\n\nConsider returning errors instead of calling Fatal, and let the caller\ndecide how to handle the failure (e.g., retry, log and continue, or exit).\n",
-      "location": {
-        "file": "core/internal/boot/app.go",
-        "startLine": 330,
-        "startCol": 3,
-        "endLine": 338,
-        "endCol": 3
-      },
-      "hash": "d56a9d6daec202f5"
-    },
     "review-20260821-018": {
       "id": "review-20260821-018",
       "category": "issue",
@@ -1249,21 +662,6 @@
         "endCol": 3
       },
       "hash": "9873640a1a62bdb0"
-    },
-    "review-20260821-019": {
-      "id": "review-20260821-019",
-      "category": "issue",
-      "status": "open",
-      "title": "Inconsistent indentation in envString",
-      "body": "(extra tab). This is a minor style issue but could indicate copy-paste errors\nor lack of gofmt/goimports in the development workflow.\n",
-      "location": {
-        "file": "core/runtime/config.go",
-        "startLine": 184,
-        "startCol": 3,
-        "endLine": 187,
-        "endCol": 3
-      },
-      "hash": "0dc8e9b609fe20c4"
     },
     "review-20260821-020": {
       "id": "review-20260821-020",
@@ -1280,40 +678,10 @@
       },
       "hash": "28c43b2abd5b9965"
     },
-    "review-20260821-021": {
-      "id": "review-20260821-021",
-      "category": "issue",
-      "status": "open",
-      "title": "Ambiguous nil check in HandleDocument",
-      "body": "but it may not work as expected for all types. For example, if TOut is a\npointer type, a nil pointer won't equal the zero value of the interface.\n\nConsider using reflection to check for nil, or requiring callers to explicitly\nreturn nil instead of relying on this comparison.\n",
-      "location": {
-        "file": "core/runtime/dispatch/bind.go",
-        "startLine": 37,
-        "startCol": 3,
-        "endLine": 43,
-        "endCol": 3
-      },
-      "hash": "6a5cf2b6146a8339"
-    },
-    "review-20260821-022": {
-      "id": "review-20260821-022",
-      "category": "issue",
-      "status": "open",
-      "title": "Context.Background() in scheduler jobs",
-      "body": "means scheduled jobs have no access to the application's lifecycle context.\nThis could be problematic for:\n1. Graceful shutdown - jobs can't be cancelled\n2. Tracing - jobs can't be linked to the parent trace\n3. Timeout control - jobs run indefinitely\n\nConsider storing the context passed to Start() and using it for job execution,\nor accepting a context factory function at registration time.\n",
-      "location": {
-        "file": "core/runtime/scheduler/scheduler.go",
-        "startLine": 51,
-        "startCol": 3,
-        "endLine": 60,
-        "endCol": 3
-      },
-      "hash": "c7154d0aa9dd2084"
-    },
     "review2-20260821-001": {
       "id": "review2-20260821-001",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "priority": "P1",
       "tags": [
         "security",
@@ -1321,20 +689,21 @@
         "review"
       ],
       "title": "SessionService.Validate does not check ExpiresAt",
-      "body": "Validate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.\n",
+      "body": "\nValidate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/system/auth/session_service.go",
         "startLine": 65,
         "startCol": 3,
-        "endLine": 67,
+        "endLine": 69,
         "endCol": 3
       },
-      "hash": "1ce63d39d777502a"
+      "hash": "43d3ed24c2033c71"
     },
     "review2-20260821-002": {
       "id": "review2-20260821-002",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "priority": "P2",
       "tags": [
         "security",
@@ -1342,7 +711,7 @@
         "review"
       ],
       "title": "ValidateSession result used without checking ExpiresAt",
-      "body": "Two call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt \u003e time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.\n",
+      "body": "\nTwo call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt \u003e time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.\n",
       "references": [
         "#review2-20260821-001"
       ],
@@ -1350,35 +719,15 @@
         "file": "utils/wails/dispatch.go",
         "startLine": 244,
         "startCol": 3,
-        "endLine": 247,
+        "endLine": 248,
         "endCol": 3
       },
-      "hash": "8f09490a97f43070"
-    },
-    "review2-20260821-003": {
-      "id": "review2-20260821-003",
-      "category": "issue",
-      "status": "open",
-      "priority": "P2",
-      "tags": [
-        "review",
-        "api-design"
-      ],
-      "title": "InsertBefore/InsertAfter never set Name on the new link",
-      "body": "InsertBefore inserts link before the link named name (no-op if name isn't\nfound); InsertAfter is the symmetric case. Both build the new LinkEntry as\nLinkEntry{Link: link} -- Name is left as the zero value \"\". Once inserted,\nthat link can never be targeted again: a later InsertBefore(\"\", ...) would\nsilently match the *first* unnamed link ever inserted (since the loop\ncompares l.Name == name and \"\" == \"\" is true), and Remove(\"\") has the same\nproblem. In practice this means only the initial links passed to\nNewDispatcherChain can be reliably referenced afterward; anything added via\nInsertBefore/InsertAfter is a write-once, unaddressable node in the chain.\n\nThis matters for anyone building a dynamic middleware chain at runtime\n(e.g. a P2P transport link inserted conditionally) -- there is currently no\nway to remove or re-anchor around it later without keeping a side-channel\nreference to the exact position.\n\nResolution: change both signatures to InsertBefore(name string, newName\nstring, link abstract.DispatcherLink) (or accept a LinkEntry directly) and\nstore it as LinkEntry{Name: newName, Link: link}.\n",
-      "location": {
-        "file": "core/runtime/chain.go",
-        "startLine": 31,
-        "startCol": 3,
-        "endLine": 50,
-        "endCol": 3
-      },
-      "hash": "8f001f0f5190c447"
+      "hash": "b396eed3fcc5797f"
     },
     "review2-20260821-004": {
       "id": "review2-20260821-004",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "priority": "P1",
       "tags": [
         "review",
@@ -1386,15 +735,16 @@
         "p2p"
       ],
       "title": "system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)",
-      "body": "Despite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success).\n",
+      "body": "\nRESOLVED 2026-08-22: split into system:updates:check:get (read-only\navailability) and system:updates:stage:create (download+prepare+notify);\ncheck:create kept as the backward-compatible check-then-stage wrapper and\nRunScheduledCheck still drives both effects back to back via checkAndStage.\n\nDespite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\n\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success). Kept for backward\ncompatibility; prefer system:updates:check:get +\nsystem:updates:stage:create so each effect stays independently callable.\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/system/updates/service.go",
         "startLine": 97,
         "startCol": 3,
-        "endLine": 128,
+        "endLine": 138,
         "endCol": 3
       },
-      "hash": "85dd674ef3b51909"
+      "hash": "f35455105d35c9df"
     },
     "review2-20260821-005": {
       "id": "review2-20260821-005",
@@ -1446,6 +796,26 @@
         "endCol": 3
       },
       "hash": "ac6839833c170f7c"
+    },
+    "storage-leak-blobs-never-compact-ad27adbb": {
+      "id": "storage-leak-blobs-never-compact-ad27adbb",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "storage-leak",
+        "blobs"
+      ],
+      "title": "Storage leak: blobs never compacted after deletion",
+      "body": "When blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
+      "location": {
+        "file": "core/system/blobs/service.go",
+        "startLine": 229,
+        "startCol": 3,
+        "endLine": 234,
+        "endCol": 3
+      },
+      "hash": "7d29f8cdaf772fcb"
     }
   },
   "files": {
@@ -1481,6 +851,15 @@
     },
     "client/core/wails-transport.ts": {
       "hash": "6527ced247596e56"
+    },
+    "client/dist/index.cjs": {
+      "hash": "f7d9c4afe6eb9bfa"
+    },
+    "client/dist/index.d.ts": {
+      "hash": "c20bdc7dbbb86392"
+    },
+    "client/dist/index.mjs": {
+      "hash": "3def4935bfabb522"
     },
     "client/index.ts": {
       "hash": "bb2cddd55d10effd"
@@ -1641,6 +1020,9 @@
     "client/vitest.config.ts": {
       "hash": "244f47e211874a49"
     },
+    "cmd/auth-test/main.go": {
+      "hash": "13aef5b9319647c6"
+    },
     "cmd/docs-server/main.go": {
       "hash": "7b2e8add9e66cc9f"
     },
@@ -1765,24 +1147,17 @@
       "hash": "436dec777157db0f"
     },
     "cmd/hestia/core/gen/gen_test.go": {
-      "hash": "9c4122695f493442",
-      "noteIds": [
-        "cmd-cruft-20260821-005"
-      ]
+      "hash": "8672a4d7065b4201"
     },
     "cmd/hestia/core/gen/render.go": {
-      "hash": "6f29a5ef621d80c7",
-      "noteIds": [
-        "cmd-cruft-20260821-004"
-      ]
+      "hash": "1a6a9164097fab63"
     },
     "cmd/hestia/core/gen/testdata/users/service.go": {
       "hash": "981401eb15448a04"
     },
     "cmd/hestia/core/generate.go": {
-      "hash": "38e4e295df22ff18",
+      "hash": "055ef3643040798d",
       "noteIds": [
-        "cmd-cruft-20260821-001",
         "cmd-cruft-20260821-002"
       ]
     },
@@ -1790,10 +1165,7 @@
       "hash": "3df2be79e141e54d"
     },
     "cmd/hestia/core/module.go": {
-      "hash": "cdb95ab0992cbdb3",
-      "noteIds": [
-        "cmd-cruft-20260821-003"
-      ]
+      "hash": "f5084ed31ddec132"
     },
     "cmd/hestia/core/remove.go": {
       "hash": "dc73c0d73318a944"
@@ -1802,7 +1174,7 @@
       "hash": "2ad08c97d746eb43"
     },
     "cmd/hestia/core/service.go": {
-      "hash": "3ac204d1d2eb2210"
+      "hash": "8fca46a3c77a6348"
     },
     "cmd/hestia/core/service_test.go": {
       "hash": "41ecb3e603f0a744"
@@ -1854,7 +1226,7 @@
       ]
     },
     "core/abstract/system_options.go": {
-      "hash": "7f3e9e12914ae47f"
+      "hash": "2c2326344a8b8250"
     },
     "core/abstract/transport.go": {
       "hash": "bdbf20e8a2698fbd",
@@ -1864,17 +1236,13 @@
       ]
     },
     "core/hestia.go": {
-      "hash": "79df284469b7834b",
-      "noteIds": [
-        "review-20260821-012",
-        "review-20260821-013"
-      ]
+      "hash": "06b2320ddc8f1c2c"
     },
     "core/interface/cli/config.go": {
       "hash": "58a5b69dbdf65cf0"
     },
     "core/interface/cli/orchestrator.go": {
-      "hash": "eac4bb8ac83e4ede"
+      "hash": "6a184cc102c231d6"
     },
     "core/interface/http/config.go": {
       "hash": "22a1caf301ac8b70"
@@ -1898,18 +1266,17 @@
       "hash": "15e4b4a5089f489d"
     },
     "core/interface/http/internal_hardening_test.go": {
-      "hash": "794b44fdf1361143"
+      "hash": "7bd30d5a4ec7e5f0"
     },
     "core/interface/http/middleware.go": {
-      "hash": "80fb004a0ba333ca",
+      "hash": "a73b9ef849576bd6",
       "noteIds": [
         "sec-20260821-003"
       ]
     },
     "core/interface/http/register.go": {
-      "hash": "b3681423ac70e1b6",
+      "hash": "2fcc36e30df17fd1",
       "noteIds": [
-        "mem-20260821-002",
         "mem-20260821-003"
       ]
     },
@@ -1926,10 +1293,7 @@
       "hash": "da05e55a5d1a2af8"
     },
     "core/interface/http/server.go": {
-      "hash": "5ffcc6260063facc",
-      "noteIds": [
-        "review-20260821-015"
-      ]
+      "hash": "abece2f778bccf22"
     },
     "core/interface/http/transport_fasthttp.go": {
       "hash": "90bea95be5aa96dd"
@@ -1941,10 +1305,9 @@
       "hash": "5729d474c2e46166"
     },
     "core/internal/boot/app.go": {
-      "hash": "262edd3252652326",
+      "hash": "3baa8e06604354e7",
       "noteIds": [
-        "b3muvk",
-        "review-20260821-017"
+        "b3muvk"
       ]
     },
     "core/internal/boot/boot_test.go": {
@@ -1972,10 +1335,10 @@
       "hash": "3aa305b9f58de33b"
     },
     "core/internal/boot/persistence.go": {
-      "hash": "1b6b7ca0dd6df6fa"
+      "hash": "df65919148debde2"
     },
     "core/internal/boot/sanitize_test.go": {
-      "hash": "00c49fbe8f52caa9"
+      "hash": "4d41967cbd9df5ea"
     },
     "core/internal/migrations/01a0196e-07a4-76a2-8ba6-33d79e4a2761__api_key__major.go": {
       "hash": "e82534b28edbb6f4"
@@ -2049,10 +1412,7 @@
       "hash": "c2f7ca96a8e991a0"
     },
     "core/runtime/auth.go": {
-      "hash": "4d9f546a5e6a0d80",
-      "noteIds": [
-        "arch-20260821-002"
-      ]
+      "hash": "3fe8fc229047f15f"
     },
     "core/runtime/bootstrap-dispatcher.go": {
       "hash": "aad62eee96eb5a5f"
@@ -2064,20 +1424,15 @@
       "hash": "c5bb826c4ebc4a33"
     },
     "core/runtime/chain.go": {
-      "hash": "ef6755a3fc9fa3d2",
-      "noteIds": [
-        "review2-20260821-003"
-      ]
+      "hash": "9f765cb835344139"
     },
     "core/runtime/chain_test.go": {
-      "hash": "82446217eb86331c"
+      "hash": "0ffc9c23e2ed139c"
     },
     "core/runtime/config.go": {
-      "hash": "ace99ac01a9b15ab",
+      "hash": "246b7159c5032180",
       "noteIds": [
         "org-20260821-003",
-        "r9i7ec",
-        "review-20260821-019",
         "so98l5"
       ]
     },
@@ -2088,7 +1443,7 @@
       "hash": "6bb87816884d471d"
     },
     "core/runtime/context/identity.go": {
-      "hash": "8c586256612b22c6"
+      "hash": "937d4b06c99953d3"
     },
     "core/runtime/context/identity_test.go": {
       "hash": "58a23c69cdb71a93"
@@ -2100,28 +1455,19 @@
       "hash": "2858f6bf9822707c"
     },
     "core/runtime/dispatch/bind.go": {
-      "hash": "b784eccc0e884477",
-      "noteIds": [
-        "review-20260821-021"
-      ]
+      "hash": "f151e3e6a8a99410"
     },
     "core/runtime/dispatch/dispatch.go": {
-      "hash": "b31e9382dd95cc85",
+      "hash": "85b47739549e6577",
       "noteIds": [
-        "arch-20260821-006",
-        "review-20260821-016"
+        "arch-20260821-006"
       ]
     },
     "core/runtime/dispatch/dispatch_test.go": {
       "hash": "066de638db89a37f"
     },
     "core/runtime/dispatch/input.go": {
-      "hash": "19862d08bad318d9",
-      "noteIds": [
-        "arch-20260821-007",
-        "mem-20260821-001",
-        "review-20260821-010"
-      ]
+      "hash": "542d62cf1a96151c"
     },
     "core/runtime/dispatch/message.go": {
       "hash": "95fa989d809d2eab"
@@ -2136,7 +1482,7 @@
       "hash": "1a4d064bc4b791ea"
     },
     "core/runtime/env.go": {
-      "hash": "86f4c99a3a3308e2",
+      "hash": "de9105d52ef16b9b",
       "noteIds": [
         "org-20260821-004"
       ]
@@ -2151,12 +1497,11 @@
       "hash": "ed1f24143e2efb42"
     },
     "core/runtime/local-dispatcher.go": {
-      "hash": "e48be2417b6b2917",
+      "hash": "1e2222527113eef0",
       "noteIds": [
         "arch-20260821-005",
         "review-20260821-001",
-        "review-20260821-002",
-        "review-20260821-014"
+        "review-20260821-002"
       ]
     },
     "core/runtime/mailer.go": {
@@ -2197,21 +1542,13 @@
       "hash": "ab699d86b707930c"
     },
     "core/runtime/notification/template.go": {
-      "hash": "c19af5e0580620c1",
-      "noteIds": [
-        "arch-20260821-012",
-        "review-20260821-011"
-      ]
+      "hash": "c0fef4e33e79f380"
     },
     "core/runtime/password.go": {
-      "hash": "dd95d21fd70da578",
-      "noteIds": [
-        "review-20260821-003",
-        "review-20260821-004"
-      ]
+      "hash": "f43dde937dce9481"
     },
     "core/runtime/password_test.go": {
-      "hash": "39df5e4d0f7d221a"
+      "hash": "d34d742e53a6fca7"
     },
     "core/runtime/permissions.go": {
       "hash": "3cd749acf443998e"
@@ -2258,22 +1595,21 @@
       "hash": "98933e4f6f3f145a"
     },
     "core/runtime/scheduler/scheduler.go": {
-      "hash": "2db3e9c157416de8",
+      "hash": "a542764bdbad4b49",
       "noteIds": [
-        "arch-20260821-011",
-        "review-20260821-022"
+        "arch-20260821-011"
       ]
     },
     "core/runtime/scheduler/scheduler_test.go": {
-      "hash": "4a1977ddff9f2f65"
+      "hash": "0bcf4dd55d7c332f"
     },
     "core/runtime/secure-dispatcher.go": {
-      "hash": "7e5d3f378d97f214",
+      "hash": "28e25fb87f79ccd9",
       "noteIds": [
+        "83l69u",
         "arch-20260821-003",
         "review-20260821-006",
-        "review-20260821-007",
-        "review-20260821-008"
+        "review-20260821-007"
       ]
     },
     "core/runtime/secure-dispatcher_hardening_test.go": {
@@ -2298,16 +1634,13 @@
       "hash": "af014488f5e5b875"
     },
     "core/system/apikeys/model/data_transfer_objects.go": {
-      "hash": "af74fc05102af013",
-      "noteIds": [
-        "cruft-20260821-009"
-      ]
+      "hash": "72c29c776bace29f"
     },
     "core/system/apikeys/model/security_test.go": {
-      "hash": "5f31660d8da25799"
+      "hash": "fc80d2520f634b42"
     },
     "core/system/apikeys/model/system_api_key_utils.go": {
-      "hash": "e62405fbaa7725c1"
+      "hash": "f7ca5351ed2dd5b1"
     },
     "core/system/apikeys/policies.go": {
       "hash": "299dfd0568fd77fa"
@@ -2352,7 +1685,7 @@
       "hash": "f33fcbc591dc1cdb"
     },
     "core/system/auth/handler.go": {
-      "hash": "cc82e977d0705dd5",
+      "hash": "d7d652cec89441c2",
       "noteIds": [
         "cruft-20260821-003"
       ]
@@ -2394,29 +1727,28 @@
       "hash": "e41137eab701bb8a"
     },
     "core/system/auth/service.go": {
-      "hash": "014733874224d2c7",
+      "hash": "66212694b6cc1c9f",
       "noteIds": [
-        "8uuufn",
-        "ra2yqz"
+        "8uuufn"
       ]
     },
     "core/system/auth/session_service.go": {
-      "hash": "c520105b98845af2",
+      "hash": "91efc34bae02c80b",
       "noteIds": [
         "review2-20260821-001"
       ]
     },
     "core/system/auth/token.go": {
-      "hash": "fbafdf0bc3e7d473"
+      "hash": "8958b3e21af34651"
     },
     "core/system/auth/token_bench_test.go": {
       "hash": "81f2e88f81d5b370"
     },
     "core/system/auth/token_security_test.go": {
-      "hash": "4651e858edebcb96"
+      "hash": "bb43fe1ce7b05b3f"
     },
     "core/system/blobs/blobs_test.go": {
-      "hash": "db6bebafc88da754"
+      "hash": "559733a8fd6bde82"
     },
     "core/system/blobs/handler.go": {
       "hash": "27f115d94e02ce3b",
@@ -2425,10 +1757,7 @@
       ]
     },
     "core/system/blobs/inputs.go": {
-      "hash": "5b61d152ef9cb361",
-      "noteIds": [
-        "cruft-20260821-018"
-      ]
+      "hash": "5686a16c47f3fc4b"
     },
     "core/system/blobs/model/inputs.go": {
       "hash": "3660c45649b60c25"
@@ -2437,10 +1766,7 @@
       "hash": "09145df71cf2dcdf"
     },
     "core/system/blobs/outputs.go": {
-      "hash": "9d66b6f767a873f4",
-      "noteIds": [
-        "cruft-20260821-019"
-      ]
+      "hash": "a11d40ee70466c12"
     },
     "core/system/blobs/policies.go": {
       "hash": "fe892f0d5e2f63c9"
@@ -2449,7 +1775,10 @@
       "hash": "04b3aeeea394d4bd"
     },
     "core/system/blobs/service.go": {
-      "hash": "cac02707ce2bc22b"
+      "hash": "0a6daa931ecf8ab7",
+      "noteIds": [
+        "storage-leak-blobs-never-compact-ad27adbb"
+      ]
     },
     "core/system/blobs/staging.go": {
       "hash": "e21bec8d0ce186c7"
@@ -2467,10 +1796,10 @@
       "hash": "fa5508e3a8d0808c"
     },
     "core/system/blobs/typed_input_test.go": {
-      "hash": "9041b9e30570177a"
+      "hash": "e64f03ad627ecbf4"
     },
     "core/system/collections/collections_test.go": {
-      "hash": "334f5ad742f7c951"
+      "hash": "26ddbaef9c23256f"
     },
     "core/system/collections/erp_bench_test.go": {
       "hash": "9d9f1ad0a75d9aae"
@@ -2479,10 +1808,7 @@
       "hash": "d0ed67161567dcfa"
     },
     "core/system/collections/inputs.go": {
-      "hash": "d717dd3e6515a4b5",
-      "noteIds": [
-        "cruft-20260821-004"
-      ]
+      "hash": "b33d0b9ff3e3629f"
     },
     "core/system/collections/model/inputs.go": {
       "hash": "0daf801efb5b8a69"
@@ -2491,10 +1817,7 @@
       "hash": "80cd0d0aa75c5ec8"
     },
     "core/system/collections/outputs.go": {
-      "hash": "310f65c28c6a5d75",
-      "noteIds": [
-        "cruft-20260821-005"
-      ]
+      "hash": "415e4a3db1f168d1"
     },
     "core/system/collections/policies.go": {
       "hash": "dc438952e8e8a02c"
@@ -2536,10 +1859,7 @@
       "hash": "b3bc3cc11222748b"
     },
     "core/system/notifications/outputs.go": {
-      "hash": "376e54f1ca277409",
-      "noteIds": [
-        "cruft-20260821-024"
-      ]
+      "hash": "b433ed93709fac2a"
     },
     "core/system/notifications/policies.go": {
       "hash": "9bd574a55941fdbe"
@@ -2562,12 +1882,6 @@
         "cruft-20260821-017"
       ]
     },
-    "core/system/operations/inputs.go": {
-      "hash": "4b4da9c767ba8574",
-      "noteIds": [
-        "cruft-20260821-015"
-      ]
-    },
     "core/system/operations/model/inputs.go": {
       "hash": "375791e42e44a527"
     },
@@ -2578,13 +1892,10 @@
       "hash": "ddb031c08be92bbe"
     },
     "core/system/operations/operations_test.go": {
-      "hash": "4cb18cfb8a7d979d"
+      "hash": "a066774f622e3921"
     },
     "core/system/operations/outputs.go": {
-      "hash": "0c079b377fc987b4",
-      "noteIds": [
-        "cruft-20260821-016"
-      ]
+      "hash": "cf7577aeb39bd46c"
     },
     "core/system/operations/policies.go": {
       "hash": "8b1b730f7d9e2943"
@@ -2650,7 +1961,7 @@
       "hash": "ce1052193fa3ff27"
     },
     "core/system/provider.go": {
-      "hash": "91ca1b2922446b54"
+      "hash": "1af495b8a8d56cfc"
     },
     "core/system/schedules/handler.go": {
       "hash": "11a5e62decf4016b",
@@ -2659,10 +1970,7 @@
       ]
     },
     "core/system/schedules/inputs.go": {
-      "hash": "5b073028402c6c9e",
-      "noteIds": [
-        "cruft-20260821-021"
-      ]
+      "hash": "ec1b62b22a642527"
     },
     "core/system/schedules/liveschedule.go": {
       "hash": "2aff60d955341bb8"
@@ -2683,10 +1991,7 @@
       "hash": "8061408d9c3a8457"
     },
     "core/system/schedules/outputs.go": {
-      "hash": "420c9fe38aa6723e",
-      "noteIds": [
-        "cruft-20260821-022"
-      ]
+      "hash": "7d17518870765916"
     },
     "core/system/schedules/policies.go": {
       "hash": "624e81d232a17d5e"
@@ -2695,7 +2000,7 @@
       "hash": "92c13688036af779"
     },
     "core/system/schedules/schedules_test.go": {
-      "hash": "d888a5d2e136d0d0"
+      "hash": "ea1895488663b7d4"
     },
     "core/system/schedules/service.go": {
       "hash": "2fef79e88c7a4794"
@@ -2706,44 +2011,20 @@
     "core/system/services.go": {
       "hash": "1e9fd7ffe7d5a041"
     },
-    "core/system/settings/handler.go": {
-      "hash": "a3623d10cbe25156",
-      "noteIds": [
-        "cruft-20260821-008"
-      ]
-    },
-    "core/system/settings/inputs.go": {
-      "hash": "90162aabf28b696b",
-      "noteIds": [
-        "cruft-20260821-006"
-      ]
-    },
     "core/system/settings/model.go": {
       "hash": "0c7b74c8b2b1b1e0"
     },
     "core/system/settings/model/inputs.go": {
-      "hash": "4d24194f69e71660",
-      "noteIds": [
-        "cruft-20260821-011"
-      ]
+      "hash": "9d661d17c8ece433"
     },
     "core/system/settings/model/model.go": {
       "hash": "29bffe529b615196"
     },
     "core/system/settings/model/outputs.go": {
-      "hash": "c158492f0be6cd85",
-      "noteIds": [
-        "cruft-20260821-012"
-      ]
+      "hash": "7db0f195742f2db7"
     },
     "core/system/settings/model/settings.schema.model.go": {
       "hash": "861a976c78cdba1b"
-    },
-    "core/system/settings/outputs.go": {
-      "hash": "2a639a4ee068f8a5",
-      "noteIds": [
-        "cruft-20260821-007"
-      ]
     },
     "core/system/settings/policies.go": {
       "hash": "02ee9d87f6098091"
@@ -2761,16 +2042,19 @@
       "hash": "ed2c104aebd825d7"
     },
     "core/system/updates/register.go": {
-      "hash": "3cf29cba7b86fd14"
+      "hash": "7a07dff429fa781f",
+      "noteIds": [
+        "migrate-20260822-001"
+      ]
     },
     "core/system/updates/service.go": {
-      "hash": "81f06236d8990c59",
+      "hash": "bf9a065a8cef7c57",
       "noteIds": [
         "review2-20260821-004"
       ]
     },
     "core/system/updates/service_test.go": {
-      "hash": "6567d14cc59dd5c5"
+      "hash": "9eb7b8e39bf7c9f0"
     },
     "core/system/updates/startup.go": {
       "hash": "6e208162cedbeb0f"
@@ -2785,19 +2069,16 @@
       "hash": "33eebbd23389e837"
     },
     "core/system/users/handler_test.go": {
-      "hash": "d88f686a8b543fb5"
+      "hash": "2633cb13450c9b0a"
     },
     "core/system/users/model/data_transfer_objects.go": {
-      "hash": "eb2db5f004e4b764",
-      "noteIds": [
-        "cruft-20260821-010"
-      ]
+      "hash": "62c61baac7ae9873"
     },
     "core/system/users/model/system_user_test.go": {
       "hash": "91972f8185404227"
     },
     "core/system/users/model/system_user_utils.go": {
-      "hash": "d0d5fa246dacbc94"
+      "hash": "9f39da5f169bee22"
     },
     "core/system/users/model/users.schema.model.go": {
       "hash": "ace4b26e02288201"
@@ -2812,13 +2093,40 @@
       "hash": "91ac7ddbffc14b0e"
     },
     "core/system/users/users_test.go": {
-      "hash": "c7f79cd7627ee42d"
+      "hash": "1d01bd90a37015ae"
     },
     "examples/basic/main.go": {
       "hash": "ffe0be65c044466a"
     },
+    "examples/wails-test/frontend/dist/assets/index-CDqmYwUY.js": {
+      "hash": "5ff9fb35f2b48799"
+    },
+    "examples/wails-test/frontend/src/main.ts": {
+      "hash": "23b884ac1f7b6d6b"
+    },
+    "examples/wails-test/frontend/vite.config.ts": {
+      "hash": "d948f09b75640a96"
+    },
+    "examples/wails-test/frontend/wailsjs/go/models.ts": {
+      "hash": "0dd30a485a3a55e3"
+    },
+    "examples/wails-test/frontend/wailsjs/go/wails/Adapter.d.ts": {
+      "hash": "9a4213667fc41a4b"
+    },
+    "examples/wails-test/frontend/wailsjs/go/wails/Adapter.js": {
+      "hash": "e89b1a9767ab5a3d"
+    },
+    "examples/wails-test/frontend/wailsjs/runtime/runtime.d.ts": {
+      "hash": "8f4ec03cac22770b"
+    },
+    "examples/wails-test/frontend/wailsjs/runtime/runtime.js": {
+      "hash": "e25fe86d3c590de7"
+    },
     "examples/wails-test/main.go": {
       "hash": "78aa7ab5a2e884ba"
+    },
+    "scripts/generate-docs.ts": {
+      "hash": "a55ef94a02e587cf"
     },
     "tests/e2e/update/main_test.go": {
       "hash": "96f654595761a913"
@@ -2830,7 +2138,7 @@
       "hash": "3ff9f7a5143489a0"
     },
     "utils/wails/dispatch.go": {
-      "hash": "d76bb0e3041377f9",
+      "hash": "c0bcc834ef76df5b",
       "noteIds": [
         "review2-20260821-002"
       ]

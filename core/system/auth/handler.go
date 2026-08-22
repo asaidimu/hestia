@@ -40,7 +40,11 @@ func NewCreateSessionHandler(users *model.SystemUsers, credProv abstract.Credent
 			return nil, fmt.Errorf("invalid email or password")
 		}
 
-		if !runtime.CheckPassword(password, user.Password) {
+		ok, err := runtime.CheckPassword(password, user.Password)
+		if err != nil {
+			return nil, runtime.ErrInternal.WithCause(err)
+		}
+		if !ok {
 			return nil, fmt.Errorf("invalid email or password")
 		}
 

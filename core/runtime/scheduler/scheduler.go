@@ -36,9 +36,10 @@ type Scheduler struct {
 	logger *zap.Logger
 	mu     sync.RWMutex
 	exprs  map[string]string // name -> cron expression
+	ctx    context.Context
 }
 
-func New(logger *zap.Logger) *Scheduler {
+func New(ctx context.Context, logger *zap.Logger) *Scheduler {
 	return &Scheduler{
 		c: cron.New(cron.WithChain(
 			cron.Recover(cron.DefaultLogger),
@@ -46,21 +47,12 @@ func New(logger *zap.Logger) *Scheduler {
 		)),
 		logger: logger,
 		exprs:  make(map[string]string),
+		ctx:    ctx,
 	}
 }
 
-// @note #review-20260821-022 issue status=open priority=P2 tags=#review,#design : Context.Background() in scheduler jobs
-// The Register method wraps the job function with context.Background(), which
-// means scheduled jobs have no access to the application's lifecycle context.
-// This could be problematic for:
-// 1. Graceful shutdown - jobs can't be cancelled
-// 2. Tracing - jobs can't be linked to the parent trace
-// 3. Timeout control - jobs run indefinitely
-//
-// Consider storing the context passed to Start() and using it for job execution,
-// or accepting a context factory function at registration time.
 func (s *Scheduler) Register(name, expr string, fn func(context.Context) error) {
-	_, err := s.c.AddFunc(expr, func() { fn(context.Background()) },
+	_, err := s.c.AddFunc(expr, func() { fn(s.ctx) },
 		cron.WithName(name),
 		cron.WithTags("hestia"),
 	)

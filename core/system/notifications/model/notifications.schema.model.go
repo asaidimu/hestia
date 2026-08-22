@@ -127,3 +127,14 @@ func DangerouslyResetSystemNotificationssModel() {
 	_ = systemNotificationssModel.Close()
 	systemNotificationssModel = nil
 }
+
+type NotificationCreate struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Actions                []NotificationAction `anansi:"actions,required=false,omitempty" json:"actions,omitempty" input:"payload.actions"`
+	Subject                string               `anansi:"subject,required=true" json:"subject" input:"payload.subject"`
+	UserID                 string               `anansi:"user_id,required=true" json:"user_id" input:"payload.user_id"`
+	Body                   *string              `anansi:"body,required=false,omitempty" json:"body,omitempty" input:"payload.body"`
+	Data                   map[string]any       `anansi:"data,required=false,omitempty" json:"data,omitempty" input:"payload.data"`
+	ExpiresAt              *int64               `anansi:"expires_at,required=false,omitempty" json:"expires_at,omitempty" input:"payload.expires_at"`
+	Type                   *string              `anansi:"type,required=false,omitempty" json:"type,omitempty" input:"payload.type"`
+}

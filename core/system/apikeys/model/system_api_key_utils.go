@@ -39,7 +39,7 @@ func (m *SystemAPIKeys) Generate() (*GeneratedKey, error) {
 		return nil, fmt.Errorf("generate key: %w", err)
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(key), runtime.BcryptCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(key), runtime.DefaultBcryptCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash key: %w", err)
 	}

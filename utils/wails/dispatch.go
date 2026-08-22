@@ -242,8 +242,9 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 	}
 
 	a.mu.Lock()
-	// @note #review2-20260821-002 issue P2 #security,#auth,#review : ValidateSession result used without checking ExpiresAt
+	// @note #review2-20260821-002 issue resolved P2 #security,#auth,#review : ValidateSession result used without checking ExpiresAt
 	// @see #review2-20260821-001
+	// Resolved by fix to #review2-20260821-001: SessionService.Validate now rejects expired tokens, so all call sites are protected.
 	//
 	// Two call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt > time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.
 	if token := result.SessionToken; token != "" {

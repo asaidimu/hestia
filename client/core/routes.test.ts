@@ -46,7 +46,7 @@ describe("ROUTE_TABLE dispatch coverage", () => {
   })
 
   it("registers every dispatchable command in the route table", () => {
-    expect(Object.keys(ROUTE_TABLE).length).toBe(80)
+    expect(Object.keys(ROUTE_TABLE).length).toBe(83)
   })
 
   for (const [name, spec] of Object.entries(ROUTE_TABLE)) {

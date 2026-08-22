@@ -145,12 +145,12 @@ func TestCreateScheduleHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := schedules.NewScheduleModel(p)
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	h := schedules.NewScheduleHandlers(model, live)
-	input := testutil.InputDoc(t, schedules.ScheduleCreateInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleCreateInput]("input", true), `{
 		"payload": {
 			"message": "system:test:handler",
 			"input": {"token": "xyz"},
@@ -176,12 +176,12 @@ func TestCreateScheduleHandlerMissingCron(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := schedules.NewScheduleModel(p)
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	h := schedules.NewScheduleHandlers(model, live)
-	input := testutil.InputDoc(t, schedules.ScheduleCreateInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleCreateInput]("input", true), `{
 		"payload": {"message": "system:test:handler"}
 	}`)
 	msg := dispatch.NewMessage("system:schedules:schedule:create", ctx, input)
@@ -202,7 +202,7 @@ func TestListSchedulesHandler(t *testing.T) {
 	}
 
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
@@ -229,12 +229,12 @@ func TestGetScheduleHandler(t *testing.T) {
 	}
 
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	h := schedules.NewScheduleHandlers(model, live)
-	input := testutil.InputDoc(t, schedules.ScheduleGetInputSchema(), fmt.Sprintf(`{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleGetInput]("input", true), fmt.Sprintf(`{
 		"arguments": {"id": %q}
 	}`, created.ID()))
 	msg := dispatch.NewMessage("system:schedules:schedule:get", ctx, input)
@@ -256,12 +256,12 @@ func TestGetScheduleHandlerNotFound(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := schedules.NewScheduleModel(p)
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	h := schedules.NewScheduleHandlers(model, live)
-	input := testutil.InputDoc(t, schedules.ScheduleGetInputSchema(), `{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleGetInput]("input", true), `{
 		"arguments": {"id": "nonexistent"}
 	}`)
 	msg := dispatch.NewMessage("system:schedules:schedule:get", ctx, input)
@@ -282,12 +282,12 @@ func TestDeleteScheduleHandler(t *testing.T) {
 	}
 
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	h := schedules.NewScheduleHandlers(model, live)
-	input := testutil.InputDoc(t, schedules.ScheduleDeleteInputSchema(), fmt.Sprintf(`{
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleDeleteInput]("input", true), fmt.Sprintf(`{
 		"arguments": {"id": %q}
 	}`, created.ID()))
 	msg := dispatch.NewMessage("system:schedules:schedule:delete", ctx, input)
@@ -305,13 +305,13 @@ func TestUpdateScheduleHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := schedules.NewScheduleModel(p)
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(model, sched, disp, log)
 
 	// Create first
 	h := schedules.NewScheduleHandlers(model, live)
-	createInput := testutil.InputDoc(t, schedules.ScheduleCreateInputSchema(), `{
+	createInput := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleCreateInput]("input", true), `{
 		"payload": {
 			"message": "system:test:handler",
 			"cron": "@every 1h"
@@ -325,7 +325,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 	id, _ := createResult.Document.GetString("id")
 
 	// Update
-	updateInput := testutil.InputDoc(t, schedules.ScheduleUpdateInputSchema(), fmt.Sprintf(`{
+	updateInput := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[schedules.ScheduleUpdateInput]("input", true), fmt.Sprintf(`{
 		"arguments": {"id": %q},
 		"payload": {"cron": "@every 30m"}
 	}`, id))
@@ -351,7 +351,7 @@ func TestLiveScheduleRegistersAndDispatches(t *testing.T) {
 	p := testutil.NewPersistence(t)
 	model := schedules.NewScheduleModel(p)
 	log := zap.NewNop()
-	sched := scheduler.New(log)
+	sched := scheduler.New(context.Background(), log)
 	sched.Start()
 	defer sched.Stop()
 

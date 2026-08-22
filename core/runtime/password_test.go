@@ -14,11 +14,19 @@ func TestHashAndCheckPassword(t *testing.T) {
 		t.Error("hash should not equal plaintext password")
 	}
 
-	if !CheckPassword(password, hash) {
+	ok, err := CheckPassword(password, hash)
+	if err != nil {
+		t.Fatalf("CheckPassword returned error for correct password: %v", err)
+	}
+	if !ok {
 		t.Error("CheckPassword should return true for correct password")
 	}
 
-	if CheckPassword("wrong-password", hash) {
+	ok, err = CheckPassword("wrong-password", hash)
+	if err != nil {
+		t.Fatalf("CheckPassword returned error for wrong password: %v", err)
+	}
+	if ok {
 		t.Error("CheckPassword should return false for incorrect password")
 	}
 }

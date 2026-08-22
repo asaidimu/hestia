@@ -8,8 +8,8 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/system/operations"
+	operationsmodel "github.com/asaidimu/hestia/core/system/operations/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
-	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 )
 
 type testMessage struct {
@@ -32,7 +32,7 @@ func (m testMessage) ResourceID() string                     { return "" }
 func (m testMessage) SessionID() string                      { return "" }
 
 func TestPolicyBindings(t *testing.T) {
-	bindings := operationsvc.Policies()
+	bindings := operations.Policies()
 	if len(bindings) == 0 {
 		t.Fatal("Policies() returned empty list")
 	}
@@ -60,7 +60,7 @@ func TestSystemStatusHandler(t *testing.T) {
 		return val == "true"
 	})
 
-	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operations.CapabilityNameInputSchema(), `{}`)}
+	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operationsmodel.CapabilityNameInputSchema(), `{}`)}
 	result, err := handler(ctx, msg)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)
@@ -97,7 +97,7 @@ func TestDocumentationHandler(t *testing.T) {
 	}
 
 	handler := operations.NewDocumentationHandler(&regs, "")
-	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operations.CapabilityNameInputSchema(), `{}`)}
+	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operationsmodel.CapabilityNameInputSchema(), `{}`)}
 	result, err := handler(ctx, msg)
 	if err != nil {
 		t.Fatalf("handler returned error: %v", err)

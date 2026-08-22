@@ -3,6 +3,8 @@ import type {
   UpdateStatus,
   UpdateChangelog,
   UpdateCheckResult,
+  UpdateAvailability,
+  UpdateStageResult,
   UpdateApplyResult,
 } from "./types";
 
@@ -23,6 +25,33 @@ export class HestiaUpdates {
     return res.data.data;
   }
 
+  /**
+   * Read-only availability check: reports whether a newer version exists
+   * without downloading or staging anything. Safe to poll frequently.
+   */
+  async checkAvailability(): Promise<UpdateAvailability> {
+    const res = await this.client.dispatch<{ data: UpdateAvailability }>(
+      "system:updates:check:get",
+    );
+    return res.data.data;
+  }
+
+  /**
+   * Download and stage the newest release without applying it. Notifies
+   * administrators when a release was newly staged.
+   */
+  async stage(): Promise<UpdateStageResult> {
+    const res = await this.client.dispatch<{ data: UpdateStageResult }>(
+      "system:updates:stage:create",
+    );
+    return res.data.data;
+  }
+
+  /**
+   * Legacy check-then-stage: checks for an update, stages it when found, and
+   * notifies admins. Prefer {@link checkAvailability} + {@link stage} so each
+   * effect stays independently callable.
+   */
   async check(): Promise<UpdateCheckResult> {
     const res = await this.client.dispatch<{ data: UpdateCheckResult }>(
       "system:updates:check:create",

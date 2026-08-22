@@ -71,7 +71,7 @@ func TestCreateUserHandler(t *testing.T) {
 	fx := newFixture(t)
 	handler := fx.handlers["system:users:user:create"]
 
-	msg := testMsg("system:users:user:create", testutil.InputDoc(t, usermodel.UserRegisterInputSchema(), `{
+	msg := testMsg("system:users:user:create", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserRegisterInput]("input", true), `{
 		"payload": {
 			"email":    "new@test.com",
 			"password": "secret123",
@@ -106,7 +106,7 @@ func TestGetUserHandler(t *testing.T) {
 	}
 	userID := user.ID
 
-	msg := testMsg("system:users:user:get", testutil.InputDoc(t, usermodel.UserGetInputSchema(), fmt.Sprintf(
+	msg := testMsg("system:users:user:get", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserGetInput]("input"), fmt.Sprintf(
 		`{"arguments":{"user_id":%s}}`, strconv.Quote(userID),
 	)))
 
@@ -138,7 +138,7 @@ func TestUpdateUserHandler(t *testing.T) {
 	}
 	userID := user.ID
 
-	msg := testMsg("system:users:user:update", testutil.InputDoc(t, usermodel.UserUpdateInputSchema(), fmt.Sprintf(
+	msg := testMsg("system:users:user:update", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserUpdateInput]("input", true), fmt.Sprintf(
 		`{"arguments":{"user_id":%s},"payload":{"name":"Updated Name"}}`, strconv.Quote(userID),
 	)))
 
@@ -163,7 +163,7 @@ func TestChangePasswordHandler(t *testing.T) {
 	}
 	userID := user.ID
 
-	msg := testMsg("system:users:password:change", testutil.InputDoc(t, usermodel.UserChangePasswordInputSchema(), fmt.Sprintf(
+	msg := testMsg("system:users:password:change", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserChangePasswordInput]("input"), fmt.Sprintf(
 		`{"arguments":{"user_id":%s},"payload":{"current":"oldPassword","new":"newPassword"}}`, strconv.Quote(userID),
 	)))
 
@@ -176,10 +176,18 @@ func TestChangePasswordHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser: %v", err)
 	}
-	if !runtime.CheckPassword("newPassword", storedUser.Password) {
+	ok, err := runtime.CheckPassword("newPassword", storedUser.Password)
+	if err != nil {
+		t.Fatalf("CheckPassword: %v", err)
+	}
+	if !ok {
 		t.Error("new password should match stored hash")
 	}
-	if runtime.CheckPassword("oldPassword", storedUser.Password) {
+	ok, err = runtime.CheckPassword("oldPassword", storedUser.Password)
+	if err != nil {
+		t.Fatalf("CheckPassword: %v", err)
+	}
+	if ok {
 		t.Error("old password should not match stored hash")
 	}
 }
@@ -194,7 +202,7 @@ func TestDeleteUserHandler(t *testing.T) {
 	}
 	userID := user.ID
 
-	msg := testMsg("system:users:user:delete", testutil.InputDoc(t, usermodel.UserDeleteInputSchema(), fmt.Sprintf(
+	msg := testMsg("system:users:user:delete", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserDeleteInput]("input"), fmt.Sprintf(
 		`{"arguments":{"user_id":%s}}`, strconv.Quote(userID),
 	)))
 
