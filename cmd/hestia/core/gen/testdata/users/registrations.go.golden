@@ -63,5 +63,16 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[document.Document](),
 			Handler: dispatch.HandleDocuments[ListUsersInput](s.ListUsers),
 		},
+		{
+			Name:          "system:users:callback:ack",
+			Description:   "Acknowledge a callback without waiting",
+			Intent:        abstract.Create,
+			Enabled:       true,
+			FireAndForget: true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[AckCallbackInput]("input"),
+			},
+			Handler: dispatch.HandleEmpty[AckCallbackInput](s.AckCallback),
+		},
 	}, nil
 }

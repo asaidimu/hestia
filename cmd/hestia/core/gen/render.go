@@ -113,6 +113,9 @@ func writeRegistration(b *bytes.Buffer, a annotate.Annotation) error {
 	if a.Internal {
 		b.WriteString("\t\t\tInternal: true,\n")
 	}
+	if a.FireAndForget {
+		b.WriteString("\t\t\tFireAndForget: true,\n")
+	}
 
 	if a.HasInput {
 		in, _ := qual(a.Input)

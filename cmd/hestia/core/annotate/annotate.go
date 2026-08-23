@@ -94,6 +94,10 @@ type Annotation struct {
 	// Internal marks the registration internal (not routed over HTTP), declared
 	// via internal="true". False when absent.
 	Internal bool
+	// FireAndForget marks the registration fire-and-forget (transports accept
+	// the message and respond immediately, e.g. HTTP 202 with the message ID),
+	// declared via fire_and_forget="true". False when absent.
+	FireAndForget bool
 	// OutputAttr is the output type declared via output="Type", used when the
 	// signature alone can't express the Output schema (raw and empty-result
 	// handlers that still declare a wire output). Empty when absent.
@@ -297,6 +301,7 @@ func buildAnnotation(fset *token.FileSet, fd *ast.FuncDecl, service string, attr
 	}
 	ann.BootstrapSafe = parseBool(attrs["bootstrap_safe"])
 	ann.Internal = parseBool(attrs["internal"])
+	ann.FireAndForget = parseBool(attrs["fire_and_forget"])
 	if ann.MessageName == "" {
 		return ann, fmt.Errorf("@hestia.register missing required attribute name")
 	}

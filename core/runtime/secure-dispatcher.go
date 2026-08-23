@@ -64,7 +64,7 @@ func (d *SecureDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 //
 // Consider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or
 // defining a typed IdentityProperties struct to reduce duplication and improve type safety.
-func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *SecureDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if !IsSystemIdentity(msg.Context()) {
 		// API key operation-name gate: if the IAM identity carries an
 		// "operations" property (set by ContextWithClaims for API key
@@ -80,7 +80,7 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 			if props, ok := ident.Properties.(map[string]any); ok {
 				if raw, ok := props["operations"]; ok {
 					if ops, ok := stringSlice(raw); ok && !slices.Contains(ops, msg.Name()) {
-						return nil, ErrAccessDenied.WithIssues(common.Issues{
+						return ErrAccessDenied.WithIssues(common.Issues{
 							common.Issue{
 								Message: "operation not in API key allowlist",
 								Path:    msg.Name(),
@@ -93,14 +93,14 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 
 		ruleKey, enabled, err := d.permMgr.Resolve(msg)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if !enabled {
 			if isAnonymous(msg.Context()) {
-				return nil, ErrAuthRequired
+				return ErrAuthRequired
 			}
-			return nil, ErrAccessDenied.WithIssues(common.Issues{
+			return ErrAccessDenied.WithIssues(common.Issues{
 				common.Issue{
 					Message: "policy disabled",
 					Path:    msg.Name(),
@@ -115,9 +115,9 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 		can := d.ac.Can(msg.Context(), ruleKey, resource, nil)
 		if !can {
 			if isAnonymous(msg.Context()) {
-				return nil, ErrAuthRequired
+				return ErrAuthRequired
 			}
-			return nil, ErrAccessDenied.WithIssues(common.Issues{
+			return ErrAccessDenied.WithIssues(common.Issues{
 				common.Issue{
 					Message: ruleKey,
 					Path:    msg.Name(),
@@ -125,7 +125,7 @@ func (d *SecureDispatcher) Send(msg abstract.Message) (*abstract.Result, error) 
 			})
 		}
 	}
-	return d.next.Send(msg)
+	return d.next.Send(ctx, msg, onComplete)
 }
 
 // @note #review-20260821-007 issue status=open priority=P2 tags=#review,#consolidation : Duplicate identity property extraction

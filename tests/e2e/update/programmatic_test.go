@@ -2,6 +2,7 @@ package update_e2e
 
 import (
 	"context"
+	"github.com/asaidimu/hestia/core/abstract"
 	"os"
 	"testing"
 
@@ -66,7 +67,7 @@ func TestProgrammaticSelfUpdatePersistsPending(t *testing.T) {
 	})
 
 	msg := dispatch.NewMessage("system:updates:check:create", adminCtx, data.MustNewDocument(nil, adminCtx))
-	res, err := app.Dispatcher().Send(msg)
+	res, err := testAwait(app.Dispatcher(), msg)
 	if err != nil {
 		t.Fatalf("send check: %v", err)
 	}
@@ -100,4 +101,10 @@ func TestProgrammaticSelfUpdatePersistsPending(t *testing.T) {
 	if rec["changelog"] != "probe" {
 		t.Fatalf("pending changelog = %v, want probe", rec["changelog"])
 	}
+}
+
+// testAwait dispatches m and blocks for its outcome; the test-lifecycle
+// stand-in for request/response dispatch.
+func testAwait(d abstract.Dispatcher, m abstract.Message) (*abstract.Result, error) {
+	return dispatch.Await(context.Background(), d, m)
 }

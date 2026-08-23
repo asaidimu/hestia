@@ -12,7 +12,8 @@ import "context"
 //   - cli.Interface  — CLI flag parser (flags → bootstrap messages → stdout)
 //
 // Custom implementations follow the same pattern: receive external input,
-// call disp.Send(msg) to dispatch, return the result to the caller.
+// call dispatch.Dispatch / abstract.Dispatcher.Send to dispatch, and return
+// the result to the caller.
 type Interface interface {
 	Start(bootstrapped bool)
 	Restart(bootstrapped bool)

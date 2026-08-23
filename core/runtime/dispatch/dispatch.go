@@ -1,14 +1,3 @@
-// @note #arch-20260821-006 issue status=open priority=P2 tags=#arch,#duplication : Duplicate message implementation in dispatch package
-//
-// dispatchMessage (dispatch.go:20-41) and genericMessage (message.go:13-35)
-// both implement abstract.Message with identical method bodies delegating to
-// runtimecontext.GetTenantID(m.ctx), runtimecontext.GetTraceID(m.ctx), etc.
-//
-// This is 14 lines of pure duplication across two files in the same package.
-//
-// Resolution: Unify into a single type or embed a shared implementation.
-// One option is to make dispatchMessage embed a genericMessage field and
-// override only the methods that differ (InputChannel and BlobInputChannel).
 package dispatch
 
 import (
@@ -17,7 +6,6 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
 type DispatchInput struct {
@@ -28,57 +16,89 @@ type DispatchInput struct {
 	Intent   abstract.Verb
 }
 
-type dispatchMessage struct {
-	id      string
-	name    string
-	ctx     context.Context
-	input   data.Documenter
-	inputCh chan data.Documenter
-}
-
-func (m *dispatchMessage) ID() string                             { return m.id }
-func (m *dispatchMessage) Name() string                           { return m.name }
-func (m *dispatchMessage) Context() context.Context               { return m.ctx }
-func (m *dispatchMessage) Input() data.Documenter                 { return m.input }
-func (m *dispatchMessage) InputChannel() <-chan data.Documenter    { return m.inputCh }
-func (m *dispatchMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-
-func (m *dispatchMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
-func (m *dispatchMessage) TraceID() string    { return runtimecontext.GetTraceID(m.ctx) }
-func (m *dispatchMessage) RequestID() string  { return runtimecontext.GetRequestID(m.ctx) }
-func (m *dispatchMessage) SourceIP() string   { return runtimecontext.GetSourceIP(m.ctx) }
-func (m *dispatchMessage) UserAgent() string  { return runtimecontext.GetUserAgent(m.ctx) }
-func (m *dispatchMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
-func (m *dispatchMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
-
 const streamChannelBuffer = 1
 
-func Dispatch(disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, error) {
+// Await dispatches msg and blocks until it completes or ctx expires.
+//
+// A non-nil error is either a synchronous rejection by the dispatcher chain
+// (handler missing, unauthorized, rate-limited — delivered before any
+// goroutine is started) or ctx expiry while waiting; disambiguate with
+// errors.Is(err, context.Canceled | context.DeadlineExceeded).
+func Await(ctx context.Context, d abstract.Dispatcher, msg abstract.Message) (*abstract.Result, error) {
+	ch := make(chan awaitOutcome, 1)
+	if err := d.Send(ctx, msg, func(_ context.Context, res *abstract.Result, err error) {
+		ch <- awaitOutcome{res: res, err: err}
+	}); err != nil {
+		return nil, err
+	}
+	select {
+	case out := <-ch:
+		return out.res, out.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+type awaitOutcome struct {
+	res *abstract.Result
+	err error
+}
+
+// newMessageFrom builds the message described by in. For Stream intents the
+// start-signal input channel is allocated (buffered, fed after completion).
+func newMessageFrom(in DispatchInput) *message {
 	msgID := in.ID
 	if msgID == "" {
 		msgID = MustNewID()
 	}
 
-	msg := &dispatchMessage{
-		id:    msgID,
-		name:  in.Name,
-		ctx:   in.Context,
-		input: in.Document,
-	}
-
+	var inputCh chan data.Documenter
 	if in.Intent == abstract.Stream {
-		msg.inputCh = make(chan data.Documenter, streamChannelBuffer)
+		inputCh = make(chan data.Documenter, streamChannelBuffer)
 	}
 
-	result, err := disp.Send(msg)
+	return &message{
+		id:      msgID,
+		name:    in.Name,
+		ctx:     in.Context,
+		input:   in.Document,
+		inputCh: inputCh,
+	}
+}
+
+// Dispatch builds a message from in and awaits its completion. For Stream
+// intents the start signal is fed into the message's input channel after the
+// handler has run, matching the historical synchronous ordering.
+func Dispatch(ctx context.Context, disp abstract.Dispatcher, in DispatchInput) (*abstract.Result, error) {
+	msg := newMessageFrom(in)
+
+	result, err := Await(ctx, disp, msg)
 	if err != nil {
 		return nil, err
 	}
 
-	if in.Intent == abstract.Stream {
+	if msg.inputCh != nil {
+		// The channel is buffered(1): this never blocks even though the
+		// handler has already returned.
 		msg.inputCh <- data.MustNewDocument(map[string]any{}, in.Context)
 		close(msg.inputCh)
 	}
 
 	return result, nil
+}
+
+// Enqueue accepts a message for asynchronous execution and returns
+// immediately with its correlation ID. It is the fire-and-forget counterpart
+// of Dispatch: handler outcome and panics are discarded.
+//
+// err is non-nil only for synchronous rejections (unauthorized, rate-limited,
+// handler missing); on nil err the message was accepted for execution but its
+// completion is not awaited. Until durable execution exists, acceptance is
+// best-effort: if the process exits before the handler runs, the work is lost.
+func Enqueue(ctx context.Context, disp abstract.Dispatcher, in DispatchInput) (string, error) {
+	msg := newMessageFrom(in)
+	if err := disp.Send(ctx, msg, nil); err != nil {
+		return "", err
+	}
+	return msg.ID(), nil
 }

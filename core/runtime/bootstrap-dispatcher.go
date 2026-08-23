@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/asaidimu/hestia/core/abstract"
@@ -24,11 +25,11 @@ func (d *BootstrapDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher
 	return &BootstrapDispatcher{next: next, registry: d.registry, bootstrapped: d.bootstrapped}
 }
 
-func (d *BootstrapDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *BootstrapDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if !d.bootstrapped() && !d.registry.IsHandlerBootstrapSafe(msg.Name()) {
-		return nil, fmt.Errorf("handler %q is not available until the system is bootstrapped", msg.Name())
+		return fmt.Errorf("handler %q is not available until the system is bootstrapped", msg.Name())
 	}
-	return d.next.Send(msg)
+	return d.next.Send(ctx, msg, onComplete)
 }
 
 var _ abstract.Dispatcher = (*BootstrapDispatcher)(nil)

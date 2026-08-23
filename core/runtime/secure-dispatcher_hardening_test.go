@@ -19,7 +19,7 @@ func TestSecureDispatcher_NoPolicyIsDeniedByDefault(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: adminContext(), name: "unknown:no:policy:msg"})
+	_, err := testAwait(disp, testMessage{ctx: adminContext(), name: "unknown:no:policy:msg"})
 	if err == nil {
 		t.Fatal("expected denial for message with no registered policy, got nil")
 	}
@@ -38,7 +38,7 @@ func TestSecureDispatcher_PolicyDisabledDenies(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: adminContext(), name: "sys:svc:op:run"})
+	_, err := testAwait(disp, testMessage{ctx: adminContext(), name: "sys:svc:op:run"})
 	if err == nil {
 		t.Fatal("expected denial for disabled policy, got nil")
 	}
@@ -46,7 +46,7 @@ func TestSecureDispatcher_PolicyDisabledDenies(t *testing.T) {
 		t.Fatalf("expected access-denied error for authenticated caller, got: %v", err)
 	}
 
-	_, err = disp.Send(testMessage{ctx: anonymousContext(), name: "sys:svc:op:run"})
+	_, err = testAwait(disp, testMessage{ctx: anonymousContext(), name: "sys:svc:op:run"})
 	if err == nil {
 		t.Fatal("expected error for anonymous, got nil")
 	}
@@ -66,7 +66,7 @@ func TestSecureDispatcher_SystemIdentityBypassesIsRoot(t *testing.T) {
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
 	// No rules, no registered scope, yet system identity sails through.
-	_, err := disp.Send(testMessage{ctx: systemContext(), name: "anything:at:all:goes"})
+	_, err := testAwait(disp, testMessage{ctx: systemContext(), name: "anything:at:all:goes"})
 	if err != nil {
 		t.Fatalf("system identity must bypass authorization, got: %v", err)
 	}

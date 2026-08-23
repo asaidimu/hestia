@@ -9,11 +9,11 @@ import (
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
-	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/audit"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 type testMessage struct {
@@ -24,8 +24,8 @@ type testMessage struct {
 func (m testMessage) ID() string                             { return "" }
 func (m testMessage) Name() string                           { return m.name }
 func (m testMessage) Context() context.Context               { return m.ctx }
-func (m testMessage) Input() data.Documenter                  { return nil }
-func (m testMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m testMessage) Input() data.Documenter                 { return nil }
+func (m testMessage) InputChannel() <-chan data.Documenter   { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m testMessage) TenantID() string                       { return "" }
 func (m testMessage) TraceID() string                        { return "" }
@@ -57,6 +57,12 @@ func adminContext() context.Context {
 	})
 }
 
+// TestPanickingHandlerIsRecovered verifies that a panicking handler is
+// contained by the terminal dispatcher: the panic is delivered to the
+// completion callback as *runtime.PanicError and still produces an audit
+// entry. Since the async refactor, panic recovery lives in LocalDispatcher
+// itself (a wrapping link's recover() can never catch a panic raised in the
+// terminal's goroutine), so no separate recovery link exists in the chain.
 func TestPanickingHandlerIsRecovered(t *testing.T) {
 	t.Parallel()
 
@@ -82,13 +88,12 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	ac.LoadRules(iam.FunctionRuleSet{"administrator": rule})
 
 	secure := runtime.NewSecureDispatcher(local, permMgr, ac)
-	recovery := runtime.NewRecoveryDispatcher(secure, zap.NewNop())
 
 	persister := &mockPersister{}
-	auditDisp := runtime.NewAuditDispatcher(recovery, persister)
+	auditDisp := runtime.NewAuditDispatcher(secure, persister)
 
 	msg := testMessage{name: "test:panic", ctx: adminContext()}
-	result, err := auditDisp.Send(msg)
+	result, err := testAwait(auditDisp, msg)
 	auditDisp.Sync()
 
 	if err == nil {
@@ -111,4 +116,10 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	if entry.Status != audit.AuditStatusError {
 		t.Fatalf("expected Status 'error', got %q", entry.Status)
 	}
+}
+
+// testAwait dispatches m and blocks for its outcome; the test-lifecycle
+// stand-in for request/response dispatch.
+func testAwait(d abstract.Dispatcher, m abstract.Message) (*abstract.Result, error) {
+	return dispatch.Await(context.Background(), d, m)
 }

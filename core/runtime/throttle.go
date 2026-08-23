@@ -90,20 +90,20 @@ func (d *ThrottleDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher 
 	}
 }
 
-func (d *ThrottleDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *ThrottleDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	op := msg.Name()
 	throttle := d.lookup(op)
 	if throttle == nil || throttle.Limit <= 0 {
-		return d.next.Send(msg)
+		return d.next.Send(ctx, msg, onComplete)
 	}
 
 	key := "throttle:" + op
 	count, err := d.store.Increment(msg.Context(), key, time.Duration(throttle.Window)*time.Second)
 	if err != nil {
-		return d.next.Send(msg)
+		return d.next.Send(ctx, msg, onComplete)
 	}
 	if int64(count) > throttle.Limit && throttle.Action != nil {
-		if err := d.dispatchAction(msg, throttle.Action); err != nil {
+		if err := d.dispatchAction(ctx, msg, throttle.Action); err != nil {
 			d.logger.Warn("throttle action failed",
 				zap.String("operation", op),
 				zap.String("action", throttle.Action.Message),
@@ -112,10 +112,13 @@ func (d *ThrottleDispatcher) Send(msg abstract.Message) (*abstract.Result, error
 		}
 	}
 
-	return d.next.Send(msg)
+	return d.next.Send(ctx, msg, onComplete)
 }
 
-func (d *ThrottleDispatcher) dispatchAction(originalMsg abstract.Message, action *ThrottleActionPolicy) error {
+// dispatchAction fires the configured throttle action as fire-and-forget:
+// the action message is accepted for asynchronous execution and its outcome
+// is discarded.
+func (d *ThrottleDispatcher) dispatchAction(ctx context.Context, originalMsg abstract.Message, action *ThrottleActionPolicy) error {
 	if action.Message == "" {
 		return nil
 	}
@@ -130,8 +133,7 @@ func (d *ThrottleDispatcher) dispatchAction(originalMsg abstract.Message, action
 
 	sysCtx := runtimecontext.SystemContext(originalMsg.Context())
 	actionMsg := dispatch.NewMessage(action.Message, sysCtx, doc)
-	_, err = d.disp.Send(actionMsg)
-	return err
+	return d.disp.Send(sysCtx, actionMsg, nil)
 }
 
 var _ abstract.Dispatcher = (*ThrottleDispatcher)(nil)

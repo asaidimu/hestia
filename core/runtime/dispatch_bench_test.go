@@ -33,7 +33,7 @@ func BenchmarkLocalDispatcherSend(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: adminContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := d.Send(msg); err != nil {
+		if _, err := testAwait(d, msg); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -44,7 +44,7 @@ func BenchmarkSecureDispatcher_Allowed(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: adminContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := d.Send(msg); err != nil {
+		if _, err := testAwait(d, msg); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -55,7 +55,7 @@ func BenchmarkSecureDispatcher_Denied(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: anonymousContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := d.Send(msg); err == nil {
+		if _, err := testAwait(d, msg); err == nil {
 			b.Fatal("expected denial")
 		}
 	}
@@ -66,7 +66,7 @@ func BenchmarkSecureDispatcher_SystemBypass(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: systemContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := d.Send(msg); err != nil {
+		if _, err := testAwait(d, msg); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -95,7 +95,7 @@ func BenchmarkFullChain_AuthzAllowed(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: adminContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := disp.Send(msg); err != nil {
+		if _, err := testAwait(disp, msg); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -106,7 +106,7 @@ func BenchmarkBootstrapDispatcher_Gated(b *testing.B) {
 	msg := testMessage{name: "bench:svc:op:run", ctx: systemContext()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := disp.Send(msg); err == nil {
+		if _, err := testAwait(disp, msg); err == nil {
 			b.Fatal("expected pre-bootstrap gate")
 		}
 	}

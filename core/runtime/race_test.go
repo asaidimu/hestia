@@ -64,7 +64,7 @@ func TestLocalDispatcher_ConcurrentSends(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := d.Send(testMessage{name: name, ctx: context.Background()}); err != nil {
+			if _, err := testAwait(d, testMessage{name: name, ctx: context.Background()}); err != nil {
 				t.Errorf("concurrent Send: %v", err)
 			}
 		}()

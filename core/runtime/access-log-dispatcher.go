@@ -149,14 +149,12 @@ func (d *AuditDispatcher) Close() {
 	}
 }
 
-func (d *AuditDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *AuditDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	start := time.Now()
-	result, err := d.next.Send(msg)
-	latency := time.Since(start)
-
-	d.log(msg, result, err, latency)
-
-	return result, err
+	return d.next.Send(ctx, msg, func(cctx context.Context, res *abstract.Result, handlerErr error) {
+		d.log(msg, res, handlerErr, time.Since(start))
+		onComplete(cctx, res, handlerErr)
+	})
 }
 
 func (d *AuditDispatcher) log(msg abstract.Message, result *abstract.Result, handlerErr error, latency time.Duration) {

@@ -8,19 +8,19 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/common"
+	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/system/collections"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/system/collections"
 )
 
 const erpCollection = "erp_orders"
@@ -40,7 +40,10 @@ func (p *benchPersister) Insert(_ context.Context, _ audit.AuditEntry) error {
 
 type benchNoop struct{}
 
-func (benchNoop) Send(abstract.Message) (*abstract.Result, error) { return &abstract.Result{}, nil }
+func (benchNoop) Send(ctx context.Context, _ abstract.Message, onComplete abstract.CompletionFunc) error {
+	abstract.Complete(onComplete, ctx, &abstract.Result{}, nil)
+	return nil
+}
 
 type benchBootstrapRegistry struct{}
 
@@ -57,7 +60,7 @@ func compileErpRule(ac iam.AccessController, expr string) iam.FunctionRule {
 func erpAdminCtx(tenant string) context.Context {
 	ctx := iam.WithIdentity(context.Background(), iam.Identity{
 		Permissions: []string{"administrator"},
-		Properties:  map[string]any{
+		Properties: map[string]any{
 			"user_id":     "u1",
 			"permissions": []string{"administrator"},
 			"token_type":  "access",
@@ -157,7 +160,7 @@ func BenchmarkERP_ConcurrentDocCreate(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			id := fmt.Sprintf("ord-%d", counter.Add(1))
-			if _, err := disp.Send(erpCreateMsg(id, ctx)); err != nil {
+			if _, err := testAwait(disp, erpCreateMsg(id, ctx)); err != nil {
 				b.Error(err)
 				return
 			}
@@ -173,7 +176,7 @@ func BenchmarkERP_ConcurrentDocRead(b *testing.B) {
 
 	const seeded = 200
 	for i := 0; i < seeded; i++ {
-		if _, err := disp.Send(erpCreateMsg(fmt.Sprintf("ord-%d", i), ctx)); err != nil {
+		if _, err := testAwait(disp, erpCreateMsg(fmt.Sprintf("ord-%d", i), ctx)); err != nil {
 			b.Fatalf("seed: %v", err)
 		}
 	}
@@ -183,7 +186,7 @@ func BenchmarkERP_ConcurrentDocRead(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			n := counter.Add(1) % seeded
-			if _, err := disp.Send(erpReadMsg(fmt.Sprintf("ord-%d", n), ctx)); err != nil {
+			if _, err := testAwait(disp, erpReadMsg(fmt.Sprintf("ord-%d", n), ctx)); err != nil {
 				b.Error(err)
 				return
 			}
@@ -199,7 +202,7 @@ func BenchmarkERP_BatchCreate_ThroughChain(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := disp.Send(erpCreateMsg(fmt.Sprintf("ord-%d", i), ctx)); err != nil {
+		if _, err := testAwait(disp, erpCreateMsg(fmt.Sprintf("ord-%d", i), ctx)); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -269,3 +272,9 @@ func BenchmarkERP_Query_Paginated(b *testing.B) {
 type discarder struct{}
 
 func (discarder) Write(p []byte) (int, error) { return len(p), nil }
+
+// testAwait dispatches m and blocks for its outcome; the test-lifecycle
+// stand-in for request/response dispatch.
+func testAwait(d abstract.Dispatcher, m abstract.Message) (*abstract.Result, error) {
+	return dispatch.Await(context.Background(), d, m)
+}

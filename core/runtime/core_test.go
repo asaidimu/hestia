@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"log/slog"
 	"strings"
 	"testing"
@@ -64,7 +65,7 @@ func TestLocalDispatcher(t *testing.T) {
 	}
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
-	_, err = d.Send(msg)
+	_, err = testAwait(d, msg)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
@@ -75,7 +76,7 @@ func TestLocalDispatcher(t *testing.T) {
 		t.Fatalf("expected name 'test:cmd', got %q", gotName)
 	}
 
-	_, err = d.Send(testMessage{name: "unknown:cmd", ctx: context.Background()})
+	_, err = testAwait(d, testMessage{name: "unknown:cmd", ctx: context.Background()})
 	if err == nil {
 		t.Fatal("expected error for unknown handler, got nil")
 	}
@@ -122,7 +123,7 @@ func TestLocalDispatcherSetEnabled(t *testing.T) {
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
 
-	_, err := d.Send(msg)
+	_, err := testAwait(d, msg)
 	if err != nil {
 		t.Fatalf("Send should succeed when enabled: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestLocalDispatcherSetEnabled(t *testing.T) {
 		t.Fatalf("SetHandlerEnabled(false) failed: %v", err)
 	}
 
-	_, err = d.Send(msg)
+	_, err = testAwait(d, msg)
 	if err == nil {
 		t.Fatal("expected error when handler disabled, got nil")
 	}
@@ -140,7 +141,7 @@ func TestLocalDispatcherSetEnabled(t *testing.T) {
 		t.Fatalf("SetHandlerEnabled(true) failed: %v", err)
 	}
 
-	_, err = d.Send(msg)
+	_, err = testAwait(d, msg)
 	if err != nil {
 		t.Fatalf("Send should succeed when re-enabled: %v", err)
 	}
@@ -237,7 +238,7 @@ func TestAuditDispatcher(t *testing.T) {
 	disp := NewAuditDispatcher(next, persister)
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
-	_, err := disp.Send(msg)
+	_, err := testAwait(disp, msg)
 	if err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
@@ -274,7 +275,7 @@ func TestAuditDispatcherError(t *testing.T) {
 	ctx := ContextWithAuditIdentity(context.Background(), "u1", audit.ActorTypeUser, audit.AuthMethodPassword)
 	ctx = ContextWithAuditTransport(ctx, "10.0.0.1", "curl", "req-1")
 	msg := testMessage{name: "test:fail", ctx: ctx}
-	disp.Send(msg)
+	testAwait(disp, msg)
 	disp.Sync()
 
 	if len(persister.entries) != 1 {
@@ -313,7 +314,7 @@ func TestNamespacedDispatcher(t *testing.T) {
 	disp := NewNamespacedDispatcher("blobs:", next, hydrator)
 
 	hydrated = false
-	_, err := disp.Send(testMessage{name: "blobs:put", ctx: context.Background()})
+	_, err := testAwait(disp, testMessage{name: "blobs:put", ctx: context.Background()})
 	if err != nil {
 		t.Fatalf("Send failed for prefixed message: %v", err)
 	}
@@ -322,7 +323,7 @@ func TestNamespacedDispatcher(t *testing.T) {
 	}
 
 	hydrated = false
-	_, err = disp.Send(testMessage{name: "other:cmd", ctx: context.Background()})
+	_, err = testAwait(disp, testMessage{name: "other:cmd", ctx: context.Background()})
 	if err != nil {
 		t.Fatalf("Send failed for non-prefixed message: %v", err)
 	}
@@ -337,7 +338,7 @@ func TestNamespacedDispatcherHydratorError(t *testing.T) {
 		return nil, ErrValidation
 	})
 
-	_, err := disp.Send(testMessage{name: "err:test", ctx: context.Background()})
+	_, err := testAwait(disp, testMessage{name: "err:test", ctx: context.Background()})
 	if err == nil {
 		t.Fatal("expected error from hydrator, got nil")
 	}
@@ -355,12 +356,12 @@ func TestSecureDispatcherWithPermissionManager(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: adminContext(), name: "admin:cmd"})
+	_, err := testAwait(disp, testMessage{ctx: adminContext(), name: "admin:cmd"})
 	if err != nil {
 		t.Fatalf("expected no error for admin, got: %v", err)
 	}
 
-	_, err = disp.Send(testMessage{ctx: anonymousContext(), name: "admin:cmd"})
+	_, err = testAwait(disp, testMessage{ctx: anonymousContext(), name: "admin:cmd"})
 	if err == nil {
 		t.Fatal("expected error for anonymous, got nil")
 	}
@@ -376,7 +377,7 @@ func TestSecureDispatcherWithPermissionManagerUnregisteredScope(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: adminContext(), name: "unregistered:cmd"})
+	_, err := testAwait(disp, testMessage{ctx: adminContext(), name: "unregistered:cmd"})
 	if err == nil {
 		t.Fatal("expected error for unregistered scope, got nil")
 	}
@@ -409,4 +410,10 @@ func TestContextWithAuditIdentityEmpty(t *testing.T) {
 	if actorID != "" {
 		t.Fatalf("expected empty actorID, got %q", actorID)
 	}
+}
+
+// testAwait dispatches m and blocks for its outcome; the test-lifecycle
+// stand-in for request/response dispatch.
+func testAwait(d abstract.Dispatcher, m abstract.Message) (*abstract.Result, error) {
+	return dispatch.Await(context.Background(), d, m)
 }

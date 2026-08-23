@@ -2,7 +2,8 @@ package abstract
 
 import "context"
 
-// @note #review2-20260821-005 issue P0 #review,#arch,#p2p : Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant
+// @note #review2-20260821-005 issue resolved P0 #review,#arch,#p2p : Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant
+// Resolved by the async-native dispatcher refactor. Dispatcher.Send is now Send(ctx, msg, onComplete CompletionFunc) error: acceptance returns synchronously (non-nil error = pre-check rejection, callback never fires); execution runs on a dispatcher-owned goroutine and the completion callback fires exactly once — seconds or days later — with (*Result, error). msg.Context() remains the request-metadata source of truth; explicit ctx governs lifecycle/cancellation before terminal start. Panic recovery was absorbed into LocalDispatcher (a link's recover() can never catch a panic in the terminal's goroutine), so RecoveryDispatcher was deleted from the chain and codebase. Blocking sugar lives in runtime/dispatch (Await/Dispatch). The remote/P2P seam is now this interface: a future RemoteDispatcher implements Send by publishing over the network and invoking the stored completion on correlated reply — no parked waiter goroutine per in-flight call. Durable execution via go-events v2 planned as follow-up (todo/async_dispatcher_refactor.md Epic 2).
 //
 // Every implementation in the chain -- LocalDispatcher, SecureDispatcher,
 // RateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,
@@ -54,8 +55,36 @@ import "context"
 //     that should be settled before committing to the exact shape of #2.
 type MessageHandler func(context.Context, Message) (*Result, error)
 
+// CompletionFunc receives the final outcome of an accepted dispatch exactly
+// once, on a goroutine owned by the dispatcher — possibly long after Send
+// returned (remote or durable execution). A nil res with non-nil err signals
+// failure; panics are recovered by the dispatcher and delivered as
+// *runtime.PanicError. onComplete == nil means fire-and-forget.
+type CompletionFunc func(ctx context.Context, res *Result, err error)
+
+// Complete delivers an outcome to onComplete unless it is nil
+// (fire-and-forget).
+func Complete(onComplete CompletionFunc, ctx context.Context, res *Result, err error) {
+	if onComplete == nil {
+		return
+	}
+	onComplete(ctx, res, err)
+}
+
+// Dispatcher accepts messages for execution. Send arranges for the message's
+// handler to run asynchronously; onComplete (if non-nil) is invoked exactly
+// once when execution finishes.
+//
+// Contract:
+//   - A non-nil return value is a synchronous pre-check rejection (handler
+//     missing/disabled, unauthorized, rate-limited, not bootstrapped). No
+//     goroutine is started and onComplete never fires.
+//   - A nil return means the message was accepted: onComplete fires exactly
+//     once, even on panic or internal error.
+//   - ctx governs acceptance and cancellation before the terminal handler
+//     starts; msg.Context() remains the request-metadata source of truth.
 type Dispatcher interface {
-	Send(msg Message) (*Result, error)
+	Send(ctx context.Context, msg Message, onComplete CompletionFunc) error
 }
 
 type IntentType string

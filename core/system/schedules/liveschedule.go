@@ -117,6 +117,6 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 
 	sysCtx := runtimecontext.SystemContext(ctx)
 	msg := dispatch.NewMessage(message, sysCtx, docInput)
-	_, err = ls.disp.Send(msg)
+	_, err = dispatch.Await(sysCtx, ls.disp, msg)
 	return err
 }

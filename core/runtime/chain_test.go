@@ -38,9 +38,9 @@ type recordingDispatcher struct {
 	next abstract.Dispatcher
 }
 
-func (d recordingDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d recordingDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	d.rec.record(d.name)
-	return d.next.Send(msg)
+	return d.next.Send(ctx, msg, onComplete)
 }
 
 func assertOrder(t *testing.T, got, want []string) {
@@ -64,7 +64,7 @@ func TestDispatcherChain_BuildRunsOutermostFirst(t *testing.T) {
 		LinkEntry{Name: "c", Link: recordingLink{"c", rec}},
 	)
 	disp := chain.Build(base)
-	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
+	if _, err := testAwait(disp, testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 	// The first entry is the outermost wrapper and therefore runs first.
@@ -78,7 +78,7 @@ func TestDispatcherChain_InsertAfter(t *testing.T) {
 	chain.InsertAfter("a", "after-a", recordingLink{"after-a", rec})
 	chain.InsertAfter("missing", "never", recordingLink{"never", rec}) // no-op on unknown name
 	disp := chain.Build(base)
-	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
+	if _, err := testAwait(disp, testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 	assertOrder(t, rec.names, []string{"a", "after-a", "base"})
@@ -90,7 +90,7 @@ func TestDispatcherChain_InsertBefore(t *testing.T) {
 	chain := NewDispatcherChain(LinkEntry{Name: "b", Link: recordingLink{"b", rec}})
 	chain.InsertBefore("b", "before-b", recordingLink{"before-b", rec})
 	disp := chain.Build(base)
-	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
+	if _, err := testAwait(disp, testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 	assertOrder(t, rec.names, []string{"before-b", "b", "base"})
@@ -105,7 +105,7 @@ func TestDispatcherChain_Remove(t *testing.T) {
 	)
 	chain.Remove("a")
 	disp := chain.Build(base)
-	if _, err := disp.Send(testMessage{name: "x", ctx: context.Background()}); err != nil {
+	if _, err := testAwait(disp, testMessage{name: "x", ctx: context.Background()}); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
 	assertOrder(t, rec.names, []string{"b", "base"})
@@ -161,7 +161,7 @@ func TestInsertBeforeSecureRunsBeforeAuthz(t *testing.T) {
 
 	// Anonymous is denied for an admin-scoped message, but the custom link
 	// (inserted before secure) already ran. This is the exposure.
-	_, err := disp.Send(testMessage{ctx: anonymousContext(), name: "admin:only"})
+	_, err := testAwait(disp, testMessage{ctx: anonymousContext(), name: "admin:only"})
 	if err == nil {
 		t.Fatal("expected authz denial")
 	}
@@ -175,7 +175,7 @@ func TestInsertBeforeSecureRunsBeforeAuthz(t *testing.T) {
 	chain2.InsertAfter("secure", "after-secure", recordingLink{"after-secure", rec2})
 	disp2 := chain2.Build(base)
 
-	_, err = disp2.Send(testMessage{ctx: anonymousContext(), name: "admin:only"})
+	_, err = testAwait(disp2, testMessage{ctx: anonymousContext(), name: "admin:only"})
 	if err == nil {
 		t.Fatal("expected authz denial")
 	}

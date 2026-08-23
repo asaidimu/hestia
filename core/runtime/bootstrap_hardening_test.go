@@ -24,7 +24,7 @@ func TestBootstrapDispatcher_GatesEverythingPreBootstrap(t *testing.T) {
 	disp := NewBootstrapDispatcher(noopDispatcher{}, registry, func() bool { return false })
 
 	// Non-safe handler blocked pre-bootstrap.
-	_, err := disp.Send(testMessage{name: "collections:_user:read", ctx: context.Background()})
+	_, err := testAwait(disp, testMessage{name: "collections:_user:read", ctx: context.Background()})
 	if err == nil {
 		t.Fatal("expected pre-bootstrap denial for non-safe handler, got nil")
 	}
@@ -34,13 +34,13 @@ func TestBootstrapDispatcher_GatesEverythingPreBootstrap(t *testing.T) {
 
 	// System-scoped message is still gated — bootstrap gating happens OUTSIDE
 	// authorization, so no identity can sneak past it.
-	_, err = disp.Send(testMessage{name: "sys:api:key:create", ctx: systemContext()})
+	_, err = testAwait(disp, testMessage{name: "sys:api:key:create", ctx: systemContext()})
 	if err == nil {
 		t.Fatal("expected pre-bootstrap denial even for system identity, got nil")
 	}
 
 	// BootstrapSafe handler allowed through.
-	if _, err = disp.Send(testMessage{name: "sys:bootstrap:init:run", ctx: context.Background()}); err != nil {
+	if _, err = testAwait(disp, testMessage{name: "sys:bootstrap:init:run", ctx: context.Background()}); err != nil {
 		t.Fatalf("bootstrap-safe handler must dispatch pre-bootstrap: %v", err)
 	}
 }
@@ -51,7 +51,7 @@ func TestBootstrapDispatcher_OpenAfterBootstrap(t *testing.T) {
 	registry := staticBootstrapRegistry{safe: map[string]bool{}}
 	disp := NewBootstrapDispatcher(noopDispatcher{}, registry, func() bool { return true })
 
-	if _, err := disp.Send(testMessage{name: "collections:_user:read", ctx: context.Background()}); err != nil {
+	if _, err := testAwait(disp, testMessage{name: "collections:_user:read", ctx: context.Background()}); err != nil {
 		t.Fatalf("post-bootstrap dispatch must be unrestricted: %v", err)
 	}
 }

@@ -11,5 +11,6 @@ func Policies() []policies.Binding {
 		{Name: "system:users:user:delete", RuleKey: "administrator", Description: ""},
 		{Name: "system:users:user:check", RuleKey: "authenticated", Description: ""},
 		{Name: "system:collections:user:query", RuleKey: "authenticated", Description: ""},
+		{Name: "system:users:callback:ack", RuleKey: "authenticated", Description: "Acknowledge a callback without waiting"},
 	}
 }

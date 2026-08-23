@@ -53,7 +53,7 @@ func (p *hestiaIdentityProvider) authenticateAPIKey(key string) (*iam.Identity, 
 
 	apiKeyMsg := dispatch.NewMessage("system:auth:apikey:validate", ctx,
 		data.MustNewDocument(map[string]any{"api_key": key}, ctx))
-	result, err := p.internalDisp.Send(apiKeyMsg)
+	result, err := dispatch.Await(ctx, p.internalDisp, apiKeyMsg)
 	if err != nil {
 		return nil, common.NewSystemError("UNAUTHORIZED", err.Error())
 	}

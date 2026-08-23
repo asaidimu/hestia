@@ -84,37 +84,37 @@ func (d *RateLimitDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher
 	}
 }
 
-func (d *RateLimitDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *RateLimitDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	rate := d.lookup(msg.Name())
 	if rate == nil {
-		return d.next.Send(msg)
+		return d.next.Send(ctx, msg, onComplete)
 	}
 
 	key := buildRateLimitKey(rate.Identity, msg)
 	remaining, ok, err := d.store.CheckAndConsume(msg.Context(), key, rate.Capacity, rate.Refill, time.Duration(rate.Period)*time.Second)
 	if err != nil {
-		return d.next.Send(msg)
+		return d.next.Send(ctx, msg, onComplete)
 	}
 	if !ok {
-		return nil, &RateLimitError{
+		return &RateLimitError{
 			Remaining: 0,
 			ResetAt:   time.Now().Add(time.Duration(rate.Period) * time.Second).Unix(),
 		}
 	}
 
-	result, err := d.next.Send(msg)
-	if err != nil {
-		return nil, err
-	}
-	if result.Metadata == nil {
-		result.Metadata = make(map[string]any)
-	}
-	result.Metadata[MetaKeyRates] = &RateLimitMeta{
-		Remaining: remaining,
-		Limit:     int(rate.Capacity),
-		ResetAt:   time.Now().Add(time.Duration(rate.Period) * time.Second).Unix(),
-	}
-	return result, nil
+	return d.next.Send(ctx, msg, func(cctx context.Context, res *abstract.Result, handlerErr error) {
+		if handlerErr == nil && res != nil {
+			if res.Metadata == nil {
+				res.Metadata = make(map[string]any)
+			}
+			res.Metadata[MetaKeyRates] = &RateLimitMeta{
+				Remaining: remaining,
+				Limit:     int(rate.Capacity),
+				ResetAt:   time.Now().Add(time.Duration(rate.Period) * time.Second).Unix(),
+			}
+		}
+		onComplete(cctx, res, handlerErr)
+	})
 }
 
 func buildRateLimitKey(identity string, msg abstract.Message) string {

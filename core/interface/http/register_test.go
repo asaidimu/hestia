@@ -43,11 +43,14 @@ type mockDispatcher struct {
 	sendFn func(abstract.Message) (*abstract.Result, error)
 }
 
-func (m *mockDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (m *mockDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if m.sendFn != nil {
-		return m.sendFn(msg)
+		res, err := m.sendFn(msg)
+		abstract.Complete(onComplete, ctx, res, err)
+		return nil
 	}
-	return &abstract.Result{}, nil
+	abstract.Complete(onComplete, ctx, &abstract.Result{}, nil)
+	return nil
 }
 
 func mustPool(t *testing.T, s *definition.Schema) *document.DocumentPool {
@@ -213,14 +216,14 @@ func TestSerializeResponse_Create(t *testing.T) {
 			},
 		},
 	}
-	resp := serializeResponse(result, output, abstract.Create, "/api/users")
+	resp := serializeResponse(context.Background(), result, output, abstract.Create, "/api/users")
 	if resp.Status != 201 {
 		t.Fatalf("expected 201, got %d", resp.Status)
 	}
 }
 
 func TestSerializeResponse_Delete(t *testing.T) {
-	resp := serializeResponse(nil, nil, abstract.Delete, "")
+	resp := serializeResponse(context.Background(), nil, nil, abstract.Delete, "")
 	if resp.Status != 204 {
 		t.Fatalf("expected 204, got %d", resp.Status)
 	}
@@ -236,7 +239,7 @@ func TestSerializeResponse_Read(t *testing.T) {
 			},
 		},
 	}
-	resp := serializeResponse(result, output, abstract.Read, "")
+	resp := serializeResponse(context.Background(), result, output, abstract.Read, "")
 	if resp.Status != 200 {
 		t.Fatalf("expected 200, got %d", resp.Status)
 	}
@@ -249,7 +252,7 @@ func TestSerializeResponse_Blob(t *testing.T) {
 			ContentType: "text/plain",
 		},
 	}
-	resp := serializeResponse(result, nil, abstract.Read, "")
+	resp := serializeResponse(context.Background(), result, nil, abstract.Read, "")
 	if resp.Status != 200 {
 		t.Fatalf("expected 200, got %d", resp.Status)
 	}

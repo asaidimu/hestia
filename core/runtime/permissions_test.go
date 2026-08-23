@@ -21,8 +21,8 @@ type testMessage struct {
 func (m testMessage) ID() string                             { return "" }
 func (m testMessage) Name() string                           { return m.name }
 func (m testMessage) Context() context.Context               { return m.ctx }
-func (m testMessage) Input() data.Documenter                  { return data.MustNewDocument(nil, m.ctx) }
-func (m testMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m testMessage) Input() data.Documenter                 { return data.MustNewDocument(nil, m.ctx) }
+func (m testMessage) InputChannel() <-chan data.Documenter   { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m testMessage) TenantID() string                       { return runtimecontext.GetTenantID(m.ctx) }
 func (m testMessage) TraceID() string                        { return runtimecontext.GetTraceID(m.ctx) }
@@ -90,7 +90,7 @@ func TestSecureDispatcher_AnonymousDeniedForAdminScope(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: anonymousContext(), name: "collections:_user:read"})
+	_, err := testAwait(disp, testMessage{ctx: anonymousContext(), name: "collections:_user:read"})
 	if err == nil {
 		t.Fatal("expected ErrAccessDenied for anonymous user on admin-scoped query, got nil")
 	}
@@ -113,7 +113,7 @@ func TestSecureDispatcher_AdminAllowedForAdminScope(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: adminContext(), name: "collections:_user:read"})
+	_, err := testAwait(disp, testMessage{ctx: adminContext(), name: "collections:_user:read"})
 	if err != nil {
 		t.Fatalf("expected no error for admin user on admin-scoped query, got: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestSecureDispatcher_AnonymousAllowedForPublicScope(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: anonymousContext(), name: "auth:session:create"})
+	_, err := testAwait(disp, testMessage{ctx: anonymousContext(), name: "auth:session:create"})
 	if err != nil {
 		t.Fatalf("expected no error for anonymous user on public-scoped query, got: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestSecureDispatcher_SystemIdentityBypassesCheck(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: systemContext(), name: "anything"})
+	_, err := testAwait(disp, testMessage{ctx: systemContext(), name: "anything"})
 	if err != nil {
 		t.Fatalf("expected no error for system identity, got: %v", err)
 	}
@@ -159,8 +159,9 @@ func (d discarder) Write(p []byte) (int, error) { return len(p), nil }
 
 type noopDispatcher struct{}
 
-func (d noopDispatcher) Send(abstract.Message) (*abstract.Result, error) {
-	return &abstract.Result{}, nil
+func (d noopDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
+	abstract.Complete(onComplete, ctx, &abstract.Result{}, nil)
+	return nil
 }
 
 var _ abstract.Dispatcher = noopDispatcher{}

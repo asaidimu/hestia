@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"strings"
 
 	"github.com/asaidimu/hestia/core/abstract"
@@ -20,15 +21,15 @@ func (d *NamespacedDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatche
 	return &NamespacedDispatcher{prefix: d.prefix, next: next, hydrator: d.hydrator}
 }
 
-func (d *NamespacedDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *NamespacedDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if !strings.HasPrefix(msg.Name(), d.prefix) {
-		return d.next.Send(msg)
+		return d.next.Send(ctx, msg, onComplete)
 	}
 	hydrated, err := d.hydrator(msg)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return d.next.Send(hydrated)
+	return d.next.Send(ctx, hydrated, onComplete)
 }
 
 var _ abstract.Dispatcher = (*NamespacedDispatcher)(nil)

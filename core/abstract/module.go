@@ -188,6 +188,14 @@ type MessageRegistration struct {
 	Enabled       bool               `json:"enabled"`
 	BootstrapSafe bool               `json:"bootstrap_safe"`
 	Internal      bool               `json:"internal"`
+	// FireAndForget tells transports to accept the message and respond
+	// immediately without waiting for handler completion. HTTP answers 202
+	// Accepted with the message ID; validation and synchronous chain
+	// rejections (auth, rate limit) still fail the request normally.
+	// Until durable execution lands, accepted work is best-effort: if the
+	// process dies after the ack, the handler never runs and the caller is
+	// not notified. HTTP-only today; other transports await regardless.
+	FireAndForget bool               `json:"fire_and_forget,omitempty"`
 	Input         Input              `json:"input,omitempty"`
 	Output        *definition.Schema `json:"output,omitempty"`
 }

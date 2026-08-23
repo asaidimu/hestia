@@ -74,3 +74,21 @@ type ListUsersInput struct {
 func (s *UsersService) ListUsers(ctx context.Context, msg abstract.Message, input *ListUsersInput) ([]*User, error) {
 	return nil, nil
 }
+
+// AckCallbackInput binds the callback payload.
+type AckCallbackInput struct {
+	Ref string `input:"payload.ref"`
+}
+
+// AckCallback registers a fire-and-forget empty result.
+//
+// @hestia.register(
+//   name="system:users:callback:ack",
+//   intent="create",
+//   rule="authenticated",
+//   description="Acknowledge a callback without waiting",
+//   fire_and_forget="true",
+// )
+func (s *UsersService) AckCallback(ctx context.Context, msg abstract.Message, input *AckCallbackInput) error {
+	return nil
+}

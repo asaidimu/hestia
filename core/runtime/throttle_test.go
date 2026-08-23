@@ -20,12 +20,13 @@ type actionSpy struct {
 	mu     sync.Mutex
 }
 
-func (s *actionSpy) Send(msg abstract.Message) (*abstract.Result, error) {
+func (s *actionSpy) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	s.mu.Lock()
 	s.called++
 	s.last = msg
 	s.mu.Unlock()
-	return &abstract.Result{}, nil
+	abstract.Complete(onComplete, ctx, &abstract.Result{}, nil)
+	return nil
 }
 
 func TestThrottleLookupNil(t *testing.T) {
@@ -33,7 +34,7 @@ func TestThrottleLookupNil(t *testing.T) {
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
-	_, err := wrapped.Send(newMessage("any:op"))
+	_, err := testAwait(wrapped, newMessage("any:op"))
 	if err != nil {
 		t.Fatalf("nil lookup should not block: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestThrottleNoLimitPassesThrough(t *testing.T) {
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
-	_, err := wrapped.Send(newMessage("op:test"))
+	_, err := testAwait(wrapped, newMessage("op:test"))
 	if err != nil {
 		t.Fatalf("no throttle policy should not block: %v", err)
 	}
@@ -82,7 +83,7 @@ func TestThrottleActionFiresAtLimit(t *testing.T) {
 
 	// events 1 & 2: count 1-2, both <= limit, no action
 	for i := 0; i < 2; i++ {
-		_, err := disp.Send(msg)
+		_, err := testAwait(disp, msg)
 		if err != nil {
 			t.Fatalf("event %d: %v", i+1, err)
 		}
@@ -92,7 +93,7 @@ func TestThrottleActionFiresAtLimit(t *testing.T) {
 	}
 
 	// event 3: count=3 exceeds limit=2, action fires
-	_, err := disp.Send(msg)
+	_, err := testAwait(disp, msg)
 	if err != nil {
 		t.Fatalf("event 3: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestThrottleActionFiresAtLimit(t *testing.T) {
 	}
 
 	// event 4: count=4, action fires again
-	_, err = disp.Send(msg)
+	_, err = testAwait(disp, msg)
 	if err != nil {
 		t.Fatalf("event 4: %v", err)
 	}
@@ -126,7 +127,7 @@ func TestThrottleActionFailureIsLogged(t *testing.T) {
 	}, spy, zap.NewNop())
 	wrapped := disp.Wrap(&mockDispatcher{})
 
-	_, err := wrapped.Send(newMessage("op:test"))
+	_, err := testAwait(wrapped, newMessage("op:test"))
 	if err != nil {
 		t.Fatalf("throttle action failure should not block original message: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestThrottleNoActionDefined(t *testing.T) {
 	}, &actionSpy{}, zap.NewNop())
 	wrapped := disp.Wrap(&mockDispatcher{})
 
-	_, err := wrapped.Send(newMessage("op:test"))
+	_, err := testAwait(wrapped, newMessage("op:test"))
 	if err != nil {
 		t.Fatalf("even at limit, no action defined should not block: %v", err)
 	}
@@ -168,7 +169,7 @@ func TestThrottleWindowResetsCount(t *testing.T) {
 
 	// 3 events in window: 3rd fires action
 	for i := 0; i < 3; i++ {
-		wrapped.Send(newMessage("op:test"))
+		testAwait(wrapped, newMessage("op:test"))
 	}
 	if spy.called != 1 {
 		t.Fatalf("expected 1 action, got %d", spy.called)
@@ -181,14 +182,14 @@ func TestThrottleWindowResetsCount(t *testing.T) {
 	defer restore2()
 
 	// 1st event in new window: count resets, no action
-	wrapped.Send(newMessage("op:test"))
+	testAwait(wrapped, newMessage("op:test"))
 	if spy.called != 1 {
 		t.Fatalf("after window reset, no action expected, got %d", spy.called)
 	}
 
 	// 2 more events: triggers action again
-	wrapped.Send(newMessage("op:test"))
-	wrapped.Send(newMessage("op:test"))
+	testAwait(wrapped, newMessage("op:test"))
+	testAwait(wrapped, newMessage("op:test"))
 	if spy.called != 2 {
 		t.Fatalf("should fire once more after reset, got %d", spy.called)
 	}
@@ -250,12 +251,12 @@ func TestThrottleActionMessageName(t *testing.T) {
 	msg := &mockMessage{name: "op:test", ctx: ctx}
 
 	// first send: count=1, 1>1=false, no action
-	_, err := wrapped.Send(msg)
+	_, err := testAwait(wrapped, msg)
 	if err != nil {
 		t.Fatalf("first send: %v", err)
 	}
 	// second send: count=2, 2>1=true, action fires
-	_, err = wrapped.Send(msg)
+	_, err = testAwait(wrapped, msg)
 	if err != nil {
 		t.Fatalf("second send: %v", err)
 	}

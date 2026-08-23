@@ -10,32 +10,35 @@ import (
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 )
 
-type genericMessage struct {
+// message is the single abstract.Message implementation in this package.
+// All request metadata (tenant, trace, session, ...) is read from the
+// embedded context via runtimecontext accessors.
+type message struct {
 	id      string
 	name    string
 	ctx     context.Context
 	input   data.Documenter
-	inputCh <-chan data.Documenter
+	inputCh chan data.Documenter // exposed receive-only via InputChannel
 	blobCh  <-chan abstract.Blob
 }
 
-func (m *genericMessage) ID() string                             { return m.id }
-func (m *genericMessage) Name() string                           { return m.name }
-func (m *genericMessage) Context() context.Context               { return m.ctx }
-func (m *genericMessage) Input() data.Documenter                 { return m.input }
-func (m *genericMessage) InputChannel() <-chan data.Documenter    { return m.inputCh }
-func (m *genericMessage) BlobInputChannel() <-chan abstract.Blob { return m.blobCh }
+func (m *message) ID() string                             { return m.id }
+func (m *message) Name() string                           { return m.name }
+func (m *message) Context() context.Context               { return m.ctx }
+func (m *message) Input() data.Documenter                 { return m.input }
+func (m *message) InputChannel() <-chan data.Documenter    { return m.inputCh }
+func (m *message) BlobInputChannel() <-chan abstract.Blob { return m.blobCh }
 
-func (m *genericMessage) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
-func (m *genericMessage) TraceID() string    { return runtimecontext.GetTraceID(m.ctx) }
-func (m *genericMessage) RequestID() string  { return runtimecontext.GetRequestID(m.ctx) }
-func (m *genericMessage) SourceIP() string   { return runtimecontext.GetSourceIP(m.ctx) }
-func (m *genericMessage) UserAgent() string  { return runtimecontext.GetUserAgent(m.ctx) }
-func (m *genericMessage) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
-func (m *genericMessage) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
+func (m *message) TenantID() string   { return runtimecontext.GetTenantID(m.ctx) }
+func (m *message) TraceID() string    { return runtimecontext.GetTraceID(m.ctx) }
+func (m *message) RequestID() string  { return runtimecontext.GetRequestID(m.ctx) }
+func (m *message) SourceIP() string   { return runtimecontext.GetSourceIP(m.ctx) }
+func (m *message) UserAgent() string  { return runtimecontext.GetUserAgent(m.ctx) }
+func (m *message) ResourceID() string { return runtimecontext.GetResourceID(m.ctx) }
+func (m *message) SessionID() string  { return runtimecontext.GetSessionID(m.ctx) }
 
 func NewMessage(name string, ctx context.Context, input data.Documenter) abstract.Message {
-	return &genericMessage{id: MustNewID(), name: name, ctx: ctx, input: input}
+	return &message{id: MustNewID(), name: name, ctx: ctx, input: input}
 }
 
 func MustNewID() string {

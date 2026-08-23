@@ -40,7 +40,7 @@ func TestDeniedRequestIsNotAudited(t *testing.T) {
 	// Mirror the real arrangement: secure is OUTER, audit is INNER.
 	secure := NewSecureDispatcher(auditDisp, permMgr, ac)
 
-	_, err := secure.Send(testMessage{ctx: anonymousContext(), name: "admin:only"})
+	_, err := testAwait(secure, testMessage{ctx: anonymousContext(), name: "admin:only"})
 	if err == nil {
 		t.Fatal("expected authz denial for anonymous on admin-scoped message")
 	}
@@ -50,7 +50,7 @@ func TestDeniedRequestIsNotAudited(t *testing.T) {
 	}
 
 	// Control: an allowed request DOES reach the audit link.
-	_, err = secure.Send(testMessage{ctx: adminContext(), name: "admin:only"})
+	_, err = testAwait(secure, testMessage{ctx: adminContext(), name: "admin:only"})
 	if err != nil {
 		t.Fatalf("admin should be allowed: %v", err)
 	}

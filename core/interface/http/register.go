@@ -21,6 +21,7 @@ import (
 const (
 	statusOK        = 200
 	statusCreated   = 201
+	statusAccepted  = 202
 	statusNoContent = 204
 	statusNotFound  = 404
 	statusTooMany   = 429
@@ -102,7 +103,30 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
 			ctx = runtimecontext.ContextWithTraceID(ctx, idempotencyKey)
 		}
 
-		result, err := dispatch.Dispatch(o.disp, dispatch.DispatchInput{
+		if reg.FireAndForget {
+			id, err := dispatch.Enqueue(ctx, o.disp, dispatch.DispatchInput{
+				Name:     reg.Name,
+				Context:  ctx,
+				ID:       idempotencyKey,
+				Document: doc,
+				Intent:   reg.Intent,
+			})
+			if err != nil {
+				resp := o.attachCookieClearingResponse(Response{}, reg.Name)
+				var rle *runtime.RateLimitError
+				if errors.As(err, &rle) {
+					if resp.Headers == nil {
+						resp.Headers = map[string][]string{}
+					}
+					resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
+					resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
+				}
+				return resp, err
+			}
+			return acceptedResponse(id), nil
+		}
+
+		result, err := dispatch.Dispatch(ctx, o.disp, dispatch.DispatchInput{
 			Name:     reg.Name,
 			Context:  ctx,
 			ID:       idempotencyKey,
@@ -123,7 +147,7 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
 		}
 
 		defer result.Release()
-		resp := serializeResponse(result, reg.Output, reg.Intent, httpPath)
+		resp := serializeResponse(ctx, result, reg.Output, reg.Intent, httpPath)
 		resp = o.attachCookieToResponse(resp, result, reg.Name)
 		return resp, nil
 	}))
@@ -137,12 +161,12 @@ func buildDoc(ctx context.Context, req Request, input runtime.Input, pool *docum
 	return BuildInputDocument(pool, input, req)
 }
 
-func serializeResponse(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) Response {
+func serializeResponse(ctx context.Context, result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) Response {
 	if result == nil {
 		return emptyResponse(intent)
 	}
 
-	if streamResp, ok := serializeStreamResult(result); ok {
+	if streamResp, ok := serializeStreamResult(ctx, result); ok {
 		copyMeta(&streamResp, result)
 		return streamResp
 	}
@@ -174,7 +198,8 @@ func serializeResponse(result *abstract.Result, output *definition.Schema, inten
 	return emptyResponse(intent)
 }
 
-// @note #mem-20260821-003 issue status=open priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
+// @note #mem-20260821-003 issue resolved status=open priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
+// Resolved: streamChannel in core/interface/http/register.go now selects on the request context while draining the source channel and while forwarding to the response stream. On client disconnect (ctx done) the producer goroutine returns instead of blocking forever on a full buffer, eliminating the leak.
 //
 // streamChannel (line 171) creates a channel with buffer size 64. If the
 // consumer stops reading (e.g., client disconnects), the producer goroutine
@@ -190,28 +215,42 @@ func serializeResponse(result *abstract.Result, output *definition.Schema, inten
 // 2. Add a timeout or context to the producer goroutine
 // 3. Consider using a bounded buffer with overflow handling
 // 4. Monitor goroutine count for leak detection
-func streamChannel[T any](src <-chan T, transform func(T) any) (Response, bool) {
+func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) any) (Response, bool) {
 	if src == nil {
 		return Response{}, false
 	}
 	streamCh := make(chan any, 64)
 	go func() {
 		defer close(streamCh)
-		for v := range src {
-			streamCh <- transform(v)
+		for {
+			select {
+			case v, ok := <-src:
+				if !ok {
+					return
+				}
+				select {
+				case streamCh <- transform(v):
+				case <-ctx.Done():
+					return
+				}
+			case <-ctx.Done():
+				// Consumer went away (client disconnect): stop draining so
+				// this goroutine does not leak blocked on a full buffer.
+				return
+			}
 		}
 	}()
 	return Response{Status: statusOK, Body: StreamBody(streamCh)}, true
 }
 
-func serializeStreamResult(result *abstract.Result) (Response, bool) {
-	if resp, ok := streamChannel(result.DocumentChannel, func(d *document.Document) any {
+func serializeStreamResult(ctx context.Context, result *abstract.Result) (Response, bool) {
+	if resp, ok := streamChannel(ctx, result.DocumentChannel, func(d *document.Document) any {
 		sane, _ := d.Sanitize()
 		return sane
 	}); ok {
 		return resp, true
 	}
-	return streamChannel(result.BlobChannel, func(b abstract.Blob) any {
+	return streamChannel(ctx, result.BlobChannel, func(b abstract.Blob) any {
 		return map[string]any{"data": b.Data, "content_type": b.ContentType}
 	})
 }
@@ -245,6 +284,21 @@ func emptyResponse(intent abstract.Verb) Response {
 		status = statusNoContent
 	}
 	return Response{Status: status}
+}
+
+// acceptedResponse is the envelope for fire-and-forget dispatches: 202
+// Accepted plus the correlation ID of the accepted message.
+func acceptedResponse(id string) Response {
+	return Response{
+		Status: statusAccepted,
+		Body: map[string]any{
+			"data": map[string]any{
+				"id":     id,
+				"status": "accepted",
+			},
+			"metadata": map[string]any{},
+		},
+	}
 }
 
 func createStatus(intent abstract.Verb) int {

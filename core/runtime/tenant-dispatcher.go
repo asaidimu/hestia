@@ -20,12 +20,12 @@ func (d *TenantDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &TenantDispatcher{next: next, resolver: d.resolver}
 }
 
-func (d *TenantDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *TenantDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if tenantID := d.resolver(msg.Context()); tenantID != "" {
-		ctx := runtimecontext.ContextWithTenantID(msg.Context(), tenantID)
-		msg = &tenantMessage{Message: msg, ctx: ctx}
+		tctx := runtimecontext.ContextWithTenantID(msg.Context(), tenantID)
+		msg = &tenantMessage{Message: msg, ctx: tctx}
 	}
-	return d.next.Send(msg)
+	return d.next.Send(ctx, msg, onComplete)
 }
 
 type tenantMessage struct {

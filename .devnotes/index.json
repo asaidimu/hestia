@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-22T20:42:35.155733267Z",
+  "generatedAt": "2026-08-22T23:41:09.635918102Z",
   "root": ".",
   "notes": {
     "83l69u": {
@@ -71,7 +71,7 @@
       "category": "issue",
       "status": "open",
       "title": "Inconsistent error handling in dispatchers",
-      "body": "LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,\nbut the project convention is to use common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nThe same issue exists in bootstrap-dispatcher.go line 29.\n\nMeanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,\nErrAuthRequired, ErrRateLimited etc.\n\nResolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go\nand bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,\nErrValidation/ErrAccessDenied with WithOperation).\n",
+      "body": "LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,\nbut the project convention is to use common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nThe same issue exists in bootstrap-dispatcher.go.\n\nMeanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,\nErrAuthRequired, ErrRateLimited etc.\n\nResolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go\nand bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,\nErrValidation/ErrAccessDenied with WithOperation).\n",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
         "startLine": 0,
@@ -79,22 +79,7 @@
         "endLine": 13,
         "endCol": 3
       },
-      "hash": "06906126234fe489"
-    },
-    "arch-20260821-006": {
-      "id": "arch-20260821-006",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate message implementation in dispatch package",
-      "body": "dispatchMessage (dispatch.go:20-41) and genericMessage (message.go:13-35)\nboth implement abstract.Message with identical method bodies delegating to\nruntimecontext.GetTenantID(m.ctx), runtimecontext.GetTraceID(m.ctx), etc.\n\nThis is 14 lines of pure duplication across two files in the same package.\n\nResolution: Unify into a single type or embed a shared implementation.\nOne option is to make dispatchMessage embed a genericMessage field and\noverride only the methods that differ (InputChannel and BlobInputChannel).\n",
-      "location": {
-        "file": "core/runtime/dispatch/dispatch.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "3a1bae2dcb2416e5"
+      "hash": "38e52e8a0518f4b6"
     },
     "arch-20260821-008": {
       "id": "arch-20260821-008",
@@ -411,17 +396,17 @@
     "mem-20260821-003": {
       "id": "mem-20260821-003",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Stream channel buffer size causes goroutine leaks",
-      "body": "streamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\n",
+      "body": "\nstreamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\n",
       "location": {
         "file": "core/interface/http/register.go",
         "startLine": 176,
         "startCol": 3,
-        "endLine": 191,
+        "endLine": 192,
         "endCol": 3
       },
-      "hash": "94a98ea930809cda"
+      "hash": "f9f3e633454447d6"
     },
     "migrate-20260822-001": {
       "id": "migrate-20260822-001",
@@ -563,15 +548,15 @@
       "category": "todo",
       "status": "open",
       "title": "Use SystemError for handler dispatch errors",
-      "body": "but the review guide recommends using common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nConsider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation\nfor better error classification and client-facing error codes.\n",
+      "body": "but the review guide recommends using common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nConsider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation\nfor better error classification and client-facing error codes.\n\nSend accepts the message for asynchronous execution: the handler runs on a\ndedicated goroutine and onComplete is invoked exactly once with its outcome.\nHandler panics are recovered here and delivered as *PanicError, so no link\nin the chain needs its own recovery wrapper.\n",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
-        "startLine": 44,
+        "startLine": 76,
         "startCol": 3,
-        "endLine": 50,
+        "endLine": 87,
         "endCol": 3
       },
-      "hash": "5559802b42fde462"
+      "hash": "3fa509ef78e3d776"
     },
     "review-20260821-002": {
       "id": "review-20260821-002",
@@ -581,9 +566,9 @@
       "body": "ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for\nconsistent error handling across the codebase.\n",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
-        "startLine": 67,
+        "startLine": 145,
         "startCol": 3,
-        "endLine": 70,
+        "endLine": 148,
         "endCol": 3
       },
       "hash": "a4f00b55946dcdf0"
@@ -749,7 +734,7 @@
     "review2-20260821-005": {
       "id": "review2-20260821-005",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "priority": "P0",
       "tags": [
         "review",
@@ -757,15 +742,15 @@
         "p2p"
       ],
       "title": "Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant",
-      "body": "Every implementation in the chain -- LocalDispatcher, SecureDispatcher,\nRateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,\nBootstrapDispatcher -- wraps the next Dispatcher and calls Send() as a\ndirect, blocking Go function call that returns (*Result, error) on the\nsame goroutine. LocalDispatcher.Send (core/runtime/local-dispatcher.go:52)\nis the base case: it does `return entry.fn(msg.Context(), msg)` with no\nqueue, no channel handoff, and no notion of \"this might take a network\nround-trip.\" Every transport (HTTP, CLI, Wails) calls Dispatcher.Send and\nblocks the calling goroutine until it returns.\n\nThis is fine for a single-process monolith (net/http already gives you\nper-request concurrency via goroutines, so throughput isn't the problem)\nbut it is the central architectural blocker for the P2P node deployment\ngoal: there is currently no seam where a message could be routed to a\n*different* node instead of a local handler. Adding that seam later\nwithout an async story means either (a) blocking a goroutine per in-flight\nremote call indefinitely, or (b) a breaking change to this interface.\n\nResolution -- concretely, in order of increasing scope:\n 1. Add a context.Context parameter to Send itself: Send(ctx, msg) instead\n    of relying on msg.Context(). This is a prerequisite for #2 and #3\n    because a remote dispatcher needs the caller's ctx for cancellation/\n    deadline propagation independent of what's embedded in the message.\n 2. Introduce a second interface alongside Dispatcher, not a replacement:\n    type AsyncDispatcher interface {\n    SendAsync(ctx context.Context, msg Message) (\u003c-chan Result, error)\n    }\n    LocalDispatcher can implement this trivially by running entry.fn in a\n    goroutine and writing to a buffered chan of size 1. A future\n    RemoteDispatcher (or P2PDispatcher) implements the same interface by\n    serializing msg, publishing it over the network transport, and\n    resolving the channel when a correlated response arrives (or the ctx\n    deadline fires). Existing synchronous callers are unaffected; new\n    transports (or existing ones once ready) adopt SendAsync incrementally.\n 3. Every DispatcherLink.Wrap in the chain needs an Async-aware equivalent\n    so cross-cutting concerns (auth, rate-limit, audit, tenant scoping)\n    still apply uniformly whether the terminal handler is local or remote.\n    Concretely: change DispatcherLink.Wrap to operate on the AsyncDispatcher\n    interface, and provide a `SyncFromAsync` adapter (blocks and unwraps\n    the channel) so the existing Dispatcher call sites in HTTP/CLI/Wails\n    don't all need to change on day one.\n 4. Message routing needs an explicit locality concept before any of this\n    is useful: something has to decide \"is this message's target handler\n    local to this node, or does it need to go over the wire to node X\".\n    abstract.Message today has no notion of a target node/peer -- TenantID\n    is the closest thing, and tenant != node. This is a bigger design\n    question (service discovery / handler advertisement across the mesh)\n    that should be settled before committing to the exact shape of #2.\n",
+      "body": "\nEvery implementation in the chain -- LocalDispatcher, SecureDispatcher,\nRateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,\nBootstrapDispatcher -- wraps the next Dispatcher and calls Send() as a\ndirect, blocking Go function call that returns (*Result, error) on the\nsame goroutine. LocalDispatcher.Send (core/runtime/local-dispatcher.go:52)\nis the base case: it does `return entry.fn(msg.Context(), msg)` with no\nqueue, no channel handoff, and no notion of \"this might take a network\nround-trip.\" Every transport (HTTP, CLI, Wails) calls Dispatcher.Send and\nblocks the calling goroutine until it returns.\n\nThis is fine for a single-process monolith (net/http already gives you\nper-request concurrency via goroutines, so throughput isn't the problem)\nbut it is the central architectural blocker for the P2P node deployment\ngoal: there is currently no seam where a message could be routed to a\n*different* node instead of a local handler. Adding that seam later\nwithout an async story means either (a) blocking a goroutine per in-flight\nremote call indefinitely, or (b) a breaking change to this interface.\n\nResolution -- concretely, in order of increasing scope:\n 1. Add a context.Context parameter to Send itself: Send(ctx, msg) instead\n    of relying on msg.Context(). This is a prerequisite for #2 and #3\n    because a remote dispatcher needs the caller's ctx for cancellation/\n    deadline propagation independent of what's embedded in the message.\n 2. Introduce a second interface alongside Dispatcher, not a replacement:\n    type AsyncDispatcher interface {\n    SendAsync(ctx context.Context, msg Message) (\u003c-chan Result, error)\n    }\n    LocalDispatcher can implement this trivially by running entry.fn in a\n    goroutine and writing to a buffered chan of size 1. A future\n    RemoteDispatcher (or P2PDispatcher) implements the same interface by\n    serializing msg, publishing it over the network transport, and\n    resolving the channel when a correlated response arrives (or the ctx\n    deadline fires). Existing synchronous callers are unaffected; new\n    transports (or existing ones once ready) adopt SendAsync incrementally.\n 3. Every DispatcherLink.Wrap in the chain needs an Async-aware equivalent\n    so cross-cutting concerns (auth, rate-limit, audit, tenant scoping)\n    still apply uniformly whether the terminal handler is local or remote.\n    Concretely: change DispatcherLink.Wrap to operate on the AsyncDispatcher\n    interface, and provide a `SyncFromAsync` adapter (blocks and unwraps\n    the channel) so the existing Dispatcher call sites in HTTP/CLI/Wails\n    don't all need to change on day one.\n 4. Message routing needs an explicit locality concept before any of this\n    is useful: something has to decide \"is this message's target handler\n    local to this node, or does it need to go over the wire to node X\".\n    abstract.Message today has no notion of a target node/peer -- TenantID\n    is the closest thing, and tenant != node. This is a bigger design\n    question (service discovery / handler advertisement across the mesh)\n    that should be settled before committing to the exact shape of #2.\n",
       "location": {
         "file": "core/abstract/dispatcher.go",
         "startLine": 4,
         "startCol": 3,
-        "endLine": 53,
+        "endLine": 54,
         "endCol": 3
       },
-      "hash": "a1cde5b1ef0e93a3"
+      "hash": "9501fda7f03df18f"
     },
     "sec-20260821-003": {
       "id": "sec-20260821-003",
@@ -841,10 +826,10 @@
       "hash": "3edda2b41145c7bd"
     },
     "client/core/routes.gen.ts": {
-      "hash": "7a521fd1150c09be"
+      "hash": "a44a6de457ad95ae"
     },
     "client/core/routes.test.ts": {
-      "hash": "6d83abd2c0c54428"
+      "hash": "a7f14acc62b28ae4"
     },
     "client/core/types.ts": {
       "hash": "d6cf3163d8a9d897"
@@ -928,13 +913,13 @@
       "hash": "6141583aaad82281"
     },
     "client/system/notifications/notifications.test.ts": {
-      "hash": "e83fb112acda69bd"
+      "hash": "0693b01ce2e52053"
     },
     "client/system/notifications/store.ts": {
-      "hash": "320585e41e267b2e"
+      "hash": "fb4ac57e622b1938"
     },
     "client/system/notifications/types.ts": {
-      "hash": "85245ce35d2f1d7e"
+      "hash": "f2d8fd3472b91425"
     },
     "client/system/operations/store.test.ts": {
       "hash": "99b1dc3f7e608bf4"
@@ -979,10 +964,10 @@
       "hash": "36228c286e2634c4"
     },
     "client/system/updates/store.ts": {
-      "hash": "57c9f8d0a910785c"
+      "hash": "5ce2404e882e8805"
     },
     "client/system/updates/types.ts": {
-      "hash": "2a371014f020294a"
+      "hash": "da40a2e905c5e2d1"
     },
     "client/system/users/store.test.ts": {
       "hash": "3fac70cc89e1ea27"
@@ -1156,7 +1141,7 @@
       "hash": "981401eb15448a04"
     },
     "cmd/hestia/core/generate.go": {
-      "hash": "055ef3643040798d",
+      "hash": "97d67a77255d96a9",
       "noteIds": [
         "cmd-cruft-20260821-002"
       ]
@@ -1183,7 +1168,7 @@
       "hash": "06a1a01fa839f85d"
     },
     "cmd/test-server/main.go": {
-      "hash": "44b1ce6fcf9ae14c"
+      "hash": "fb7038f66a86673c"
     },
     "core/abstract/abstract_test.go": {
       "hash": "6979adc67f93a523"
@@ -1198,7 +1183,7 @@
       "hash": "f3b4b17ca72306dc"
     },
     "core/abstract/dispatcher.go": {
-      "hash": "1a70060e5b58b5b6",
+      "hash": "167dd1555cd18f69",
       "noteIds": [
         "review2-20260821-005"
       ]
@@ -1242,7 +1227,7 @@
       "hash": "58a5b69dbdf65cf0"
     },
     "core/interface/cli/orchestrator.go": {
-      "hash": "6a184cc102c231d6"
+      "hash": "2a1af3b52294548b"
     },
     "core/interface/http/config.go": {
       "hash": "22a1caf301ac8b70"
@@ -1263,7 +1248,7 @@
       ]
     },
     "core/interface/http/identity_provider.go": {
-      "hash": "15e4b4a5089f489d"
+      "hash": "c1f32ad408d6d8c1"
     },
     "core/interface/http/internal_hardening_test.go": {
       "hash": "7bd30d5a4ec7e5f0"
@@ -1275,13 +1260,13 @@
       ]
     },
     "core/interface/http/register.go": {
-      "hash": "2fcc36e30df17fd1",
+      "hash": "a457547a365a4758",
       "noteIds": [
         "mem-20260821-003"
       ]
     },
     "core/interface/http/register_test.go": {
-      "hash": "a7f3a2c5c5c6f135"
+      "hash": "73eb1e161681da30"
     },
     "core/interface/http/router.go": {
       "hash": "119b21b4109b42ba",
@@ -1305,7 +1290,7 @@
       "hash": "5729d474c2e46166"
     },
     "core/internal/boot/app.go": {
-      "hash": "3baa8e06604354e7",
+      "hash": "e0f40ca7f69bc57e",
       "noteIds": [
         "b3muvk"
       ]
@@ -1395,7 +1380,10 @@
       "hash": "5891c5561bcee34a"
     },
     "core/runtime/access-log-dispatcher.go": {
-      "hash": "8904c7e86229ac53"
+      "hash": "99effce1d11b8773"
+    },
+    "core/runtime/async_contract_test.go": {
+      "hash": "2507eab4c0f3fd39"
     },
     "core/runtime/audit/types.go": {
       "hash": "be1d7d0cbff97c81"
@@ -1409,16 +1397,16 @@
       ]
     },
     "core/runtime/audit_hardening_test.go": {
-      "hash": "c2f7ca96a8e991a0"
+      "hash": "b451c21909ed3bef"
     },
     "core/runtime/auth.go": {
       "hash": "3fe8fc229047f15f"
     },
     "core/runtime/bootstrap-dispatcher.go": {
-      "hash": "aad62eee96eb5a5f"
+      "hash": "59e6d97ec4347f6e"
     },
     "core/runtime/bootstrap_hardening_test.go": {
-      "hash": "f3117ee1308a59e6"
+      "hash": "fad4c2dae9f87343"
     },
     "core/runtime/capability.go": {
       "hash": "c5bb826c4ebc4a33"
@@ -1427,7 +1415,7 @@
       "hash": "9f765cb835344139"
     },
     "core/runtime/chain_test.go": {
-      "hash": "0ffc9c23e2ed139c"
+      "hash": "c9c7bb71afb4c6ea"
     },
     "core/runtime/config.go": {
       "hash": "246b7159c5032180",
@@ -1437,7 +1425,7 @@
       ]
     },
     "core/runtime/config_test.go": {
-      "hash": "d6a145c28d8f74bc"
+      "hash": "17a524c04c9837da"
     },
     "core/runtime/context/context.go": {
       "hash": "6bb87816884d471d"
@@ -1449,7 +1437,7 @@
       "hash": "58a23c69cdb71a93"
     },
     "core/runtime/core_test.go": {
-      "hash": "7278943276471b64"
+      "hash": "1e00f2dd7afd3137"
     },
     "core/runtime/di/container.go": {
       "hash": "2858f6bf9822707c"
@@ -1458,10 +1446,7 @@
       "hash": "f151e3e6a8a99410"
     },
     "core/runtime/dispatch/dispatch.go": {
-      "hash": "85b47739549e6577",
-      "noteIds": [
-        "arch-20260821-006"
-      ]
+      "hash": "52566062270407e6"
     },
     "core/runtime/dispatch/dispatch_test.go": {
       "hash": "066de638db89a37f"
@@ -1470,7 +1455,7 @@
       "hash": "542d62cf1a96151c"
     },
     "core/runtime/dispatch/message.go": {
-      "hash": "95fa989d809d2eab"
+      "hash": "51ca8c00faecf543"
     },
     "core/runtime/dispatch/result.go": {
       "hash": "1ac9c29bb6e3c462"
@@ -1479,7 +1464,7 @@
       "hash": "911b11e3a10efeee"
     },
     "core/runtime/dispatch_bench_test.go": {
-      "hash": "1a4d064bc4b791ea"
+      "hash": "86337afdac958d23"
     },
     "core/runtime/env.go": {
       "hash": "de9105d52ef16b9b",
@@ -1494,10 +1479,10 @@
       "hash": "9e87a58f3d8a1a32"
     },
     "core/runtime/interface.go": {
-      "hash": "ed1f24143e2efb42"
+      "hash": "b5c3e9870328e2d4"
     },
     "core/runtime/local-dispatcher.go": {
-      "hash": "1e2222527113eef0",
+      "hash": "2f72e3f7a61ac5fa",
       "noteIds": [
         "arch-20260821-005",
         "review-20260821-001",
@@ -1524,7 +1509,7 @@
       "hash": "fa9a019aa962706c"
     },
     "core/runtime/namespaced-dispatcher.go": {
-      "hash": "04507ed1aa2ccb68"
+      "hash": "a2db6a088334093e"
     },
     "core/runtime/notification/channel_email.go": {
       "hash": "8e97948deed07e4c",
@@ -1554,7 +1539,7 @@
       "hash": "3cd749acf443998e"
     },
     "core/runtime/permissions_test.go": {
-      "hash": "6c906830b7ff094e"
+      "hash": "1fc877a432614ab1"
     },
     "core/runtime/policytypes.go": {
       "hash": "dec41e4b230ff75a",
@@ -1563,16 +1548,16 @@
       ]
     },
     "core/runtime/race_test.go": {
-      "hash": "95911ee42f9f68f1"
+      "hash": "7ea6bc08185a1e23"
     },
     "core/runtime/rate-limit.go": {
-      "hash": "9e5dec23834b6e4c",
+      "hash": "4718086636ba26b9",
       "noteIds": [
         "arch-20260821-004"
       ]
     },
     "core/runtime/rate-limit_test.go": {
-      "hash": "722212452b928a3b"
+      "hash": "0759d03b3746f4ab"
     },
     "core/runtime/ratestore/inmemory.go": {
       "hash": "af5ffee78dee47d1",
@@ -1582,11 +1567,8 @@
         "review-20260821-018"
       ]
     },
-    "core/runtime/recovery-dispatcher.go": {
-      "hash": "3dcaa894352674bf"
-    },
     "core/runtime/rulestore_test.go": {
-      "hash": "2e863a6d87a25c72"
+      "hash": "bb7aa402b7bb5919"
     },
     "core/runtime/runtime.go": {
       "hash": "e482460c5c810b5c"
@@ -1604,7 +1586,7 @@
       "hash": "0bcf4dd55d7c332f"
     },
     "core/runtime/secure-dispatcher.go": {
-      "hash": "28e25fb87f79ccd9",
+      "hash": "b2fd58212d9082b7",
       "noteIds": [
         "83l69u",
         "arch-20260821-003",
@@ -1613,19 +1595,19 @@
       ]
     },
     "core/runtime/secure-dispatcher_hardening_test.go": {
-      "hash": "36198a970072e88b"
+      "hash": "1c23d0a721106f66"
     },
     "core/runtime/templateutil/resolve.go": {
       "hash": "fa691516500df8e2"
     },
     "core/runtime/tenant-dispatcher.go": {
-      "hash": "d1327eebb6dc6f6c"
+      "hash": "a7117230ed176779"
     },
     "core/runtime/throttle.go": {
-      "hash": "a6a76f1390889e47"
+      "hash": "d9467ee5de1aac5a"
     },
     "core/runtime/throttle_test.go": {
-      "hash": "c63faff77b82898c"
+      "hash": "a832385126fcd7e5"
     },
     "core/system/apikeys/model/api_key.schema.model.go": {
       "hash": "c71f6a13ea5ef92e"
@@ -1802,7 +1784,7 @@
       "hash": "26ddbaef9c23256f"
     },
     "core/system/collections/erp_bench_test.go": {
-      "hash": "9d9f1ad0a75d9aae"
+      "hash": "0de9788ac89f7828"
     },
     "core/system/collections/handler.go": {
       "hash": "d0ed67161567dcfa"
@@ -1841,13 +1823,16 @@
       "hash": "f9849fa2cdeaedd1"
     },
     "core/system/module.go": {
-      "hash": "ad5438baeedcea3d"
+      "hash": "12b7ebd851c3ed77"
+    },
+    "core/system/notifications/leak_harness_test.go": {
+      "hash": "16ab74c331a26b7e"
     },
     "core/system/notifications/model/inputs.go": {
-      "hash": "b1b813cb7096d273"
+      "hash": "faf14b1926d4c017"
     },
     "core/system/notifications/model/notifications.schema.model.go": {
-      "hash": "7988a986d3a43c26"
+      "hash": "b9632b42a8c1d13f"
     },
     "core/system/notifications/model/outputs.go": {
       "hash": "c3965d38efae19cd"
@@ -1862,16 +1847,16 @@
       "hash": "b433ed93709fac2a"
     },
     "core/system/notifications/policies.go": {
-      "hash": "9bd574a55941fdbe"
+      "hash": "5d34801f1a19a3a7"
     },
     "core/system/notifications/registrations.go": {
-      "hash": "7602dc6b16d6cb79"
+      "hash": "42dc22780e1b5143"
     },
     "core/system/notifications/seed.go": {
       "hash": "aa18d87445f140dc"
     },
     "core/system/notifications/service.go": {
-      "hash": "d60fe93678ccb564"
+      "hash": "89c3ee221030848d"
     },
     "core/system/operations/bootstrap.go": {
       "hash": "de1160f52d0c2181"
@@ -1973,7 +1958,7 @@
       "hash": "ec1b62b22a642527"
     },
     "core/system/schedules/liveschedule.go": {
-      "hash": "2aff60d955341bb8"
+      "hash": "2e83d4619ff3ba77"
     },
     "core/system/schedules/model.go": {
       "hash": "2eb2eca01d579151"
@@ -2132,13 +2117,13 @@
       "hash": "96f654595761a913"
     },
     "tests/e2e/update/programmatic_test.go": {
-      "hash": "2a7bf1a4be8869b5"
+      "hash": "866937f1a55f4f26"
     },
     "tests/integration/recovery_test.go": {
-      "hash": "3ff9f7a5143489a0"
+      "hash": "55c20f218b037fec"
     },
     "utils/wails/dispatch.go": {
-      "hash": "c0bcc834ef76df5b",
+      "hash": "3de3f4517fa66bc6",
       "noteIds": [
         "review2-20260821-002"
       ]

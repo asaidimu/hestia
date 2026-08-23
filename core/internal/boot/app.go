@@ -98,7 +98,7 @@ func New(cfg *runtime.Config) *Application {
 	return &Application{
 		Config:  cfg,
 		Loggers: loggers,
-		Disp:    runtime.NewLocalDispatcher(),
+		Disp:    runtime.NewLocalDispatcherWithLogger(loggers.File),
 	}
 }
 

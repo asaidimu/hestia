@@ -26,8 +26,8 @@ type mockMessage struct {
 func (m *mockMessage) ID() string                             { return "test-id" }
 func (m *mockMessage) Name() string                           { return m.name }
 func (m *mockMessage) Context() context.Context               { return m.ctx }
-func (m *mockMessage) Input() data.Documenter                  { return nil }
-func (m *mockMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m *mockMessage) Input() data.Documenter                 { return nil }
+func (m *mockMessage) InputChannel() <-chan data.Documenter   { return nil }
 func (m *mockMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m *mockMessage) TenantID() string                       { return m.tenantID }
 func (m *mockMessage) TraceID() string                        { return "" }
@@ -44,15 +44,20 @@ type mockDispatcher struct {
 	mu         sync.Mutex
 }
 
-func (d *mockDispatcher) Send(msg abstract.Message) (*abstract.Result, error) {
+func (d *mockDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.sendCalled++
 	d.lastMsg = msg
+	d.mu.Unlock()
+	var res *abstract.Result
+	var err error
 	if d.SendFunc != nil {
-		return d.SendFunc(msg)
+		res, err = d.SendFunc(msg)
+	} else {
+		res = &abstract.Result{}
 	}
-	return &abstract.Result{}, nil
+	abstract.Complete(onComplete, ctx, res, err)
+	return nil
 }
 
 func newMessage(name string) *mockMessage {
@@ -151,7 +156,7 @@ func TestRateLimitLookupNilReturnsNil(t *testing.T) {
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
-	_, err := wrapped.Send(newMessage("anything"))
+	_, err := testAwait(wrapped, newMessage("anything"))
 	if err != nil {
 		t.Fatalf("nil lookup should not block: %v", err)
 	}
@@ -168,7 +173,7 @@ func TestRateLimitLookupNoMatchPassesThrough(t *testing.T) {
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
-	_, err := wrapped.Send(newMessage("op:test"))
+	_, err := testAwait(wrapped, newMessage("op:test"))
 	if err != nil {
 		t.Fatalf("no matching policy should not block: %v", err)
 	}
@@ -190,12 +195,12 @@ func TestRateLimitLookupEnforcesLimit(t *testing.T) {
 	disp := NewRateLimitDispatcher(lookup)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
-	_, err := wrapped.Send(newMessage("op:test"))
+	_, err := testAwait(wrapped, newMessage("op:test"))
 	if err != nil {
 		t.Fatalf("first request should be allowed: %v", err)
 	}
 
-	_, err = wrapped.Send(newMessage("op:test"))
+	_, err = testAwait(wrapped, newMessage("op:test"))
 	if err == nil {
 		t.Fatal("second request should be rate-limited")
 	}
@@ -220,16 +225,16 @@ func TestRateLimitLookupPerUser(t *testing.T) {
 	alice := msgWithUser("op:test", "alice")
 	bob := msgWithUser("op:test", "bob")
 
-	_, err := wrapped.Send(alice)
+	_, err := testAwait(wrapped, alice)
 	if err != nil {
 		t.Fatalf("alice first request: %v", err)
 	}
-	_, err = wrapped.Send(alice)
+	_, err = testAwait(wrapped, alice)
 	if err == nil {
 		t.Fatal("alice second request should be rate-limited")
 	}
 
-	_, err = wrapped.Send(bob)
+	_, err = testAwait(wrapped, bob)
 	if err != nil {
 		t.Fatalf("bob first request should be allowed (different key): %v", err)
 	}
@@ -248,7 +253,7 @@ func TestRateLimitLookupDifferentOpsDifferentLimits(t *testing.T) {
 	disp := NewRateLimitDispatcher(lookup)
 	wrapped := disp.Wrap(next)
 
-	_, err := wrapped.Send(newMessage("other:op"))
+	_, err := testAwait(wrapped, newMessage("other:op"))
 	if err != nil {
 		t.Fatalf("unmatched operation should not be rate-limited: %v", err)
 	}

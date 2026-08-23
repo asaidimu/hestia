@@ -88,5 +88,25 @@ func (s *UsersService) ListUsers(ctx context.Context, msg abstract.Message, inpu
 	return nil, nil
 }
 
+// AckCallbackInput binds the callback payload.
+type AckCallbackInput struct {
+	Ref string `input:"payload.ref"`
+}
+
+// AckCallback registers a fire-and-forget empty result: transports accept
+// the message and respond immediately without waiting for completion
+// (HTTP answers 202 Accepted with the message ID).
+//
+// @hestia.register(
+//   name="system:users:callback:ack",
+//   intent="create",
+//   rule="authenticated",
+//   description="Acknowledge a callback without waiting",
+//   fire_and_forget="true",
+// )
+func (s *UsersService) AckCallback(ctx context.Context, msg abstract.Message, input *AckCallbackInput) error {
+	return nil
+}
+
 // Ensure dispatch import is exercised (compile proof for stream detection).
 var _ = dispatch.HandleEmpty[struct{}](func(context.Context, abstract.Message, *struct{}) error { return nil })

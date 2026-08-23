@@ -109,7 +109,7 @@ func (a *Adapter) Login(email, password string) (map[string]any, error) {
 	doc.Set("payload", map[string]any{"email": email, "password": password})
 
 	msg := dispatch.NewMessage("system:auth:session:create", ctx, doc)
-	result, err := a.opts.Internal.Send(msg)
+	result, err := dispatch.Await(ctx, a.opts.Internal, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (a *Adapter) Dispatch(req Request) (Response, error) {
 	}
 
 	msg := dispatch.NewMessage(req.Name, ctx, doc)
-	result, err := a.opts.Dispatcher.Send(msg)
+	result, err := dispatch.Await(ctx, a.opts.Dispatcher, msg)
 	if err != nil {
 		status := 500
 		code := "INTERNAL_ERROR"
@@ -308,7 +308,7 @@ func (a *Adapter) resolveClaims(ctx context.Context, userID string) *abstract.Cl
 	doc.Set("arguments", map[string]any{"user_id": userID})
 
 	msg := dispatch.NewMessage("system:users:user:get", ctx, doc)
-	result, err := a.opts.Internal.Send(msg)
+	result, err := dispatch.Await(ctx, a.opts.Internal, msg)
 	if err != nil || result == nil || result.Document == nil {
 		return &abstract.Claims{UserID: userID}
 	}
@@ -414,7 +414,7 @@ func (a *Adapter) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		msg := dispatch.NewMessage(route.name, ctx, doc)
-		result, err := a.opts.Dispatcher.Send(msg)
+		result, err := dispatch.Await(ctx, a.opts.Dispatcher, msg)
 		if err != nil {
 			writeError(w, err)
 			return

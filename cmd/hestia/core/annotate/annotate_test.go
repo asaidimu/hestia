@@ -11,8 +11,8 @@ func TestParseUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	if len(anns) != 4 {
-		t.Fatalf("got %d annotations, want 4", len(anns))
+	if len(anns) != 5 {
+		t.Fatalf("got %d annotations, want 5", len(anns))
 	}
 
 	byName := map[string]Annotation{}
@@ -87,6 +87,28 @@ func TestParseUsers(t *testing.T) {
 		}
 		if a.ResourceIDField != "" {
 			t.Errorf("resourceIDField: %q, want empty (no arguments tag)", a.ResourceIDField)
+		}
+	})
+
+	t.Run("AckCallback fire and forget", func(t *testing.T) {
+		a := byName["system:users:callback:ack"]
+		if !a.FireAndForget {
+			t.Error("FireAndForget should parse from fire_and_forget=\"true\"")
+		}
+		if a.Result != ResultEmpty {
+			t.Errorf("result: %s, want empty", a.Result)
+		}
+		if a.Verb != VerbCreate || a.Rule != "authenticated" {
+			t.Errorf("verb/rule: %s / %s", a.Verb, a.Rule)
+		}
+		// Absent attribute must default to false.
+		for _, other := range anns {
+			if other.MessageName == "system:users:callback:ack" {
+				continue
+			}
+			if other.FireAndForget {
+				t.Errorf("%s: FireAndForget must default to false", other.MessageName)
+			}
 		}
 	})
 }

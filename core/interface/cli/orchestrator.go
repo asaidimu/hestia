@@ -95,7 +95,7 @@ func (o *Interface) runBootstrap() {
 	ctx := iam.WithIdentity(context.Background(), systemIdentity)
 
 	statusMsg := dispatch.NewMessage("system:core:health:check", ctx, data.MustNewDocument(nil, ctx))
-	statusResult, err := o.opts.Dispatcher.Send(statusMsg)
+	statusResult, err := dispatch.Await(ctx, o.opts.Dispatcher, statusMsg)
 	if err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Failed to check system status: %v\n", err)
 		os.Exit(1)
@@ -149,7 +149,7 @@ func (o *Interface) runBootstrap() {
 	pwdMsg := dispatch.NewMessage("system:auth:bootstrap:password:set", ctx, data.MustNewDocument(map[string]any{
 		"payload": map[string]any{"password": password, "email": email},
 	}, ctx))
-	if res, err := o.opts.Dispatcher.Send(pwdMsg); err != nil {
+	if res, err := dispatch.Await(ctx, o.opts.Dispatcher, pwdMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Bootstrap failed: %v\n", err)
 		os.Exit(1)
 	} else if res != nil {
@@ -157,7 +157,7 @@ func (o *Interface) runBootstrap() {
 	}
 
 	bsMsg := dispatch.NewMessage("system:core:bootstrap:mark", ctx, data.MustNewDocument(nil, ctx))
-	if res, err := o.opts.Dispatcher.Send(bsMsg); err != nil {
+	if res, err := dispatch.Await(ctx, o.opts.Dispatcher, bsMsg); err != nil {
 		fmt.Fprintf(o.opts.Stdout, "Failed to mark bootstrapped: %v\n", err)
 		os.Exit(1)
 	} else if res != nil {

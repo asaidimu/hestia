@@ -427,7 +427,6 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 			return ""
 		})},
 		runtime.LinkEntry{Name: "blob", Link: blobutil.NewDispatcherLink(m.providers.BlobSvc)},
-		runtime.LinkEntry{Name: "recovery", Link: runtime.NewRecoveryDispatcher(nil, m.opts.Logger)},
 		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger)},
 	)
 	if m.opts.DispatcherChainFunc != nil {

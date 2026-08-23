@@ -261,7 +261,7 @@ func TestSecureDispatcher_AutoRefreshedRule(t *testing.T) {
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 
-	_, err := disp.Send(testMessage{ctx: anonymousContext(), name: "system:test:op"})
+	_, err := testAwait(disp, testMessage{ctx: anonymousContext(), name: "system:test:op"})
 	if err == nil {
 		t.Fatal("expected error for unregistered rule 'auto_test' before creation")
 	}
@@ -280,7 +280,7 @@ func TestSecureDispatcher_AutoRefreshedRule(t *testing.T) {
 		t.Fatalf("CreateOne: %v", err)
 	}
 
-	_, err = disp.Send(testMessage{ctx: anonymousContext(), name: "system:test:op"})
+	_, err = testAwait(disp, testMessage{ctx: anonymousContext(), name: "system:test:op"})
 	if err != nil {
 		t.Fatalf("expected no error after rule created via LiveCollection, got: %v", err)
 	}
