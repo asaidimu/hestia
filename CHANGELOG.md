@@ -1,3 +1,10 @@
+## [1.4.16](https://github.com/asaidimu/hestia/compare/v1.4.15...v1.4.16) (2026-08-23)
+
+
+### Bug Fixes
+
+* **runtime:** implement async-native dispatcher with callback support ([c2dd46c](https://github.com/asaidimu/hestia/commit/c2dd46c138cc980e0655deb68e6768516f0ee189))
+
 ## [1.4.15](https://github.com/asaidimu/hestia/compare/v1.4.14...v1.4.15) (2026-08-22)
 
 
