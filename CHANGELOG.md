@@ -1,3 +1,10 @@
+## [1.4.17](https://github.com/asaidimu/hestia/compare/v1.4.16...v1.4.17) (2026-08-23)
+
+
+### Bug Fixes
+
+* **core:** remove abstraction leak in Input struct and header_fields ([bcbe1e5](https://github.com/asaidimu/hestia/commit/bcbe1e5d990a346f60c27a9ca16a71c68689f20a))
+
 ## [1.4.16](https://github.com/asaidimu/hestia/compare/v1.4.15...v1.4.16) (2026-08-23)
 
 
