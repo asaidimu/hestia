@@ -59,7 +59,7 @@ func (o *Interface) installBootstrapSafeRegistrations() {
 
 func (o *Interface) installRegistration(reg abstract.MessageRegistration) error {
 	httpMethod := IntentToHTTPMethod(reg.Intent)
-	httpPath := DeriveRoute(reg.Name, reg.Input.Args())
+	httpPath := DeriveRoute(reg.Name, reg.Input.Arguments())
 	if o.opts.APIPrefix != "" {
 		httpPath = o.opts.APIPrefix + httpPath
 	}

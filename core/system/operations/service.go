@@ -162,7 +162,7 @@ func (s *OperationsService) DocsList(ctx context.Context, msg abstract.Message) 
 	docs := make([]*document.Document, 0, len(regs))
 	for _, r := range regs {
 		method := httpapi.IntentToHTTPMethod(r.Intent)
-		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Args())
+		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments())
 		pattern := method + " " + httpapi.IntentToHTTPPath(r.Intent, httpPath)
 		view := &model.EndpointDoc{
 			Name:          r.Name,

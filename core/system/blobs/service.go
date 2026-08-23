@@ -112,7 +112,6 @@ func (s *BlobsService) HeadBlob(ctx context.Context, msg abstract.Message, input
 //   rule="administrator",
 //   resource_id="key",
 //   description="Upload a blob",
-//   header_fields="Content-Type=content_type",
 //   output="model.BlobMetaOutput",
 // )
 func (s *BlobsService) UploadBlob(ctx context.Context, msg abstract.Message, input *model.BlobUploadInput) (*abstract.Result, error) {
@@ -179,7 +178,6 @@ func (s *BlobsService) BeginUpload(ctx context.Context, msg abstract.Message, in
 //   intent="create",
 //   rule="administrator",
 //   description="Upload a chunk of a resumable blob upload",
-//   header_fields="X-Session-ID=session_id,X-Offset=offset,X-Chunk-SHA256=sha256",
 //   output="model.UploadChunkOutput",
 // )
 func (s *BlobsService) UploadChunk(ctx context.Context, msg abstract.Message, input *model.BlobChunkInput) (*abstract.Result, error) {
@@ -193,7 +191,6 @@ func (s *BlobsService) UploadChunk(ctx context.Context, msg abstract.Message, in
 //   intent="create",
 //   rule="administrator",
 //   description="Complete a resumable blob upload",
-//   header_fields="X-Session-ID=session_id",
 //   output="model.BlobMetaOutput",
 // )
 func (s *BlobsService) CompleteUpload(ctx context.Context, msg abstract.Message, input *model.BlobCompleteInput) (*abstract.Result, error) {
@@ -220,7 +217,6 @@ func (s *BlobsService) ProgressUpload(ctx context.Context, msg abstract.Message,
 //   intent="create",
 //   rule="administrator",
 //   description="Abort a resumable blob upload",
-//   header_fields="X-Session-ID=session_id",
 // )
 func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, input *model.BlobAbortInput) (*abstract.Result, error) {
 	return NewAbortUploadHandler(s.staging)(ctx, msg)

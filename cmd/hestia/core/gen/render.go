@@ -124,14 +124,6 @@ func writeRegistration(b *bytes.Buffer, a annotate.Annotation) error {
 		if a.ResourceIDField != "" {
 			fmt.Fprintf(b, "\t\t\t\tResourceIDField: %q,\n", a.ResourceIDField)
 		}
-		if len(a.HeaderFields) > 0 {
-			b.WriteString("\t\t\t\tHeaderFields: map[string]string{\n")
-			headers := sortedKeys(a.HeaderFields)
-			for _, h := range headers {
-				fmt.Fprintf(b, "\t\t\t\t\t%q: %q,\n", h, a.HeaderFields[h])
-			}
-			b.WriteString("\t\t\t\t},\n")
-		}
 		b.WriteString("\t\t\t},\n")
 	}
 

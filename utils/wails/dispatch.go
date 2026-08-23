@@ -276,7 +276,7 @@ func (a *Adapter) buildRoutes() {
 		}
 
 		httpMethod := httpapi.IntentToHTTPMethod(reg.Intent)
-		httpPath := httpapi.DeriveRoute(reg.Name, reg.Input.Arguments)
+		httpPath := httpapi.DeriveRoute(reg.Name, reg.Input.Arguments())
 		httpPath = a.prefix + httpPath
 
 		a.routes = append(a.routes, routeEntry{

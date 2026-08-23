@@ -51,7 +51,7 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiP
 		for _, r := range regs {
 
 			method := httpapi.IntentToHTTPMethod(r.Intent)
-			httpPath := httpapi.DeriveRoute(r.Name, r.Input.Args())
+			httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments())
 			if apiPrefix != "" {
 				httpPath = apiPrefix + httpPath
 			}

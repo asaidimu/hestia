@@ -62,13 +62,53 @@ func mustPool(t *testing.T, s *definition.Schema) *document.DocumentPool {
 	return p
 }
 
+// TestBuildDoc_ContextLiftFromHeaders pins the transport-context contract:
+// fields declared under input:"context.*" are lifted from request headers,
+// standard spelling first (Content-Type), then the X-prefixed custom form
+// (X-Session-ID), matched case-insensitively. Undeclared headers are ignored.
+func TestBuildDoc_ContextLiftFromHeaders(t *testing.T) {
+	type chunkInput struct {
+		ContentType string `input:"context.content_type"`
+		SessionID   string `input:"context.session_id"`
+		SHA256      string `input:"context.chunk_sha256"`
+	}
+	input := runtime.Input{
+		Schema: dispatch.SchemaFromTypeWithTag[chunkInput]("input", true),
+	}
+
+	req := Request{
+		Headers: map[string][]string{
+			"Content-Type":   {"application/octet-stream"},
+			"X-SESSION-ID":   {"upload-42"}, // non-canonical casing must still match
+			"X-Chunk-SHA256": {"deadbeef"},
+			"X-Ignored":      {"nope"}, // not declared in the schema
+		},
+	}
+
+	doc, err := buildDoc(context.Background(), req, input, mustPool(t, input.Schema))
+	if err != nil {
+		t.Fatalf("buildDoc: %v", err)
+	}
+	ct, _ := doc.GetString("context.content_type")
+	sid, _ := doc.GetString("context.session_id")
+	sha, _ := doc.GetString("context.chunk_sha256")
+	if ct != "application/octet-stream" {
+		t.Fatalf("content_type = %q, want standard header lifted", ct)
+	}
+	if sid != "upload-42" {
+		t.Fatalf("session_id = %q, want X-prefixed lift with case-insensitive match", sid)
+	}
+	if sha != "deadbeef" {
+		t.Fatalf("chunk_sha256 = %q, want lifted from X-Chunk-SHA256", sha)
+	}
+}
+
 func TestBuildDoc_PathParams(t *testing.T) {
 	type userGetInput struct {
 		UserID string `input:"arguments.user_id"`
 	}
 	input := runtime.Input{
-		Schema:    dispatch.SchemaFromTypeWithTag[userGetInput]("input", true),
-		Arguments: []abstract.ArgumentDefinition{{Name: "user_id", Type: definition.FieldTypeString}},
+		Schema: dispatch.SchemaFromTypeWithTag[userGetInput]("input", true),
 	}
 
 	req := Request{
@@ -90,8 +130,7 @@ func TestBuildDoc_PayloadObject(t *testing.T) {
 		Payload map[string]any `input:"payload"`
 	}
 	input := runtime.Input{
-		Schema:  dispatch.SchemaFromTypeWithTag[renameInput]("input", true),
-		Payload: definition.FieldTypeObject,
+		Schema: dispatch.SchemaFromTypeWithTag[renameInput]("input", true),
 	}
 
 	req := Request{
@@ -116,8 +155,7 @@ func TestBuildDoc_PayloadBytes(t *testing.T) {
 		Payload []byte `input:"payload"`
 	}
 	input := runtime.Input{
-		Schema:  dispatch.SchemaFromTypeWithTag[uploadInput]("input", true),
-		Payload: definition.FieldTypeBytes,
+		Schema: dispatch.SchemaFromTypeWithTag[uploadInput]("input", true),
 	}
 
 	req := Request{
@@ -143,8 +181,7 @@ func TestBuildDoc_Modifiers(t *testing.T) {
 		Email string `input:"modifiers.email"`
 	}
 	input := runtime.Input{
-		Schema:    dispatch.SchemaFromTypeWithTag[notifyInput]("input", true),
-		Modifiers: map[string]definition.FieldType{"email": definition.FieldTypeString},
+		Schema: dispatch.SchemaFromTypeWithTag[notifyInput]("input", true),
 	}
 
 	req := Request{
@@ -166,8 +203,7 @@ func TestBuildDoc_DecodeError(t *testing.T) {
 		Payload map[string]any `input:"payload"`
 	}
 	input := runtime.Input{
-		Schema:  dispatch.SchemaFromTypeWithTag[loginInput]("input", true),
-		Payload: definition.FieldTypeObject,
+		Schema: dispatch.SchemaFromTypeWithTag[loginInput]("input", true),
 	}
 
 	req := Request{
@@ -185,8 +221,7 @@ func TestBuildDoc_ArgsOnlyWhenDeclared(t *testing.T) {
 		Payload map[string]any `input:"payload"`
 	}
 	input := runtime.Input{
-		Schema:    dispatch.SchemaFromTypeWithTag[createInput]("input", true),
-		Arguments: []abstract.ArgumentDefinition{{Name: "user_id", Type: definition.FieldTypeString}},
+		Schema: dispatch.SchemaFromTypeWithTag[createInput]("input", true),
 	}
 
 	req := Request{

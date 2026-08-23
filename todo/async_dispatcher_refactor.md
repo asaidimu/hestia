@@ -55,6 +55,29 @@ future remote/P2P dispatch and a follow-up durable-execution lane (go-events v2)
   - Note: until Epic 2 lands, accepted work is best-effort — a crash between
         ack and execution loses the callback with no retry signal. FireAndForget
         registrations are the natural WithDurable() defaults once Epic 2 lands.
+- [*] Epic 1.6 — context-section header lift (resolves the code half of
+        #review-20260821-020)
+  - Design: transport-context fields are declared in the input schema under a
+    "context" root section (`input:"context.session_id"` tags) instead of the
+    leaked abstract.Input.HeaderFields map. The HTTP interface derives header
+    names deterministically: standard spelling first ("content_type" →
+    Content-Type), then X-prefixed custom form (X-Content-Type); matching is
+    case-insensitive. Values land in the input document's context section —
+    NOT Go context.Context — so generated DTO binding keeps working and
+    non-HTTP transports degrade uniformly.
+  - [*] abstract.Input: HeaderFields deleted; ContextFields() enumerator added
+  - [*] http BuildInputDocument: context lift via contextHeaderCandidates
+  - [*] blobs: DTO tags headers.* → context.* (sha256 → chunk_sha256 so the
+        client header X-Chunk-SHA256 still matches case-insensitively);
+        hand-written registrations lost their HeaderFields blocks; annotation
+        attrs dropped; schemas self-regenerate from tags
+  - [*] codegen: header_fields attribute REMOVED with a loud error directing
+        to input:"context.*" tags (parseHeaderFields + emitter deleted);
+        input meta-schema whitelist: "headers" → "context"
+  - [*] deprecated Arguments/Modifiers/Payload fields removed from Input;
+        wails DeriveRoute moved to schema-derived Args(); #review-20260821-020
+        fully resolved
+
 - [ ] Epic 2 — durable lane via github.com/asaidimu/go-events/v2 (follow-up changeset)  - [ ] Phase 9: `WithDurable()` option through Send (no-op without config)
   - [ ] Phase 10: runtime/durable package — envelope codec (document payloads only),
         dispatch:intent / dispatch:outcome topics, executor w/ stable subscriber ID,

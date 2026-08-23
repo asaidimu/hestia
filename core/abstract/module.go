@@ -30,31 +30,24 @@ type ArgumentDefinition struct {
 	Type definition.FieldType
 }
 
-// @note #review-20260821-020 issue status=open priority=P1 tags=#review,#design : Abstraction leak in Input struct
-// The Input struct contains a comment "THIS IS AN ABSTRACTION LEAK" for
-// HeaderFields, indicating known technical debt. The struct also has multiple
-// deprecated fields (Arguments, Modifiers, Payload) that should be removed
-// once all callers have migrated to the schema-based approach.
-//
-// Consider creating a migration plan to remove the deprecated fields and
-// properly encapsulate the abstraction leak.
+// @note #review-20260821-020 issue resolved status=open priority=P1 tags=#review,#design : Abstraction leak in Input struct
+// The Input struct contained a HeaderFields map (an HTTP header → field
+// binding) flagged "THIS IS AN ABSTRACTION LEAK". It has been removed:
+// transport-context fields are now declared in the input schema itself under
+// a "context" root section (`input:"context.session_id"` tags); the HTTP
+// interface lifts matching headers into them deterministically. The
+// deprecated Arguments/Modifiers/Payload fields have been removed too —
+// Arguments(), Modifiers() and Payload() always derived from the schema.
+// Resolved in two steps. (1) HeaderFields — the flagged abstraction leak — was removed: transport-context bindings are declared by the input schema itself under a context root section (input:"context.session_id" tags); the HTTP interface derives header names deterministically (standard spelling first, then X-prefixed custom form, case-insensitive) and lifts them into the document's context section. The header_fields annotation attribute is removed and now fails codegen loudly. (2) The deprecated Arguments/Modifiers/Payload fields are deleted; Args(), Mods() and PayloadType() always derived from the schema, so the only production caller on the raw field (wails DeriveRoute) moved to Args(). Input is now just Schema + ResourceIDField.
 type Input struct {
-	// THIS IS AN ABSTRACTION LEAK
-	HeaderFields map[string]string
-	Schema       *definition.Schema
-	// Deprecated
-	Arguments []ArgumentDefinition
-	// Deprecated
-	Modifiers map[string]definition.FieldType
-	// Deprecated
-	Payload         definition.FieldType
+	Schema          *definition.Schema
 	ResourceIDField string
 }
 
-// Args extracts argument definitions by looking up the "arguments" field
+// Arguments extracts argument definitions by looking up the "arguments" field
 // in the primary schema, resolving its referenced nested schema, and returning
 // its sub-fields sorted by FieldId (UUIDv7) to preserve order.
-func (i Input) Args() []ArgumentDefinition {
+func (i Input) Arguments() []ArgumentDefinition {
 	if i.Schema == nil {
 		return nil
 	}
@@ -100,8 +93,45 @@ func (i Input) Args() []ArgumentDefinition {
 	return args
 }
 
-// Mods returns the field type definitions for modifiers if present.
-func (i Input) Mods() map[string]definition.FieldType {
+// ContextFields returns the declared transport-context field names: the
+// sub-fields of the schema's "context" root section, in deterministic
+// FieldId order. Transports lift these from request metadata (HTTP headers)
+// into the document's context section before dispatch.
+func (i Input) ContextFields() []string {
+	if i.Schema == nil {
+		return nil
+	}
+
+	_, field := i.Schema.FindField("context")
+	if field == nil || field.Schema.IsZero() {
+		return nil
+	}
+
+	ref, ok := field.Schema.Value().(definition.SchemaReference)
+	if !ok {
+		return nil
+	}
+
+	nestedSchema, exists := i.Schema.Schemas[ref.ID]
+	if !exists {
+		return nil
+	}
+
+	ids := make([]definition.FieldId, 0, len(nestedSchema.Fields))
+	for id := range nestedSchema.Fields {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(a, b int) bool { return ids[a] < ids[b] })
+
+	names := make([]string, 0, len(ids))
+	for _, id := range ids {
+		names = append(names, string(nestedSchema.Fields[id].Name))
+	}
+	return names
+}
+
+// Modifiers returns the field type definitions for modifiers if present.
+func (i Input) Modifiers() map[string]definition.FieldType {
 	if i.Schema == nil {
 		return nil
 	}
@@ -129,8 +159,8 @@ func (i Input) Mods() map[string]definition.FieldType {
 	return mods
 }
 
-// PayloadType retrieves the FieldType of the "payload" field in the schema.
-func (i Input) PayloadType() definition.FieldType {
+// Payload retrieves the FieldType of the "payload" field in the schema.
+func (i Input) Payload() definition.FieldType {
 	if i.Schema == nil {
 		return definition.FieldTypeUnknown
 	}
@@ -142,8 +172,6 @@ func (i Input) PayloadType() definition.FieldType {
 
 	return field.Type
 }
-
-
 
 type Module interface {
 	Name() string
@@ -181,13 +209,13 @@ type Capability struct {
 }
 
 type MessageRegistration struct {
-	Name          string             `json:"name"`
-	Handler       MessageHandler     `json:"-"`
-	Description   string             `json:"description"`
-	Intent        Verb               `json:"intent"`
-	Enabled       bool               `json:"enabled"`
-	BootstrapSafe bool               `json:"bootstrap_safe"`
-	Internal      bool               `json:"internal"`
+	Name          string         `json:"name"`
+	Handler       MessageHandler `json:"-"`
+	Description   string         `json:"description"`
+	Intent        Verb           `json:"intent"`
+	Enabled       bool           `json:"enabled"`
+	BootstrapSafe bool           `json:"bootstrap_safe"`
+	Internal      bool           `json:"internal"`
 	// FireAndForget tells transports to accept the message and respond
 	// immediately without waiting for handler completion. HTTP answers 202
 	// Accepted with the message ID; validation and synchronous chain

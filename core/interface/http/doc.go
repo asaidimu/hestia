@@ -52,16 +52,18 @@ func requestHeaderValue(headers map[string][]string, name string) (string, bool)
 // 3. Error-prone: manual JSON construction can produce invalid JSON
 //
 // The anansi Document has direct Set* methods:
-//   doc, _ := pool.New()
-//   doc.SetString("arguments.name", value)
-//   doc.SetBytes("payload", req.Body)
+//
+//	doc, _ := pool.New()
+//	doc.SetString("arguments.name", value)
+//	doc.SetBytes("payload", req.Body)
 //
 // This should populate fields directly without JSON:
-//   1. pool.New() to get an empty document
-//   2. For arguments: iterate input.Args(), set each from req.PathParams
-//   3. For modifiers: iterate input.Mods(), set each from req.Query
-//   4. For headers: iterate input.HeaderFields, set each from req.Headers
-//   5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField
+//  1. pool.New() to get an empty document
+//  2. For context: iterate input.ContextFields(), set each from req.Headers
+//     via contextHeaderCandidates
+//  3. For arguments: iterate input.Arguments(), set each from req.PathParams
+//  4. For modifiers: iterate input.Modifiers(), set each from req.Query
+//  5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField
 //
 // Note: Do NOT duplicate JSON decode logic. The anansi decoder (go-anansi/
 // core/encoding/json) is already optimized. Use DecodeJSONField for JSON
@@ -76,6 +78,37 @@ func requestHeaderValue(headers map[string][]string, name string) (string, bool)
 //
 // Resolution: Rewrite BuildInputDocument to use pool.New() and doc.Set*()
 // methods directly, using DecodeJSONField only for JSON payload types.
+// contextHeaderCandidates returns the deterministic candidate list for
+// lifting a declared context field from request headers, most specific
+// standard form first: "content_type" → ["Content-Type", "X-Content-Type"].
+// The standard spelling wins when a client supplies both; the X-prefixed
+// form covers custom transport headers like X-Session-ID. Matching is done
+// case-insensitively by requestHeaderValue.
+func contextHeaderCandidates(field string) []string {
+	kebab := toKebabTitle(field)
+	return []string{kebab, "X-" + kebab}
+}
+
+// toKebabTitle converts a snake_case schema field name to canonical HTTP
+// header casing: "session_id" → "Session-Id", "sha256" → "Sha256",
+// "chunk_sha256" → "Chunk-Sha256".
+func toKebabTitle(name string) string {
+	parts := strings.Split(name, "_")
+	for i, p := range parts {
+		if p == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(p[:1]) + p[1:]
+	}
+	return strings.Join(parts, "-")
+}
+
+// BuildInputDocument assembles the dispatch document from the request:
+//
+//   - context.*  : lifted from request headers via contextHeaderCandidates
+//   - arguments  : from path parameters
+//   - modifiers  : from query parameters
+//   - payload    : raw body (JSON or bytes per schema)
 func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Request) (*document.Document, error) {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
@@ -90,25 +123,28 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 		buf.Write(val)
 	}
 
-	if len(input.HeaderFields) > 0 && rootField(input.Schema, "headers") {
-		headers := make(map[string]any)
-		for header, field := range input.HeaderFields {
-			if v, ok := requestHeaderValue(req.Headers, header); ok {
-				headers[field] = v
+	if fields := input.ContextFields(); len(fields) > 0 && rootField(input.Schema, "context") {
+		contextVals := make(map[string]any)
+		for _, field := range fields {
+			for _, candidate := range contextHeaderCandidates(field) {
+				if v, ok := requestHeaderValue(req.Headers, candidate); ok {
+					contextVals[field] = v
+					break
+				}
 			}
 		}
-		if len(headers) > 0 {
-			headersJSON, err := json.Marshal(headers)
+		if len(contextVals) > 0 {
+			ctxJSON, err := json.Marshal(contextVals)
 			if err != nil {
 				return nil, err
 			}
-			writeSection("headers", headersJSON)
+			writeSection("context", ctxJSON)
 		}
 	}
 
 	if rootField(input.Schema, "arguments") {
 		args := make(map[string]any)
-		for _, argDef := range input.Args() {
+		for _, argDef := range input.Arguments() {
 			if v, ok := req.PathParams[argDef.Name]; ok {
 				args[argDef.Name] = v
 			}
@@ -124,7 +160,7 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 
 	if rootField(input.Schema, "modifiers") {
 		modifiers := make(map[string]any)
-		for name := range input.Mods() {
+		for name := range input.Modifiers() {
 			if vals, ok := req.Query[name]; ok && len(vals) > 0 {
 				modifiers[name] = vals[0]
 			}
@@ -139,7 +175,7 @@ func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Re
 	}
 
 	if rootField(input.Schema, "payload") {
-		if input.PayloadType() == definition.FieldTypeBytes {
+		if input.Payload() == definition.FieldTypeBytes {
 			p, err := json.Marshal(req.Body)
 			if err != nil {
 				return nil, err

@@ -30,7 +30,7 @@ type BlobUpdateInput struct {
 type BlobUploadInput struct {
 	NS          string `input:"arguments.ns"`
 	Key         string `input:"arguments.key"`
-	ContentType string `input:"headers.content_type"`
+	ContentType string `input:"context.content_type"`
 	Overwrite   string `input:"modifiers.overwrite"`
 	Payload     []byte `input:"payload"`
 }
@@ -46,21 +46,21 @@ type BlobBeginInput struct {
 
 type BlobChunkInput struct {
 	NS        string `input:"arguments.ns"`
-	SessionID string `input:"headers.session_id"`
-	Offset    string `input:"headers.offset"`
-	SHA256    string `input:"headers.sha256"`
+	SessionID string `input:"context.session_id"`
+	Offset    string `input:"context.offset"`
+	SHA256    string `input:"context.chunk_sha256"`
 	Payload   []byte `input:"payload"`
 }
 
 type BlobCompleteInput struct {
 	NS        string `input:"arguments.ns"`
-	SessionID string `input:"headers.session_id"`
+	SessionID string `input:"context.session_id"`
 	Overwrite string `input:"modifiers.overwrite"`
 }
 
 type BlobAbortInput struct {
 	NS        string `input:"arguments.ns"`
-	SessionID string `input:"headers.session_id"`
+	SessionID string `input:"context.session_id"`
 }
 
 type BlobProgressInput struct {

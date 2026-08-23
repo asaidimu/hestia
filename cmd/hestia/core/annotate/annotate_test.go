@@ -3,6 +3,7 @@ package annotate
 import (
 	"go/ast"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -161,35 +162,17 @@ func TestParseCrossPackageType(t *testing.T) {
 	}
 }
 
-func TestParseHeaderFieldsMulti(t *testing.T) {
-	// Regression: commas inside a quoted header_fields value must not be
-	// treated as pair separators by splitPairs.
-	anns, err := Parse(filepath.Join("testdata", "users"))
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
+func TestParseRejectsDeprecatedHeaderFields(t *testing.T) {
+	// header_fields was removed with abstract.Input.HeaderFields; transport
+	// context bindings now come from input:"context.*" schema tags. Stale
+	// declarations must fail codegen loudly instead of silently dropping the
+	// binding.
+	_, err := Parse(filepath.Join("testdata", "bad_header_fields"))
+	if err == nil {
+		t.Fatal("expected error for deprecated header_fields attribute, got nil")
 	}
-	for _, a := range anns {
-		if a.MessageName == "system:collections:user:query" {
-			continue
-		}
-		if len(a.HeaderFields) > 0 {
-			t.Fatalf("unexpected header fields on %s: %v", a.MessageName, a.HeaderFields)
-		}
-	}
-
-	fields := parseHeaderFields(`X-Session-ID=session_id,X-Offset=offset,X-Chunk-SHA256=sha256`)
-	want := map[string]string{
-		"X-Session-ID":   "session_id",
-		"X-Offset":       "offset",
-		"X-Chunk-SHA256": "sha256",
-	}
-	if len(fields) != len(want) {
-		t.Fatalf("got %d header fields, want %d: %v", len(fields), len(want), fields)
-	}
-	for k, v := range want {
-		if got, ok := fields[k]; !ok || got != v {
-			t.Errorf("field %q = %q, want %q", k, got, v)
-		}
+	if !strings.Contains(err.Error(), "header_fields") || !strings.Contains(err.Error(), "context") {
+		t.Fatalf("error should name header_fields and the context.* migration, got: %v", err)
 	}
 }
 

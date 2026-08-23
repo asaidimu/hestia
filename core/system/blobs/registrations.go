@@ -84,9 +84,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobUploadInput]("input"),
 				ResourceIDField: "key",
-				HeaderFields: map[string]string{
-					"Content-Type": "content_type",
-				},
 			},
 			Output:  dispatch.SchemaFromType[model.BlobMetaOutput](),
 			Handler: dispatch.Handle[model.BlobUploadInput](s.UploadBlob),
@@ -143,11 +140,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Enabled:     true,
 			Input: abstract.Input{
 				Schema: dispatch.SchemaFromTypeWithTag[model.BlobChunkInput]("input"),
-				HeaderFields: map[string]string{
-					"X-Chunk-SHA256": "sha256",
-					"X-Offset":       "offset",
-					"X-Session-ID":   "session_id",
-				},
 			},
 			Output:  dispatch.SchemaFromType[model.UploadChunkOutput](),
 			Handler: dispatch.Handle[model.BlobChunkInput](s.UploadChunk),
@@ -159,9 +151,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Enabled:     true,
 			Input: abstract.Input{
 				Schema: dispatch.SchemaFromTypeWithTag[model.BlobCompleteInput]("input"),
-				HeaderFields: map[string]string{
-					"X-Session-ID": "session_id",
-				},
 			},
 			Output:  dispatch.SchemaFromType[model.BlobMetaOutput](),
 			Handler: dispatch.Handle[model.BlobCompleteInput](s.CompleteUpload),
@@ -184,9 +173,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Enabled:     true,
 			Input: abstract.Input{
 				Schema: dispatch.SchemaFromTypeWithTag[model.BlobAbortInput]("input"),
-				HeaderFields: map[string]string{
-					"X-Session-ID": "session_id",
-				},
 			},
 			Handler: dispatch.Handle[model.BlobAbortInput](s.AbortUpload),
 		},

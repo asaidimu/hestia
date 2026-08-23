@@ -85,9 +85,6 @@ type Annotation struct {
 	// ResourceIDField is the resource identity for route registration,
 	// declared via resource_id="...". Empty when absent.
 	ResourceIDField string
-	// HeaderFields maps an HTTP header to the input schema field it lands in,
-	// declared via header_fields="Header=field,...". Empty when absent.
-	HeaderFields map[string]string
 	// BootstrapSafe marks the registration boot-safe (no DB required), declared
 	// via bootstrap_safe="true". False when absent.
 	BootstrapSafe bool
@@ -108,11 +105,11 @@ type Annotation struct {
 	Service    string // receiver type name, e.g. "UsersService"
 
 	// Signature-derived contract.
-	HasInput bool // *TIn present
-	HasStream bool // <-chan dispatch.Item[TIn] present
-	Input    TypeRef  // TIn for input/stream
-	Result   ResultKind
-	Output   TypeRef // TOut when Result is document/documents
+	HasInput  bool    // *TIn present
+	HasStream bool    // <-chan dispatch.Item[TIn] present
+	Input     TypeRef // TIn for input/stream
+	Result    ResultKind
+	Output    TypeRef // TOut when Result is document/documents
 }
 
 // Parse parses all .go files in dir (skipping _test.go) and returns every
@@ -289,13 +286,22 @@ func splitPairs(s string) []string {
 }
 
 func buildAnnotation(fset *token.FileSet, fd *ast.FuncDecl, service string, attrs map[string]string, imports map[string]string) (Annotation, error) {
+	// header_fields was deprecated alongside the removal of
+	// abstract.Input.HeaderFields: transport-context bindings are now declared
+	// by the input schema itself via `input:"context.<field>"` tags, which the
+	// HTTP interface lifts from request headers. Fail loudly so stale
+	// declarations are migrated instead of silently losing their binding.
+	if attrs["header_fields"] != "" {
+		return Annotation{}, fmt.Errorf(
+			"@hestia.register attribute header_fields=%q is removed: declare context fields on the input struct with input:\"context.<field>\" tags (the HTTP interface derives headers like X-Session-Id from them)",
+			attrs["header_fields"])
+	}
 	ann := Annotation{
 		MessageName:     attrs["name"],
 		Verb:            Verb(attrs["intent"]),
 		Rule:            attrs["rule"],
 		Description:     attrs["description"],
 		ResourceIDField: attrs["resource_id"],
-		HeaderFields:    parseHeaderFields(attrs["header_fields"]),
 		MethodName:      fd.Name.Name,
 		Service:         service,
 	}
@@ -494,30 +500,6 @@ func typeRef(t ast.Expr, imports map[string]string) (TypeRef, error) {
 	default:
 		return TypeRef{}, fmt.Errorf("unsupported type reference %s", asWritten)
 	}
-}
-
-// parseHeaderFields parses a comma-separated Header=field list into the
-// HeaderFields map. Empty/blank input yields nil.
-func parseHeaderFields(s string) map[string]string {
-	if strings.TrimSpace(s) == "" {
-		return nil
-	}
-	fields := map[string]string{}
-	for _, part := range strings.Split(s, ",") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		header := strings.TrimSpace(kv[0])
-		field := strings.Trim(strings.TrimSpace(kv[1]), `"`)
-		if header != "" {
-			fields[header] = field
-		}
-	}
-	if len(fields) == 0 {
-		return nil
-	}
-	return fields
 }
 
 // parseBool interprets a truthy attribute value as true.

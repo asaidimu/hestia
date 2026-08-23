@@ -225,7 +225,7 @@ func TestUploadBlobHandler(t *testing.T) {
 
 	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobUploadInput]("input", true), `{
 		"arguments": {"ns": "test-ns", "key": "a.txt"},
-		"headers": {"content_type": "text/plain"},
+		"context": {"content_type": "text/plain"},
 		"payload": "aGVsbG8gd29ybGQ="
 	}`)
 	msg := testMessage{ctx: ctx, input: input}

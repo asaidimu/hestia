@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-22T23:41:09.635918102Z",
+  "generatedAt": "2026-08-23T00:59:49.77197557Z",
   "root": ".",
   "notes": {
     "83l69u": {
@@ -401,9 +401,9 @@
       "body": "\nstreamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\n",
       "location": {
         "file": "core/interface/http/register.go",
-        "startLine": 176,
+        "startLine": 200,
         "startCol": 3,
-        "endLine": 192,
+        "endLine": 216,
         "endCol": 3
       },
       "hash": "f9f3e633454447d6"
@@ -533,15 +533,15 @@
       "category": "issue",
       "status": "open",
       "title": "BuildInputDocument uses unnecessary JSON round-trip",
-      "body": "BuildInputDocument manually constructs a JSON string by marshaling each\nfield, concatenating into a JSON object, then parsing it back into a\ndocument via pool.FromJSON. This is:\n\n1. Wasteful: marshal Go values → JSON bytes → concatenate → parse JSON\n2. Incorrect for bytes: json.Marshal([]byte) base64-encodes, double-encoding\n3. Error-prone: manual JSON construction can produce invalid JSON\n\nThe anansi Document has direct Set* methods:\n  doc, _ := pool.New()\n  doc.SetString(\"arguments.name\", value)\n  doc.SetBytes(\"payload\", req.Body)\n\nThis should populate fields directly without JSON:\n  1. pool.New() to get an empty document\n  2. For arguments: iterate input.Args(), set each from req.PathParams\n  3. For modifiers: iterate input.Mods(), set each from req.Query\n  4. For headers: iterate input.HeaderFields, set each from req.Headers\n  5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField\n\nNote: Do NOT duplicate JSON decode logic. The anansi decoder (go-anansi/\ncore/encoding/json) is already optimized. Use DecodeJSONField for JSON\npayloads — it decodes a single field directly into the document without\nbuilding an intermediate JSON object.\n\nImpact:\n- Eliminates marshal/parse round-trip (2x CPU savings)\n- Eliminates base64 encoding for byte payloads (33% memory savings)\n- Eliminates intermediate JSON buffer allocation\n- For IoT/HFT: Critical for reducing per-request latency\n\nResolution: Rewrite BuildInputDocument to use pool.New() and doc.Set*()\nmethods directly, using DecodeJSONField only for JSON payload types.\n",
+      "body": "BuildInputDocument manually constructs a JSON string by marshaling each\nfield, concatenating into a JSON object, then parsing it back into a\ndocument via pool.FromJSON. This is:\n\n1. Wasteful: marshal Go values → JSON bytes → concatenate → parse JSON\n2. Incorrect for bytes: json.Marshal([]byte) base64-encodes, double-encoding\n3. Error-prone: manual JSON construction can produce invalid JSON\n\nThe anansi Document has direct Set* methods:\n\n\tdoc, _ := pool.New()\n\tdoc.SetString(\"arguments.name\", value)\n\tdoc.SetBytes(\"payload\", req.Body)\n\nThis should populate fields directly without JSON:\n 1. pool.New() to get an empty document\n 2. For context: iterate input.ContextFields(), set each from req.Headers\n    via contextHeaderCandidates\n 3. For arguments: iterate input.Arguments(), set each from req.PathParams\n 4. For modifiers: iterate input.Modifiers(), set each from req.Query\n 5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField\n\nNote: Do NOT duplicate JSON decode logic. The anansi decoder (go-anansi/\ncore/encoding/json) is already optimized. Use DecodeJSONField for JSON\npayloads — it decodes a single field directly into the document without\nbuilding an intermediate JSON object.\n\nImpact:\n- Eliminates marshal/parse round-trip (2x CPU savings)\n- Eliminates base64 encoding for byte payloads (33% memory savings)\n- Eliminates intermediate JSON buffer allocation\n- For IoT/HFT: Critical for reducing per-request latency\n\nResolution: Rewrite BuildInputDocument to use pool.New() and doc.Set*()\nmethods directly, using DecodeJSONField only for JSON payload types.\ncontextHeaderCandidates returns the deterministic candidate list for\nlifting a declared context field from request headers, most specific\nstandard form first: \"content_type\" → [\"Content-Type\", \"X-Content-Type\"].\nThe standard spelling wins when a client supplies both; the X-prefixed\nform covers custom transport headers like X-Session-ID. Matching is done\ncase-insensitively by requestHeaderValue.\n",
       "location": {
         "file": "core/interface/http/doc.go",
         "startLine": 43,
         "startCol": 3,
-        "endLine": 77,
+        "endLine": 85,
         "endCol": 3
       },
-      "hash": "26f071925ba98b5b"
+      "hash": "d4fae407d14efa8b"
     },
     "review-20260821-001": {
       "id": "review-20260821-001",
@@ -651,17 +651,17 @@
     "review-20260821-020": {
       "id": "review-20260821-020",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Abstraction leak in Input struct",
-      "body": "HeaderFields, indicating known technical debt. The struct also has multiple\ndeprecated fields (Arguments, Modifiers, Payload) that should be removed\nonce all callers have migrated to the schema-based approach.\n\nConsider creating a migration plan to remove the deprecated fields and\nproperly encapsulate the abstraction leak.\n",
+      "body": "binding) flagged \"THIS IS AN ABSTRACTION LEAK\". It has been removed:\ntransport-context fields are now declared in the input schema itself under\na \"context\" root section (`input:\"context.session_id\"` tags); the HTTP\ninterface lifts matching headers into them deterministically. The\ndeprecated Arguments/Modifiers/Payload fields have been removed too —\nArguments(), Modifiers() and Payload() always derived from the schema.\nResolved in two steps. (1) HeaderFields — the flagged abstraction leak — was removed: transport-context bindings are declared by the input schema itself under a context root section (input:\"context.session_id\" tags); the HTTP interface derives header names deterministically (standard spelling first, then X-prefixed custom form, case-insensitive) and lifts them into the document's context section. The header_fields annotation attribute is removed and now fails codegen loudly. (2) The deprecated Arguments/Modifiers/Payload fields are deleted; Args(), Mods() and PayloadType() always derived from the schema, so the only production caller on the raw field (wails DeriveRoute) moved to Args(). Input is now just Schema + ResourceIDField.\n",
       "location": {
         "file": "core/abstract/module.go",
         "startLine": 32,
         "startCol": 3,
-        "endLine": 39,
+        "endLine": 40,
         "endCol": 3
       },
-      "hash": "28c43b2abd5b9965"
+      "hash": "d32f697c1d147730"
     },
     "review2-20260821-001": {
       "id": "review2-20260821-001",
@@ -795,9 +795,9 @@
       "body": "When blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
       "location": {
         "file": "core/system/blobs/service.go",
-        "startLine": 229,
+        "startLine": 225,
         "startCol": 3,
-        "endLine": 234,
+        "endLine": 230,
         "endCol": 3
       },
       "hash": "7d29f8cdaf772fcb"
@@ -1105,25 +1105,28 @@
       "hash": "ea5454b8269d3a4e"
     },
     "cmd/gen-routes/main.go": {
-      "hash": "a44577c5a8714098"
+      "hash": "bbbaa5e631533bc3"
     },
     "cmd/hestia-desktop/main.go": {
       "hash": "847d594d6487c4f3"
     },
     "cmd/hestia/core/annotate/annotate.go": {
-      "hash": "ab7f53154ba52740"
+      "hash": "206fc2f593c1b4f7"
     },
     "cmd/hestia/core/annotate/annotate_test.go": {
-      "hash": "c0ac67c438233b28"
+      "hash": "4df1d37be21329a9"
     },
     "cmd/hestia/core/annotate/testdata/bad/service.go": {
       "hash": "e2e8bd390789435c"
+    },
+    "cmd/hestia/core/annotate/testdata/bad_header_fields/service.go": {
+      "hash": "b2bbe9741d903cc9"
     },
     "cmd/hestia/core/annotate/testdata/feed/service.go": {
       "hash": "c1a8157938c78649"
     },
     "cmd/hestia/core/annotate/testdata/users/service.go": {
-      "hash": "b1c34c6006146b5a"
+      "hash": "bacfe87b00009852"
     },
     "cmd/hestia/core/config.go": {
       "hash": "0ee6b272f6b8b2fc"
@@ -1135,10 +1138,10 @@
       "hash": "8672a4d7065b4201"
     },
     "cmd/hestia/core/gen/render.go": {
-      "hash": "1a6a9164097fab63"
+      "hash": "f512692368f70980"
     },
     "cmd/hestia/core/gen/testdata/users/service.go": {
-      "hash": "981401eb15448a04"
+      "hash": "2ba0c2b893a95921"
     },
     "cmd/hestia/core/generate.go": {
       "hash": "97d67a77255d96a9",
@@ -1192,7 +1195,7 @@
       "hash": "4cb622730f0495d4"
     },
     "core/abstract/module.go": {
-      "hash": "bd082087f03031e1",
+      "hash": "5a564a1e66950837",
       "noteIds": [
         "org-20260821-001",
         "review-20260821-020"
@@ -1242,10 +1245,13 @@
       "hash": "c223742ae14470a9"
     },
     "core/interface/http/doc.go": {
-      "hash": "2fc7138f6ffe8f1f",
+      "hash": "f48e565f5f4033c0",
       "noteIds": [
         "perf-20260821-004"
       ]
+    },
+    "core/interface/http/fire_and_forget_test.go": {
+      "hash": "d5f250fe10b480bb"
     },
     "core/interface/http/identity_provider.go": {
       "hash": "c1f32ad408d6d8c1"
@@ -1260,13 +1266,13 @@
       ]
     },
     "core/interface/http/register.go": {
-      "hash": "a457547a365a4758",
+      "hash": "918c5c61c8a0923e",
       "noteIds": [
         "mem-20260821-003"
       ]
     },
     "core/interface/http/register_test.go": {
-      "hash": "73eb1e161681da30"
+      "hash": "ad30c8d17bf9af95"
     },
     "core/interface/http/router.go": {
       "hash": "119b21b4109b42ba",
@@ -1446,16 +1452,19 @@
       "hash": "f151e3e6a8a99410"
     },
     "core/runtime/dispatch/dispatch.go": {
-      "hash": "52566062270407e6"
+      "hash": "3b76f41e2337f9cd"
     },
     "core/runtime/dispatch/dispatch_test.go": {
       "hash": "066de638db89a37f"
     },
+    "core/runtime/dispatch/enqueue_test.go": {
+      "hash": "30a3a3bdae2070eb"
+    },
     "core/runtime/dispatch/input.go": {
-      "hash": "542d62cf1a96151c"
+      "hash": "2cfe8d6d409bb202"
     },
     "core/runtime/dispatch/message.go": {
-      "hash": "51ca8c00faecf543"
+      "hash": "224f7e1a770bff5c"
     },
     "core/runtime/dispatch/result.go": {
       "hash": "1ac9c29bb6e3c462"
@@ -1730,7 +1739,7 @@
       "hash": "bb43fe1ce7b05b3f"
     },
     "core/system/blobs/blobs_test.go": {
-      "hash": "559733a8fd6bde82"
+      "hash": "fefff57ebda5247e"
     },
     "core/system/blobs/handler.go": {
       "hash": "27f115d94e02ce3b",
@@ -1739,10 +1748,10 @@
       ]
     },
     "core/system/blobs/inputs.go": {
-      "hash": "5686a16c47f3fc4b"
+      "hash": "ec0b250091f69567"
     },
     "core/system/blobs/model/inputs.go": {
-      "hash": "3660c45649b60c25"
+      "hash": "53a9802d97b90134"
     },
     "core/system/blobs/model/outputs.go": {
       "hash": "09145df71cf2dcdf"
@@ -1754,10 +1763,10 @@
       "hash": "fe892f0d5e2f63c9"
     },
     "core/system/blobs/registrations.go": {
-      "hash": "04b3aeeea394d4bd"
+      "hash": "223ce539007faefd"
     },
     "core/system/blobs/service.go": {
-      "hash": "0a6daa931ecf8ab7",
+      "hash": "d8762ca0ddd5f5b2",
       "noteIds": [
         "storage-leak-blobs-never-compact-ad27adbb"
       ]
@@ -1862,7 +1871,7 @@
       "hash": "de1160f52d0c2181"
     },
     "core/system/operations/handler.go": {
-      "hash": "c788b099fe3fbd42",
+      "hash": "87f8100b5f3bfd8d",
       "noteIds": [
         "cruft-20260821-017"
       ]
@@ -1889,7 +1898,7 @@
       "hash": "112546a5befb11b6"
     },
     "core/system/operations/service.go": {
-      "hash": "34087122e587c236"
+      "hash": "4dd680d327355d31"
     },
     "core/system/policies/defaults.go": {
       "hash": "93018ed1724a4c1a"
@@ -2123,7 +2132,7 @@
       "hash": "55c20f218b037fec"
     },
     "utils/wails/dispatch.go": {
-      "hash": "3de3f4517fa66bc6",
+      "hash": "419d8d2b09f23210",
       "noteIds": [
         "review2-20260821-002"
       ]
