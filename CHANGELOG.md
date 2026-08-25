@@ -1,3 +1,10 @@
+## [1.4.18](https://github.com/asaidimu/hestia/compare/v1.4.17...v1.4.18) (2026-08-25)
+
+
+### Bug Fixes
+
+* Commit message fix ([f583f2f](https://github.com/asaidimu/hestia/commit/f583f2f31c477a65aa1308b3d07e84ca8a80ba4e))
+
 ## [1.4.17](https://github.com/asaidimu/hestia/compare/v1.4.16...v1.4.17) (2026-08-23)
 
 
