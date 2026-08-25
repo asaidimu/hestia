@@ -2,6 +2,8 @@ package http
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/asaidimu/go-iam/v2/iam"
@@ -10,6 +12,18 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
+)
+
+// authRateLimiter limits authentication attempts per source IP to prevent
+// brute-force attacks. Uses a token bucket: 10 attempts per minute, burst of 5.
+var authRateLimiter = ratestore.New()
+
+const (
+	authRateLimitKey    = "auth:attempts:"
+	authRateLimitBurst  = 10
+	authRateLimitRefill = 10
+	authRateLimitPeriod = time.Minute
 )
 
 // @note #sec-20260821-003 issue status=open priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
@@ -116,6 +130,19 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 		return o.authenticated(ctx, ident, next, req)
 	}
 
+	// 3. Rate-limit password-based login attempts by source IP to prevent
+	//    brute-force attacks. The actual credential check happens downstream
+	//    in AuthService.CreateSession, but we gate entry here so repeated
+	//    failures are blocked before reaching the database.
+	if req.Operation == msgSessionCreate {
+		key := authRateLimitKey + req.ClientIP
+		_, allowed, err := authRateLimiter.CheckAndConsume(ctx, key, authRateLimitBurst, authRateLimitRefill, authRateLimitPeriod)
+		if err == nil && !allowed {
+			_, _ = fmt.Fprintf(os.Stderr, "AUTH RATE LIMIT: IP=%s op=%s\n", req.ClientIP, req.Operation)
+			return Response{Status: 429}, runtime.ErrRateLimited
+		}
+	}
+
 	// No auth provided — use anonymous identity; policy engine handles enforcement
 	return o.authenticated(ctx, nil, next, req)
 }
@@ -149,11 +176,11 @@ func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next
 	if ident != nil {
 		props, _ := ident.Properties.(map[string]any)
 		claims = &abstract.Claims{
-			UserID:    getStringProp(props, "user_id"),
-			Email:     getStringProp(props, "email"),
-			TenantID:  getStringProp(props, "tenant_id"),
+			UserID:    getProp[string](props, "user_id"),
+			Email:     getProp[string](props, "email"),
+			TenantID:  getProp[string](props, "tenant_id"),
 			Scopes:    ident.Permissions,
-			TokenType: getStringProp(props, "token_type"),
+			TokenType: getProp[string](props, "token_type"),
 		}
 	} else {
 		claims = &abstract.Claims{}
@@ -163,11 +190,12 @@ func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next
 	return next(ctx, req)
 }
 
-func getStringProp(props map[string]any, key string) string {
+func getProp[T any](props map[string]any, key string) T {
 	if props == nil {
-		return ""
+		var zero T
+		return zero
 	}
-	v, _ := props[key].(string)
+	v, _ := props[key].(T)
 	return v
 }
 

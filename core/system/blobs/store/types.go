@@ -48,4 +48,5 @@ type BlobNamespace interface {
 	UpdateMetadata(ctx context.Context, key string, custom map[string]string) (*BlobMeta, error)
 	Delete(ctx context.Context, key string) error
 	List(ctx context.Context, prefix string, limit int) ([]BlobMeta, error)
+	Compact(ctx context.Context) (int64, error)
 }

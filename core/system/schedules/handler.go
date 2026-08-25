@@ -1,5 +1,7 @@
-// @note #cruft-20260821-023 observation status=open priority=P2 tags=#cruft,#note : Old-style handler functions in schedules/handler.go
+// @note #cruft-20260821-023 observation open status=open priority=P2 tags=#cruft,#note : Old-style handler functions in schedules/handler.go
 // @see #8uuufn
+// No action needed — wrapped by service layer, not part of generated registration pattern.
+// NOT resolved —ScheduleHandlers is superseded by SchedulesService but tests still use it. Additionally, hand-rolled ScheduleModel duplicates the generated SystemScheduledMessagess. Full refactor needed: migrate tests to SchedulesService, replace ScheduleModel with generated model + custom ListByTenant method, delete handler.go and model.go.
 //
 // This file contains ScheduleHandlers with Create, List, Get, Update, and
 // Delete methods — all using the old pattern of manual input extraction via

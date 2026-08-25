@@ -27,7 +27,7 @@ func (d *BootstrapDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher
 
 func (d *BootstrapDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if !d.bootstrapped() && !d.registry.IsHandlerBootstrapSafe(msg.Name()) {
-		return fmt.Errorf("handler %q is not available until the system is bootstrapped", msg.Name())
+		return ErrAccessDenied.WithOperation(msg.Name()).WithCause(fmt.Errorf("handler not available until bootstrapped"))
 	}
 	return d.next.Send(ctx, msg, onComplete)
 }

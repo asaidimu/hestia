@@ -28,7 +28,7 @@ func TestBootstrapDispatcher_GatesEverythingPreBootstrap(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected pre-bootstrap denial for non-safe handler, got nil")
 	}
-	if !strings.Contains(err.Error(), "not available until the system is bootstrapped") {
+	if !strings.Contains(err.Error(), "not available until bootstrapped") {
 		t.Fatalf("unexpected error text: %v", err)
 	}
 

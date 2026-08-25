@@ -1,5 +1,7 @@
-// @note #arch-20260821-004 issue status=open priority=P2 tags=#arch,#duplication : Separate rate store instances per dispatcher
+// @note #arch-20260821-004 issue resolved status=open priority=P2 tags=#arch,#duplication : Separate rate store instances per dispatcher
+// @assignee opencode
 // @see #arch-20260821-003
+// Shared single ratestore.InMemoryStore between RateLimitDispatcher and ThrottleDispatcher via ProviderSet.RateStore. Created once in DispatcherChain, closed on Stop().
 //
 // RateLimitDispatcher creates its own ratestore.New() instance at line 61.
 // ThrottleDispatcher (throttle.go:78) creates a separate ratestore.New() instance.
@@ -18,8 +20,6 @@ import (
 	"context"
 	"strings"
 	"time"
-
-	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime/ratestore"
@@ -66,13 +66,16 @@ type RateLimitDispatcher struct {
 	store  RateLimitStore
 }
 
-func NewRateLimitDispatcher(lookup RateLimitLookup) *RateLimitDispatcher {
+func NewRateLimitDispatcher(lookup RateLimitLookup, store RateLimitStore) *RateLimitDispatcher {
 	if lookup == nil {
 		lookup = func(string) *RateLimitPolicy { return nil }
 	}
+	if store == nil {
+		store = ratestore.New()
+	}
 	return &RateLimitDispatcher{
 		lookup: lookup,
-		store:  ratestore.New(),
+		store:  store,
 	}
 }
 
@@ -139,29 +142,11 @@ func buildRateLimitKey(identity string, msg abstract.Message) string {
 }
 
 func extractUserID(ctx context.Context) string {
-	ident, ok := iam.GetIdentity(ctx)
-	if !ok {
-		return ""
-	}
-	props, ok := ident.Properties.(map[string]any)
-	if !ok {
-		return ""
-	}
-	uid, _ := props["user_id"].(string)
-	return uid
+	return GetUserID(ctx)
 }
 
 func extractAPIKeyID(ctx context.Context) string {
-	ident, ok := iam.GetIdentity(ctx)
-	if !ok {
-		return ""
-	}
-	props, ok := ident.Properties.(map[string]any)
-	if !ok {
-		return ""
-	}
-	tid, _ := props["token_id"].(string)
-	return tid
+	return GetTokenID(ctx)
 }
 
 func matchOperation(pattern, operation string) bool {

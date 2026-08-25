@@ -152,7 +152,7 @@ func TestBuildKeyEmptyDimensionFallsBackToGlobal(t *testing.T) {
 }
 
 func TestRateLimitLookupNilReturnsNil(t *testing.T) {
-	disp := NewRateLimitDispatcher(nil)
+	disp := NewRateLimitDispatcher(nil, nil)
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
@@ -169,7 +169,7 @@ func TestRateLimitLookupNoMatchPassesThrough(t *testing.T) {
 	lookup := func(op string) *RateLimitPolicy {
 		return nil
 	}
-	disp := NewRateLimitDispatcher(lookup)
+	disp := NewRateLimitDispatcher(lookup, nil)
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
@@ -192,7 +192,7 @@ func TestRateLimitLookupEnforcesLimit(t *testing.T) {
 			Period:   60,
 		}
 	}
-	disp := NewRateLimitDispatcher(lookup)
+	disp := NewRateLimitDispatcher(lookup, nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	_, err := testAwait(wrapped, newMessage("op:test"))
@@ -219,7 +219,7 @@ func TestRateLimitLookupPerUser(t *testing.T) {
 			Period:   60,
 		}
 	}
-	disp := NewRateLimitDispatcher(lookup)
+	disp := NewRateLimitDispatcher(lookup, nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	alice := msgWithUser("op:test", "alice")
@@ -250,7 +250,7 @@ func TestRateLimitLookupDifferentOpsDifferentLimits(t *testing.T) {
 		}
 	}
 	next := &mockDispatcher{}
-	disp := NewRateLimitDispatcher(lookup)
+	disp := NewRateLimitDispatcher(lookup, nil)
 	wrapped := disp.Wrap(next)
 
 	_, err := testAwait(wrapped, newMessage("other:op"))

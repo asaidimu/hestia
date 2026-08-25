@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-23T00:59:49.77197557Z",
+  "generatedAt": "2026-08-25T10:41:57.842826215Z",
   "root": ".",
   "notes": {
     "83l69u": {
@@ -11,9 +11,9 @@
       "body": "We need to investiagate other auth methods such as a list of trusted domains so that external events such as\nWebhooks can be processed without requiring API Keys\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 74,
+        "startLine": 76,
         "startCol": 3,
-        "endLine": 77,
+        "endLine": 79,
         "endCol": 3
       },
       "hash": "04e9a380d3f203ca"
@@ -36,24 +36,25 @@
     "arch-20260821-003": {
       "id": "arch-20260821-003",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Duplicated identity property extraction pattern",
-      "body": "The pattern `ident.Properties.(map[string]any)` followed by key extraction\nappears in 8+ places across 5 files:\n\n1. secure-dispatcher.go:66,127\n2. rate-limit.go:132,145\n3. throttle.go:46\n4. access-log-dispatcher.go:89\n5. core/interface/http/middleware.go:144\n\nThis is a mechanical pattern that should be a shared helper. The existing\ndevnotes #review-20260821-006 and #review-20260821-007 call for a helper\nlike `GetIdentityProperty[T](ctx, key)` or a typed `IdentityProperties` struct.\n\nResolution: Create a `runtime/identity` helper package with generic functions\nlike `GetProperty[T](ctx, key) (T, bool)` to eliminate all copies.\n",
+      "body": "\nThe pattern `ident.Properties.(map[string]any)` followed by key extraction\nappears in 8+ places across 5 files:\n\n1. secure-dispatcher.go:66,127\n2. rate-limit.go:132,145\n3. throttle.go:46\n4. access-log-dispatcher.go:89\n5. core/interface/http/middleware.go:144\n\nThis is a mechanical pattern that should be a shared helper. The existing\ndevnotes #review-20260821-006 and #review-20260821-007 call for a helper\nlike `GetIdentityProperty[T](ctx, key)` or a typed `IdentityProperties` struct.\n\nResolution: Create a `runtime/identity` helper package with generic functions\nlike `GetProperty[T](ctx, key) (T, bool)` to eliminate all copies.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 16,
+        "endLine": 17,
         "endCol": 3
       },
-      "hash": "e07cab59dd6441c6"
+      "hash": "0f902289b2a6656a"
     },
     "arch-20260821-004": {
       "id": "arch-20260821-004",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Separate rate store instances per dispatcher",
-      "body": "RateLimitDispatcher creates its own ratestore.New() instance at line 61.\nThrottleDispatcher (throttle.go:78) creates a separate ratestore.New() instance.\n\nEach dispatcher creates an independent InMemoryStore instance with its own\neviction goroutine and shard array. This doubles memory usage and means\nrate limits and throttles are tracked in separate stores even when they\ncould share infrastructure.\n\nResolution: Pass the RateLimitStore via DI or constructor instead of creating\nnew instances internally in each dispatcher. This allows sharing a single\nstore instance across dispatchers.\n",
+      "body": "\nRateLimitDispatcher creates its own ratestore.New() instance at line 61.\nThrottleDispatcher (throttle.go:78) creates a separate ratestore.New() instance.\n\nEach dispatcher creates an independent InMemoryStore instance with its own\neviction goroutine and shard array. This doubles memory usage and means\nrate limits and throttles are tracked in separate stores even when they\ncould share infrastructure.\n\nResolution: Pass the RateLimitStore via DI or constructor instead of creating\nnew instances internally in each dispatcher. This allows sharing a single\nstore instance across dispatchers.\n",
+      "assignee": "opencode",
       "references": [
         "#arch-20260821-003"
       ],
@@ -61,25 +62,26 @@
         "file": "core/runtime/rate-limit.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 13,
+        "endLine": 15,
         "endCol": 3
       },
-      "hash": "bb584a2090c7cf1c"
+      "hash": "03b83586fc536b33"
     },
     "arch-20260821-005": {
       "id": "arch-20260821-005",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Inconsistent error handling in dispatchers",
-      "body": "LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,\nbut the project convention is to use common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nThe same issue exists in bootstrap-dispatcher.go.\n\nMeanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,\nErrAuthRequired, ErrRateLimited etc.\n\nResolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go\nand bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,\nErrValidation/ErrAccessDenied with WithOperation).\n",
+      "body": "\nLocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,\nbut the project convention is to use common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nThe same issue exists in bootstrap-dispatcher.go.\n\nMeanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,\nErrAuthRequired, ErrRateLimited etc.\n\nResolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go\nand bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,\nErrValidation/ErrAccessDenied with WithOperation).\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 13,
+        "endLine": 15,
         "endCol": 3
       },
-      "hash": "38e52e8a0518f4b6"
+      "hash": "702848d4a85c0684"
     },
     "arch-20260821-008": {
       "id": "arch-20260821-008",
@@ -129,17 +131,18 @@
     "arch-20260821-011": {
       "id": "arch-20260821-011",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Scheduler jobs have no lifecycle context",
-      "body": "The Register method wraps the job function with context.Background() (line 51),\nwhich means scheduled jobs have no access to the application's lifecycle context.\n\nThis could be problematic for:\n1. Graceful shutdown - jobs can't be cancelled\n2. Tracing - jobs can't be linked to the parent trace\n3. Timeout control - jobs run indefinitely\n\nResolution: Store the context passed to Start() and use it for job execution,\nor accept a context factory function at registration time.\n",
+      "body": "\nThe Register method wraps the job function with context.Background() (line 51),\nwhich means scheduled jobs have no access to the application's lifecycle context.\n\nThis could be problematic for:\n1. Graceful shutdown - jobs can't be cancelled\n2. Tracing - jobs can't be linked to the parent trace\n3. Timeout control - jobs run indefinitely\n\nResolution: Store the context passed to Start() and use it for job execution,\nor accept a context factory function at registration time.\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/runtime/scheduler/scheduler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 11,
+        "endLine": 13,
         "endCol": 3
       },
-      "hash": "04a11627c1767301"
+      "hash": "56589ecb980a3b01"
     },
     "arch-20260821-013": {
       "id": "arch-20260821-013",
@@ -192,11 +195,12 @@
       "status": "open",
       "title": "Rate limiting needs benchmarks",
       "body": "Rate limiting is critical for HFT fair-use policies and IoT device\nmanagement. Current implementation lacks benchmarks for:\n\n1. CheckAndConsume under high concurrency (1000+ goroutines)\n2. Memory usage with millions of keys\n3. Eviction performance under load\n4. Comparison with Redis-backed rate limiting\n\nFor HFT: Rate limiting latency directly impacts trading performance.\nFor IoT: Rate limiting must handle thousands of devices simultaneously.\n\nResolution: Add benchmarks in ratestore/inmemory_bench_test.go:\n- BenchmarkCheckAndConsume_Serial\n- BenchmarkCheckAndConsume_Parallel\n- BenchmarkMemoryUsage_1MKeys\n- BenchmarkEviction_UnderLoad\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/runtime/ratestore/inmemory.go",
         "startLine": 12,
         "startCol": 3,
-        "endLine": 29,
+        "endLine": 30,
         "endCol": 3
       },
       "hash": "845e6b1ab6d7e724"
@@ -231,66 +235,12 @@
       },
       "hash": "57759c0731687ace"
     },
-    "cruft-20260821-001": {
-      "id": "cruft-20260821-001",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate input types in auth/inputs.go and auth/model/inputs.go",
-      "body": "This file defines LoginInput, DeleteSessionInput, PasswordResetInput,\nPasswordConfirmInput, BootstrapPasswordInput, and ElevateInput — all of\nwhich are duplicated verbatim in auth/model/inputs.go. The generated\nregistrations in auth/registrations.go use the model/ versions.\n\nAdditionally, the schema functions (LoginInputSchema, etc.) at the bottom\nare dead code — the registrations use dispatch.SchemaFromTypeWithTag directly.\n\nResolution: delete this file entirely; all consumers should import from\nauth/model. The schema functions are unnecessary.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/auth/inputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 12,
-        "endCol": 3
-      },
-      "hash": "bafa5628cd0b1d7f"
-    },
-    "cruft-20260821-002": {
-      "id": "cruft-20260821-002",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicate output types in auth/outputs.go and auth/model/outputs.go",
-      "body": "This file defines LoginDocumentView, LoginOutput, MessageOutput,\nElevateDocumentView, ElevateOutput, ClaimsDocumentView, APIKeyClaimsView,\nand ClaimsOutput — all duplicated in auth/model/outputs.go.\nThe generated registrations use the model/ versions.\n\nThe schema functions (loginOutputSchema, etc.) are dead code.\n\nResolution: delete this file; consumers should import from auth/model.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/auth/outputs.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 10,
-        "endCol": 3
-      },
-      "hash": "4bd456110aaef182"
-    },
-    "cruft-20260821-003": {
-      "id": "cruft-20260821-003",
-      "category": "issue",
-      "status": "open",
-      "title": "Old-style handler functions superseded by service methods",
-      "body": "This file contains NewCreateSessionHandler, NewDeleteSessionHandler,\nNewPasswordResetHandler, NewPasswordConfirmHandler, NewSetBootstrapPasswordHandler,\nNewValidateSessionHandler, and NewValidateAPIKeyHandler — all using the old\npattern of manual input extraction via doc.GetOr(\"payload\", nil).(map[string]any).\n\nThe generated registrations in auth/registrations.go use the typed service\nmethods from auth/service.go (CreateSession, DeleteSession, etc.) with\ndispatch.Handle[T] for automatic input binding.\n\nThese handler functions are only used in auth_test.go. The tests should be\nmigrated to use the service methods directly, then this file can be deleted.\n",
-      "references": [
-        "#8uuufn"
-      ],
-      "location": {
-        "file": "core/system/auth/handler.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 13,
-        "endCol": 3
-      },
-      "hash": "c2663b2034459fb3"
-    },
     "cruft-20260821-013": {
       "id": "cruft-20260821-013",
       "category": "observation",
       "status": "open",
       "title": "Canonical input types for auth",
-      "body": "This is the canonical location for auth input types. The duplicate\ndefinitions in auth/inputs.go should be deleted (see #cruft-20260821-001).\nThe generated registrations and service methods import from this package.\n",
+      "body": "\nThis is the canonical location for auth input types. The duplicate\ndefinitions in auth/inputs.go should be deleted (see #cruft-20260821-001).\nThe generated registrations and service methods import from this package.\n",
       "references": [
         "#cruft-20260821-001"
       ],
@@ -298,17 +248,17 @@
         "file": "core/system/auth/model/inputs.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 5,
+        "endLine": 6,
         "endCol": 3
       },
-      "hash": "675cecfb1dcc30a5"
+      "hash": "844ccd5bc9990b62"
     },
     "cruft-20260821-014": {
       "id": "cruft-20260821-014",
       "category": "observation",
       "status": "open",
       "title": "Canonical output types for auth",
-      "body": "This is the canonical location for auth output types. The duplicate\ndefinitions in auth/outputs.go should be deleted (see #cruft-20260821-002).\nThe generated registrations and service methods import from this package.\n",
+      "body": "\nThis is the canonical location for auth output types. The duplicate\ndefinitions in auth/outputs.go should be deleted (see #cruft-20260821-002).\nThe generated registrations and service methods import from this package.\n",
       "references": [
         "#cruft-20260821-002"
       ],
@@ -316,17 +266,17 @@
         "file": "core/system/auth/model/outputs.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 5,
+        "endLine": 6,
         "endCol": 3
       },
-      "hash": "097f162c784f90ac"
+      "hash": "a2647f7507deba7a"
     },
     "cruft-20260821-017": {
       "id": "cruft-20260821-017",
       "category": "observation",
       "status": "open",
       "title": "Old-style handler functions in operations/handler.go",
-      "body": "This file contains NewHeartbeatHandler, NewSystemStatusHandler,\nNewDocumentationHandler, NewLogAccessHandler, NewMarkBootstrappedHandler,\nNewResetHandler, and NewSchedulerListHandler — all using the old pattern\nof returning abstract.MessageHandler directly.\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are used directly by the runtime bootstrap code\n(core/internal/boot/app.go) and are not registered via the message\ndispatch system. These are legitimate old-style handlers that serve a\ndifferent purpose.\n\nResolution: no action needed — these handlers are not part of the\ngenerated registration pattern.\n",
+      "body": "\nThis file contains NewHeartbeatHandler, NewSystemStatusHandler,\nNewDocumentationHandler, NewLogAccessHandler, NewMarkBootstrappedHandler,\nNewResetHandler, and NewSchedulerListHandler — all using the old pattern\nof returning abstract.MessageHandler directly.\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are used directly by the runtime bootstrap code\n(core/internal/boot/app.go) and are not registered via the message\ndispatch system. These are legitimate old-style handlers that serve a\ndifferent purpose.\n\nResolution: no action needed — these handlers are not part of the\ngenerated registration pattern.\n",
       "references": [
         "#8uuufn"
       ],
@@ -334,17 +284,17 @@
         "file": "core/system/operations/handler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 15,
+        "endLine": 16,
         "endCol": 3
       },
-      "hash": "76c0e61a6bf80eef"
+      "hash": "aae077b54d16951d"
     },
     "cruft-20260821-020": {
       "id": "cruft-20260821-020",
       "category": "observation",
       "status": "open",
       "title": "Old-style handler functions in blobs/handler.go",
-      "body": "This file contains NewListNamespacesHandler, NewCreateNamespaceHandler,\nNewDeleteNamespaceHandler, NewListBlobsHandler, NewHeadBlobHandler,\nNewUploadBlobHandler, NewDownloadBlobHandler, NewUpdateBlobHandler,\nNewDeleteBlobHandler, and other blob handlers — all using the old pattern\nof returning abstract.MessageHandler directly with manual input extraction.\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are registered dynamically via RegisterBlobHandlers\nwhen a new namespace is created, which is a runtime operation that cannot\nbe handled by static registrations. These are legitimate old-style handlers\nthat serve a different purpose.\n\nResolution: no action needed — these handlers are dynamically registered\nand cannot be replaced by generated registrations.\n",
+      "body": "\nThis file contains NewListNamespacesHandler, NewCreateNamespaceHandler,\nNewDeleteNamespaceHandler, NewListBlobsHandler, NewHeadBlobHandler,\nNewUploadBlobHandler, NewDownloadBlobHandler, NewUpdateBlobHandler,\nNewDeleteBlobHandler, and other blob handlers — all using the old pattern\nof returning abstract.MessageHandler directly with manual input extraction.\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are registered dynamically via RegisterBlobHandlers\nwhen a new namespace is created, which is a runtime operation that cannot\nbe handled by static registrations. These are legitimate old-style handlers\nthat serve a different purpose.\n\nResolution: no action needed — these handlers are dynamically registered\nand cannot be replaced by generated registrations.\n",
       "references": [
         "#8uuufn"
       ],
@@ -352,17 +302,17 @@
         "file": "core/system/blobs/handler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 16,
+        "endLine": 17,
         "endCol": 3
       },
-      "hash": "5c8300153952d44a"
+      "hash": "69a6136d16e46517"
     },
     "cruft-20260821-023": {
       "id": "cruft-20260821-023",
       "category": "observation",
       "status": "open",
       "title": "Old-style handler functions in schedules/handler.go",
-      "body": "This file contains ScheduleHandlers with Create, List, Get, Update, and\nDelete methods — all using the old pattern of manual input extraction via\nmsg.Input().GetOr(\"payload\", nil).(map[string]any) and msg.Input().GetString(\"arguments.id\").\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are registered via a hand-written Registrations()\nfunction in schedules/registrations.go that wraps these methods. The\nservice layer delegates to these handlers.\n\nResolution: no action needed — these handlers are wrapped by the service\nlayer and are not part of the generated registration pattern.\n",
+      "body": "NOT resolved —ScheduleHandlers is superseded by SchedulesService but tests still use it. Additionally, hand-rolled ScheduleModel duplicates the generated SystemScheduledMessagess. Full refactor needed: migrate tests to SchedulesService, replace ScheduleModel with generated model + custom ListByTenant method, delete handler.go and model.go.\n\nThis file contains ScheduleHandlers with Create, List, Get, Update, and\nDelete methods — all using the old pattern of manual input extraction via\nmsg.Input().GetOr(\"payload\", nil).(map[string]any) and msg.Input().GetString(\"arguments.id\").\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are registered via a hand-written Registrations()\nfunction in schedules/registrations.go that wraps these methods. The\nservice layer delegates to these handlers.\n\nResolution: no action needed — these handlers are wrapped by the service\nlayer and are not part of the generated registration pattern.\n",
       "references": [
         "#8uuufn"
       ],
@@ -370,17 +320,17 @@
         "file": "core/system/schedules/handler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 13,
+        "endLine": 15,
         "endCol": 3
       },
-      "hash": "70d23dfaf9c933a6"
+      "hash": "198d269d5ce519b9"
     },
     "cruft-20260821-025": {
       "id": "cruft-20260821-025",
       "category": "observation",
       "status": "open",
       "title": "Old-style handler function in audit/handler.go",
-      "body": "This file contains logStreamHandler — an old-style handler that returns\nabstract.MessageHandler directly. It uses a streaming pattern with\nDocumentChannel that is not supported by the generated registration system.\n\nThis handler is used by the audit service for real-time log streaming,\nwhich is a specialized use case that cannot be handled by the generated\nregistration pattern.\n\nResolution: no action needed — this handler serves a specialized streaming\npurpose that is not covered by the generated registration system.\n",
+      "body": "\nThis file contains logStreamHandler — an old-style handler that returns\nabstract.MessageHandler directly. It uses a streaming pattern with\nDocumentChannel that is not supported by the generated registration system.\n\nThis handler is used by the audit service for real-time log streaming,\nwhich is a specialized use case that cannot be handled by the generated\nregistration pattern.\n\nResolution: no action needed — this handler serves a specialized streaming\npurpose that is not covered by the generated registration system.\n",
       "references": [
         "#8uuufn"
       ],
@@ -388,10 +338,150 @@
         "file": "core/system/audit/handler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 12,
+        "endLine": 13,
         "endCol": 3
       },
-      "hash": "eb9898bf8286a09f"
+      "hash": "77dcfa6228fac743"
+    },
+    "duplicate-schedulemodel-in-model-51d82ce4": {
+      "id": "duplicate-schedulemodel-in-model-51d82ce4",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "duplicate"
+      ],
+      "title": "Duplicate ScheduleModel in model subpackage",
+      "body": "This ScheduleModel is an exact duplicate of the one in schedules/model.go. Both are hand-rolled and duplicate the generated SystemScheduledMessagess. Delete this file entirely.\n",
+      "location": {
+        "file": "core/system/schedules/model/model.go",
+        "startLine": 146,
+        "startCol": 3,
+        "endLine": 148,
+        "endCol": 3
+      },
+      "hash": "950264d90055617b"
+    },
+    "duplicate-settingsmodel-in-model-df57e637": {
+      "id": "duplicate-settingsmodel-in-model-df57e637",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "duplicate"
+      ],
+      "title": "Duplicate SettingsModel in model subpackage",
+      "body": "This SettingsModel is an exact duplicate of the one in settings/model.go. Both are hand-rolled and duplicate the generated SystemSettings. Delete this file entirely.\n",
+      "location": {
+        "file": "core/system/settings/model/model.go",
+        "startLine": 113,
+        "startCol": 3,
+        "endLine": 115,
+        "endCol": 3
+      },
+      "hash": "d43742fc8a3daeb1"
+    },
+    "hand-rolled-auditmodel-should-us-d2b104e2": {
+      "id": "hand-rolled-auditmodel-should-us-d2b104e2",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "model"
+      ],
+      "title": "Hand-rolled AuditModel should use generated SystemAccessLogs",
+      "body": "AuditModel is hand-rolled but a generated SystemAccessLogs model exists. Replace with generated model + custom Insert method.\n",
+      "location": {
+        "file": "core/system/audit/model.go",
+        "startLine": 59,
+        "startCol": 3,
+        "endLine": 61,
+        "endCol": 3
+      },
+      "hash": "4e70c52caed2e7a4"
+    },
+    "hand-rolled-policymodel-should-u-70af02a6": {
+      "id": "hand-rolled-policymodel-should-u-70af02a6",
+      "category": "issue",
+      "status": "open",
+      "priority": "P2",
+      "tags": [
+        "cruft",
+        "model"
+      ],
+      "title": "Hand-rolled PolicyModel should use generated models as building blocks",
+      "body": "PolicyModel orchestrates across two collections (operation_policy + iam_rule). Generated models exist for both. Refactor to use generated SystemOperationPolicys and SystemIamRules as building blocks, with PolicyModel as a thin orchestration layer. Domain types (Binding, PolicyRule, Policy) are legitimate domain concepts but should be defined alongside the generated models.\n",
+      "location": {
+        "file": "core/system/policies/model.go",
+        "startLine": 553,
+        "startCol": 3,
+        "endLine": 555,
+        "endCol": 3
+      },
+      "hash": "32078aa5c4298926"
+    },
+    "hand-rolled-schedulemodel-duplic-0ebfd9ea": {
+      "id": "hand-rolled-schedulemodel-duplic-0ebfd9ea",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "model"
+      ],
+      "title": "Hand-rolled ScheduleModel duplicates generated SystemScheduledMessagess",
+      "body": "ScheduleModel duplicates the generated SystemScheduledMessagess. Replace with generated model + custom ListByTenant. Duplicate in schedules/model/model.go is also cruft.\n",
+      "location": {
+        "file": "core/system/schedules/model.go",
+        "startLine": 146,
+        "startCol": 3,
+        "endLine": 148,
+        "endCol": 3
+      },
+      "hash": "9a34325fe5241d0f"
+    },
+    "hand-rolled-settingsmodel-duplic-20905384": {
+      "id": "hand-rolled-settingsmodel-duplic-20905384",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "model"
+      ],
+      "title": "Hand-rolled SettingsModel duplicates generated SystemSettings",
+      "body": "SettingsModel duplicates the generated SystemSettings model. Replace with generated model + custom Get/Set/Unset/All methods. Duplicate in settings/model/model.go is also cruft.\n",
+      "location": {
+        "file": "core/system/settings/model.go",
+        "startLine": 113,
+        "startCol": 3,
+        "endLine": 115,
+        "endCol": 3
+      },
+      "hash": "727fa6f4350a2de2"
+    },
+    "hand-rolled-tenantmodel-should-u-5a7479f1": {
+      "id": "hand-rolled-tenantmodel-should-u-5a7479f1",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "tags": [
+        "cruft",
+        "model"
+      ],
+      "title": "Hand-rolled TenantModel should use generated SystemTenants",
+      "body": "TenantModel is hand-rolled but a generated SystemTenants model exists. Replace with generated model + custom GetByDomain method.\n",
+      "location": {
+        "file": "core/system/tenants/model.go",
+        "startLine": 74,
+        "startCol": 3,
+        "endLine": 76,
+        "endCol": 3
+      },
+      "hash": "f63548508c8e4686"
     },
     "mem-20260821-003": {
       "id": "mem-20260821-003",
@@ -407,21 +497,6 @@
         "endCol": 3
       },
       "hash": "f9f3e633454447d6"
-    },
-    "migrate-20260822-001": {
-      "id": "migrate-20260822-001",
-      "category": "todo",
-      "status": "open",
-      "title": "Migrate updates' hand-wired Registrations/PolicyBindings to hestia codegen",
-      "body": "Every other feature declares its messages via @hestia.register annotations\non service methods and gets registrations.go/policies.go generated by\n`hestia generate features` (see AGENTS.md and the users reference\nservice). The updates feature is wired manually here because it registers\nconditionally — only when SelfUpdate is configured (Registrations takes\nDependencies and PolicyBindings is appended outside the static\ngen_features.go wiring) — and it predates the codegen workflow. The two\nnewer messages (system:updates:check:get, system:updates:stage:create)\nalready carry @hestia.register annotations on their service methods, so a\nmigration needs to solve conditional registration in the generator, then\ndelete this file's manual lists.\n\nCheckView is the wire shape of the legacy check-then-stage call.\n",
-      "location": {
-        "file": "core/system/updates/register.go",
-        "startLine": 13,
-        "startCol": 3,
-        "endLine": 27,
-        "endCol": 3
-      },
-      "hash": "0622f258f58e4970"
     },
     "org-20260821-001": {
       "id": "org-20260821-001",
@@ -551,9 +626,9 @@
       "body": "but the review guide recommends using common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nConsider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation\nfor better error classification and client-facing error codes.\n\nSend accepts the message for asynchronous execution: the handler runs on a\ndedicated goroutine and onComplete is invoked exactly once with its outcome.\nHandler panics are recovered here and delivered as *PanicError, so no link\nin the chain needs its own recovery wrapper.\n",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
-        "startLine": 76,
+        "startLine": 78,
         "startCol": 3,
-        "endLine": 87,
+        "endLine": 89,
         "endCol": 3
       },
       "hash": "3fa509ef78e3d776"
@@ -566,9 +641,9 @@
       "body": "ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for\nconsistent error handling across the codebase.\n",
       "location": {
         "file": "core/runtime/local-dispatcher.go",
-        "startLine": 145,
+        "startLine": 147,
         "startCol": 3,
-        "endLine": 148,
+        "endLine": 150,
         "endCol": 3
       },
       "hash": "a4f00b55946dcdf0"
@@ -591,32 +666,32 @@
     "review-20260821-006": {
       "id": "review-20260821-006",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Deeply nested identity property access",
-      "body": "(ident.Properties.(map[string]any) then props[\"operations\"]). This pattern is\nrepeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).\n\nConsider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or\ndefining a typed IdentityProperties struct to reduce duplication and improve type safety.\n",
+      "body": "(ident.Properties.(map[string]any) then props[\"operations\"]). This pattern is\nrepeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).\nFixed: replaced deeply nested identity access with GetIdentityProperty[T] helper calls.\n\nConsider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or\ndefining a typed IdentityProperties struct to reduce duplication and improve type safety.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 59,
+        "startLine": 60,
         "startCol": 3,
-        "endLine": 65,
+        "endLine": 67,
         "endCol": 3
       },
-      "hash": "5923e29db65db391"
+      "hash": "5ca8914223fba997"
     },
     "review-20260821-007": {
       "id": "review-20260821-007",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "title": "Duplicate identity property extraction",
-      "body": "nested type assertion pattern found in extractUserID (rate-limit.go),\nextractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).\n\nConsider consolidating these into a single helper function in a shared package\n(e.g., runtime/identity) to reduce duplication and ensure consistent behavior.\n",
+      "body": "nested type assertion pattern found in extractUserID (rate-limit.go),\nextractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).\nFixed: consolidated duplicate identity extraction into GetUserID, GetTokenID helpers in runtime/identity.go.\n\nConsider consolidating these into a single helper function in a shared package\n(e.g., runtime/identity) to reduce duplication and ensure consistent behavior.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 130,
+        "startLine": 128,
         "startCol": 3,
-        "endLine": 136,
+        "endLine": 135,
         "endCol": 3
       },
-      "hash": "b32f9154f9fa0244"
+      "hash": "3fb022ad72bd2162"
     },
     "review-20260821-009": {
       "id": "review-20260821-009",
@@ -641,9 +716,9 @@
       "body": "methods acquire bucket.mu first (e.g., CheckAndConsume, Increment). This\nlock ordering inconsistency could lead to deadlocks if concurrent operations\nare happening.\n\nConsider using a consistent lock ordering throughout, or using a different\neviction strategy that doesn't require holding both locks simultaneously.\n",
       "location": {
         "file": "core/runtime/ratestore/inmemory.go",
-        "startLine": 171,
+        "startLine": 172,
         "startCol": 3,
-        "endLine": 178,
+        "endLine": 179,
         "endCol": 3
       },
       "hash": "9873640a1a62bdb0"
@@ -720,16 +795,16 @@
         "p2p"
       ],
       "title": "system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)",
-      "body": "\nRESOLVED 2026-08-22: split into system:updates:check:get (read-only\navailability) and system:updates:stage:create (download+prepare+notify);\ncheck:create kept as the backward-compatible check-then-stage wrapper and\nRunScheduledCheck still drives both effects back to back via checkAndStage.\n\nDespite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\n\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success). Kept for backward\ncompatibility; prefer system:updates:check:get +\nsystem:updates:stage:create so each effect stays independently callable.\n",
+      "body": "\nRESOLVED 2026-08-22: split into system:updates:check:get (read-only\navailability) and system:updates:stage:create (download+prepare+notify);\ncheck:create kept as the backward-compatible check-then-stage wrapper and\nRunScheduledCheck still drives both effects back to back via checkAndStage.\n\nDespite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\n\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success). Kept for backward\ncompatibility; prefer system:updates:check:get +\nsystem:updates:stage:create so each effect stays independently callable.\n\n@hestia.register(\n\n\tname=\"system:updates:check:create\",\n\tintent=\"create\",\n\trule=\"administrator\",\n\tdescription=\"Check for and stage an update (legacy check-then-stage)\",\n\toutput=\"CheckView\",\n\n)\n",
       "assignee": "opencode",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 97,
+        "startLine": 211,
         "startCol": 3,
-        "endLine": 138,
+        "endLine": 262,
         "endCol": 3
       },
-      "hash": "f35455105d35c9df"
+      "hash": "e15a01cfad1abdd3"
     },
     "review2-20260821-005": {
       "id": "review2-20260821-005",
@@ -760,9 +835,9 @@
       "body": "authMiddleware (line 15) has no rate limiting on authentication attempts.\nAn attacker can brute-force passwords or API keys without restriction.\n\nThe existing RateLimitDispatcher only limits message dispatch, not the\nauthentication flow itself. Attackers can attempt unlimited logins.\n\nFor IoT/HFT: Credential stuffing attacks could compromise device fleets.\n\nResolution:\n1. Add rate limiting to login endpoint (system:auth:session:create)\n2. Implement account lockout after N failed attempts\n3. Add progressive delays between attempts\n4. Log failed attempts for intrusion detection\n",
       "location": {
         "file": "core/interface/http/middleware.go",
-        "startLine": 14,
+        "startLine": 28,
         "startCol": 3,
-        "endLine": 28,
+        "endLine": 42,
         "endCol": 3
       },
       "hash": "fb130035389517fc"
@@ -785,22 +860,39 @@
     "storage-leak-blobs-never-compact-ad27adbb": {
       "id": "storage-leak-blobs-never-compact-ad27adbb",
       "category": "issue",
-      "status": "open",
+      "status": "resolved",
       "priority": "P1",
       "tags": [
         "storage-leak",
         "blobs"
       ],
       "title": "Storage leak: blobs never compacted after deletion",
-      "body": "When blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
+      "body": "\nWhen blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
+      "assignee": "opencode",
       "location": {
         "file": "core/system/blobs/service.go",
         "startLine": 225,
         "startCol": 3,
-        "endLine": 230,
+        "endLine": 232,
         "endCol": 3
       },
-      "hash": "7d29f8cdaf772fcb"
+      "hash": "f7b5e31ab9dada3c"
+    },
+    "update-hash-verify": {
+      "id": "update-hash-verify",
+      "category": "issue",
+      "status": "open",
+      "priority": "P1",
+      "title": "Verify binary hash before applying staged update",
+      "body": "The staged binary at DataDir/update is copied over the running executable\n(swapExecutable) or executed directly (ApplyUpdate) without verifying its\nSHA-256 checksum against UpdateInfo.Checksum. The Checksum field already\nflows through the persistence layer, but the actual verification against\nthe on-disk binary is never performed. This means a corrupted download —\nor a file tampered with between staging and apply — would silently replace\nthe running binary. The check should re-hash the staged file and abort\nthe swap/exec if it does not match.\n\nReal-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with\n\"missing section headers\" — the update was applied but the binary was\ncorrupted. A pre-apply hash check would have caught this.\n\nWhy staging can succeed while application produces a corrupted binary:\n  1. GitHub provider passes empty checksum (github.go:133) so\n     DownloadBinary skips hash verification entirely.\n  2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)\n     re-hash the staged file before overwriting the executable.\n  3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full\n     condition can leave the destination truncated.\n  4. swapExecutable creates a temp file in filepath.Dir(exe) which may\n     differ from DataDir — if they share a filesystem the Rename is\n     atomic, but a failed copy to the temp file is not caught before the\n     rename.\n\n@see #updater-hash-verify\n",
+      "location": {
+        "file": "core/system/updates/service.go",
+        "startLine": 397,
+        "startCol": 3,
+        "endLine": 424,
+        "endCol": 3
+      },
+      "hash": "8b6811f80efea341"
     }
   },
   "files": {
@@ -1260,7 +1352,7 @@
       "hash": "7bd30d5a4ec7e5f0"
     },
     "core/interface/http/middleware.go": {
-      "hash": "a73b9ef849576bd6",
+      "hash": "7c83e5c82d2b831b",
       "noteIds": [
         "sec-20260821-003"
       ]
@@ -1386,7 +1478,7 @@
       "hash": "5891c5561bcee34a"
     },
     "core/runtime/access-log-dispatcher.go": {
-      "hash": "99effce1d11b8773"
+      "hash": "ca2d385098e391b9"
     },
     "core/runtime/async_contract_test.go": {
       "hash": "2507eab4c0f3fd39"
@@ -1395,7 +1487,7 @@
       "hash": "be1d7d0cbff97c81"
     },
     "core/runtime/audit_buffer.go": {
-      "hash": "faad3fd964cf5b2b",
+      "hash": "5d852570a94cb558",
       "noteIds": [
         "arch-20260821-010",
         "bench-20260821-002",
@@ -1409,10 +1501,10 @@
       "hash": "3fe8fc229047f15f"
     },
     "core/runtime/bootstrap-dispatcher.go": {
-      "hash": "59e6d97ec4347f6e"
+      "hash": "04c570004bc5f85d"
     },
     "core/runtime/bootstrap_hardening_test.go": {
-      "hash": "fad4c2dae9f87343"
+      "hash": "512f05f0894a7948"
     },
     "core/runtime/capability.go": {
       "hash": "c5bb826c4ebc4a33"
@@ -1484,6 +1576,9 @@
     "core/runtime/errors.go": {
       "hash": "49557ee9d321a96e"
     },
+    "core/runtime/identity.go": {
+      "hash": "b8c1faf455064e81"
+    },
     "core/runtime/input.go": {
       "hash": "9e87a58f3d8a1a32"
     },
@@ -1491,7 +1586,7 @@
       "hash": "b5c3e9870328e2d4"
     },
     "core/runtime/local-dispatcher.go": {
-      "hash": "2f72e3f7a61ac5fa",
+      "hash": "4c377648d3829852",
       "noteIds": [
         "arch-20260821-005",
         "review-20260821-001",
@@ -1560,16 +1655,16 @@
       "hash": "7ea6bc08185a1e23"
     },
     "core/runtime/rate-limit.go": {
-      "hash": "4718086636ba26b9",
+      "hash": "e0073dc24f6764d8",
       "noteIds": [
         "arch-20260821-004"
       ]
     },
     "core/runtime/rate-limit_test.go": {
-      "hash": "0759d03b3746f4ab"
+      "hash": "260cfe8875f99ddc"
     },
     "core/runtime/ratestore/inmemory.go": {
-      "hash": "af5ffee78dee47d1",
+      "hash": "2a4248b7ede350b3",
       "noteIds": [
         "arch-20260821-014",
         "bench-20260821-001",
@@ -1586,7 +1681,7 @@
       "hash": "98933e4f6f3f145a"
     },
     "core/runtime/scheduler/scheduler.go": {
-      "hash": "a542764bdbad4b49",
+      "hash": "a3a038ba6395b4ac",
       "noteIds": [
         "arch-20260821-011"
       ]
@@ -1595,7 +1690,7 @@
       "hash": "0bcf4dd55d7c332f"
     },
     "core/runtime/secure-dispatcher.go": {
-      "hash": "b2fd58212d9082b7",
+      "hash": "b45637cd0c582f27",
       "noteIds": [
         "83l69u",
         "arch-20260821-003",
@@ -1613,10 +1708,10 @@
       "hash": "a7117230ed176779"
     },
     "core/runtime/throttle.go": {
-      "hash": "d9467ee5de1aac5a"
+      "hash": "e996f7b4c674d91c"
     },
     "core/runtime/throttle_test.go": {
-      "hash": "a832385126fcd7e5"
+      "hash": "74958bb835d21a41"
     },
     "core/system/apikeys/model/api_key.schema.model.go": {
       "hash": "c71f6a13ea5ef92e"
@@ -1646,13 +1741,16 @@
       "hash": "7ae3fcc818c7fa60"
     },
     "core/system/audit/handler.go": {
-      "hash": "de0c3fe2cd3ef5d5",
+      "hash": "f8ea542aed495d42",
       "noteIds": [
         "cruft-20260821-025"
       ]
     },
     "core/system/audit/model.go": {
-      "hash": "a2a2760edf221072"
+      "hash": "1c276f40c1fccec2",
+      "noteIds": [
+        "hand-rolled-auditmodel-should-us-d2b104e2"
+      ]
     },
     "core/system/audit/model/access_log.schema.model.go": {
       "hash": "e5bab85fa8910076"
@@ -1670,31 +1768,19 @@
       "hash": "fae9992ca60b1285"
     },
     "core/system/auth/auth_test.go": {
-      "hash": "8c432a61888eef6f"
+      "hash": "1155a2d1ddcf8e17"
     },
     "core/system/auth/credential_provider.go": {
       "hash": "f33fcbc591dc1cdb"
     },
-    "core/system/auth/handler.go": {
-      "hash": "d7d652cec89441c2",
-      "noteIds": [
-        "cruft-20260821-003"
-      ]
-    },
-    "core/system/auth/inputs.go": {
-      "hash": "7d92aae5ad2267bf",
-      "noteIds": [
-        "cruft-20260821-001"
-      ]
-    },
     "core/system/auth/model/inputs.go": {
-      "hash": "becde9bd5c1fcddf",
+      "hash": "9fe5d656ea32a087",
       "noteIds": [
         "cruft-20260821-013"
       ]
     },
     "core/system/auth/model/outputs.go": {
-      "hash": "375746bc7227e50c",
+      "hash": "c9e485d65d0ebae4",
       "noteIds": [
         "cruft-20260821-014"
       ]
@@ -1702,17 +1788,11 @@
     "core/system/auth/model/token_blocklist.schema.model.go": {
       "hash": "d8b0186fe2495b84"
     },
-    "core/system/auth/outputs.go": {
-      "hash": "cefa7cdda148e874",
-      "noteIds": [
-        "cruft-20260821-002"
-      ]
-    },
     "core/system/auth/policies.go": {
       "hash": "07f891ed2b6dcb44"
     },
     "core/system/auth/registrations.go": {
-      "hash": "8823bb4af140efd3"
+      "hash": "74294c449ec581cf"
     },
     "core/system/auth/seed.go": {
       "hash": "e41137eab701bb8a"
@@ -1729,8 +1809,8 @@
         "review2-20260821-001"
       ]
     },
-    "core/system/auth/token.go": {
-      "hash": "8958b3e21af34651"
+    "core/system/auth/testutil.go": {
+      "hash": "cd9289c5b9854cfa"
     },
     "core/system/auth/token_bench_test.go": {
       "hash": "81f2e88f81d5b370"
@@ -1742,7 +1822,7 @@
       "hash": "fefff57ebda5247e"
     },
     "core/system/blobs/handler.go": {
-      "hash": "27f115d94e02ce3b",
+      "hash": "88bfa5ac2f25032a",
       "noteIds": [
         "cruft-20260821-020"
       ]
@@ -1766,7 +1846,7 @@
       "hash": "223ce539007faefd"
     },
     "core/system/blobs/service.go": {
-      "hash": "d8762ca0ddd5f5b2",
+      "hash": "24b1d5dd6f896f3a",
       "noteIds": [
         "storage-leak-blobs-never-compact-ad27adbb"
       ]
@@ -1778,13 +1858,13 @@
       "hash": "84f96a5849768888"
     },
     "core/system/blobs/store/service.go": {
-      "hash": "06b7c7b7cfd38ca8"
+      "hash": "fd53a3049b0a3c1e"
     },
     "core/system/blobs/store/service_test.go": {
       "hash": "a942994cf25b247a"
     },
     "core/system/blobs/store/types.go": {
-      "hash": "fa5508e3a8d0808c"
+      "hash": "47b5643157790f41"
     },
     "core/system/blobs/typed_input_test.go": {
       "hash": "e64f03ad627ecbf4"
@@ -1823,7 +1903,7 @@
       "hash": "bb5906f5b5c4e02e"
     },
     "core/system/gen_features.go": {
-      "hash": "9d7741b30dad0527"
+      "hash": "de61708ef6a40ef9"
     },
     "core/system/gen_features_test.go": {
       "hash": "8cd733b9dacff6f5"
@@ -1832,7 +1912,7 @@
       "hash": "f9849fa2cdeaedd1"
     },
     "core/system/module.go": {
-      "hash": "12b7ebd851c3ed77"
+      "hash": "c593b30bb0c73f0b"
     },
     "core/system/notifications/leak_harness_test.go": {
       "hash": "16ab74c331a26b7e"
@@ -1871,7 +1951,7 @@
       "hash": "de1160f52d0c2181"
     },
     "core/system/operations/handler.go": {
-      "hash": "87f8100b5f3bfd8d",
+      "hash": "cb649ae495fc71e7",
       "noteIds": [
         "cruft-20260821-017"
       ]
@@ -1907,7 +1987,10 @@
       "hash": "f18a8171d7d36fb1"
     },
     "core/system/policies/model.go": {
-      "hash": "2bb1103de6979dab"
+      "hash": "62f69c5f54ba93dc",
+      "noteIds": [
+        "hand-rolled-policymodel-should-u-70af02a6"
+      ]
     },
     "core/system/policies/model/iam_rule.schema.model.go": {
       "hash": "1783a004acf8c26f"
@@ -1955,10 +2038,10 @@
       "hash": "ce1052193fa3ff27"
     },
     "core/system/provider.go": {
-      "hash": "1af495b8a8d56cfc"
+      "hash": "5c1a93a8f00405ab"
     },
     "core/system/schedules/handler.go": {
-      "hash": "11a5e62decf4016b",
+      "hash": "4011e8f43b1c0aa0",
       "noteIds": [
         "cruft-20260821-023"
       ]
@@ -1970,13 +2053,19 @@
       "hash": "2e83d4619ff3ba77"
     },
     "core/system/schedules/model.go": {
-      "hash": "2eb2eca01d579151"
+      "hash": "e5f9ae07e41b21c7",
+      "noteIds": [
+        "hand-rolled-schedulemodel-duplic-0ebfd9ea"
+      ]
     },
     "core/system/schedules/model/inputs.go": {
       "hash": "6919a9abf77cfb38"
     },
     "core/system/schedules/model/model.go": {
-      "hash": "f8680f0b2691b9bd"
+      "hash": "6a862ead5dd13fbb",
+      "noteIds": [
+        "duplicate-schedulemodel-in-model-51d82ce4"
+      ]
     },
     "core/system/schedules/model/outputs.go": {
       "hash": "2205e72a112d298e"
@@ -1994,25 +2083,34 @@
       "hash": "92c13688036af779"
     },
     "core/system/schedules/schedules_test.go": {
-      "hash": "ea1895488663b7d4"
+      "hash": "93a6c7fcaa688063"
     },
     "core/system/schedules/service.go": {
-      "hash": "2fef79e88c7a4794"
+      "hash": "54a4adda13d61692"
+    },
+    "core/system/schedules/testutil.go": {
+      "hash": "91b367bd197d2536"
     },
     "core/system/seeds.go": {
       "hash": "62fbe824a98cae12"
     },
     "core/system/services.go": {
-      "hash": "1e9fd7ffe7d5a041"
+      "hash": "3ec290fe35db57a7"
     },
     "core/system/settings/model.go": {
-      "hash": "0c7b74c8b2b1b1e0"
+      "hash": "22e58fb5624df688",
+      "noteIds": [
+        "hand-rolled-settingsmodel-duplic-20905384"
+      ]
     },
     "core/system/settings/model/inputs.go": {
       "hash": "9d661d17c8ece433"
     },
     "core/system/settings/model/model.go": {
-      "hash": "29bffe529b615196"
+      "hash": "9f882c1b0369bedd",
+      "noteIds": [
+        "duplicate-settingsmodel-in-model-df57e637"
+      ]
     },
     "core/system/settings/model/outputs.go": {
       "hash": "7db0f195742f2db7"
@@ -2030,31 +2128,35 @@
       "hash": "c6b0334d6c29f048"
     },
     "core/system/tenants/model.go": {
-      "hash": "5047b97cea1cf003"
+      "hash": "0e01591ac89a1916",
+      "noteIds": [
+        "hand-rolled-tenantmodel-should-u-5a7479f1"
+      ]
     },
     "core/system/tenants/model/tenant.schema.model.go": {
       "hash": "ed2c104aebd825d7"
     },
-    "core/system/updates/register.go": {
-      "hash": "7a07dff429fa781f",
-      "noteIds": [
-        "migrate-20260822-001"
-      ]
+    "core/system/updates/policies.go": {
+      "hash": "72df5ea287b363d8"
+    },
+    "core/system/updates/registrations.go": {
+      "hash": "0c7b91cb54c642e3"
     },
     "core/system/updates/service.go": {
-      "hash": "bf9a065a8cef7c57",
+      "hash": "c8a3aa397526f066",
       "noteIds": [
-        "review2-20260821-004"
+        "review2-20260821-004",
+        "update-hash-verify"
       ]
     },
     "core/system/updates/service_test.go": {
-      "hash": "9eb7b8e39bf7c9f0"
+      "hash": "3817193f587aedf6"
     },
     "core/system/updates/startup.go": {
       "hash": "6e208162cedbeb0f"
     },
     "core/system/updates/store.go": {
-      "hash": "634f327049699001"
+      "hash": "5417f8845ce2c4e4"
     },
     "core/system/updates/store_test.go": {
       "hash": "7f9de8d33259d0d8"

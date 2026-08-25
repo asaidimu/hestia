@@ -98,15 +98,14 @@ func NewAuditBufferSize(persister audit.AuditPersister, logger *zap.Logger, size
 // timeout-based circuit breaker reset or a maximum drop count before recovery.
 func (b *AuditBuffer) Write(ctx context.Context, entry audit.AuditEntry) error {
 	b.mu.Lock()
-	failed := b.failed
-	b.mu.Unlock()
-
-	if failed {
+	if b.failed {
+		b.mu.Unlock()
 		_, _ = fmt.Fprintf(os.Stderr, "AUDIT DROP: %s %s\n", entry.EventName, entry.EventID)
 		return nil
 	}
-
 	b.wg.Add(1)
+	b.mu.Unlock()
+
 	select {
 	case b.entries <- entry:
 		return nil

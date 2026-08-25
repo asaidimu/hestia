@@ -180,6 +180,14 @@ func (h *nsHandle) List(ctx context.Context, prefix string, limit int) ([]BlobMe
 	return out, nil
 }
 
+func (h *nsHandle) Compact(ctx context.Context) (int64, error) {
+	result, err := h.ns.Compact(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return result.BytesFreed, nil
+}
+
 func blobMetaFromInfo(info *object.BlobInfo) *BlobMeta {
 	return &BlobMeta{
 		Key:         info.Key,

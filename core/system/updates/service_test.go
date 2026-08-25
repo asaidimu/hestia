@@ -39,7 +39,7 @@ func newTestService(t *testing.T, provider *stubProvider, currentVersion string)
 	if err != nil {
 		t.Fatalf("new updater: %v", err)
 	}
-	svc := NewService(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, false, "", "")
+	svc := NewServiceFromDeps(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, false, "", "")
 	return svc, store
 }
 
@@ -57,7 +57,7 @@ func newSystemdService(t *testing.T, provider *stubProvider, currentVersion, dat
 	if err != nil {
 		t.Fatalf("new updater: %v", err)
 	}
-	svc := NewService(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, true, exePath, dataDir)
+	svc := NewServiceFromDeps(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, true, exePath, dataDir)
 	return svc, store
 }
 

@@ -144,3 +144,6 @@ func asDocuments(docs data.DocumentSet) ([]*document.Document, error) {
 	}
 	return out, nil
 }
+// @note #duplicate-schedulemodel-in-model-51d82ce4 issue P1 #cruft,#duplicate : Duplicate ScheduleModel in model subpackage
+//
+// This ScheduleModel is an exact duplicate of the one in schedules/model.go. Both are hand-rolled and duplicate the generated SystemScheduledMessagess. Delete this file entirely.

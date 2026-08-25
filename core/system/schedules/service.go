@@ -44,6 +44,10 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 		return nil, fmt.Errorf("unauthenticated")
 	}
 
+	if input.Cron == "" {
+		return nil, fmt.Errorf("cron is required")
+	}
+
 	userID := input.UserID
 	if userID == "" {
 		userID = claims.UserID

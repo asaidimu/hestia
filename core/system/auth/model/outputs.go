@@ -1,5 +1,6 @@
-// @note #cruft-20260821-014 observation status=open priority=P3 tags=#cruft,#note : Canonical output types for auth
+// @note #cruft-20260821-014 observation open status=open priority=P3 tags=#cruft,#note : Canonical output types for auth
 // @see #cruft-20260821-002
+// Duplicate auth/outputs.go deleted. auth/model/outputs.go is now the sole source.
 //
 // This is the canonical location for auth output types. The duplicate
 // definitions in auth/outputs.go should be deleted (see #cruft-20260821-002).

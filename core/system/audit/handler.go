@@ -1,5 +1,6 @@
-// @note #cruft-20260821-025 observation status=open priority=P3 tags=#cruft,#note : Old-style handler function in audit/handler.go
+// @note #cruft-20260821-025 observation open status=open priority=P3 tags=#cruft,#note : Old-style handler function in audit/handler.go
 // @see #8uuufn
+// No action needed — streaming handler for real-time log streaming, specialized use case.
 //
 // This file contains logStreamHandler — an old-style handler that returns
 // abstract.MessageHandler directly. It uses a streaming pattern with

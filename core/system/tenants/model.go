@@ -72,3 +72,6 @@ func (m *TenantModel) GetByDomain(ctx context.Context, domain string) (data.Docu
 	}
 	return result.Data[0], nil
 }
+// @note #hand-rolled-tenantmodel-should-u-5a7479f1 issue P1 #cruft,#model : Hand-rolled TenantModel should use generated SystemTenants
+//
+// TenantModel is hand-rolled but a generated SystemTenants model exists. Replace with generated model + custom GetByDomain method.

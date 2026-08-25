@@ -1,5 +1,6 @@
-// @note #cruft-20260821-020 observation status=open priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
+// @note #cruft-20260821-020 observation open status=open priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
 // @see #8uuufn
+// No action needed — dynamically registered via RegisterBlobHandlers, cannot use static codegen.
 //
 // This file contains NewListNamespacesHandler, NewCreateNamespaceHandler,
 // NewDeleteNamespaceHandler, NewListBlobsHandler, NewHeadBlobHandler,

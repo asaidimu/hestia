@@ -86,7 +86,7 @@ func deriveActorType(ctx context.Context) audit.ActorType {
 	if !ok {
 		return audit.ActorTypeAnonymous
 	}
-	props, _ := ident.Properties.(map[string]any)
+	props := GetIdentityProperties(ctx)
 	if len(ident.Permissions) == 0 && len(props) == 0 {
 		return audit.ActorTypeAnonymous
 	}

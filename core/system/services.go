@@ -13,6 +13,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/policies"
 	"github.com/asaidimu/hestia/core/system/schedules"
 	"github.com/asaidimu/hestia/core/system/settings"
+	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
 )
 
@@ -46,6 +47,9 @@ func RegisterServices(rt abstract.Container) error {
 		return err
 	}
 	if err := settings.RegisterService(rt); err != nil {
+		return err
+	}
+	if err := updates.RegisterService(rt); err != nil {
 		return err
 	}
 	if err := users.RegisterService(rt); err != nil {
@@ -100,6 +104,11 @@ func CollectServiceRegistrations(rt abstract.Container) ([]abstract.MessageRegis
 	}
 	regs = append(regs, serviceRegs...)
 	serviceRegs, err = settings.Registrations(rt)
+	if err != nil {
+		return nil, err
+	}
+	regs = append(regs, serviceRegs...)
+	serviceRegs, err = updates.Registrations(rt)
 	if err != nil {
 		return nil, err
 	}

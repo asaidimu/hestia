@@ -30,7 +30,7 @@ func (s *actionSpy) Send(ctx context.Context, msg abstract.Message, onComplete a
 }
 
 func TestThrottleLookupNil(t *testing.T) {
-	disp := NewThrottleDispatcher(nil, &actionSpy{}, zap.NewNop())
+	disp := NewThrottleDispatcher(nil, &actionSpy{}, zap.NewNop(), nil)
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
@@ -45,7 +45,7 @@ func TestThrottleLookupNil(t *testing.T) {
 
 func TestThrottleNoLimitPassesThrough(t *testing.T) {
 	lookup := func(op string) *ThrottlePolicy { return nil }
-	disp := NewThrottleDispatcher(lookup, &actionSpy{}, zap.NewNop())
+	disp := NewThrottleDispatcher(lookup, &actionSpy{}, zap.NewNop(), nil)
 	next := &mockDispatcher{}
 	wrapped := disp.Wrap(next)
 
@@ -124,7 +124,7 @@ func TestThrottleActionFailureIsLogged(t *testing.T) {
 				Message: "test:action",
 			},
 		}
-	}, spy, zap.NewNop())
+	}, spy, zap.NewNop(), nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	_, err := testAwait(wrapped, newMessage("op:test"))
@@ -139,7 +139,7 @@ func TestThrottleNoActionDefined(t *testing.T) {
 			Limit:  1,
 			Window: 60,
 		}
-	}, &actionSpy{}, zap.NewNop())
+	}, &actionSpy{}, zap.NewNop(), nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	_, err := testAwait(wrapped, newMessage("op:test"))
@@ -164,7 +164,7 @@ func TestThrottleWindowResetsCount(t *testing.T) {
 				Input:   map[string]any{"key": "{{ .operation }}"},
 			},
 		}
-	}, spy, zap.NewNop())
+	}, spy, zap.NewNop(), nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	// 3 events in window: 3rd fires action
@@ -244,7 +244,7 @@ func TestThrottleActionMessageName(t *testing.T) {
 				Input:   map[string]any{"key": "value", "uid": "{{ .claims.user_id }}"},
 			},
 		}
-	}, spy, zap.NewNop())
+	}, spy, zap.NewNop(), nil)
 	wrapped := disp.Wrap(&mockDispatcher{})
 
 	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "u-42"})

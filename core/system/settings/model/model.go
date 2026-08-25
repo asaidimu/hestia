@@ -111,3 +111,6 @@ func (m *SettingsModel) All(ctx context.Context, tenantID string) (map[string]an
 	}
 	return out, nil
 }
+// @note #duplicate-settingsmodel-in-model-df57e637 issue P1 #cruft,#duplicate : Duplicate SettingsModel in model subpackage
+//
+// This SettingsModel is an exact duplicate of the one in settings/model.go. Both are hand-rolled and duplicate the generated SystemSettings. Delete this file entirely.

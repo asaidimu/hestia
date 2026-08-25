@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/updater"
 
 	"github.com/asaidimu/hestia/core/system/settings"
@@ -33,6 +34,11 @@ type Store struct {
 
 func NewStore(settingsModel *settings.SettingsModel) *Store {
 	return &Store{Settings: settingsModel}
+}
+
+// InitStore creates a Store from the DI-resolved persistence layer.
+func InitStore(persist base.Persistence) *Store {
+	return NewStore(settings.NewSettingsModel(persist))
 }
 
 func (s *Store) SaveUpdate(ctx context.Context, info *updater.UpdateInfo) error {

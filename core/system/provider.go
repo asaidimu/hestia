@@ -15,6 +15,7 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime/notification"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
 	"github.com/asaidimu/hestia/core/system/audit"
@@ -55,8 +56,10 @@ type ProviderSet struct {
 	UpdData  string
 
 	BlobSvc      *blobutil.Service
+	RateStore    *ratestore.InMemoryStore
 	Notifier     abstract.Notifier
 	Scheduler    *scheduler.Scheduler
+	SchedCancel  context.CancelFunc
 	LiveSchedule *schedules.LiveSchedule
 	AppURL       string
 	CredProv     abstract.CredentialsProvider
@@ -110,7 +113,9 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	ps.Notifications = notifsModel
 	ps.Schedules = schedules.NewScheduleModel(ps.Persist)
 
-	ps.Scheduler = scheduler.New(context.Background(), ps.Logger)
+	schedCtx, schedCancel := context.WithCancel(context.Background())
+	ps.SchedCancel = schedCancel
+	ps.Scheduler = scheduler.New(schedCtx, ps.Logger)
 	ps.Scheduler.Register("notifications:cleanup", "@every 1h", func(ctx context.Context) error {
 		deleted, err := ps.Notifications.DeleteExpired(ctx)
 		if err != nil {
@@ -180,7 +185,7 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 	if err := ps.UpdStore.Reconcile(ctx, ps.Config.Version); err != nil {
 		ps.Logger.Warn("updates: reconcile pending update failed", zap.Error(err))
 	}
-	ps.Updates = updates.NewService(
+	ps.Updates = updates.NewServiceFromDeps(
 		ps.Updater,
 		ps.UpdStore,
 		ps.Notifier,
@@ -209,24 +214,8 @@ func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistrati
 	// system:audit:log:stream cannot be generated yet — the generator skips
 	// streaming annotations until dispatch.HandleInputStream lands — so
 	// audit's stream registration is hand-written in core/system/audit/stream.go.
-	// Every other feature's registrations live in core/system/* and arrive via
-	// svcRegs.
+	// Every other feature's registrations (including updates) live in
+	// core/system/* and arrive via svcRegs from CollectServiceRegistrations.
 	all := audit.StreamRegistration(ps.Persist)
-	if ps.Config.SelfUpdate != nil {
-		all = append(all, updates.Registrations(updates.Dependencies{
-			Updater:   ps.Updater,
-			Store:     ps.UpdStore,
-			Notifier:  ps.Notifier,
-			Users:     ps.Users,
-			Logger:    ps.Logger,
-			AppURL:    ps.AppURL,
-			HasMailer: ps.Config.Mailer.SMTPHost != "",
-			AutoApply: ps.Config.SelfUpdate.AutoApply,
-			Version:   ps.Config.Version,
-			Systemd:   ps.Config.SelfUpdate.SystemdMode,
-			ExePath:   ps.UpdExe,
-			DataDir:   ps.UpdData,
-		})...)
-	}
 	return append(all, svcRegs...)
 }

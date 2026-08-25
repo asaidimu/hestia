@@ -13,6 +13,7 @@ import (
 	policiesvc "github.com/asaidimu/hestia/core/system/policies"
 	schedulesvc "github.com/asaidimu/hestia/core/system/schedules"
 	settingsvc "github.com/asaidimu/hestia/core/system/settings"
+	updatessvc "github.com/asaidimu/hestia/core/system/updates"
 	usersvc "github.com/asaidimu/hestia/core/system/users"
 )
 
@@ -80,6 +81,7 @@ var allPolicyBindings = func() []policies.Binding {
 	all = append(all, policiesvc.Policies()...)
 	all = append(all, operationsvc.Policies()...)
 	all = append(all, authsvc.Policies()...)
+	all = append(all, updatessvc.Policies()...)
 	return all
 }()
 

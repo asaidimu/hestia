@@ -111,3 +111,6 @@ func (m *SettingsModel) All(ctx context.Context, tenantID string) (map[string]an
 	}
 	return out, nil
 }
+// @note #hand-rolled-settingsmodel-duplic-20905384 issue P1 #cruft,#model : Hand-rolled SettingsModel duplicates generated SystemSettings
+//
+// SettingsModel duplicates the generated SystemSettings model. Replace with generated model + custom Get/Set/Unset/All methods. Duplicate in settings/model/model.go is also cruft.

@@ -1,4 +1,6 @@
-// @note #arch-20260821-005 issue status=open priority=P1 tags=#arch,#errors : Inconsistent error handling in dispatchers
+// @note #arch-20260821-005 issue resolved status=open priority=P1 tags=#arch,#errors : Inconsistent error handling in dispatchers
+// @assignee opencode
+// Replaced fmt.Errorf in LocalDispatcher and BootstrapDispatcher with SystemError sentinels (ErrNotFound, ErrAccessDenied, ErrAlreadyExists, ErrValidation). All error paths now produce structured, chainable errors.
 //
 // LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,
 // but the project convention is to use common.SystemError for consistency with
@@ -88,16 +90,16 @@ func NewLocalDispatcherWithLogger(logger *zap.Logger) *LocalDispatcher {
 // in the chain needs its own recovery wrapper.
 func (d *LocalDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if msg.Context() == nil {
-		return fmt.Errorf("message %s has nil context", msg.Name())
+		return ErrValidation.WithOperation(msg.Name()).WithCause(fmt.Errorf("message has nil context"))
 	}
 	d.mu.RLock()
 	entry, ok := d.handlers[msg.Name()]
 	d.mu.RUnlock()
 	if !ok {
-		return fmt.Errorf("handler not found: %s", msg.Name())
+		return ErrNotFound.WithOperation(msg.Name())
 	}
 	if !entry.enabled {
-		return fmt.Errorf("handler %s is disabled", msg.Name())
+		return ErrAccessDenied.WithOperation(msg.Name()).WithCause(fmt.Errorf("handler disabled"))
 	}
 
 	go func() {
@@ -151,7 +153,7 @@ func (d *LocalDispatcher) RegisterHandler(name string, handler abstract.MessageH
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, exists := d.handlers[name]; exists {
-		return fmt.Errorf("handler already registered: %s", name)
+		return ErrAlreadyExists.WithOperation(name)
 	}
 	d.handlers[name] = handlerEntry{fn: handler, description: info.Description, enabled: info.Enabled, bootstrapSafe: info.BootstrapSafe}
 	return nil
@@ -162,7 +164,7 @@ func (d *LocalDispatcher) GetHandler(name string) (abstract.MessageHandler, erro
 	defer d.mu.RUnlock()
 	entry, ok := d.handlers[name]
 	if !ok {
-		return nil, fmt.Errorf("handler not found: %s", name)
+		return nil, ErrNotFound.WithOperation(name)
 	}
 	return entry.fn, nil
 }
@@ -187,7 +189,7 @@ func (d *LocalDispatcher) SetHandlerEnabled(name string, enabled bool) error {
 	defer d.mu.Unlock()
 	entry, ok := d.handlers[name]
 	if !ok {
-		return fmt.Errorf("handler not found: %s", name)
+		return ErrNotFound.WithOperation(name)
 	}
 	entry.enabled = enabled
 	d.handlers[name] = entry

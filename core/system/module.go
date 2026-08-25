@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/blobs/staging"
+	"github.com/asaidimu/updater"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	featureaudit "github.com/asaidimu/hestia/core/system/audit"
@@ -33,6 +34,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/users/model"
 
 	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	module "github.com/asaidimu/hestia/core/runtime/module"
@@ -189,6 +191,33 @@ func (m *SystemModule) seedProviders(rt abstract.Container, apiKeyAuth *auth.API
 	if err := abstract.RegisterInstance[authsvc.AppURL](rt, authsvc.AppURL(m.providers.AppURL)); err != nil {
 		return err
 	}
+	// Register updater-specific types so updates.NewService can resolve them via DI.
+	if m.providers.Updater != nil {
+		if err := abstract.RegisterInstance[*updater.Updater](rt, m.providers.Updater); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.AutoApply](rt, updates.AutoApply(m.cfg.SelfUpdate.AutoApply)); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.SystemdMode](rt, updates.SystemdMode(m.cfg.SelfUpdate.SystemdMode)); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.ExePath](rt, updates.ExePath(m.providers.UpdExe)); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.UpdateDataDir](rt, updates.UpdateDataDir(m.providers.UpdData)); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.HasMailer](rt, updates.HasMailer(m.cfg.Mailer.SMTPHost != "")); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.AppURL](rt, updates.AppURL(m.providers.AppURL)); err != nil {
+			return err
+		}
+		if err := abstract.RegisterInstance[updates.AppVersion](rt, updates.AppVersion(m.cfg.Version)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -219,9 +248,6 @@ func (m *SystemModule) Capabilities(rt abstract.Container) ([]abstract.Capabilit
 	}
 	m.messages = m.providers.CollectRegistrations(svcRegs)
 	knownBindings := collectAllPolicyBindings()
-	if m.providers.Config.SelfUpdate != nil {
-		knownBindings = append(knownBindings, updates.PolicyBindings()...)
-	}
 	m.providers.Policies.SetKnownBindings(knownBindings)
 	return []abstract.Capability{
 		{
@@ -393,6 +419,10 @@ func (m *SystemModule) registerExistingDocumentHandlers(ctx context.Context) err
 }
 
 func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispatcher {
+	if m.providers.RateStore == nil {
+		m.providers.RateStore = ratestore.New()
+	}
+	sharedRateStore := m.providers.RateStore
 	rateLimitLookup := func(op string) *runtime.RateLimitPolicy {
 		if m.providers.LivePolicies == nil {
 			return nil
@@ -418,8 +448,8 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 	chain := runtime.NewDispatcherChain(
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
-		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup)},
-		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger)},
+		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore)},
+		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger, sharedRateStore)},
 		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
 			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				return claims.TenantID
@@ -452,6 +482,13 @@ func (m *SystemModule) Start(ctx context.Context) error {
 
 func (m *SystemModule) Stop(ctx context.Context) error {
 	m.providers.Scheduler.Stop()
+	if m.providers.SchedCancel != nil {
+		m.providers.SchedCancel()
+	}
+	if m.providers.RateStore != nil {
+		m.providers.RateStore.Close()
+		m.providers.RateStore = nil
+	}
 	if m.providers.BlobSvc != nil {
 		if err := m.providers.BlobSvc.Close(); err != nil {
 			m.opts.Logger.Warn("close blob service", zap.Error(err))
@@ -473,18 +510,7 @@ func (m *SystemModule) Health(ctx context.Context) any {
 // allDefaultPolicies returns the static default policies plus, when self-update
 // is configured, the updates service bindings.
 func (m *SystemModule) allDefaultPolicies() []policies.Policy {
-	all := allDefaultPolicyBindings
-	if m.providers.Config.SelfUpdate == nil {
-		return all
-	}
-	for _, b := range updates.PolicyBindings() {
-		rule := b.RuleKey
-		if rule == "" {
-			rule = "administrator"
-		}
-		all = append(all, policies.Policy{Operation: b.Name, Rule: rule, Enabled: true})
-	}
-	return all
+	return allDefaultPolicyBindings
 }
 
 func (m *SystemModule) SeedPolicies(ctx context.Context) error {

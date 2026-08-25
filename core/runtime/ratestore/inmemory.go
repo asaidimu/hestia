@@ -11,6 +11,7 @@
 // Resolution: Use a consistent lock ordering throughout, or use a different
 // eviction strategy that doesn't require holding both locks simultaneously.
 // @note #bench-20260821-001 todo status=open priority=P1 tags=#benchmark,#performance : Rate limiting needs benchmarks
+// @assignee opencode
 //
 // Rate limiting is critical for HFT fair-use policies and IoT device
 // management. Current implementation lacks benchmarks for:
@@ -180,15 +181,34 @@ func (s *InMemoryStore) evictLoop() {
 func (s *InMemoryStore) evictStale() {
 	deadline := Now().Add(-10 * time.Minute)
 	for _, sh := range s.shards {
-		sh.mu.Lock()
+		// Collect stale keys under shard lock, then delete after releasing it.
+		// This avoids acquiring bucket.mu while holding shard.mu, which would
+		// invert the lock order used by CheckAndConsume/Increment (bucket.mu
+		// first, then shard.mu.RLock in getOrCreate).
+		sh.mu.RLock()
+		var stale []string
 		for k, b := range sh.buckets {
 			b.mu.Lock()
 			if b.lastRefill.Before(deadline) {
-				delete(sh.buckets, k)
+				stale = append(stale, k)
 			}
 			b.mu.Unlock()
 		}
-		sh.mu.Unlock()
+		sh.mu.RUnlock()
+
+		if len(stale) > 0 {
+			sh.mu.Lock()
+			for _, k := range stale {
+				if b, ok := sh.buckets[k]; ok {
+					b.mu.Lock()
+					if b.lastRefill.Before(deadline) {
+						delete(sh.buckets, k)
+					}
+					b.mu.Unlock()
+				}
+			}
+			sh.mu.Unlock()
+		}
 	}
 }
 

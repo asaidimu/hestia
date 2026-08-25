@@ -57,3 +57,6 @@ func (m *AuditModel) Insert(ctx context.Context, entry auditdomain.AuditEntry) e
 }
 
 var _ auditdomain.AuditPersister = (*AuditModel)(nil)
+// @note #hand-rolled-auditmodel-should-us-d2b104e2 issue P1 #cruft,#model : Hand-rolled AuditModel should use generated SystemAccessLogs
+//
+// AuditModel is hand-rolled but a generated SystemAccessLogs model exists. Replace with generated model + custom Insert method.

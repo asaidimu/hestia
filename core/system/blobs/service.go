@@ -223,7 +223,9 @@ func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, in
 }
 
 
-// @note #storage-leak-blobs-never-compact-ad27adbb issue P1 #storage-leak,#blobs : Storage leak: blobs never compacted after deletion
+// @note #storage-leak-blobs-never-compact-ad27adbb issue resolved P1 #storage-leak,#blobs : Storage leak: blobs never compacted after deletion
+// @assignee opencode
+// Added Compact to BlobNamespace interface and nsHandle implementation. NewDeleteBlobHandler now triggers async compaction after successful deletion. Namespace deletion already closes the engine (automatic cleanup).
 //
 // When blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,
 // the physical segment files (.vol, .wal) remain on disk because Compact is never called.

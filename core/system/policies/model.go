@@ -551,3 +551,6 @@ func docToRule(doc data.Documenter) (PolicyRule, error) {
 
 	return r, nil
 }
+// @note #hand-rolled-policymodel-should-u-70af02a6 issue P2 #cruft,#model : Hand-rolled PolicyModel should use generated models as building blocks
+//
+// PolicyModel orchestrates across two collections (operation_policy + iam_rule). Generated models exist for both. Refactor to use generated SystemOperationPolicys and SystemIamRules as building blocks, with PolicyModel as a thin orchestration layer. Domain types (Binding, PolicyRule, Policy) are legitimate domain concepts but should be defined alongside the generated models.

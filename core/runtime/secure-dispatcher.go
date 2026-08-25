@@ -1,4 +1,5 @@
-// @note #arch-20260821-003 issue status=open priority=P1 tags=#arch,#duplication : Duplicated identity property extraction pattern
+// @note #arch-20260821-003 issue resolved status=open priority=P1 tags=#arch,#duplication : Duplicated identity property extraction pattern
+// Fixed: created runtime/identity.go with GetIdentityProperty[T], GetUserID, GetTokenID, IsAnonymous, GetIdentityProperties. Updated all 5 call sites.
 //
 // The pattern `ident.Properties.(map[string]any)` followed by key extraction
 // appears in 8+ places across 5 files:
@@ -57,10 +58,11 @@ func (d *SecureDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &SecureDispatcher{next: next, permMgr: d.permMgr, ac: d.ac}
 }
 
-// @note #review-20260821-006 issue status=open priority=P2 tags=#review,#security : Deeply nested identity property access
+// @note #review-20260821-006 issue resolved status=open priority=P2 tags=#review,#security : Deeply nested identity property access
 // The code accesses iam.Identity.Properties through multiple nested type assertions
 // (ident.Properties.(map[string]any) then props["operations"]). This pattern is
 // repeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).
+// Fixed: replaced deeply nested identity access with GetIdentityProperty[T] helper calls.
 //
 // Consider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or
 // defining a typed IdentityProperties struct to reduce duplication and improve type safety.
@@ -76,18 +78,14 @@ func (d *SecureDispatcher) Send(ctx context.Context, msg abstract.Message, onCom
 		//
 		// We need to investiagate other auth methods such as a list of trusted domains so that external events such as
 		// Webhooks can be processed without requiring API Keys
-		if ident, ok := iam.GetIdentity(msg.Context()); ok {
-			if props, ok := ident.Properties.(map[string]any); ok {
-				if raw, ok := props["operations"]; ok {
-					if ops, ok := stringSlice(raw); ok && !slices.Contains(ops, msg.Name()) {
-						return ErrAccessDenied.WithIssues(common.Issues{
-							common.Issue{
-								Message: "operation not in API key allowlist",
-								Path:    msg.Name(),
-							},
-						})
-					}
-				}
+		if ops, ok := GetIdentityProperty[[]any](msg.Context(), "operations"); ok {
+			if strOps, ok := stringSlice(ops); ok && !slices.Contains(strOps, msg.Name()) {
+				return ErrAccessDenied.WithIssues(common.Issues{
+					common.Issue{
+						Message: "operation not in API key allowlist",
+						Path:    msg.Name(),
+					},
+				})
 			}
 		}
 
@@ -128,24 +126,16 @@ func (d *SecureDispatcher) Send(ctx context.Context, msg abstract.Message, onCom
 	return d.next.Send(ctx, msg, onComplete)
 }
 
-// @note #review-20260821-007 issue status=open priority=P2 tags=#review,#consolidation : Duplicate identity property extraction
+// @note #review-20260821-007 issue resolved status=open priority=P2 tags=#review,#consolidation : Duplicate identity property extraction
 // isAnonymous extracts user_id from iam.Identity.Properties using the same
 // nested type assertion pattern found in extractUserID (rate-limit.go),
 // extractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).
+// Fixed: consolidated duplicate identity extraction into GetUserID, GetTokenID helpers in runtime/identity.go.
 //
 // Consider consolidating these into a single helper function in a shared package
 // (e.g., runtime/identity) to reduce duplication and ensure consistent behavior.
 func isAnonymous(ctx context.Context) bool {
-	ident, ok := iam.GetIdentity(ctx)
-	if !ok {
-		return true
-	}
-	props, ok := ident.Properties.(map[string]any)
-	if !ok {
-		return true
-	}
-	uid, _ := props["user_id"].(string)
-	return uid == ""
+	return IsAnonymous(ctx)
 }
 
 var _ abstract.Dispatcher = (*SecureDispatcher)(nil)

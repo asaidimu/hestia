@@ -2,6 +2,8 @@ package updates
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
+	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/updater"
 	"go.uber.org/zap"
@@ -22,6 +25,61 @@ const lastCheckKey = "updates:last_check"
 // exitProcess is indirection over os.Exit so tests can capture the exit
 // instead of terminating the test binary.
 var exitProcess = os.Exit
+
+// NoInput is the (empty) input for every updates message.
+type NoInput struct{}
+
+type StatusView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Version                string `anansi:"version"`
+	StagedVersion          string `anansi:"staged_version"`
+	Prepared               bool   `anansi:"prepared"`
+	LastCheck              int64  `anansi:"last_check"`
+}
+
+type ChangelogView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Version                string `anansi:"version"`
+	AssetName              string `anansi:"asset_name"`
+	Changelog              string `anansi:"changelog"`
+}
+
+type CheckView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Checked                bool   `anansi:"checked"`
+	Staged                 bool   `anansi:"staged"`
+	Version                string `anansi:"version"`
+	AutoApply              bool   `anansi:"auto_apply"`
+}
+
+type ApplyView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Message                string `anansi:"message"`
+}
+
+type AvailabilityView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Available              bool   `anansi:"available"`
+	Version                string `anansi:"version"`
+}
+
+type StageView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Staged                 bool   `anansi:"staged"`
+	Version                string `anansi:"version"`
+}
+
+// DI keys for updates-specific config values. Typed keys avoid collisions
+// in the DI container (same pattern as auth.AdminUserID, auth.SessionTTL).
+type (
+	AutoApply    bool
+	SystemdMode  bool
+	ExePath      string
+	UpdateDataDir string
+	HasMailer    bool
+	AppURL       string
+	AppVersion   string
+)
 
 // UpdatesService drives the self-update lifecycle on top of updater.Updater:
 // read-only status/changelog, check-and-stage, and the maintenance-window
@@ -42,7 +100,48 @@ type UpdatesService struct {
 	dataDir   string
 }
 
-func NewService(u *updater.Updater, store *Store, notifier abstract.Notifier, users *usersmodel.SystemUsers, logger *zap.Logger, appURL string, hasMailer, autoApply bool, version string, systemd bool, exePath, dataDir string) *UpdatesService {
+// NewUpdatesService resolves dependencies from the DI container and constructs
+// the service. This is the codegen entry point.
+func NewUpdatesService(rt abstract.Container) (*UpdatesService, error) {
+	persist := abstract.MustResolve[base.Persistence](rt)
+	logger := abstract.MustResolve[*zap.Logger](rt)
+
+	u, _ := abstract.Resolve[*updater.Updater](rt)
+
+	users, err := usersmodel.InitSystemUsersModel(persist, logger)
+	if err != nil {
+		return nil, fmt.Errorf("init users model: %w", err)
+	}
+
+	store := InitStore(persist)
+
+	appURL, _ := abstract.Resolve[AppURL](rt)
+	hasMailer, _ := abstract.Resolve[HasMailer](rt)
+	autoApply, _ := abstract.Resolve[AutoApply](rt)
+	appVersion, _ := abstract.Resolve[AppVersion](rt)
+	systemdMode, _ := abstract.Resolve[SystemdMode](rt)
+	exePath, _ := abstract.Resolve[ExePath](rt)
+	dataDir, _ := abstract.Resolve[UpdateDataDir](rt)
+
+	return &UpdatesService{
+		updater:   u,
+		store:     store,
+		notifier:  abstract.MustResolve[abstract.Notifier](rt),
+		users:     users,
+		logger:    logger,
+		appURL:    string(appURL),
+		hasMailer: bool(hasMailer),
+		autoApply: bool(autoApply),
+		version:   string(appVersion),
+		systemd:   bool(systemdMode),
+		exePath:   string(exePath),
+		dataDir:   string(dataDir),
+	}, nil
+}
+
+// NewServiceFromDeps constructs the service with explicit dependencies.
+// Used by the hand-wired path in provider.go until codegen migration completes.
+func NewServiceFromDeps(u *updater.Updater, store *Store, notifier abstract.Notifier, users *usersmodel.SystemUsers, logger *zap.Logger, appURL string, hasMailer, autoApply bool, version string, systemd bool, exePath, dataDir string) *UpdatesService {
 	return &UpdatesService{
 		updater:   u,
 		store:     store,
@@ -61,10 +160,20 @@ func NewService(u *updater.Updater, store *Store, notifier abstract.Notifier, us
 
 // Status reports the running version, the staged update (if any), whether a
 // binary is prepared for swap, and the last check time.
+//
+// @hestia.register(
+//
+//	name="system:updates:status:get",
+//	intent="read",
+//	rule="administrator",
+//	description="Get self-update status (current and staged version)",
+//	output="StatusView",
+//
+// )
 func (s *UpdatesService) Status(ctx context.Context, _ abstract.Message, _ *NoInput) (*StatusView, error) {
 	view := &StatusView{
 		Version:  s.version,
-		Prepared: s.updater.HasPreparedUpdate(),
+		Prepared: s.updater != nil && s.updater.HasPreparedUpdate(),
 	}
 	if pending, err := s.store.PendingUpdate(ctx); err == nil && pending != nil {
 		view.StagedVersion = pending.Version
@@ -80,6 +189,16 @@ func (s *UpdatesService) Status(ctx context.Context, _ abstract.Message, _ *NoIn
 }
 
 // Changelog returns the staged update's release notes for admin review.
+//
+// @hestia.register(
+//
+//	name="system:updates:changelog:get",
+//	intent="read",
+//	rule="administrator",
+//	description="Get the staged update changelog",
+//	output="ChangelogView",
+//
+// )
 func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *NoInput) (*ChangelogView, error) {
 	pending, err := s.store.PendingUpdate(ctx)
 	if err != nil {
@@ -137,6 +256,16 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 // immediately (the process exits on success). Kept for backward
 // compatibility; prefer system:updates:check:get +
 // system:updates:stage:create so each effect stays independently callable.
+//
+// @hestia.register(
+//
+//	name="system:updates:check:create",
+//	intent="create",
+//	rule="administrator",
+//	description="Check for and stage an update (legacy check-then-stage)",
+//	output="CheckView",
+//
+// )
 func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInput) (*CheckView, error) {
 	staged, newly, err := s.checkAndStage(ctx)
 	if err != nil {
@@ -156,9 +285,13 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 		view.Version = staged.Version
 	}
 	if s.autoApply && staged != nil {
-		if err := s.apply(ctx); err != nil {
+		if err := s.verifyApplyReady(ctx); err != nil {
 			return nil, err
 		}
+		go func() {
+			time.Sleep(300 * time.Millisecond)
+			s.applySwap(ctx)
+		}()
 	}
 	return document.New(view), nil
 }
@@ -173,10 +306,13 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 //	intent="read",
 //	rule="administrator",
 //	description="Check whether a newer version is available",
-//	output="updates.AvailabilityView",
+//	output="AvailabilityView",
 //
 // )
 func (s *UpdatesService) CheckAvailability(ctx context.Context, _ abstract.Message, _ *NoInput) (*AvailabilityView, error) {
+	if s.updater == nil {
+		return nil, fmt.Errorf("updater not configured")
+	}
 	info, err := s.updater.CheckForUpdate(ctx)
 	if err != nil {
 		return nil, err
@@ -199,7 +335,7 @@ func (s *UpdatesService) CheckAvailability(ctx context.Context, _ abstract.Messa
 //	intent="create",
 //	rule="administrator",
 //	description="Download and stage the latest update",
-//	output="updates.StageView",
+//	output="StageView",
 //
 // )
 func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInput) (*StageView, error) {
@@ -222,13 +358,30 @@ func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInp
 	return document.New(view), nil
 }
 
-// Apply performs the maintenance-window apply. On success the process exits
-// and the new binary takes over; on failure (e.g. nothing staged) it returns
-// the error.
+// Apply verifies the staged binary and triggers the process swap. Hash
+// verification and "nothing staged" checks run synchronously so the caller
+// receives a meaningful error or success response. The actual swap (which
+// terminates the process) runs asynchronously after the response is flushed.
+//
+// @hestia.register(
+//
+//	name="system:updates:update:apply",
+//	intent="create",
+//	rule="administrator",
+//	description="Apply the staged update",
+//	output="ApplyView",
+//
+// )
 func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInput) (*ApplyView, error) {
-	if err := s.apply(ctx); err != nil {
+	if err := s.verifyApplyReady(ctx); err != nil {
 		return nil, err
 	}
+	// Launch the swap after a short delay so the HTTP response is flushed
+	// before os.Exit(0) terminates the process.
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		s.applySwap(ctx)
+	}()
 	return document.New(&ApplyView{Message: "update applied; restarting"}), nil
 }
 
@@ -245,35 +398,118 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 		}
 	}
 	if s.autoApply && staged != nil {
-		return s.apply(ctx)
+		if err := s.verifyApplyReady(ctx); err != nil {
+			return err
+		}
+		go func() {
+			time.Sleep(300 * time.Millisecond)
+			s.applySwap(ctx)
+		}()
 	}
 	return nil
 }
 
-// apply performs the update handoff. In the default (spawn) mode it delegates
-// to updater.ApplyUpdate, which spawns the staged binary with --perform-update
-// and never returns. In SystemdMode it swaps the staged binary over the
-// running executable in place and exits cleanly, letting systemd restart the
-// new binary as a tracked process. Returns nil when there is nothing to apply.
-func (s *UpdatesService) apply(ctx context.Context) error {
+// @note #update-hash-verify issue P1 status=open : Verify binary hash before applying staged update
+//
+// The staged binary at DataDir/update is copied over the running executable
+// (swapExecutable) or executed directly (ApplyUpdate) without verifying its
+// SHA-256 checksum against UpdateInfo.Checksum. The Checksum field already
+// flows through the persistence layer, but the actual verification against
+// the on-disk binary is never performed. This means a corrupted download —
+// or a file tampered with between staging and apply — would silently replace
+// the running binary. The check should re-hash the staged file and abort
+// the swap/exec if it does not match.
+//
+// Real-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with
+// "missing section headers" — the update was applied but the binary was
+// corrupted. A pre-apply hash check would have caught this.
+//
+// Why staging can succeed while application produces a corrupted binary:
+//   1. GitHub provider passes empty checksum (github.go:133) so
+//      DownloadBinary skips hash verification entirely.
+//   2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)
+//      re-hash the staged file before overwriting the executable.
+//   3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full
+//      condition can leave the destination truncated.
+//   4. swapExecutable creates a temp file in filepath.Dir(exe) which may
+//      differ from DataDir — if they share a filesystem the Rename is
+//      atomic, but a failed copy to the temp file is not caught before the
+//      rename.
+//
+// @see #updater-hash-verify
+
+// verifyApplyReady checks preconditions for the swap: the staged binary must
+// exist, and its checksum (when provided) must match. Returns nil when there
+// is nothing to apply (up to date), or an error that is safe to return to
+// the caller.
+func (s *UpdatesService) verifyApplyReady(ctx context.Context) error {
+	if s.updater == nil {
+		return fmt.Errorf("updater not configured")
+	}
 	if !s.systemd {
-		return s.updater.ApplyUpdate()
+		if !s.updater.HasPreparedUpdate() {
+			return fmt.Errorf("nothing staged to apply")
+		}
+		return s.verifyStagedBinary(ctx)
 	}
 	if _, err := s.updater.PrepareUpdate(ctx); err != nil {
 		return err
 	}
 	if !s.updater.HasPreparedUpdate() {
-		return nil // up to date; nothing staged to apply
+		return nil // nothing staged
+	}
+	return s.verifyStagedBinary(ctx)
+}
+
+// applySwap performs the actual binary handoff. In the default (spawn) mode it
+// delegates to updater.ApplyUpdate which spawns the staged binary and exits.
+// In SystemdMode it swaps the executable in-place and exits cleanly.
+func (s *UpdatesService) applySwap(ctx context.Context) {
+	if s.updater == nil {
+		s.logger.Error("updates: apply failed", zap.Error(fmt.Errorf("updater not configured")))
+		return
+	}
+	if !s.systemd {
+		if err := s.updater.ApplyUpdate(); err != nil {
+			s.logger.Error("updates: apply failed", zap.Error(err))
+		}
+		return
 	}
 	if err := s.swapExecutable(ctx); err != nil {
-		return err
+		s.logger.Error("updates: swap executable failed", zap.Error(err))
+		return
 	}
-	// Give the HTTP layer a moment to flush the success response before the
-	// process exits; the unit restarts the swapped binary.
-	go func() {
-		time.Sleep(300 * time.Millisecond)
-		exitProcess(0)
-	}()
+	exitProcess(0)
+}
+
+// verifyStagedBinary hashes the staged binary at DataDir/update and compares
+// it against the expected checksum from the pending update record. Returns nil
+// when the checksum is empty (provider did not supply one) or when the hashes
+// match. Returns an error on mismatch or I/O failure, aborting the apply.
+func (s *UpdatesService) verifyStagedBinary(ctx context.Context) error {
+	pending, err := s.store.PendingUpdate(ctx)
+	if err != nil {
+		return fmt.Errorf("read pending update: %w", err)
+	}
+	if pending == nil || pending.Checksum == "" {
+		return nil // no checksum to verify — trust the staged binary
+	}
+
+	staged := filepath.Join(s.dataDir, "update")
+	f, err := os.Open(staged)
+	if err != nil {
+		return fmt.Errorf("open staged binary for verification: %w", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("hash staged binary: %w", err)
+	}
+	actual := "SHA256:" + hex.EncodeToString(h.Sum(nil))
+	if actual != pending.Checksum {
+		return fmt.Errorf("staged binary checksum mismatch: expected %s, got %s", pending.Checksum, actual)
+	}
 	return nil
 }
 
@@ -328,6 +564,9 @@ func (s *UpdatesService) swapExecutable(ctx context.Context) error {
 // UpdateInfo (nil when up to date) and whether a release was newly staged
 // (never on a no-op re-check).
 func (s *UpdatesService) checkAndStage(ctx context.Context) (staged *updater.UpdateInfo, newlyStaged bool, err error) {
+	if s.updater == nil {
+		return nil, false, fmt.Errorf("updater not configured")
+	}
 	info, err := s.updater.CheckForUpdate(ctx)
 	if err != nil {
 		return nil, false, err
@@ -345,6 +584,9 @@ func (s *UpdatesService) checkAndStage(ctx context.Context) (staged *updater.Upd
 // UpdateInfo (nil when already up to date) and whether it was newly staged
 // relative to the pending row.
 func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.UpdateInfo, newlyStaged bool, err error) {
+	if s.updater == nil {
+		return nil, false, fmt.Errorf("updater not configured")
+	}
 	prev, _ := s.store.PendingUpdate(ctx)
 	staged, err = s.updater.PrepareUpdate(ctx)
 	if err != nil {

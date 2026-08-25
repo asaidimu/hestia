@@ -144,3 +144,6 @@ func asDocuments(docs data.DocumentSet) ([]*document.Document, error) {
 	}
 	return out, nil
 }
+// @note #hand-rolled-schedulemodel-duplic-0ebfd9ea issue P1 #cruft,#model : Hand-rolled ScheduleModel duplicates generated SystemScheduledMessagess
+//
+// ScheduleModel duplicates the generated SystemScheduledMessagess. Replace with generated model + custom ListByTenant. Duplicate in schedules/model/model.go is also cruft.

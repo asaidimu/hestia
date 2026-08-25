@@ -23,18 +23,19 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
 	"github.com/asaidimu/hestia/core/system/auth"
+	authmodel "github.com/asaidimu/hestia/core/system/auth/model"
 	"github.com/asaidimu/hestia/core/system/tenants"
 	"github.com/asaidimu/hestia/core/system/users"
-	"github.com/asaidimu/hestia/core/system/users/model"
+	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/notification"
 )
 
-func newUserModelOn(t *testing.T, p base.Persistence) *model.SystemUsers {
+func newUserModelOn(t *testing.T, p base.Persistence) *usersmodel.SystemUsers {
 	t.Helper()
-	model.DangerouslyResetSystemUsersModel()
-	m, err := model.InitSystemUsersModel(p, zap.NewNop())
+	usersmodel.DangerouslyResetSystemUsersModel()
+	m, err := usersmodel.InitSystemUsersModel(p, zap.NewNop())
 	if err != nil {
 		t.Fatalf("InitSystemUsersModel: %v", err)
 	}
@@ -47,22 +48,22 @@ type testMessage struct {
 	input data.Documenter
 }
 
-func (m testMessage) ID() string                             { return "" }
-func (m testMessage) Name() string                           { return m.name }
+func (m testMessage) ID() string                            { return "" }
+func (m testMessage) Name() string                          { return m.name }
 func (m testMessage) Context() context.Context               { return m.ctx }
-func (m testMessage) Input() data.Documenter                  { return m.input }
-func (m testMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m testMessage) Input() data.Documenter                { return m.input }
+func (m testMessage) InputChannel() <-chan data.Documenter   { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string                       { return "" }
-func (m testMessage) TraceID() string                        { return "" }
-func (m testMessage) RequestID() string                      { return "" }
-func (m testMessage) SourceIP() string                       { return "" }
-func (m testMessage) UserAgent() string                      { return "" }
-func (m testMessage) ResourceID() string                     { return "" }
-func (m testMessage) SessionID() string                      { return "" }
+func (m testMessage) TenantID() string                      { return "" }
+func (m testMessage) TraceID() string                       { return "" }
+func (m testMessage) RequestID() string                     { return "" }
+func (m testMessage) SourceIP() string                      { return "" }
+func (m testMessage) UserAgent() string                     { return "" }
+func (m testMessage) ResourceID() string                    { return "" }
+func (m testMessage) SessionID() string                     { return "" }
 
-func TestCreateSessionHandler(t *testing.T) {
-	p := testutil.NewPersistence(t)
+func newTestAuthService(t *testing.T, p base.Persistence, opts ...func(*auth.AuthService)) *auth.AuthService {
+	t.Helper()
 	userModel := newUserModelOn(t, p)
 	tenantModel := tenants.NewTenantModel(p)
 	sessionSvc := auth.NewSessionService("test-secret")
@@ -80,21 +81,54 @@ func TestCreateSessionHandler(t *testing.T) {
 		t.Fatalf("userModel.Register failed: %v", err)
 	}
 
-	handler := auth.NewCreateSessionHandler(userModel, credProv, 7*24*time.Hour)
-	input := testutil.InputDoc(t, auth.LoginInputSchema(), `{
-		"payload": {
-			"email": "test@example.com",
-			"password": "secret123"
-		}
-	}`)
-	msg := testMessage{name: "create-session", ctx: ctx, input: input}
-
-	result, err := handler(ctx, msg)
+	apikeysmodel.DangerouslyResetSystemAPIKeysModel()
+	apiKeyModel, err := apikeysmodel.InitSystemAPIKeysModel(p, zap.NewNop())
 	if err != nil {
-		t.Fatalf("CreateSessionHandler failed: %v", err)
+		t.Fatalf("InitSystemAPIKeysModel: %v", err)
+	}
+
+	userColl, err := p.Collection(context.Background(), "_user_")
+	if err != nil {
+		t.Fatalf("open _user_ collection: %v", err)
+	}
+	liveUsers, err := collection.NewLiveRepository(context.Background(), collection.LiveRepositoryOptions[*users.UserClaims]{
+		Collection: userColl,
+		Processor:  &users.UserClaimsDocProcessor{},
+		QueryKey:   "_id_",
+		AutoLoad:   false,
+	})
+	if err != nil {
+		t.Fatalf("create live user claims: %v", err)
+	}
+	t.Cleanup(func() { liveUsers.Close() })
+
+	apiKeyAuth := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop())
+
+	svc := auth.NewAuthServiceForTest(userModel, apiKeyModel, credProv, apiKeyAuth, "admin-1", 7*24*time.Hour)
+
+	for _, opt := range opts {
+		opt(svc)
+	}
+
+	return svc
+}
+
+func TestCreateSessionHandler(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	svc := newTestAuthService(t, p)
+
+	ctx := context.Background()
+	msg := testMessage{name: "create-session", ctx: ctx}
+
+	result, err := svc.CreateSession(ctx, msg, &authmodel.LoginInput{
+		Email:    "test@example.com",
+		Password: "secret123",
+	})
+	if err != nil {
+		t.Fatalf("CreateSession failed: %v", err)
 	}
 	if result == nil || result.Document == nil {
-		t.Fatal("CreateSessionHandler returned nil result or document")
+		t.Fatal("CreateSession returned nil result or document")
 	}
 	if result.SessionToken == "" {
 		t.Error("SessionToken is empty")
@@ -228,115 +262,63 @@ func TestSessionService_TokenVersion(t *testing.T) {
 
 func TestPasswordResetHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := newUserModelOn(t, p)
-	tenantModel := tenants.NewTenantModel(p)
-	sessionSvc := auth.NewSessionService("test-secret")
-	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
+	svc := newTestAuthService(t, p)
 
 	ctx := context.Background()
-	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
-	if err != nil {
-		t.Fatalf("tenantModel.Create failed: %v", err)
-	}
-	tenantID := tenant.ID()
-
-	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
-	if err != nil {
-		t.Fatalf("userModel.Register failed: %v", err)
-	}
+	msg := testMessage{name: "password-reset", ctx: ctx}
 
 	t.Run("existing email returns success with nil mailer", func(t *testing.T) {
-		handler := auth.NewPasswordResetHandler(userModel, credProv, nil, "")
-		input := testutil.InputDoc(t, auth.PasswordResetInputSchema(), `{
-			"payload": {"email": "test@example.com"}
-		}`)
-		msg := testMessage{name: "password-reset", ctx: ctx, input: input}
-
-		result, err := handler(ctx, msg)
+		err := svc.PasswordReset(ctx, msg, &authmodel.PasswordResetInput{
+			Email: "test@example.com",
+		})
 		if err != nil {
-			t.Fatalf("PasswordResetHandler failed: %v", err)
-		}
-		if result == nil {
-			t.Fatal("PasswordResetHandler returned nil result")
+			t.Fatalf("PasswordReset failed: %v", err)
 		}
 	})
 
 	t.Run("non-existent email returns success (no enumeration)", func(t *testing.T) {
-		handler := auth.NewPasswordResetHandler(userModel, credProv, nil, "")
-		input := testutil.InputDoc(t, auth.PasswordResetInputSchema(), `{
-			"payload": {"email": "nonexistent@example.com"}
-		}`)
-		msg := testMessage{name: "password-reset", ctx: ctx, input: input}
-
-		result, err := handler(ctx, msg)
+		err := svc.PasswordReset(ctx, msg, &authmodel.PasswordResetInput{
+			Email: "nonexistent@example.com",
+		})
 		if err != nil {
-			t.Fatalf("PasswordResetHandler failed: %v", err)
-		}
-		if result == nil {
-			t.Fatal("PasswordResetHandler returned nil result")
+			t.Fatalf("PasswordReset failed: %v", err)
 		}
 	})
 }
 
 func TestPasswordConfirmHandler(t *testing.T) {
 	p := testutil.NewPersistence(t)
-	userModel := newUserModelOn(t, p)
-	tenantModel := tenants.NewTenantModel(p)
-	sessionSvc := auth.NewSessionService("test-secret")
-	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
+	svc := newTestAuthService(t, p)
 
 	ctx := context.Background()
-	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
-	if err != nil {
-		t.Fatalf("tenantModel.Create failed: %v", err)
-	}
-	tenantID := tenant.ID()
-
-	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
-	if err != nil {
-		t.Fatalf("userModel.Register failed: %v", err)
-	}
+	msg := testMessage{name: "password-confirm", ctx: ctx}
 
 	t.Run("valid token resets password", func(t *testing.T) {
-		user, err := userModel.GetByEmail(ctx, "test@example.com")
+		user, err := svc.TestUsers().GetByEmail(ctx, "test@example.com")
 		if err != nil {
 			t.Fatalf("GetByEmail failed: %v", err)
 		}
 
-		token, err := credProv.IssueResetToken(user.ID)
+		token, err := svc.TestCredProv().IssueResetToken(user.ID)
 		if err != nil {
 			t.Fatalf("IssueResetToken failed: %v", err)
 		}
 
-		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
-		input := testutil.InputDoc(t, auth.PasswordConfirmInputSchema(), fmt.Sprintf(`{
-			"payload": {
-				"token": %q,
-				"password": "newpass456"
-			}
-		}`, token))
-		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
-
-		result, err := handler(ctx, msg)
+		err = svc.PasswordConfirm(ctx, msg, &authmodel.PasswordConfirmInput{
+			Token:    token,
+			Password: "newpass456",
+		})
 		if err != nil {
-			t.Fatalf("PasswordConfirmHandler failed: %v", err)
-		}
-		if result == nil {
-			t.Fatal("PasswordConfirmHandler returned nil result")
+			t.Fatalf("PasswordConfirm failed: %v", err)
 		}
 	})
 
 	t.Run("login with new password succeeds", func(t *testing.T) {
-		loginHandler := auth.NewCreateSessionHandler(userModel, credProv, 7*24*time.Hour)
-		input := testutil.InputDoc(t, auth.LoginInputSchema(), `{
-			"payload": {
-				"email": "test@example.com",
-				"password": "newpass456"
-			}
-		}`)
-		msg := testMessage{name: "create-session", ctx: ctx, input: input}
-
-		result, err := loginHandler(ctx, msg)
+		loginMsg := testMessage{name: "create-session", ctx: ctx}
+		result, err := svc.CreateSession(ctx, loginMsg, &authmodel.LoginInput{
+			Email:    "test@example.com",
+			Password: "newpass456",
+		})
 		if err != nil {
 			t.Fatalf("login with new password failed: %v", err)
 		}
@@ -346,23 +328,18 @@ func TestPasswordConfirmHandler(t *testing.T) {
 	})
 
 	t.Run("login with old password fails", func(t *testing.T) {
-		loginHandler := auth.NewCreateSessionHandler(userModel, credProv, 7*24*time.Hour)
-		input := testutil.InputDoc(t, auth.LoginInputSchema(), `{
-			"payload": {
-				"email": "test@example.com",
-				"password": "secret123"
-			}
-		}`)
-		msg := testMessage{name: "create-session", ctx: ctx, input: input}
-
-		_, err := loginHandler(ctx, msg)
+		loginMsg := testMessage{name: "create-session", ctx: ctx}
+		_, err := svc.CreateSession(ctx, loginMsg, &authmodel.LoginInput{
+			Email:    "test@example.com",
+			Password: "secret123",
+		})
 		if err == nil {
 			t.Error("expected error when logging in with old password")
 		}
 	})
 
 	t.Run("expired token returns error", func(t *testing.T) {
-		user, err := userModel.GetByEmail(ctx, "test@example.com")
+		user, err := svc.TestUsers().GetByEmail(ctx, "test@example.com")
 		if err != nil {
 			t.Fatalf("GetByEmail failed: %v", err)
 		}
@@ -376,32 +353,20 @@ func TestPasswordConfirmHandler(t *testing.T) {
 		encoded := base64.RawURLEncoding.EncodeToString([]byte(payload))
 		expiredToken := encoded + "." + sig
 
-		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
-		input := testutil.InputDoc(t, auth.PasswordConfirmInputSchema(), fmt.Sprintf(`{
-			"payload": {
-				"token": %q,
-				"password": "anotherpass"
-			}
-		}`, expiredToken))
-		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
-
-		_, err = handler(ctx, msg)
+		err = svc.PasswordConfirm(ctx, msg, &authmodel.PasswordConfirmInput{
+			Token:    expiredToken,
+			Password: "anotherpass",
+		})
 		if err == nil {
 			t.Error("expected error for expired token")
 		}
 	})
 
 	t.Run("invalid signature returns error", func(t *testing.T) {
-		handler := auth.NewPasswordConfirmHandler(userModel, credProv)
-		input := testutil.InputDoc(t, auth.PasswordConfirmInputSchema(), `{
-			"payload": {
-				"token": "invalidsignature.token",
-				"password": "anotherpass"
-			}
-		}`)
-		msg := testMessage{name: "password-confirm", ctx: ctx, input: input}
-
-		_, err := handler(ctx, msg)
+		err := svc.PasswordConfirm(ctx, msg, &authmodel.PasswordConfirmInput{
+			Token:    "invalidsignature.token",
+			Password: "anotherpass",
+		})
 		if err == nil {
 			t.Error("expected error for invalid token signature")
 		}
@@ -481,22 +446,6 @@ func TestPasswordResetHandler_WithMailer(t *testing.T) {
 	}
 
 	p := testutil.NewPersistence(t)
-	userModel := newUserModelOn(t, p)
-	tenantModel := tenants.NewTenantModel(p)
-	sessionSvc := auth.NewSessionService("test-secret")
-	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
-
-	ctx := context.Background()
-	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
-	if err != nil {
-		t.Fatalf("tenantModel.Create: %v", err)
-	}
-	tenantID := tenant.ID()
-
-	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
-	if err != nil {
-		t.Fatalf("userModel.Register: %v", err)
-	}
 
 	resolver := &testNotifResolver{}
 	notifier := notification.New(resolver)
@@ -512,20 +461,20 @@ func TestPasswordResetHandler_WithMailer(t *testing.T) {
 	}
 	notifier.RegisterChannel(notification.NewEmailChannel(mailer, resolver))
 
+	svc := newTestAuthService(t, p, func(s *auth.AuthService) {
+		s.TestSetNotifier(notifier, "http://localhost:8070")
+	})
+
 	clearMailHog()
 
-	handler := auth.NewPasswordResetHandler(userModel, credProv, notifier, "http://localhost:8070")
-	input := testutil.InputDoc(t, auth.PasswordResetInputSchema(), `{
-		"payload": {"email": "test@example.com"}
-	}`)
-	msg := testMessage{name: "password-reset", ctx: ctx, input: input}
+	ctx := context.Background()
+	msg := testMessage{name: "password-reset", ctx: ctx}
 
-	result, err := handler(ctx, msg)
+	err = svc.PasswordReset(ctx, msg, &authmodel.PasswordResetInput{
+		Email: "test@example.com",
+	})
 	if err != nil {
-		t.Fatalf("PasswordResetHandler: %v", err)
-	}
-	if result == nil {
-		t.Fatal("nil result")
+		t.Fatalf("PasswordReset: %v", err)
 	}
 
 	emailMsg := pollMailHog(t)

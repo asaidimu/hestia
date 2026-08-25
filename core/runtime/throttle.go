@@ -7,7 +7,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
-	"github.com/asaidimu/go-iam/v2/iam"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
@@ -41,15 +40,7 @@ func buildThrottleTemplateData(ctx context.Context, msg abstract.Message) Thrott
 		Timestamp: time.Now(),
 	}
 
-	if ident, ok := iam.GetIdentity(ctx); ok {
-		claims := make(map[string]any)
-		if props, ok := ident.Properties.(map[string]any); ok {
-			for k, v := range props {
-				claims[k] = v
-			}
-		}
-		data.Claims = claims
-	}
+	data.Claims = GetIdentityProperties(ctx)
 
 	if input := msg.Input(); input != nil {
 		data.Input = input.Data()
@@ -68,14 +59,17 @@ type ThrottleDispatcher struct {
 	logger *zap.Logger
 }
 
-func NewThrottleDispatcher(lookup ThrottleLookup, disp abstract.Dispatcher, logger *zap.Logger) *ThrottleDispatcher {
+func NewThrottleDispatcher(lookup ThrottleLookup, disp abstract.Dispatcher, logger *zap.Logger, store RateLimitStore) *ThrottleDispatcher {
 	if lookup == nil {
 		lookup = func(string) *ThrottlePolicy { return nil }
+	}
+	if store == nil {
+		store = ratestore.New()
 	}
 	return &ThrottleDispatcher{
 		lookup: lookup,
 		disp:   disp,
-		store:  ratestore.New(),
+		store:  store,
 		logger: logger,
 	}
 }
