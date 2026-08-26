@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
@@ -97,38 +98,38 @@ func (p *credentialProvider) IssueResetToken(userID string) (string, error) {
 func (p *credentialProvider) ValidateResetToken(tokenString string) (string, error) {
 	parts := strings.SplitN(tokenString, ".", 2)
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid token format")
+		return "", common.NewSystemError("INVALID_TOKEN_FORMAT", "invalid token format")
 	}
 
 	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return "", fmt.Errorf("invalid token payload: %w", err)
+		return "", common.SystemErrorFrom(err).WithOperation("ValidateResetToken").WithMessage("invalid token payload")
 	}
 
 	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return "", fmt.Errorf("invalid token signature: %w", err)
+		return "", common.SystemErrorFrom(err).WithOperation("ValidateResetToken").WithMessage("invalid token signature")
 	}
 
 	mac := hmac.New(sha256.New, p.secret)
 	mac.Write(payload)
 	expected := mac.Sum(nil)[:16]
 	if !hmac.Equal(sig, expected) {
-		return "", fmt.Errorf("invalid token signature")
+		return "", common.NewSystemError("INVALID_TOKEN_SIGNATURE", "invalid token signature")
 	}
 
 	fields := strings.SplitN(string(payload), ":", 3)
 	if len(fields) != 3 {
-		return "", fmt.Errorf("invalid token payload")
+		return "", common.NewSystemError("INVALID_TOKEN_PAYLOAD", "invalid token payload")
 	}
 
 	exp, err := strconv.ParseInt(fields[1], 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("invalid token expiry: %w", err)
+		return "", common.SystemErrorFrom(err).WithOperation("ValidateResetToken").WithMessage("invalid token expiry")
 	}
 
 	if time.Now().Unix() > exp {
-		return "", fmt.Errorf("token expired")
+		return "", common.NewSystemError("TOKEN_EXPIRED", "token expired")
 	}
 
 	return fields[0], nil

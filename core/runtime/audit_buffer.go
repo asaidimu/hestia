@@ -1,4 +1,4 @@
-// @note #arch-20260821-010 issue status=open priority=P1 tags=#arch,#concurrency : Race condition in AuditBuffer circuit breaker
+// @note #arch-20260821-010 issue resolved status=open priority=P1 tags=#arch,#concurrency : Race condition in AuditBuffer circuit breaker
 //
 // The Write method (line 63) reads b.failed under mutex, then calls wg.Add(1)
 // outside the lock. A concurrent Close() could interleave between the check
@@ -86,7 +86,7 @@ func NewAuditBufferSize(persister audit.AuditPersister, logger *zap.Logger, size
 	return b
 }
 
-// @note #review-20260821-009 issue status=open priority=P1 tags=#review,#concurrency : Race condition in AuditBuffer circuit breaker
+// @note #review-20260821-009 issue resolved status=open priority=P1 tags=#review,#concurrency : Race condition in AuditBuffer circuit breaker
 // The Write method reads b.failed under mutex, but the circuit breaker is set
 // to true in the default branch without holding the mutex consistently. While
 // the current code does acquire the mutex before setting b.failed, the check

@@ -2,11 +2,11 @@ package schedules
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/hestia/core/abstract"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
@@ -55,7 +55,7 @@ func NewLiveSchedule(model *model.SystemScheduledMessagess, sched *scheduler.Sch
 func (ls *LiveSchedule) Init(ctx context.Context) error {
 	docs, err := ls.model.ListSchedules(ctx)
 	if err != nil {
-		return fmt.Errorf("list schedules: %w", err)
+		return common.SystemErrorFrom(err).WithOperation("LiveSchedule.Init").WithMessage("list schedules failed")
 	}
 	for _, doc := range docs {
 		ls.register(ctx, doc)
@@ -99,6 +99,7 @@ func (ls *LiveSchedule) register(ctx context.Context, doc data.Documenter) {
 func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error {
 	message, err := doc.GetString("message")
 	if err != nil || message == "" {
+		ls.log.Warn("schedule: skipping dispatch — no message on schedule document", zap.String("schedule_id", doc.ID()))
 		return nil
 	}
 
@@ -115,14 +116,26 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 	// wrap the schedule's input map in the same envelope the HTTP layer builds.
 	docInput, err := data.NewDocument(map[string]any{"payload": resolvedInput}, ctx)
 	if err != nil {
+		ls.log.Error("schedule: build input document failed",
+			zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.Error(err))
 		return err
 	}
 
 	sysCtx := runtimecontext.SystemContext(ctx)
 	msg := dispatch.NewMessage(message, sysCtx, docInput)
-	_, err = dispatch.Await(sysCtx, ls.disp, msg)
+	result, err := dispatch.Await(sysCtx, ls.disp, msg)
+	if err != nil {
+		// The cron chain only logs panics — returned errors would otherwise
+		// vanish, so every failure is logged here with the offending schedule.
+		ls.log.Error("schedule: dispatched operation failed",
+			zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.Error(err))
+	}
+	if result != nil {
+		result.Release()
+	}
 	return err
 }
-// @note #scheduled-dispatch-errors-are-sw-616004cd lesson P3 #schedules,#dispatch : Scheduled dispatch errors are swallowed by the cron chain
+// @note #scheduled-dispatch-errors-are-sw-616004cd lesson resolved P3 #schedules,#dispatch : Scheduled dispatch errors are swallowed by the cron chain
+// Fixed in liveschedule.go dispatch(): every failure path now logs via ls.log — missing message (Warn), input-document build failure (Error), and dispatched-operation failure with schedule_id + message + error (Error). Result document released. Failures are now visible without instrumenting code.
 //
 // LiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {"payload": ...} to satisfy input:"payload.*" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.

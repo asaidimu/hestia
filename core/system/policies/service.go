@@ -144,29 +144,29 @@ func (s *PoliciesService) ValidateRule(ctx context.Context, msg abstract.Message
 // compileValidateNode recursively compiles a rule tree node into a function.
 func compileValidateNode(node *RuleNode, liveRules iam.RuleSet[iam.FunctionRule]) (iam.FunctionRule, error) {
 	if node == nil {
-		return nil, fmt.Errorf("nil rule node")
+		return nil, common.NewSystemError("VALIDATION_ERROR", "nil rule node")
 	}
 	switch node.Type {
 	case "ref":
 		if liveRules == nil {
-			return nil, fmt.Errorf("ref %q not found — no live rules available", node.Name)
+			return nil, common.NewSystemError("VALIDATION_ERROR", fmt.Sprintf("ref %q not found — no live rules available", node.Name))
 		}
 		fn, ok := liveRules.Get(node.Name)
 		if !ok {
-			return nil, fmt.Errorf("ref %q not found in live rules", node.Name)
+			return nil, common.NewSystemError("VALIDATION_ERROR", fmt.Sprintf("ref %q not found in live rules", node.Name))
 		}
 		return fn, nil
 	case "cel":
 		return CompileCEL(node.Expression)
 	}
 	if node.Operator == "" {
-		return nil, fmt.Errorf("rule node must have expression, type, or operator")
+		return nil, common.NewSystemError("VALIDATION_ERROR", "rule node must have expression, type, or operator")
 	}
 	fns := make([]iam.FunctionRule, len(node.Conditions))
 	for i, child := range node.Conditions {
 		fn, err := compileValidateNode(&child, liveRules)
 		if err != nil {
-			return nil, fmt.Errorf("condition %d: %w", i, err)
+			return nil, common.SystemErrorFrom(err).WithOperation("compileValidateNode").WithPath(fmt.Sprintf("conditions[%d]", i))
 		}
 		fns[i] = fn
 	}

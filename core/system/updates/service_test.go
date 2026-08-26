@@ -36,15 +36,16 @@ func newTestService(t *testing.T, provider *stubProvider, currentVersion string)
 		t.Fatalf("InitSystemSettingssModel: %v", err)
 	}
 	store := NewStore(settingsM)
+	dataDir := t.TempDir()
 	u, err := updater.New(provider, updater.Config{
 		Version: currentVersion,
-		DataDir: t.TempDir(),
+		DataDir: dataDir,
 		Store:   store,
 	})
 	if err != nil {
 		t.Fatalf("new updater: %v", err)
 	}
-	svc := NewServiceFromDeps(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, false, "", "")
+	svc := NewServiceFromDeps(u, store, nil, nil, zap.NewNop(), "http://localhost", false, false, currentVersion, false, "", dataDir)
 	return svc, store
 }
 
@@ -340,5 +341,71 @@ func TestSystemdApplyUpToDateDoesNothing(t *testing.T) {
 	}
 	if string(got) != "old-binary" {
 		t.Fatalf("executable must not change when up to date: got %q", got)
+	}
+}
+
+func TestStageBackfillsChecksumWhenProviderOmitsIt(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version: "1.2.0",
+	}}, "1.0.0")
+
+	staged, _, err := svc.stageLatest(ctx)
+	if err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+	if staged == nil {
+		t.Fatal("expected staged update")
+	}
+
+	pending, err := store.PendingUpdate(ctx)
+	if err != nil {
+		t.Fatalf("pending: %v", err)
+	}
+	if pending == nil || pending.Checksum == "" {
+		t.Fatal("expected checksum to be backfilled into pending record")
+	}
+	actual, err := hashFile(svc.stagedBinaryPath())
+	if err != nil {
+		t.Fatalf("hash staged: %v", err)
+	}
+	if pending.Checksum != actual {
+		t.Errorf("backfilled checksum %q does not match file digest %q", pending.Checksum, actual)
+	}
+
+	// Verification passes with the backfilled checksum.
+	if err := svc.verifyStagedBinary(ctx); err != nil {
+		t.Fatalf("verify with backfilled checksum: %v", err)
+	}
+}
+
+func TestVerifyStagedBinaryDetectsTampering(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version:  "1.2.0",
+		Checksum: "SHA256:deadbeef",
+	}}, "1.0.0")
+
+	if _, _, err := svc.stageLatest(ctx); err != nil {
+		t.Fatalf("stage: %v", err)
+	}
+
+	// Wrong recorded checksum must fail verification.
+	if err := svc.verifyStagedBinary(ctx); err == nil {
+		t.Fatal("expected checksum mismatch error")
+	}
+
+	// Recording the real digest makes verification pass.
+	digest, err := hashFile(svc.stagedBinaryPath())
+	if err != nil {
+		t.Fatalf("hash staged: %v", err)
+	}
+	pending, _ := store.PendingUpdate(ctx)
+	pending.Checksum = digest
+	if err := store.SaveUpdate(ctx, pending); err != nil {
+		t.Fatalf("save pending: %v", err)
+	}
+	if err := svc.verifyStagedBinary(ctx); err != nil {
+		t.Fatalf("verify should pass with correct checksum: %v", err)
 	}
 }

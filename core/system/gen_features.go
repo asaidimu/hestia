@@ -71,6 +71,8 @@ var allDefaultPolicyBindings = func() []policies.Policy {
 var allPolicyBindings = func() []policies.Binding {
 	var all []policies.Binding
 	all = append(all, audit.StreamPolicyBinding()...)
+	_, nStreamBindings := notificationsvc.StreamRegistration(nil)
+	all = append(all, nStreamBindings...)
 	all = append(all, blobsvc.Policies()...)
 	all = append(all, collectionsvc.Policies()...)
 	all = append(all, usersvc.Policies()...)

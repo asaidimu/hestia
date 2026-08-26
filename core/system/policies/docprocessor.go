@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 	"github.com/google/cel-go/cel"
@@ -28,14 +29,14 @@ func init() {
 func CompileCEL(expr string) (iam.FunctionRule, error) {
 	ast, issues := celEnv.Compile(expr)
 	if issues != nil && issues.Err() != nil {
-		return nil, fmt.Errorf("compile CEL %q: %v", expr, issues.Err())
+		return nil, common.NewSystemError("CEL_COMPILE_FAILED", fmt.Sprintf("compile CEL %q: %v", expr, issues.Err()))
 	}
 	if ast.OutputType() != cel.BoolType {
-		return nil, fmt.Errorf("CEL %q must return bool, got %v", expr, ast.OutputType())
+		return nil, common.NewSystemError("CEL_COMPILE_FAILED", fmt.Sprintf("CEL %q must return bool, got %v", expr, ast.OutputType()))
 	}
 	prg, err := celEnv.Program(ast)
 	if err != nil {
-		return nil, fmt.Errorf("program CEL %q: %v", expr, err)
+		return nil, common.SystemErrorFrom(err).WithOperation("CompileCEL").WithMessagef("program CEL %q", expr)
 	}
 	return func(req iam.AccessRequest) bool {
 		vars := map[string]any{

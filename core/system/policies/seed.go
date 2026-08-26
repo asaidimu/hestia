@@ -2,7 +2,8 @@ package policies
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/asaidimu/go-anansi/v8/core/common"
 )
 
 // SeedPolicies seeds the initial set of rules and policies.
@@ -10,7 +11,7 @@ import (
 func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies []Policy) error {
 	rules, err := policyModel.ListRules(ctx)
 	if err != nil {
-		return fmt.Errorf("check existing rules: %w", err)
+		return common.SystemErrorFrom(err).WithOperation("SeedPolicies").WithMessage("check existing rules failed")
 	}
 
 	existingRules := make(map[string]bool, len(rules))
@@ -23,7 +24,7 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies
 		}
 		rule.Protected = true
 		if _, err := policyModel.CreateRule(ctx, rule); err != nil {
-			return fmt.Errorf("seed rule %s: %w", rule.Name, err)
+			return common.SystemErrorFrom(err).WithOperation("SeedPolicies").WithPath(rule.Name).WithMessage("seed rule failed")
 		}
 	}
 
@@ -34,7 +35,7 @@ func SeedPolicies(ctx context.Context, policyModel *PolicyModel, initialPolicies
 		}
 		policy.Protected = true
 		if _, err := policyModel.CreatePolicy(ctx, policy); err != nil {
-			return fmt.Errorf("seed policy %s: %w", policy.Operation, err)
+			return common.SystemErrorFrom(err).WithOperation("SeedPolicies").WithPath(policy.Operation).WithMessage("seed policy failed")
 		}
 	}
 

@@ -53,6 +53,12 @@ type Channel interface {
 	Send(ctx context.Context, n Notification) error
 }
 
+// Mailer sends emails. notification depends on this interface instead of the
+// concrete runtime.Mailer to avoid a parent-package import.
+type Mailer interface {
+	Send(to, subject, body string) error
+}
+
 // TemplateResolver renders notification subject/body from a named template.
 // Implementations load template definitions from storage and resolve them
 // against the provided data using text/template.

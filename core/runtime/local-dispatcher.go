@@ -76,7 +76,7 @@ func NewLocalDispatcherWithLogger(logger *zap.Logger) *LocalDispatcher {
 	}
 }
 
-// @note #review-20260821-001 todo status=open priority=P1 tags=#review,#errors : Use SystemError for handler dispatch errors
+// @note #review-20260821-001 todo resolved status=open priority=P1 tags=#review,#errors : Use SystemError for handler dispatch errors
 // LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,
 // but the review guide recommends using common.SystemError for consistency with
 // the rest of the codebase (see core/runtime/errors.go).
@@ -90,7 +90,7 @@ func NewLocalDispatcherWithLogger(logger *zap.Logger) *LocalDispatcher {
 // in the chain needs its own recovery wrapper.
 func (d *LocalDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if msg.Context() == nil {
-		return ErrValidation.WithOperation(msg.Name()).WithCause(fmt.Errorf("message has nil context"))
+		return ErrValidation.WithOperation(msg.Name()).WithMessage("message has nil context")
 	}
 	d.mu.RLock()
 	entry, ok := d.handlers[msg.Name()]
@@ -99,7 +99,7 @@ func (d *LocalDispatcher) Send(ctx context.Context, msg abstract.Message, onComp
 		return ErrNotFound.WithOperation(msg.Name())
 	}
 	if !entry.enabled {
-		return ErrAccessDenied.WithOperation(msg.Name()).WithCause(fmt.Errorf("handler disabled"))
+		return ErrAccessDenied.WithOperation(msg.Name()).WithMessage("handler disabled")
 	}
 
 	go func() {
@@ -145,7 +145,7 @@ func completeSafely(logger *zap.Logger, onComplete abstract.CompletionFunc, ctx 
 	abstract.Complete(onComplete, ctx, res, err)
 }
 
-// @note #review-20260821-002 todo status=open priority=P1 tags=#review,#errors : Use SystemError for duplicate handler registration
+// @note #review-20260821-002 todo resolved status=open priority=P1 tags=#review,#errors : Use SystemError for duplicate handler registration
 // The error returned when a handler is already registered should use
 // ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for
 // consistent error handling across the codebase.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
@@ -409,7 +410,8 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 	return nil
 }
 
-// @note #update-hash-verify issue P1 status=open : Verify binary hash before applying staged update
+// @note #update-hash-verify issue resolved P1 status=open : Verify binary hash before applying staged update
+// Fixed: stageLatest now backfills a computed SHA-256 into the pending record when the provider omits a checksum (the GitHub-provider hole), so every freshly staged update is verifiable. applySwap re-verifies immediately before ApplyUpdate/swapExecutable, closing the verify-to-swap TOCTOU window; mismatch logs 'staged binary failed verification' and aborts. stagedBinaryPath() handles the Windows .exe suffix. Legacy pending rows without checksums still pass vacuously (documented).
 //
 // The staged binary at DataDir/update is copied over the running executable
 // (swapExecutable) or executed directly (ApplyUpdate) without verifying its
@@ -469,6 +471,13 @@ func (s *UpdatesService) applySwap(ctx context.Context) {
 		s.logger.Error("updates: apply failed", zap.Error(fmt.Errorf("updater not configured")))
 		return
 	}
+	// Verify immediately before handing off — verifyApplyReady ran earlier
+	// (possibly via a different code path), so re-checking here closes the
+	// window where the staged file could change between check and swap.
+	if err := s.verifyStagedBinary(ctx); err != nil {
+		s.logger.Error("updates: staged binary failed verification; aborting apply", zap.Error(err))
+		return
+	}
 	if !s.systemd {
 		if err := s.updater.ApplyUpdate(); err != nil {
 			s.logger.Error("updates: apply failed", zap.Error(err))
@@ -484,8 +493,9 @@ func (s *UpdatesService) applySwap(ctx context.Context) {
 
 // verifyStagedBinary hashes the staged binary at DataDir/update and compares
 // it against the expected checksum from the pending update record. Returns nil
-// when the checksum is empty (provider did not supply one) or when the hashes
-// match. Returns an error on mismatch or I/O failure, aborting the apply.
+// when there is no pending record or no recorded checksum (legacy rows staged
+// before checksum backfilling existed), or when the hashes match. Returns an
+// error on mismatch or I/O failure, aborting the apply.
 func (s *UpdatesService) verifyStagedBinary(ctx context.Context) error {
 	pending, err := s.store.PendingUpdate(ctx)
 	if err != nil {
@@ -495,18 +505,11 @@ func (s *UpdatesService) verifyStagedBinary(ctx context.Context) error {
 		return nil // no checksum to verify — trust the staged binary
 	}
 
-	staged := filepath.Join(s.dataDir, "update")
-	f, err := os.Open(staged)
+	staged := s.stagedBinaryPath()
+	actual, err := hashFile(staged)
 	if err != nil {
-		return fmt.Errorf("open staged binary for verification: %w", err)
+		return fmt.Errorf("hash staged binary for verification: %w", err)
 	}
-	defer f.Close()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return fmt.Errorf("hash staged binary: %w", err)
-	}
-	actual := "SHA256:" + hex.EncodeToString(h.Sum(nil))
 	if actual != pending.Checksum {
 		return fmt.Errorf("staged binary checksum mismatch: expected %s, got %s", pending.Checksum, actual)
 	}
@@ -580,9 +583,41 @@ func (s *UpdatesService) checkAndStage(ctx context.Context) (staged *updater.Upd
 	return s.stageLatest(ctx)
 }
 
+// stagedBinaryPath resolves the on-disk path updater stages downloads to:
+// DataDir/update (update.exe on Windows).
+func (s *UpdatesService) stagedBinaryPath() string {
+	name := "update"
+	if goruntime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return filepath.Join(s.dataDir, name)
+}
+
+// hashFile returns the SHA-256 digest of the file at path, formatted like
+// updater checksums ("SHA256:<hex>").
+func hashFile(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return "SHA256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // stageLatest downloads and prepares the newest release, reporting the staged
 // UpdateInfo (nil when already up to date) and whether it was newly staged
 // relative to the pending row.
+//
+// When the provider did not supply a checksum, one is computed from the
+// freshly downloaded binary and persisted with the pending record so that
+// pre-apply verification always has something to compare against. This closes
+// the corrupted-download hole: without it a truncated or mid-copy-failed
+// download would pass verification vacuously (see #update-hash-verify).
 func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.UpdateInfo, newlyStaged bool, err error) {
 	if s.updater == nil {
 		return nil, false, fmt.Errorf("updater not configured")
@@ -595,6 +630,20 @@ func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.Updat
 	if staged == nil {
 		return nil, false, nil
 	}
+
+	if staged.Checksum == "" {
+		digest, err := hashFile(s.stagedBinaryPath())
+		if err != nil {
+			return nil, false, fmt.Errorf("hash staged update: %w", err)
+		}
+		staged.Checksum = digest
+		if err := s.store.SaveUpdate(ctx, staged); err != nil {
+			return nil, false, fmt.Errorf("persist computed checksum: %w", err)
+		}
+		s.logger.Info("updates: computed checksum for staged update",
+			zap.String("version", staged.Version), zap.String("checksum", digest))
+	}
+
 	return staged, prev == nil || prev.Version != staged.Version, nil
 }
 

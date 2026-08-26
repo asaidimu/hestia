@@ -49,7 +49,7 @@ func NewSchedulesService(rt abstract.Container) (*SchedulesService, error) {
 func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, input *model.ScheduleCreateInput) (*model.ScheduleCreatedView, error) {
 	claims, ok := runtimecontext.ClaimsFromContext(ctx)
 	if !ok || claims.UserID == "" {
-		return nil, fmt.Errorf("unauthenticated")
+		return nil, common.NewSystemError("UNAUTHENTICATED", "authentication is required")
 	}
 
 	if input.Cron == "" {
@@ -122,7 +122,7 @@ func (s *SchedulesService) List(ctx context.Context, msg abstract.Message, input
 // )
 func (s *SchedulesService) Get(ctx context.Context, msg abstract.Message, input *model.ScheduleGetInput) (*model.ScheduleDocumentView, error) {
 	if input.ID == "" {
-		return nil, fmt.Errorf("id is required")
+		return nil, common.NewSystemError("SCHEDULE_ID_REQUIRED", "id is required")
 	}
 
 	schedule, err := s.model.GetSchedule(ctx, input.ID)
@@ -130,7 +130,7 @@ func (s *SchedulesService) Get(ctx context.Context, msg abstract.Message, input 
 		return nil, err
 	}
 	if schedule == nil {
-		return nil, fmt.Errorf("schedule not found")
+		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found", input.ID))
 	}
 	var view model.ScheduleDocumentView
 	if err := schedule.BindTo(&view); err != nil {
@@ -241,7 +241,7 @@ func (s *SchedulesService) Update(ctx context.Context, msg abstract.Message, inp
 // )
 func (s *SchedulesService) Delete(ctx context.Context, msg abstract.Message, input *model.ScheduleDeleteInput) (*model.MessageOutput, error) {
 	if input.ID == "" {
-		return nil, fmt.Errorf("id is required")
+		return nil, common.NewSystemError("SCHEDULE_ID_REQUIRED", "id is required")
 	}
 
 	s.live.UnregisterByID(ctx, input.ID)

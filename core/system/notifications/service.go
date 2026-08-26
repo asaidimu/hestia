@@ -6,19 +6,22 @@ import (
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
+	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/system/notifications/model"
+	"github.com/asaidimu/hestia/core/system/policies"
 
-	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"go.uber.org/zap"
 )
 
 // NotificationsService is the service for the in-app notifications domain. It
 // wraps the generated SystemNotificationss model collection.
 type NotificationsService struct {
-	model *model.SystemNotificationss
+	model  *model.SystemNotificationss
+	persist persistence.Persistence
 }
 
 func NewNotificationsService(rt abstract.Container) (*NotificationsService, error) {
@@ -29,7 +32,7 @@ func NewNotificationsService(rt abstract.Container) (*NotificationsService, erro
 	if err != nil {
 		return nil, err
 	}
-	return &NotificationsService{model: m}, nil
+	return &NotificationsService{model: m, persist: persist}, nil
 }
 
 func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
@@ -184,4 +187,83 @@ func (s *NotificationsService) CountUnread(ctx context.Context, msg abstract.Mes
 		return nil, err
 	}
 	return document.New(&model.UnreadCountDocument{Count: int64(count)}), nil
+}
+
+// Stream streams new notifications for the authenticated user in real-time.
+//
+// @hestia.register(
+//
+//	name="system:notifications:notification:stream",
+//	intent="stream",
+//	rule="authenticated",
+//	description="Stream new notifications for the current user",
+//	input="model.NotificationStreamInput",
+//	output="model.NotificationStreamOutput",
+//
+// )
+func (s *NotificationsService) Stream(ctx context.Context, msg abstract.Message, input *model.NotificationStreamInput) (*abstract.Result, error) {
+	userID, err := userIDFrom(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	docCh := make(chan *document.Document, 64)
+
+	subID := s.model.Subscribe(ctx, persistence.SubscriptionOptions{
+		Event: persistence.DocumentCreateSuccess,
+		Callback: func(_ context.Context, event persistence.PersistenceEvent) error {
+			outMap, ok := event.Output.(map[string]any)
+			if !ok {
+				return nil
+			}
+			dataRaw, ok := outMap["data"]
+			if !ok {
+				return nil
+			}
+			dataMap, ok := dataRaw.(map[string]any)
+			if !ok || dataMap == nil {
+				return nil
+			}
+			uid, _ := dataMap["user_id"].(string)
+			if uid != userID {
+				return nil
+			}
+			doc := document.NewRecordView(dataMap, context.Background())
+			select {
+			case docCh <- doc:
+			default:
+			}
+			return nil
+		},
+	})
+
+	go func() {
+		select {
+		case <-msg.InputChannel():
+		case <-ctx.Done():
+		}
+		close(docCh)
+		s.model.Unsubscribe(ctx, subID)
+	}()
+
+	return &abstract.Result{DocumentChannel: docCh}, nil
+}
+
+// StreamRegistration returns the notification stream registration.
+func StreamRegistration(persist persistence.Persistence) ([]abstract.MessageRegistration, []policies.Binding) {
+	return []abstract.MessageRegistration{
+			{
+				Name:        "system:notifications:notification:stream",
+				Description: "Stream new notifications for the current user",
+				Intent:      abstract.Stream,
+				Enabled:     true,
+				Input: abstract.Input{
+					Schema: dispatch.SchemaFromTypeWithTag[model.NotificationStreamInput]("input"),
+				},
+				Output: dispatch.SchemaFromType[model.NotificationStreamOutput](),
+				Handler: dispatch.Handle[model.NotificationStreamInput](nil), // set after service init
+			},
+		}, []policies.Binding{
+			{Name: "system:notifications:notification:stream", RuleKey: "authenticated", Description: "Stream own notifications in real-time"},
+		}
 }

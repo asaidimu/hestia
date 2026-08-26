@@ -26,7 +26,7 @@ const (
 	authRateLimitPeriod = time.Minute
 )
 
-// @note #sec-20260821-003 issue status=open priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
+// @note #sec-20260821-003 issue resolved status=open priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
 //
 // authMiddleware (line 15) has no rate limiting on authentication attempts.
 // An attacker can brute-force passwords or API keys without restriction.

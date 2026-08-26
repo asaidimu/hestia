@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/users/model"
 )
@@ -55,7 +56,7 @@ func SeedAdmin(ctx context.Context, userModel *model.SystemUsers, seedModel *ope
 		var e string
 		e, err = randomHex(8)
 		if err != nil {
-			return "", "", false, fmt.Errorf("generate admin email: %w", err)
+			return "", "", false, common.SystemErrorFrom(err).WithOperation("Seed").WithMessage("generate admin email")
 		}
 		email = fmt.Sprintf("admin-%s@seed.local", e)
 	}
@@ -64,7 +65,7 @@ func SeedAdmin(ctx context.Context, userModel *model.SystemUsers, seedModel *ope
 	if password == "" {
 		password, err = randomHex(16)
 		if err != nil {
-			return "", "", false, fmt.Errorf("generate admin password: %w", err)
+			return "", "", false, common.SystemErrorFrom(err).WithOperation("Seed").WithMessage("generate admin password")
 		}
 	}
 
@@ -77,17 +78,17 @@ func SeedAdmin(ctx context.Context, userModel *model.SystemUsers, seedModel *ope
 
 	user, err := userModel.Register(ctx, email, password, "System Administrator", tenantID, nil, "administrator")
 	if err != nil {
-		return "", "", false, fmt.Errorf("create admin user: %w", err)
+		return "", "", false, common.SystemErrorFrom(err).WithOperation("Seed").WithMessage("create admin user")
 	}
 
 	adminUserID := user.ID
 
 	if err := seedModel.Set(ctx, adminSeedKey, adminUserID); err != nil {
-		return "", "", false, fmt.Errorf("save admin seed: %w", err)
+		return "", "", false, common.SystemErrorFrom(err).WithOperation("Seed").WithMessage("save admin seed")
 	}
 
 	if err := RecordInitialAdminHash(ctx, seedModel, userModel, adminUserID); err != nil {
-		return "", "", false, fmt.Errorf("record initial admin hash: %w", err)
+		return "", "", false, common.SystemErrorFrom(err).WithOperation("Seed").WithMessage("record initial admin hash")
 	}
 
 	bootstrapped = opt.ForceBootstrapped

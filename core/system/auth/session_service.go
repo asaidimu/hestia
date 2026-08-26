@@ -5,11 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/asaidimu/go-anansi/v8/core/common"
 )
 
 type SessionToken struct {
@@ -41,7 +42,7 @@ func (s *SessionService) Create(userID string, absoluteTTL time.Duration, tokenV
 	}
 	token, err := s.encode(st)
 	if err != nil {
-		return "", nil, fmt.Errorf("encode session: %w", err)
+		return "", nil, common.SystemErrorFrom(err).WithOperation("CreateSession").WithMessage("encode session")
 	}
 	return token, st, nil
 }
@@ -58,7 +59,7 @@ func (s *SessionService) Refresh(st *SessionToken) (string, *SessionToken, error
 	}
 	token, err := s.encode(refreshed)
 	if err != nil {
-		return "", nil, fmt.Errorf("encode refreshed session: %w", err)
+		return "", nil, common.SystemErrorFrom(err).WithOperation("Refresh").WithMessage("encode refreshed session")
 	}
 	return token, refreshed, nil
 }
@@ -71,33 +72,33 @@ func (s *SessionService) Refresh(st *SessionToken) (string, *SessionToken, error
 func (s *SessionService) Validate(token string) (*SessionToken, error) {
 	parts := strings.SplitN(token, ".", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid token format")
+		return nil, common.NewSystemError("INVALID_TOKEN_FORMAT", "invalid token format")
 	}
 
 	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid token payload: %w", err)
+		return nil, common.SystemErrorFrom(err).WithOperation("Validate").WithMessage("invalid token payload")
 	}
 
 	sig, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid token signature: %w", err)
+		return nil, common.SystemErrorFrom(err).WithOperation("Validate").WithMessage("invalid token signature")
 	}
 
 	mac := hmac.New(sha256.New, s.secret)
 	mac.Write(payload)
 	expected := mac.Sum(nil)[:16]
 	if !hmac.Equal(sig, expected) {
-		return nil, fmt.Errorf("invalid token signature")
+		return nil, common.NewSystemError("INVALID_TOKEN_SIGNATURE", "invalid token signature")
 	}
 
 	var st SessionToken
 	if err := json.Unmarshal(payload, &st); err != nil {
-		return nil, fmt.Errorf("invalid token payload: %w", err)
+		return nil, common.SystemErrorFrom(err).WithOperation("Validate").WithMessage("invalid token payload")
 	}
 
 	if time.Now().Unix() > st.ExpiresAt {
-		return nil, fmt.Errorf("token expired")
+		return nil, common.NewSystemError("TOKEN_EXPIRED", "token expired")
 	}
 
 	return &st, nil

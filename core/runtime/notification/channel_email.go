@@ -1,4 +1,4 @@
-// @note #arch-20260821-008 issue status=open priority=P1 tags=#arch,#dependency : Subpackage imports parent runtime package
+// @note #arch-20260821-008 issue resolved status=open priority=P1 tags=#arch,#dependency : Subpackage imports parent runtime package
 //
 // notification/channel_email.go imports its own parent runtime package (for *runtime.Mailer).
 // This violates expected hierarchical dependency direction — subpackages should not import
@@ -18,15 +18,14 @@ import (
 	"fmt"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime"
 )
 
 type emailChannel struct {
-	mailer   *runtime.Mailer
+	mailer   abstract.Mailer
 	resolver abstract.TemplateResolver
 }
 
-func NewEmailChannel(mailer *runtime.Mailer, resolver abstract.TemplateResolver) abstract.Channel {
+func NewEmailChannel(mailer abstract.Mailer, resolver abstract.TemplateResolver) abstract.Channel {
 	return &emailChannel{mailer: mailer, resolver: resolver}
 }
 

@@ -46,3 +46,10 @@ type UnreadCountOutput struct {
 }
 
 func unreadCountOutputSchema() *definition.Schema { return dispatch.SchemaFromType[UnreadCountOutput]() }
+
+// NotificationStreamOutput declares the single notification stream schema.
+type NotificationStreamOutput struct {
+	Document NotificationDocumentView `anansi:"document"`
+}
+
+func NotificationStreamOutputSchema() *definition.Schema { return dispatch.SchemaFromType[NotificationStreamOutput]() }

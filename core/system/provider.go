@@ -22,6 +22,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/audit"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
+	"github.com/asaidimu/hestia/core/system/notifications"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
@@ -225,11 +226,13 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 // plus any new-style service registrations (svcRegs) so they are visible to
 // documentation and the docs/list handler.
 func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistration) []abstract.MessageRegistration {
-	// system:audit:log:stream cannot be generated yet — the generator skips
-	// streaming annotations until dispatch.HandleInputStream lands — so
-	// audit's stream registration is hand-written in core/system/audit/stream.go.
-	// Every other feature's registrations (including updates) live in
-	// core/system/* and arrive via svcRegs from CollectServiceRegistrations.
+	// @note #w2ic5i issue : Fix stream registrations
+	//
+	// Streaming annotations are not yet codegen'd — both audit and
+	// notification stream registrations are hand-written using
+	// dispatch.Handle[TIn] for proper input binding.
 	all := audit.StreamRegistration(ps.Persist)
+	nStreamRegs, _ := notifications.StreamRegistration(ps.Persist)
+	all = append(all, nStreamRegs...)
 	return append(all, svcRegs...)
 }

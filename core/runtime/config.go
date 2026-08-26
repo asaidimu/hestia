@@ -42,7 +42,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-// @note #so98l5 todo : Define a proper config package.
+// @note #so98l5 todo resolved : Define a proper config package.
 // Consider the state of this collection of adhoc helpers
 // that are duplicated everywhere. It would be best to define
 // a single package that holds all configs, arbitary or otherwise,

@@ -1,4 +1,4 @@
-// @note #cruft-20260821-017 observation open status=open priority=P2 tags=#cruft,#note : Old-style handler functions in operations/handler.go
+// @note #cruft-20260821-017 observation resolved status=open priority=P2 tags=#cruft,#note : Old-style handler functions in operations/handler.go
 // @see #8uuufn
 // No action needed — these handlers are used by bootstrap code, not the dispatch system.
 //

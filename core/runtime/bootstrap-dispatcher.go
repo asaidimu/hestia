@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/asaidimu/hestia/core/abstract"
 )
@@ -27,7 +26,7 @@ func (d *BootstrapDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher
 
 func (d *BootstrapDispatcher) Send(ctx context.Context, msg abstract.Message, onComplete abstract.CompletionFunc) error {
 	if !d.bootstrapped() && !d.registry.IsHandlerBootstrapSafe(msg.Name()) {
-		return ErrAccessDenied.WithOperation(msg.Name()).WithCause(fmt.Errorf("handler not available until bootstrapped"))
+		return ErrAccessDenied.WithOperation(msg.Name()).WithMessage("handler not available until bootstrapped")
 	}
 	return d.next.Send(ctx, msg, onComplete)
 }
