@@ -1,3 +1,10 @@
+## [1.4.19](https://github.com/asaidimu/hestia/compare/v1.4.18...v1.4.19) (2026-08-26)
+
+
+### Bug Fixes
+
+* **system:** migrate hand-rolled models to generated collections ([f5ed14c](https://github.com/asaidimu/hestia/commit/f5ed14cb7b192d2acaf1d12cff44d1b3dfc98a5e))
+
 ## [1.4.18](https://github.com/asaidimu/hestia/compare/v1.4.17...v1.4.18) (2026-08-25)
 
 
