@@ -84,3 +84,6 @@
   },
   "version": "1.0.0"
 }
+// @note #schedule-schema-lacks-execution-0fc2ff11 issue P2 #schedules,#observability : Schedule schema lacks execution metadata (run count, last/next run)
+//
+// Verified live on the test server: schedules dispatch correctly, but the _scheduled_messages_ schema stores only disabled/tenant_id/user_id/created_at/message/input/cron. No run_count, last_run_at, next_run_at, or last_error fields exist. The in-memory scheduler.JobInfo{Next,Prev} is lost on restart. Adding these requires a schema change + anansi codegen + migration, plus writes in LiveSchedule.dispatch after each tick.

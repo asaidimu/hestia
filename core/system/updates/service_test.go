@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/internal/testutil"
-	"github.com/asaidimu/hestia/core/system/settings"
+	settingsmodel "github.com/asaidimu/hestia/core/system/settings/model"
 )
 
 type stubProvider struct {
@@ -30,7 +30,12 @@ func (p *stubProvider) DownloadUpdate(ctx context.Context, info *updater.UpdateI
 func newTestService(t *testing.T, provider *stubProvider, currentVersion string) (*UpdatesService, *Store) {
 	t.Helper()
 	p := testutil.NewPersistence(t)
-	store := NewStore(settings.NewSettingsModel(p))
+	settingsmodel.DangerouslyResetSystemSettingssModel()
+	settingsM, err := settingsmodel.InitSystemSettingssModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemSettingssModel: %v", err)
+	}
+	store := NewStore(settingsM)
 	u, err := updater.New(provider, updater.Config{
 		Version: currentVersion,
 		DataDir: t.TempDir(),
@@ -48,7 +53,12 @@ func newTestService(t *testing.T, provider *stubProvider, currentVersion string)
 func newSystemdService(t *testing.T, provider *stubProvider, currentVersion, dataDir, exePath string) (*UpdatesService, *Store) {
 	t.Helper()
 	p := testutil.NewPersistence(t)
-	store := NewStore(settings.NewSettingsModel(p))
+	settingsmodel.DangerouslyResetSystemSettingssModel()
+	settingsM, err := settingsmodel.InitSystemSettingssModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemSettingssModel: %v", err)
+	}
+	store := NewStore(settingsM)
 	u, err := updater.New(provider, updater.Config{
 		Version: currentVersion,
 		DataDir: dataDir,

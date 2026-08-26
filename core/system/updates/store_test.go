@@ -7,13 +7,18 @@ import (
 	"github.com/asaidimu/updater"
 
 	"github.com/asaidimu/hestia/core/internal/testutil"
-	"github.com/asaidimu/hestia/core/system/settings"
+	settingsmodel "github.com/asaidimu/hestia/core/system/settings/model"
 )
 
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	p := testutil.NewPersistence(t)
-	return NewStore(settings.NewSettingsModel(p))
+	settingsmodel.DangerouslyResetSystemSettingssModel()
+	m, err := settingsmodel.InitSystemSettingssModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemSettingssModel: %v", err)
+	}
+	return NewStore(m)
 }
 
 func TestStorePendingUpdateRoundTrip(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
-	"github.com/asaidimu/hestia/core/system/audit"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/auth"
 	"github.com/asaidimu/hestia/core/system/operations"
 	usermodel "github.com/asaidimu/hestia/core/system/users/model"
@@ -162,7 +162,11 @@ func TestSeedModelSetAndGet(t *testing.T) {
 func TestAuditModelInsert(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	model := audit.NewAuditModel(p)
+	auditmodel.DangerouslyResetSystemAuditLogsModel()
+	model, err := auditmodel.InitSystemAuditLogsModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemAuditLogsModel: %v", err)
+	}
 
 	entry := auditdomain.AuditEntry{
 		EventName:    "test.message",
@@ -176,7 +180,7 @@ func TestAuditModelInsert(t *testing.T) {
 		ServiceName:  "hestia",
 	}
 
-	err := model.Insert(ctx, entry)
+	err = model.Insert(ctx, entry)
 	if err != nil {
 		t.Fatalf("Insert: %v", err)
 	}

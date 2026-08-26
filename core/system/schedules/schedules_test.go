@@ -2,15 +2,17 @@ package schedules_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
+	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/system/schedules"
 	"github.com/asaidimu/hestia/core/system/schedules/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
-	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	"go.uber.org/zap"
@@ -52,12 +54,21 @@ func createTestDoc(t *testing.T) *data.Document {
 	})
 }
 
+func newTestModel(t *testing.T) *model.SystemScheduledMessagess {
+	t.Helper()
+	model.DangerouslyResetSystemScheduledMessagessModel()
+	m, err := model.InitSystemScheduledMessagessModel(testutil.NewPersistence(t), nil)
+	if err != nil {
+		t.Fatalf("InitSystemScheduledMessagessModel: %v", err)
+	}
+	return m
+}
+
 func TestScheduleModelCreateAndList(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := model.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	doc, err := m.Create(ctx, createTestDoc(t))
+	doc, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -65,7 +76,7 @@ func TestScheduleModelCreateAndList(t *testing.T) {
 		t.Fatal("expected non-empty id")
 	}
 
-	docs, err := m.List(ctx)
+	docs, err := m.ListSchedules(ctx)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -81,15 +92,14 @@ func TestScheduleModelCreateAndList(t *testing.T) {
 
 func TestScheduleModelGet(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := model.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	created, err := m.Create(ctx, createTestDoc(t))
+	created, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	doc, err := m.Get(ctx, created.ID())
+	doc, err := m.GetSchedule(ctx, created.ID())
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -100,10 +110,9 @@ func TestScheduleModelGet(t *testing.T) {
 
 func TestScheduleModelGetNotFound(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := model.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	doc, err := m.Get(ctx, "nonexistent")
+	doc, err := m.GetSchedule(ctx, "nonexistent")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -114,19 +123,18 @@ func TestScheduleModelGetNotFound(t *testing.T) {
 
 func TestScheduleModelDelete(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := model.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	created, err := m.Create(ctx, createTestDoc(t))
+	created, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if err := m.Delete(ctx, created.ID()); err != nil {
+	if err := m.DeleteSchedule(ctx, created.ID()); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	doc, err := m.Get(ctx, created.ID())
+	doc, err := m.GetSchedule(ctx, created.ID())
 	if err != nil {
 		t.Fatalf("Get after delete: %v", err)
 	}
@@ -137,19 +145,18 @@ func TestScheduleModelDelete(t *testing.T) {
 
 func TestScheduleModelUpdate(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := model.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	created, err := m.Create(ctx, createTestDoc(t))
+	created, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if err := m.Update(ctx, created.ID(), map[string]any{"cron": "@every 30m"}); err != nil {
+	if err := m.UpdateSchedule(ctx, created.ID(), map[string]any{"cron": "@every 30m"}); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
-	doc, err := m.Get(ctx, created.ID())
+	doc, err := m.GetSchedule(ctx, created.ID())
 	if err != nil {
 		t.Fatalf("Get after update: %v", err)
 	}
@@ -161,14 +168,13 @@ func TestScheduleModelUpdate(t *testing.T) {
 
 func TestCreateScheduleHandler(t *testing.T) {
 	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 	log := zap.NewNop()
 	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	result, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
 		Message: "system:test:handler",
 		Input:   map[string]any{"token": "xyz"},
@@ -187,14 +193,13 @@ func TestCreateScheduleHandler(t *testing.T) {
 
 func TestCreateScheduleHandlerMissingCron(t *testing.T) {
 	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 	log := zap.NewNop()
 	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	_, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
 		Message: "system:test:handler",
 	})
@@ -205,10 +210,9 @@ func TestCreateScheduleHandlerMissingCron(t *testing.T) {
 
 func TestListSchedulesHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	_, err := m.Create(ctx, createTestDoc(t))
+	_, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -218,7 +222,7 @@ func TestListSchedulesHandler(t *testing.T) {
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	docs, err := svc.List(ctx, &testMessage{}, &model.ScheduleListInput{})
 	if err != nil {
 		t.Fatalf("list handler: %v", err)
@@ -230,10 +234,9 @@ func TestListSchedulesHandler(t *testing.T) {
 
 func TestGetScheduleHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	created, err := m.Create(ctx, createTestDoc(t))
+	created, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -243,7 +246,7 @@ func TestGetScheduleHandler(t *testing.T) {
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	result, err := svc.Get(ctx, &testMessage{}, &model.ScheduleGetInput{ID: created.ID()})
 	if err != nil {
 		t.Fatalf("get handler: %v", err)
@@ -258,14 +261,13 @@ func TestGetScheduleHandler(t *testing.T) {
 
 func TestGetScheduleHandlerNotFound(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 	log := zap.NewNop()
 	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	_, err := svc.Get(ctx, &testMessage{}, &model.ScheduleGetInput{ID: "nonexistent"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent id")
@@ -274,10 +276,9 @@ func TestGetScheduleHandlerNotFound(t *testing.T) {
 
 func TestDeleteScheduleHandler(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 
-	created, err := m.Create(ctx, createTestDoc(t))
+	created, err := m.CreateSchedule(ctx, createTestDoc(t))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -287,7 +288,7 @@ func TestDeleteScheduleHandler(t *testing.T) {
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 	result, err := svc.Delete(ctx, &testMessage{}, &model.ScheduleDeleteInput{ID: created.ID()})
 	if err != nil {
 		t.Fatalf("delete handler: %v", err)
@@ -299,14 +300,13 @@ func TestDeleteScheduleHandler(t *testing.T) {
 
 func TestUpdateScheduleHandler(t *testing.T) {
 	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 	log := zap.NewNop()
 	sched := scheduler.New(context.Background(), log)
 	disp := runtime.NewLocalDispatcher()
 	live := schedules.NewLiveSchedule(m, sched, disp, log)
 
-	svc := schedules.NewSchedulesServiceForTest(model.NewScheduleModel(p), live)
+	svc := schedules.NewSchedulesServiceForTest(m, live)
 
 	// Create first
 	_, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
@@ -318,7 +318,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 	}
 
 	// Get the ID from the created schedule
-	docs, err := m.List(ctx)
+	docs, err := m.ListSchedules(ctx)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 	}
 
 	// Verify
-	saved, _ := m.Get(ctx, id)
+	saved, _ := m.GetSchedule(ctx, id)
 	cron, _ := saved.GetString("cron")
 	if cron != "@every 30m" {
 		t.Errorf("cron after update = %q, want %q", cron, "@every 30m")
@@ -349,8 +349,7 @@ func TestUpdateScheduleHandler(t *testing.T) {
 
 func TestLiveScheduleRegistersAndDispatches(t *testing.T) {
 	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	m := schedules.NewScheduleModel(p)
+	m := newTestModel(t)
 	log := zap.NewNop()
 	sched := scheduler.New(context.Background(), log)
 	sched.Start()
@@ -365,12 +364,12 @@ func TestLiveScheduleRegistersAndDispatches(t *testing.T) {
 		"input":   map[string]any{"token": "abc"},
 		"cron":    "@every 1h",
 	})
-	created, err := m.Create(ctx, doc)
+	created, err := m.CreateSchedule(ctx, doc)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	saved, _ := m.Get(ctx, created.ID())
+	saved, _ := m.GetSchedule(ctx, created.ID())
 	live.Register(ctx, saved)
 
 	// Verify the job was registered
@@ -392,5 +391,195 @@ func TestLiveScheduleRegistersAndDispatches(t *testing.T) {
 		if j.Name == "schedule:"+created.ID() {
 			t.Fatal("job should have been removed")
 		}
+	}
+}
+
+type schedValidateDTO struct {
+	Token string `anansi:"token,required=true" input:"payload.token"`
+	Count int    `anansi:"count" input:"payload.count"`
+}
+
+func newValidatingService(t *testing.T) *schedules.SchedulesService {
+	t.Helper()
+	m := newTestModel(t)
+	log := zap.NewNop()
+	sched := scheduler.New(context.Background(), log)
+	disp := runtime.NewLocalDispatcher()
+	live := schedules.NewLiveSchedule(m, sched, disp, log)
+	regs := []abstract.MessageRegistration{
+		{
+			Name: "system:test:schema",
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[schedValidateDTO]("input"),
+			},
+		},
+	}
+	return schedules.NewSchedulesServiceWithRegistrationsForTest(m, live, regs)
+}
+
+func TestCreateRejectsInvalidCron(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	_, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "not a cron",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid cron")
+	}
+	if !strings.Contains(err.Error(), "invalid cron") {
+		t.Errorf("expected cron error, got: %v", err)
+	}
+}
+
+func TestCreateRejectsUnknownMessage(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	_, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:does:not:exist",
+		Cron:    "@every 1h",
+	})
+	if err == nil {
+		t.Fatal("expected error for unregistered message")
+	}
+	if !strings.Contains(err.Error(), "not registered") {
+		t.Errorf("expected unknown-message error, got: %v", err)
+	}
+}
+
+func TestCreateRejectsInputViolatingSchema(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	_, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "@every 1h",
+		Input:   map[string]any{"count": 3}, // missing required token
+	})
+	if err == nil {
+		t.Fatal("expected schema validation error")
+	}
+	if !strings.Contains(err.Error(), "does not match its schema") {
+		t.Errorf("expected schema error, got: %v", err)
+	}
+}
+
+func TestCreateAcceptsSchemaConformingInput(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	result, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "@every 1h",
+		Input:   map[string]any{"token": "abc", "count": 1},
+	})
+	if err != nil {
+		t.Fatalf("expected success, got: %v", err)
+	}
+	if result == nil || result.ID == "" {
+		t.Fatal("expected created schedule with ID")
+	}
+}
+
+func TestUpdatePreservesUntouchedFields(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	created, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "@every 1h",
+		Input:   map[string]any{"token": "keepme", "count": 7},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	disabled := false
+	if _, err := svc.Update(ctx, &testMessage{}, &model.ScheduleUpdateInput{
+		ID:       created.ID,
+		Cron:     "@every 30m",
+		Disabled: &disabled,
+	}); err != nil {
+		t.Fatalf("update with cron+disabled only: %v", err)
+	}
+
+	docs, err := svc.List(ctx, &testMessage{}, &model.ScheduleListInput{})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	saved := docs[0]
+	gotMessage, _ := saved.GetString("message")
+	if gotMessage != "system:test:schema" {
+		t.Errorf("message was blanked: got %q", gotMessage)
+	}
+	raw, _ := saved.Get("input")
+	inputMap, ok := raw.(map[string]any)
+	if !ok || inputMap["token"] != "keepme" {
+		t.Errorf("input was blanked: got %#v", raw)
+	}
+	gotDisabled, _ := saved.GetBool("disabled")
+	if gotDisabled {
+		t.Error("disabled should remain false")
+	}
+	gotCron, _ := saved.GetString("cron")
+	if gotCron != "@every 30m" {
+		t.Errorf("cron not updated: got %q", gotCron)
+	}
+}
+
+func TestUpdateCanDisable(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	created, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "@every 1h",
+		Input:   map[string]any{"token": "t"},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	truth := true
+	if _, err := svc.Update(ctx, &testMessage{}, &model.ScheduleUpdateInput{
+		ID:       created.ID,
+		Disabled: &truth,
+	}); err != nil {
+		t.Fatalf("disable update: %v", err)
+	}
+
+	docs, err := svc.List(ctx, &testMessage{}, &model.ScheduleListInput{})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	gotDisabled, _ := docs[0].GetBool("disabled")
+	if !gotDisabled {
+		t.Error("expected disabled=true after update")
+	}
+}
+
+func TestUpdateValidatesMergedTarget(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "test-user"})
+	svc := newValidatingService(t)
+
+	created, err := svc.Create(ctx, &testMessage{}, &model.ScheduleCreateInput{
+		Message: "system:test:schema",
+		Cron:    "@every 1h",
+		Input:   map[string]any{"token": "ok"},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Replacing input with a payload missing the required token must fail.
+	_, err = svc.Update(ctx, &testMessage{}, &model.ScheduleUpdateInput{
+		ID:   created.ID,
+		Cron: "@every 2h",
+		Input: map[string]any{"count": 1},
+	})
+	if err == nil || !strings.Contains(err.Error(), "does not match its schema") {
+		t.Errorf("expected merged-target schema error, got: %v", err)
 	}
 }

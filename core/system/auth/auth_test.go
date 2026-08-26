@@ -24,7 +24,7 @@ import (
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
 	"github.com/asaidimu/hestia/core/system/auth"
 	authmodel "github.com/asaidimu/hestia/core/system/auth/model"
-	"github.com/asaidimu/hestia/core/system/tenants"
+	tenantsmodel "github.com/asaidimu/hestia/core/system/tenants/model"
 	"github.com/asaidimu/hestia/core/system/users"
 	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
@@ -65,16 +65,20 @@ func (m testMessage) SessionID() string                     { return "" }
 func newTestAuthService(t *testing.T, p base.Persistence, opts ...func(*auth.AuthService)) *auth.AuthService {
 	t.Helper()
 	userModel := newUserModelOn(t, p)
-	tenantModel := tenants.NewTenantModel(p)
+	tenantsmodel.DangerouslyResetSystemTenantsModel()
+	tenantModel, err := tenantsmodel.InitSystemTenantsModel(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("InitSystemTenantsModel: %v", err)
+	}
 	sessionSvc := auth.NewSessionService("test-secret")
 	credProv := auth.NewCredentialsProvider(sessionSvc, "test-secret:reset")
 
 	ctx := context.Background()
-	tenant, err := tenantModel.Create(ctx, "Test Tenant", "", nil)
+	tenant, err := tenantModel.CreateTenant(ctx, "Test Tenant", "", nil)
 	if err != nil {
-		t.Fatalf("tenantModel.Create failed: %v", err)
+		t.Fatalf("tenantModel.CreateTenant failed: %v", err)
 	}
-	tenantID := tenant.ID()
+	tenantID := tenant.ID
 
 	_, err = userModel.Register(ctx, "test@example.com", "secret123", "Test User", tenantID, nil)
 	if err != nil {

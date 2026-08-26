@@ -51,6 +51,26 @@ Current skipped boot tests:
 
 ---
 
+## Error Handling
+
+Do **not** use `fmt.Errorf` or `errors.New` for handler/service/model errors.
+Use go-anansi's **`common.SystemError`** so errors carry stable codes and
+structured context that surfaces in API responses:
+
+* `common.NewSystemError("ERR_CODE", "message")` — construct with a stable
+  SCREAMING_SNAKE code.
+* `common.SystemErrorFrom(err).WithOperation("Op").WithPath(id).WithCause(err)`
+  — wrap underlying errors with operation/path context.
+* Chain `.WithMessagef(...)`, `.WithIssue(...)` for detail; package-level
+  sentinel errors (`var ErrX = common.NewSystemError(...)` reused via
+  `.WithOperation(...)`) are preferred over ad-hoc construction where codes
+  repeat.
+
+Existing `fmt.Errorf` calls are legacy — don't add new ones; convert
+opportunistically when already editing a file.
+
+---
+
 ## Writing TODOs
 
 When starting on a new taks, write the steps to a file under the `todo` folder.

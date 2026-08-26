@@ -5,7 +5,7 @@ go 1.27rc1
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/asaidimu/blobs v1.3.1
-	github.com/asaidimu/go-anansi/v8 v8.5.11
+	github.com/asaidimu/go-anansi/v8 v8.6.4
 	github.com/asaidimu/go-events/v2 v2.0.1
 	github.com/asaidimu/go-iam/v2 v2.0.0
 	github.com/asaidimu/updater v1.1.1
@@ -53,7 +53,8 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
 	github.com/kalbasit/fastcdc v1.0.0 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo/v4 v4.13.3 // indirect
@@ -82,6 +83,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
+	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.etcd.io/bbolt v1.5.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect

@@ -20,7 +20,7 @@ import (
 	"github.com/asaidimu/updater"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	featureaudit "github.com/asaidimu/hestia/core/system/audit"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/auth"
 	authsvc "github.com/asaidimu/hestia/core/system/auth"
 	"github.com/asaidimu/hestia/core/system/blobs"
@@ -28,6 +28,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/collections"
 	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
+	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
 	"github.com/asaidimu/hestia/core/system/schedules"
 	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
@@ -73,6 +74,9 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 	if err := m.providers.InitModels(ctx); err != nil {
 		return fmt.Errorf("init models: %w", err)
 	}
+	if err := m.initPolicyInfra(ctx); err != nil {
+		return fmt.Errorf("init policy infra: %w", err)
+	}
 
 	m.providers.LiveSchedule = schedules.NewLiveSchedule(m.providers.Schedules, m.providers.Scheduler, m.disp, m.opts.Logger)
 	if err := m.providers.LiveSchedule.Init(ctx); err != nil {
@@ -97,12 +101,6 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 
 	if err := m.seedData(ctx); err != nil {
 		return err
-	}
-	if err := m.initPermissions(ctx); err != nil {
-		return err
-	}
-	if err := m.initAccessController(ctx); err != nil {
-		return fmt.Errorf("init access controller: %w", err)
 	}
 	if err := m.initUserClaimsCache(ctx); err != nil {
 		return fmt.Errorf("init user claims cache: %w", err)
@@ -164,7 +162,7 @@ func (m *SystemModule) seedProviders(rt abstract.Container, apiKeyAuth *auth.API
 	if err := abstract.RegisterInstance[operationsvc.OnResetFunc](rt, m.resetCallback()); err != nil {
 		return err
 	}
-	if err := abstract.RegisterInstance[*featureaudit.AuditModel](rt, m.providers.Audit); err != nil {
+	if err := abstract.RegisterInstance[*auditmodel.SystemAuditLogs](rt, m.providers.Audit); err != nil {
 		return err
 	}
 	if err := abstract.RegisterInstance[*[]abstract.MessageRegistration](rt, &m.messages); err != nil {
@@ -290,14 +288,27 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 	return nil
 }
 
-func (m *SystemModule) initPermissions(ctx context.Context) error {
-	opColl, err := m.providers.Persist.Collection(ctx, "_operation_policy_")
+// initPolicyInfra wires the policy/rule persistence stack: it opens both raw
+// collections, layers the LiveRepositories (compiled *Policy / iam.FunctionRule
+// caches) over them, then constructs the generated ModelCollections OVER those
+// live repositories. Every write through PolicyModel therefore flows through
+// the same instances the permission manager and access controller read from —
+// DB and live caches stay coherent without manual invalidation.
+func (m *SystemModule) initPolicyInfra(ctx context.Context) error {
+	ps := m.providers
+
+	opColl, err := ps.Persist.Collection(ctx, "_operation_policy_")
 	if err != nil {
-		m.opts.Logger.Warn("Failed to open _operation_policy_ collection, using static defaults", zap.Error(err))
-		m.providers.PermMgr = policies.NewLivePermissionManager(nil, m.allDefaultPolicies())
-		return nil
+		return fmt.Errorf("open _operation_policy_ collection: %w", err)
+	}
+	ruleColl, err := ps.Persist.Collection(ctx, "_iam_rule_")
+	if err != nil {
+		return fmt.Errorf("open _iam_rule_ collection: %w", err)
 	}
 
+	// Live policy repository: compiled *Policy cache keyed by composite key.
+	// Degrades to a raw-backed model plus static-default policies on failure.
+	opBacking := opColl
 	livePolicies, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[*policies.Policy]{
 		Collection: opColl,
 		Processor:  &policies.PolicyDocProcessor{},
@@ -305,25 +316,16 @@ func (m *SystemModule) initPermissions(ctx context.Context) error {
 		AutoLoad:   false,
 	})
 	if err != nil {
-		m.opts.Logger.Warn("Failed to create live policy repository, using static defaults", zap.Error(err))
-		m.providers.PermMgr = policies.NewLivePermissionManager(nil, m.allDefaultPolicies())
-		return nil
-	}
-	m.providers.LivePolicies = livePolicies
-	if liveColl, ok := livePolicies.(base.Collection); ok {
-		m.providers.Policies.SetPolicyColl(liveColl)
-	}
-	m.providers.PermMgr = policies.NewLivePermissionManager(livePolicies, m.allDefaultPolicies())
-	return nil
-}
-
-func (m *SystemModule) initAccessController(ctx context.Context) error {
-	ruleColl, err := m.providers.Persist.Collection(ctx, "_iam_rule_")
-	if err != nil {
-		return fmt.Errorf("get _iam_rule_ collection: %w", err)
+		ps.Logger.Warn("Failed to create live policy repository, using static defaults", zap.Error(err))
+		ps.PermMgr = policies.NewLivePermissionManager(nil, m.allDefaultPolicies())
+	} else {
+		ps.LivePolicies = livePolicies
+		opBacking = livePolicies
+		ps.PermMgr = policies.NewLivePermissionManager(livePolicies, m.allDefaultPolicies())
 	}
 
-	live, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[iam.FunctionRule]{
+	// Live rule repository: compiled CEL functions keyed by rule name.
+	liveRules, err := collection.NewLiveRepository(ctx, collection.LiveRepositoryOptions[iam.FunctionRule]{
 		Collection: ruleColl,
 		Processor:  &policies.RuleDocProcessor{},
 		QueryKey:   "name",
@@ -332,18 +334,25 @@ func (m *SystemModule) initAccessController(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create live rule repository: %w", err)
 	}
-	m.providers.LiveRules = live
-
-	if liveColl, ok := live.(base.Collection); ok {
-		m.providers.Policies.SetRuleColl(liveColl)
-	}
-
+	ps.LiveRules = liveRules
 	for name, fn := range policies.GoDefaultRules() {
-		live.Set(name, fn)
+		liveRules.Set(name, fn)
 	}
 
-	m.providers.AccessCtrl = iam.CreateAccessController(iam.AccessControllerOptions{
-		Rules:    live,
+	opModelColl, err := collection.NewModelCollection[*policiesmodel.SystemOperationPolicy](opBacking, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("build operation policy model collection: %w", err)
+	}
+	ruleModelColl, err := collection.NewModelCollection[*policiesmodel.SystemIamRule](liveRules, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("build iam rule model collection: %w", err)
+	}
+	ps.OpModel = &policiesmodel.SystemOperationPolicys{ModelCollection: opModelColl}
+	ps.RuleModel = &policiesmodel.SystemIamRules{ModelCollection: ruleModelColl}
+	ps.Policies = policies.NewPolicyModel(ps.OpModel, ps.RuleModel, nil)
+
+	ps.AccessCtrl = iam.CreateAccessController(iam.AccessControllerOptions{
+		Rules:    liveRules,
 		CacheTTL: 0,
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return nil

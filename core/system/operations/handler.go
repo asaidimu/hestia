@@ -25,7 +25,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
-	"github.com/asaidimu/hestia/core/system/audit"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -86,7 +86,7 @@ func NewDocumentationHandler(registrations *[]abstract.MessageRegistration, apiP
 	}
 }
 
-func NewLogAccessHandler(model *audit.AuditModel) abstract.MessageHandler {
+func NewLogAccessHandler(model *auditmodel.SystemAuditLogs) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		entry := extractAuditEntry(msg.Input())
 		if err := model.Insert(ctx, entry); err != nil {

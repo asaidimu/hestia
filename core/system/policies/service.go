@@ -16,9 +16,9 @@ import (
 
 // PoliciesService is the service for the IAM policy/rule/binding domain. It
 // resolves the shared PolicyModel, permission manager, and live rules from the
-// runtime DI container — the same instances the module builds and mutates
-// during boot (SetKnownBindings, SetPolicyColl, SetRuleColl), so reads/writes
-// go through the live repositories and stay in sync with the access controller.
+// runtime DI container — the same instances the module builds during boot
+// (initPolicyInfra), so reads/writes go through the live repositories and stay
+// in sync with the access controller.
 type PoliciesService struct {
 	model *PolicyModel
 	perm  runtime.ReloadablePermissionManager

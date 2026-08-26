@@ -20,11 +20,12 @@ type ScheduleGetInput struct {
 }
 
 type ScheduleUpdateInput struct {
-	ID       string         `input:"arguments.id"`
+	ID string `input:"arguments.id"`
+	// Nil/absent fields leave the stored value unchanged.
 	Message  string         `input:"payload.message"`
-	Input    map[string]any `input:"payload.input"`
+	Input    map[string]any `input:"payload.input,omitempty"`
 	Cron     string         `input:"payload.cron"`
-	Disabled bool           `input:"payload.disabled"`
+	Disabled *bool          `input:"payload.disabled"`
 }
 
 type ScheduleDeleteInput struct {

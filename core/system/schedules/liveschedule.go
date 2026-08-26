@@ -13,6 +13,7 @@ import (
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	"github.com/asaidimu/hestia/core/runtime/templateutil"
+	"github.com/asaidimu/hestia/core/system/schedules/model"
 )
 
 func scheduleTemplateData(doc data.Documenter) map[string]any {
@@ -36,13 +37,13 @@ func scheduleTemplateData(doc data.Documenter) map[string]any {
 }
 
 type LiveSchedule struct {
-	model *ScheduleModel
+	model *model.SystemScheduledMessagess
 	sched *scheduler.Scheduler
 	disp  abstract.Dispatcher
 	log   *zap.Logger
 }
 
-func NewLiveSchedule(model *ScheduleModel, sched *scheduler.Scheduler, disp abstract.Dispatcher, log *zap.Logger) *LiveSchedule {
+func NewLiveSchedule(model *model.SystemScheduledMessagess, sched *scheduler.Scheduler, disp abstract.Dispatcher, log *zap.Logger) *LiveSchedule {
 	return &LiveSchedule{
 		model: model,
 		sched: sched,
@@ -52,7 +53,7 @@ func NewLiveSchedule(model *ScheduleModel, sched *scheduler.Scheduler, disp abst
 }
 
 func (ls *LiveSchedule) Init(ctx context.Context) error {
-	docs, err := ls.model.List(ctx)
+	docs, err := ls.model.ListSchedules(ctx)
 	if err != nil {
 		return fmt.Errorf("list schedules: %w", err)
 	}
@@ -110,7 +111,9 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 
 	resolvedInput := templateutil.ResolveMap(inputMap, scheduleTemplateData(doc))
 
-	docInput, err := data.NewDocument(resolvedInput, ctx)
+	// Handler DTOs bind via input:"payload.*" tags — internal dispatches must
+	// wrap the schedule's input map in the same envelope the HTTP layer builds.
+	docInput, err := data.NewDocument(map[string]any{"payload": resolvedInput}, ctx)
 	if err != nil {
 		return err
 	}
@@ -120,3 +123,6 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 	_, err = dispatch.Await(sysCtx, ls.disp, msg)
 	return err
 }
+// @note #scheduled-dispatch-errors-are-sw-616004cd lesson P3 #schedules,#dispatch : Scheduled dispatch errors are swallowed by the cron chain
+//
+// LiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {"payload": ...} to satisfy input:"payload.*" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	featureaudit "github.com/asaidimu/hestia/core/system/audit"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/runtime"
 	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
@@ -36,7 +36,7 @@ type OperationsService struct {
 	bootstrapped  BootstrappedFunc
 	onBootstrap   OnBootstrapFunc
 	onReset       OnResetFunc
-	auditModel    *featureaudit.AuditModel
+	auditModel    *auditmodel.SystemAuditLogs
 	registrations *[]abstract.MessageRegistration
 	scheduler     *scheduler.Scheduler
 }
@@ -46,7 +46,7 @@ func NewOperationsService(rt abstract.Container) (*OperationsService, error) {
 	bootstrapped := abstract.MustResolve[BootstrappedFunc](rt)
 	onBootstrap := abstract.MustResolve[OnBootstrapFunc](rt)
 	onReset := abstract.MustResolve[OnResetFunc](rt)
-	auditModel := abstract.MustResolve[*featureaudit.AuditModel](rt)
+	auditModel := abstract.MustResolve[*auditmodel.SystemAuditLogs](rt)
 	registrations := abstract.MustResolve[*[]abstract.MessageRegistration](rt)
 	sched := abstract.MustResolve[*scheduler.Scheduler](rt)
 	log, _ := abstract.Resolve[*zap.Logger](rt)

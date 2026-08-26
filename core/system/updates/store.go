@@ -9,7 +9,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/updater"
 
-	"github.com/asaidimu/hestia/core/system/settings"
+	"github.com/asaidimu/hestia/core/system/settings/model"
 )
 
 const pendingKey = "updates:pending"
@@ -29,16 +29,21 @@ type pendingUpdate struct {
 // (key updates:pending, tenant ""), satisfying updater.Store. The settings
 // `value` field is a record, so each value is stored as a JSON-shaped object.
 type Store struct {
-	Settings *settings.SettingsModel
+	Settings *model.SystemSettingss
 }
 
-func NewStore(settingsModel *settings.SettingsModel) *Store {
+func NewStore(settingsModel *model.SystemSettingss) *Store {
 	return &Store{Settings: settingsModel}
 }
 
 // InitStore creates a Store from the DI-resolved persistence layer.
 func InitStore(persist base.Persistence) *Store {
-	return NewStore(settings.NewSettingsModel(persist))
+	model.DangerouslyResetSystemSettingssModel()
+	m, err := model.InitSystemSettingssModel(persist, nil)
+	if err != nil {
+		panic("init system settings model: " + err.Error())
+	}
+	return NewStore(m)
 }
 
 func (s *Store) SaveUpdate(ctx context.Context, info *updater.UpdateInfo) error {
@@ -59,7 +64,7 @@ func (s *Store) SaveUpdate(ctx context.Context, info *updater.UpdateInfo) error 
 func (s *Store) PendingUpdate(ctx context.Context) (*updater.UpdateInfo, error) {
 	v, err := s.Settings.Get(ctx, "", pendingKey)
 	if err != nil {
-		if errors.Is(err, settings.ErrNotFound) {
+		if errors.Is(err, model.ErrNotFound) {
 			return nil, nil
 		}
 		return nil, err

@@ -25,6 +25,8 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
+const auditCollectionName = "_audit_log_"
+
 func logStreamHandler(persist base.Persistence) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		docCh := make(chan *document.Document, 64)

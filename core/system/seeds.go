@@ -82,10 +82,10 @@ func seedTenant(ctx context.Context, ps *ProviderSet) (string, error) {
 		return result.Data[0].ID(), nil
 	}
 
-	doc, err := ps.Tenants.Create(ctx, "Platform", "", nil)
+	doc, err := ps.Tenants.CreateTenant(ctx, "Platform", "", nil)
 	if err != nil {
 		return "", fmt.Errorf("create tenant: %w", err)
 	}
-	ps.Logger.Info("seeded root tenant", zap.String("tenant_id", doc.ID()))
-	return doc.ID(), nil
+	ps.Logger.Info("seeded root tenant", zap.String("tenant_id", doc.ID))
+	return doc.ID, nil
 }

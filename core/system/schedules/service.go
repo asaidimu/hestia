@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/document"
 
@@ -14,20 +15,27 @@ import (
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 )
 
-// SchedulesService is the service for the cron-triggered schedule domain. It
-// wraps the hand-rolled ScheduleModel plus the shared LiveSchedule bridge (the
-// boot-wired scheduler+dispatcher instance) so create/update/delete keep the
-// live cron jobs in sync.
+// SchedulesService is the service for the cron-triggered schedule domain.
 type SchedulesService struct {
-	model *model.ScheduleModel
+	model *model.SystemScheduledMessagess
 	live  *LiveSchedule
+	// registrations is the shared, late-filled message catalog — dereferenced
+	// at call time because services are constructed before RegisterServices.
+	// Nil in unit tests: target-schema validation is skipped then.
+	registrations *[]abstract.MessageRegistration
 }
 
 func NewSchedulesService(rt abstract.Container) (*SchedulesService, error) {
 	persist := abstract.MustResolve[persistence.Persistence](rt)
 	live := abstract.MustResolve[*LiveSchedule](rt)
+	registrations, _ := abstract.Resolve[*[]abstract.MessageRegistration](rt)
 
-	return &SchedulesService{model: model.NewScheduleModel(persist), live: live}, nil
+	model.DangerouslyResetSystemScheduledMessagessModel()
+	m, err := model.InitSystemScheduledMessagessModel(persist, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &SchedulesService{model: m, live: live, registrations: registrations}, nil
 }
 
 // Create creates a cron-triggered schedule.
@@ -45,7 +53,13 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 	}
 
 	if input.Cron == "" {
-		return nil, fmt.Errorf("cron is required")
+		return nil, common.NewSystemError("SCHEDULE_CRON_REQUIRED", "cron is required")
+	}
+	if err := ValidateCronExpr(input.Cron); err != nil {
+		return nil, err
+	}
+	if err := validateScheduleTarget(s.registrations, input.Message, input.Input); err != nil {
+		return nil, err
 	}
 
 	userID := input.UserID
@@ -66,7 +80,7 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 		doc.Set("tenant_id", tenantID)
 	}
 
-	saved, err := s.model.Create(ctx, doc)
+	saved, err := s.model.CreateSchedule(ctx, doc)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +104,7 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 func (s *SchedulesService) List(ctx context.Context, msg abstract.Message, input *model.ScheduleListInput) ([]*document.Document, error) {
 	tenantID := runtimecontext.GetTenantID(ctx)
 
-	docs, err := s.model.ListByTenant(ctx, tenantID, 50, 0)
+	docs, err := s.model.ListSchedulesByTenant(ctx, tenantID, 50, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +125,7 @@ func (s *SchedulesService) Get(ctx context.Context, msg abstract.Message, input 
 		return nil, fmt.Errorf("id is required")
 	}
 
-	schedule, err := s.model.Get(ctx, input.ID)
+	schedule, err := s.model.GetSchedule(ctx, input.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,25 +151,78 @@ func (s *SchedulesService) Get(ctx context.Context, msg abstract.Message, input 
 // )
 func (s *SchedulesService) Update(ctx context.Context, msg abstract.Message, input *model.ScheduleUpdateInput) (*model.MessageOutput, error) {
 	if input.ID == "" {
-		return nil, fmt.Errorf("id is required")
+		return nil, common.NewSystemError("SCHEDULE_ID_REQUIRED", "id is required")
+	}
+
+	existing, err := s.model.GetSchedule(ctx, input.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found", input.ID))
+	}
+
+	// Merge provided fields over the stored schedule so persistence and
+	// validation always see the complete post-update state. Absent fields
+	// leave the stored value unchanged.
+	updates := map[string]any{}
+	message, _ := existing.GetString("message")
+	cronExpr, _ := existing.GetString("cron")
+	var inputMap map[string]any
+	if raw, err := existing.Get("input"); err == nil {
+		if m, ok := raw.(map[string]any); ok {
+			inputMap = m
+		}
+	}
+
+	targetTouched := false
+	if input.Message != "" {
+		updates["message"] = input.Message
+		message = input.Message
+		targetTouched = true
+	}
+	if input.Input != nil {
+		updates["input"] = input.Input
+		inputMap = input.Input
+		targetTouched = true
+	}
+	if input.Cron != "" {
+		if err := ValidateCronExpr(input.Cron); err != nil {
+			return nil, err
+		}
+		updates["cron"] = input.Cron
+		cronExpr = input.Cron
+		targetTouched = true
+	}
+	if input.Disabled != nil {
+		updates["disabled"] = *input.Disabled
+	}
+
+	if len(updates) == 0 {
+		return nil, common.NewSystemError("SCHEDULE_NO_FIELDS", "no updatable fields provided")
+	}
+	// Only re-validate the dispatch target when a target-affecting field
+	// changed; disabling a broken schedule must stay possible.
+	if targetTouched {
+		if err := validateScheduleTarget(s.registrations, message, inputMap); err != nil {
+			return nil, err
+		}
+	}
+	if cronExpr == "" {
+		return nil, common.NewSystemError("SCHEDULE_CRON_REQUIRED", "cron is required")
 	}
 
 	s.live.UnregisterByID(ctx, input.ID)
-	if err := s.model.Update(ctx, input.ID, map[string]any{
-		"message":  input.Message,
-		"input":    input.Input,
-		"cron":     input.Cron,
-		"disabled": input.Disabled,
-	}); err != nil {
+	if err := s.model.UpdateSchedule(ctx, input.ID, updates); err != nil {
 		return nil, err
 	}
 
-	saved, err := s.model.Get(ctx, input.ID)
+	saved, err := s.model.GetSchedule(ctx, input.ID)
 	if err != nil {
 		return nil, err
 	}
 	if saved == nil {
-		return nil, fmt.Errorf("schedule not found after update")
+		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found after update", input.ID))
 	}
 
 	s.live.Register(ctx, saved)
@@ -179,7 +246,7 @@ func (s *SchedulesService) Delete(ctx context.Context, msg abstract.Message, inp
 
 	s.live.UnregisterByID(ctx, input.ID)
 
-	if err := s.model.Delete(ctx, input.ID); err != nil {
+	if err := s.model.DeleteSchedule(ctx, input.ID); err != nil {
 		return nil, err
 	}
 

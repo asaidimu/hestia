@@ -21,25 +21,20 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func openCollections(t *testing.T, p base.Persistence) (base.Collection, base.Collection) {
-	t.Helper()
-	ctx := context.Background()
-	opColl, err := p.Collection(ctx, "_operation_policy_")
-	if err != nil {
-		t.Fatalf("open _operation_policy_ collection: %v", err)
-	}
-	ruleColl, err := p.Collection(ctx, "_iam_rule_")
-	if err != nil {
-		t.Fatalf("open _iam_rule_ collection: %v", err)
-	}
-	return opColl, ruleColl
-}
-
 func newTestModel(t *testing.T) *policies.PolicyModel {
 	t.Helper()
+	model.DangerouslyResetSystemOperationPolicysModel()
+	model.DangerouslyResetSystemIamRulesModel()
 	p := testutil.NewPersistence(t)
-	opColl, ruleColl := openCollections(t, p)
-	return policies.NewPolicyModel(opColl, ruleColl, nil)
+	opModel, err := model.InitSystemOperationPolicysModel(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("init operation policy model: %v", err)
+	}
+	ruleModel, err := model.InitSystemIamRulesModel(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("init iam rule model: %v", err)
+	}
+	return policies.NewPolicyModel(opModel, ruleModel, nil)
 }
 
 func TestPolicyBindings(t *testing.T) {
@@ -236,6 +231,8 @@ func TestDefaultRules(t *testing.T) {
 
 func newValidateService(t *testing.T) *policies.PoliciesService {
 	t.Helper()
+	model.DangerouslyResetSystemOperationPolicysModel()
+	model.DangerouslyResetSystemIamRulesModel()
 	p := testutil.NewPersistence(t)
 	rt := runtime.NewRuntime()
 	if err := rt.RegisterInstance[base.Persistence](p); err != nil {
@@ -244,8 +241,15 @@ func newValidateService(t *testing.T) *policies.PoliciesService {
 	if err := rt.RegisterInstance[*zap.Logger](zap.NewNop()); err != nil {
 		t.Fatalf("RegisterInstance logger: %v", err)
 	}
-	opColl, ruleColl := openCollections(t, p)
-	if err := rt.RegisterInstance[*policies.PolicyModel](policies.NewPolicyModel(opColl, ruleColl, nil)); err != nil {
+	opModel, err := model.InitSystemOperationPolicysModel(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("init operation policy model: %v", err)
+	}
+	ruleModel, err := model.InitSystemIamRulesModel(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("init iam rule model: %v", err)
+	}
+	if err := rt.RegisterInstance[*policies.PolicyModel](policies.NewPolicyModel(opModel, ruleModel, nil)); err != nil {
 		t.Fatalf("RegisterInstance policy model: %v", err)
 	}
 	live := policies.GoDefaultRules()

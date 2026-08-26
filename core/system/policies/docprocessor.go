@@ -7,6 +7,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-iam/v2/iam"
 	"github.com/google/cel-go/cel"
+
+	"github.com/asaidimu/hestia/core/runtime"
 )
 
 var celEnv *cel.Env
@@ -84,13 +86,75 @@ func (p *PolicyDocProcessor) Destroy(ctx context.Context, pol *Policy) error {
 }
 
 func (p *PolicyDocProcessor) Compile(ctx context.Context, doc data.Documenter) (*Policy, error) {
-	policies, err := docToPolicy(doc)
+	policy, err := docToPolicy(doc)
 	if err != nil {
 		return nil, err
 	}
-	return &policies, nil
+	return &policy, nil
 }
 
 func (p *PolicyDocProcessor) CloneState(pol *Policy) (*Policy, error) {
 	return pol, nil
+}
+
+func docToPolicy(doc data.Documenter) (Policy, error) {
+	operation, err := doc.GetString("operation")
+	if err != nil {
+		return Policy{}, err
+	}
+	rule, err := doc.GetString("rule")
+	if err != nil {
+		return Policy{}, err
+	}
+	enabled, _ := doc.GetBool("enabled")
+	protected, _ := doc.GetBool("protected")
+	tenantID, _ := doc.GetString("tenant_id")
+	key, _ := doc.GetString("key")
+
+	p := Policy{
+		ID:        doc.ID(),
+		Operation: operation,
+		Rule:      rule,
+		TenantID:  tenantID,
+		Key:       key,
+		Enabled:   enabled,
+		Protected: protected,
+	}
+
+	if rle, _ := doc.GetBool("rate_limit_enabled"); rle {
+		p.RateLimit = &runtime.RateLimitPolicy{
+			Enabled:  true,
+			Identity: mustGetString(doc, "rate_identity"),
+			Capacity: int64(mustGetFloat(doc, "rate_capacity")),
+			Refill:   int64(mustGetFloat(doc, "rate_refill")),
+			Period:   int64(mustGetFloat(doc, "rate_period")),
+		}
+	}
+
+	if tl, _ := doc.GetFloat64("throttle_limit"); tl > 0 {
+		p.Throttle = &runtime.ThrottlePolicy{
+			Limit:  int64(tl),
+			Window: int64(mustGetFloat(doc, "throttle_window")),
+		}
+		if msg, _ := doc.GetString("throttle_action_msg"); msg != "" {
+			p.Throttle.Action = &runtime.ThrottleActionPolicy{Message: msg}
+			if raw, _ := doc.Get("throttle_action_input"); raw != nil {
+				if m, ok := raw.(map[string]any); ok {
+					p.Throttle.Action.Input = m
+				}
+			}
+		}
+	}
+
+	return p, nil
+}
+
+func mustGetString(doc data.Documenter, field string) string {
+	s, _ := doc.GetString(field)
+	return s
+}
+
+func mustGetFloat(doc data.Documenter, field string) float64 {
+	f, _ := doc.GetFloat64(field)
+	return f
 }

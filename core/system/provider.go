@@ -18,14 +18,17 @@ import (
 	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/audit"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
+	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
 	"github.com/asaidimu/hestia/core/system/schedules"
-	"github.com/asaidimu/hestia/core/system/settings"
-	"github.com/asaidimu/hestia/core/system/tenants"
+	schedulesmodel "github.com/asaidimu/hestia/core/system/schedules/model"
+	settingsmodel "github.com/asaidimu/hestia/core/system/settings/model"
+	tenantsmodel "github.com/asaidimu/hestia/core/system/tenants/model"
 	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
 	"github.com/asaidimu/hestia/core/system/users/model"
@@ -42,12 +45,14 @@ type ProviderSet struct {
 	Users         *model.SystemUsers
 	APIKeys       *apikeysmodel.SystemAPIKeys
 	Policies      *policies.PolicyModel
+	OpModel       *policiesmodel.SystemOperationPolicys
+	RuleModel     *policiesmodel.SystemIamRules
 	Seed          *operations.SeedModel
-	Audit         *audit.AuditModel
-	Tenants       *tenants.TenantModel
-	Settings      *settings.SettingsModel
+	Audit         *auditmodel.SystemAuditLogs
+	Tenants       *tenantsmodel.SystemTenants
+	Settings      *settingsmodel.SystemSettingss
 	Notifications *notificationsmodel.SystemNotificationss
-	Schedules     *schedules.ScheduleModel
+	Schedules     *schedulesmodel.SystemScheduledMessagess
 
 	UpdStore *updates.Store
 	Updater  *updater.Updater
@@ -79,18 +84,11 @@ func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.L
 	}
 }
 
-// InitModels creates all persistence-backed models.
+// InitModels creates all persistence-backed models. The policies model pair is
+// constructed later in initPolicyInfra, once the LiveRepositories exist — the
+// generated ModelCollections are built OVER them so writes through PolicyModel
+// stay coherent with the permission manager's live caches.
 func (ps *ProviderSet) InitModels(ctx context.Context) error {
-	opColl, err := ps.Persist.Collection(ctx, "_operation_policy_")
-	if err != nil {
-		return err
-	}
-	ruleColl, err := ps.Persist.Collection(ctx, "_iam_rule_")
-	if err != nil {
-		return err
-	}
-
-	ps.Policies = policies.NewPolicyModel(opColl, ruleColl, nil)
 	systemUsers, err := model.InitSystemUsersModel(ps.Persist, ps.Logger)
 	if err != nil {
 		return fmt.Errorf("init system users model: %w", err)
@@ -102,16 +100,32 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	}
 	ps.APIKeys = apiKeys
 	ps.Seed = operations.NewSeedModel(ps.Persist)
-	ps.Audit = audit.NewAuditModel(ps.Persist)
-	ps.Tenants = tenants.NewTenantModel(ps.Persist)
-	ps.Settings = settings.NewSettingsModel(ps.Persist)
+	auditModel, err := auditmodel.InitSystemAuditLogsModel(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system audit logs model: %w", err)
+	}
+	ps.Audit = auditModel
+	tenantsModel, err := tenantsmodel.InitSystemTenantsModel(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system tenants model: %w", err)
+	}
+	ps.Tenants = tenantsModel
+	settingsModel, err := settingsmodel.InitSystemSettingssModel(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system settings model: %w", err)
+	}
+	ps.Settings = settingsModel
 
 	notifsModel, err := notificationsmodel.InitSystemNotificationssModel(ps.Persist, ps.Logger)
 	if err != nil {
 		return fmt.Errorf("init system notifications model: %w", err)
 	}
 	ps.Notifications = notifsModel
-	ps.Schedules = schedules.NewScheduleModel(ps.Persist)
+	schedulesModel, err := schedulesmodel.InitSystemScheduledMessagessModel(ps.Persist, ps.Logger)
+	if err != nil {
+		return fmt.Errorf("init system scheduled messages model: %w", err)
+	}
+	ps.Schedules = schedulesModel
 
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	ps.SchedCancel = schedCancel

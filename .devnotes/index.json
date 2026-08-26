@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-25T10:41:57.842826215Z",
+  "generatedAt": "2026-08-26T12:32:34.502472532Z",
   "root": ".",
   "notes": {
     "83l69u": {
@@ -343,146 +343,6 @@
       },
       "hash": "77dcfa6228fac743"
     },
-    "duplicate-schedulemodel-in-model-51d82ce4": {
-      "id": "duplicate-schedulemodel-in-model-51d82ce4",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "duplicate"
-      ],
-      "title": "Duplicate ScheduleModel in model subpackage",
-      "body": "This ScheduleModel is an exact duplicate of the one in schedules/model.go. Both are hand-rolled and duplicate the generated SystemScheduledMessagess. Delete this file entirely.\n",
-      "location": {
-        "file": "core/system/schedules/model/model.go",
-        "startLine": 146,
-        "startCol": 3,
-        "endLine": 148,
-        "endCol": 3
-      },
-      "hash": "950264d90055617b"
-    },
-    "duplicate-settingsmodel-in-model-df57e637": {
-      "id": "duplicate-settingsmodel-in-model-df57e637",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "duplicate"
-      ],
-      "title": "Duplicate SettingsModel in model subpackage",
-      "body": "This SettingsModel is an exact duplicate of the one in settings/model.go. Both are hand-rolled and duplicate the generated SystemSettings. Delete this file entirely.\n",
-      "location": {
-        "file": "core/system/settings/model/model.go",
-        "startLine": 113,
-        "startCol": 3,
-        "endLine": 115,
-        "endCol": 3
-      },
-      "hash": "d43742fc8a3daeb1"
-    },
-    "hand-rolled-auditmodel-should-us-d2b104e2": {
-      "id": "hand-rolled-auditmodel-should-us-d2b104e2",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "model"
-      ],
-      "title": "Hand-rolled AuditModel should use generated SystemAccessLogs",
-      "body": "AuditModel is hand-rolled but a generated SystemAccessLogs model exists. Replace with generated model + custom Insert method.\n",
-      "location": {
-        "file": "core/system/audit/model.go",
-        "startLine": 59,
-        "startCol": 3,
-        "endLine": 61,
-        "endCol": 3
-      },
-      "hash": "4e70c52caed2e7a4"
-    },
-    "hand-rolled-policymodel-should-u-70af02a6": {
-      "id": "hand-rolled-policymodel-should-u-70af02a6",
-      "category": "issue",
-      "status": "open",
-      "priority": "P2",
-      "tags": [
-        "cruft",
-        "model"
-      ],
-      "title": "Hand-rolled PolicyModel should use generated models as building blocks",
-      "body": "PolicyModel orchestrates across two collections (operation_policy + iam_rule). Generated models exist for both. Refactor to use generated SystemOperationPolicys and SystemIamRules as building blocks, with PolicyModel as a thin orchestration layer. Domain types (Binding, PolicyRule, Policy) are legitimate domain concepts but should be defined alongside the generated models.\n",
-      "location": {
-        "file": "core/system/policies/model.go",
-        "startLine": 553,
-        "startCol": 3,
-        "endLine": 555,
-        "endCol": 3
-      },
-      "hash": "32078aa5c4298926"
-    },
-    "hand-rolled-schedulemodel-duplic-0ebfd9ea": {
-      "id": "hand-rolled-schedulemodel-duplic-0ebfd9ea",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "model"
-      ],
-      "title": "Hand-rolled ScheduleModel duplicates generated SystemScheduledMessagess",
-      "body": "ScheduleModel duplicates the generated SystemScheduledMessagess. Replace with generated model + custom ListByTenant. Duplicate in schedules/model/model.go is also cruft.\n",
-      "location": {
-        "file": "core/system/schedules/model.go",
-        "startLine": 146,
-        "startCol": 3,
-        "endLine": 148,
-        "endCol": 3
-      },
-      "hash": "9a34325fe5241d0f"
-    },
-    "hand-rolled-settingsmodel-duplic-20905384": {
-      "id": "hand-rolled-settingsmodel-duplic-20905384",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "model"
-      ],
-      "title": "Hand-rolled SettingsModel duplicates generated SystemSettings",
-      "body": "SettingsModel duplicates the generated SystemSettings model. Replace with generated model + custom Get/Set/Unset/All methods. Duplicate in settings/model/model.go is also cruft.\n",
-      "location": {
-        "file": "core/system/settings/model.go",
-        "startLine": 113,
-        "startCol": 3,
-        "endLine": 115,
-        "endCol": 3
-      },
-      "hash": "727fa6f4350a2de2"
-    },
-    "hand-rolled-tenantmodel-should-u-5a7479f1": {
-      "id": "hand-rolled-tenantmodel-should-u-5a7479f1",
-      "category": "issue",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "cruft",
-        "model"
-      ],
-      "title": "Hand-rolled TenantModel should use generated SystemTenants",
-      "body": "TenantModel is hand-rolled but a generated SystemTenants model exists. Replace with generated model + custom GetByDomain method.\n",
-      "location": {
-        "file": "core/system/tenants/model.go",
-        "startLine": 74,
-        "startCol": 3,
-        "endLine": 76,
-        "endCol": 3
-      },
-      "hash": "f63548508c8e4686"
-    },
     "mem-20260821-003": {
       "id": "mem-20260821-003",
       "category": "issue",
@@ -799,9 +659,9 @@
       "assignee": "opencode",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 211,
+        "startLine": 216,
         "startCol": 3,
-        "endLine": 262,
+        "endLine": 267,
         "endCol": 3
       },
       "hash": "e15a01cfad1abdd3"
@@ -826,6 +686,26 @@
         "endCol": 3
       },
       "hash": "9501fda7f03df18f"
+    },
+    "scheduled-dispatch-errors-are-sw-616004cd": {
+      "id": "scheduled-dispatch-errors-are-sw-616004cd",
+      "category": "lesson",
+      "status": "open",
+      "priority": "P3",
+      "tags": [
+        "schedules",
+        "dispatch"
+      ],
+      "title": "Scheduled dispatch errors are swallowed by the cron chain",
+      "body": "LiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {\"payload\": ...} to satisfy input:\"payload.*\" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.\n",
+      "location": {
+        "file": "core/system/schedules/liveschedule.go",
+        "startLine": 125,
+        "startCol": 3,
+        "endLine": 127,
+        "endCol": 3
+      },
+      "hash": "6c3fede068f2f404"
     },
     "sec-20260821-003": {
       "id": "sec-20260821-003",
@@ -887,9 +767,9 @@
       "body": "The staged binary at DataDir/update is copied over the running executable\n(swapExecutable) or executed directly (ApplyUpdate) without verifying its\nSHA-256 checksum against UpdateInfo.Checksum. The Checksum field already\nflows through the persistence layer, but the actual verification against\nthe on-disk binary is never performed. This means a corrupted download —\nor a file tampered with between staging and apply — would silently replace\nthe running binary. The check should re-hash the staged file and abort\nthe swap/exec if it does not match.\n\nReal-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with\n\"missing section headers\" — the update was applied but the binary was\ncorrupted. A pre-apply hash check would have caught this.\n\nWhy staging can succeed while application produces a corrupted binary:\n  1. GitHub provider passes empty checksum (github.go:133) so\n     DownloadBinary skips hash verification entirely.\n  2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)\n     re-hash the staged file before overwriting the executable.\n  3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full\n     condition can leave the destination truncated.\n  4. swapExecutable creates a temp file in filepath.Dir(exe) which may\n     differ from DataDir — if they share a filesystem the Rename is\n     atomic, but a failed copy to the temp file is not caught before the\n     rename.\n\n@see #updater-hash-verify\n",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 397,
+        "startLine": 411,
         "startCol": 3,
-        "endLine": 424,
+        "endLine": 438,
         "endCol": 3
       },
       "hash": "8b6811f80efea341"
@@ -1738,18 +1618,12 @@
       "hash": "9e907b2399658316"
     },
     "core/system/audit/audit_test.go": {
-      "hash": "7ae3fcc818c7fa60"
+      "hash": "14550fac36ae367c"
     },
     "core/system/audit/handler.go": {
-      "hash": "f8ea542aed495d42",
+      "hash": "547fb7758d62dbce",
       "noteIds": [
         "cruft-20260821-025"
-      ]
-    },
-    "core/system/audit/model.go": {
-      "hash": "1c276f40c1fccec2",
-      "noteIds": [
-        "hand-rolled-auditmodel-should-us-d2b104e2"
       ]
     },
     "core/system/audit/model/access_log.schema.model.go": {
@@ -1761,6 +1635,9 @@
     "core/system/audit/model/outputs.go": {
       "hash": "c170805d890f95b3"
     },
+    "core/system/audit/model/system_audit_log_utils.go": {
+      "hash": "1b020ce7a9d3de91"
+    },
     "core/system/audit/stream.go": {
       "hash": "a24dd2c574de40c5"
     },
@@ -1768,7 +1645,7 @@
       "hash": "fae9992ca60b1285"
     },
     "core/system/auth/auth_test.go": {
-      "hash": "1155a2d1ddcf8e17"
+      "hash": "f8d0a3daa8a1dc7b"
     },
     "core/system/auth/credential_provider.go": {
       "hash": "f33fcbc591dc1cdb"
@@ -1822,7 +1699,7 @@
       "hash": "fefff57ebda5247e"
     },
     "core/system/blobs/handler.go": {
-      "hash": "88bfa5ac2f25032a",
+      "hash": "e7a3b4e1b3fdebaa",
       "noteIds": [
         "cruft-20260821-020"
       ]
@@ -1909,10 +1786,10 @@
       "hash": "8cd733b9dacff6f5"
     },
     "core/system/model_test.go": {
-      "hash": "f9849fa2cdeaedd1"
+      "hash": "9bc1d3921e9224ac"
     },
     "core/system/module.go": {
-      "hash": "c593b30bb0c73f0b"
+      "hash": "af167ad5e40df112"
     },
     "core/system/notifications/leak_harness_test.go": {
       "hash": "16ab74c331a26b7e"
@@ -1951,7 +1828,7 @@
       "hash": "de1160f52d0c2181"
     },
     "core/system/operations/handler.go": {
-      "hash": "cb649ae495fc71e7",
+      "hash": "145533f0a22ae565",
       "noteIds": [
         "cruft-20260821-017"
       ]
@@ -1978,19 +1855,16 @@
       "hash": "112546a5befb11b6"
     },
     "core/system/operations/service.go": {
-      "hash": "4dd680d327355d31"
+      "hash": "f6664cdde036a911"
     },
     "core/system/policies/defaults.go": {
       "hash": "93018ed1724a4c1a"
     },
     "core/system/policies/docprocessor.go": {
-      "hash": "f18a8171d7d36fb1"
+      "hash": "27d30066fd50fc50"
     },
     "core/system/policies/model.go": {
-      "hash": "62f69c5f54ba93dc",
-      "noteIds": [
-        "hand-rolled-policymodel-should-u-70af02a6"
-      ]
+      "hash": "dba50ced688613f1"
     },
     "core/system/policies/model/iam_rule.schema.model.go": {
       "hash": "1783a004acf8c26f"
@@ -2017,7 +1891,7 @@
       "hash": "ac7edd1ae9bfd2fe"
     },
     "core/system/policies/policies_test.go": {
-      "hash": "c6edb523996628de"
+      "hash": "d6209078f3c505e5"
     },
     "core/system/policies/policystore.go": {
       "hash": "2e751ae186793eee"
@@ -2032,16 +1906,16 @@
       "hash": "115d59fc34aa37dc"
     },
     "core/system/policies/service.go": {
-      "hash": "93f8c96de6eecb38"
+      "hash": "d009d307c1ca1082"
     },
     "core/system/policies/views.go": {
       "hash": "ce1052193fa3ff27"
     },
     "core/system/provider.go": {
-      "hash": "5c1a93a8f00405ab"
+      "hash": "49b9c94e980ed9ea"
     },
     "core/system/schedules/handler.go": {
-      "hash": "4011e8f43b1c0aa0",
+      "hash": "42d96554680bc87f",
       "noteIds": [
         "cruft-20260821-023"
       ]
@@ -2050,28 +1924,22 @@
       "hash": "ec1b62b22a642527"
     },
     "core/system/schedules/liveschedule.go": {
-      "hash": "2e83d4619ff3ba77"
-    },
-    "core/system/schedules/model.go": {
-      "hash": "e5f9ae07e41b21c7",
+      "hash": "5c4528731d5658df",
       "noteIds": [
-        "hand-rolled-schedulemodel-duplic-0ebfd9ea"
+        "scheduled-dispatch-errors-are-sw-616004cd"
       ]
     },
     "core/system/schedules/model/inputs.go": {
-      "hash": "6919a9abf77cfb38"
-    },
-    "core/system/schedules/model/model.go": {
-      "hash": "6a862ead5dd13fbb",
-      "noteIds": [
-        "duplicate-schedulemodel-in-model-51d82ce4"
-      ]
+      "hash": "e1c3d462cb2fdf33"
     },
     "core/system/schedules/model/outputs.go": {
       "hash": "2205e72a112d298e"
     },
     "core/system/schedules/model/scheduled_messages.schema.model.go": {
       "hash": "8061408d9c3a8457"
+    },
+    "core/system/schedules/model/system_scheduled_messages_utils.go": {
+      "hash": "ffd02e301737afed"
     },
     "core/system/schedules/outputs.go": {
       "hash": "7d17518870765916"
@@ -2083,40 +1951,34 @@
       "hash": "92c13688036af779"
     },
     "core/system/schedules/schedules_test.go": {
-      "hash": "93a6c7fcaa688063"
+      "hash": "59e3249a137a4cb8"
     },
     "core/system/schedules/service.go": {
-      "hash": "54a4adda13d61692"
+      "hash": "44b72b635392cf1b"
     },
     "core/system/schedules/testutil.go": {
-      "hash": "91b367bd197d2536"
+      "hash": "de063b29789af3fc"
+    },
+    "core/system/schedules/validate.go": {
+      "hash": "84c273a642ce1833"
     },
     "core/system/seeds.go": {
-      "hash": "62fbe824a98cae12"
+      "hash": "524ce1f5a61f1ecf"
     },
     "core/system/services.go": {
       "hash": "3ec290fe35db57a7"
     },
-    "core/system/settings/model.go": {
-      "hash": "22e58fb5624df688",
-      "noteIds": [
-        "hand-rolled-settingsmodel-duplic-20905384"
-      ]
-    },
     "core/system/settings/model/inputs.go": {
       "hash": "9d661d17c8ece433"
-    },
-    "core/system/settings/model/model.go": {
-      "hash": "9f882c1b0369bedd",
-      "noteIds": [
-        "duplicate-settingsmodel-in-model-df57e637"
-      ]
     },
     "core/system/settings/model/outputs.go": {
       "hash": "7db0f195742f2db7"
     },
     "core/system/settings/model/settings.schema.model.go": {
       "hash": "861a976c78cdba1b"
+    },
+    "core/system/settings/model/system_settings_utils.go": {
+      "hash": "daf5aed0b734a3f3"
     },
     "core/system/settings/policies.go": {
       "hash": "02ee9d87f6098091"
@@ -2125,13 +1987,10 @@
       "hash": "d2cc10a74f9479a6"
     },
     "core/system/settings/service.go": {
-      "hash": "c6b0334d6c29f048"
+      "hash": "5ca8bcf3a0556705"
     },
-    "core/system/tenants/model.go": {
-      "hash": "0e01591ac89a1916",
-      "noteIds": [
-        "hand-rolled-tenantmodel-should-u-5a7479f1"
-      ]
+    "core/system/tenants/model/system_tenant_utils.go": {
+      "hash": "3a9b8a8b4320f299"
     },
     "core/system/tenants/model/tenant.schema.model.go": {
       "hash": "ed2c104aebd825d7"
@@ -2143,23 +2002,23 @@
       "hash": "0c7b91cb54c642e3"
     },
     "core/system/updates/service.go": {
-      "hash": "c8a3aa397526f066",
+      "hash": "d41389695a1b1ec0",
       "noteIds": [
         "review2-20260821-004",
         "update-hash-verify"
       ]
     },
     "core/system/updates/service_test.go": {
-      "hash": "3817193f587aedf6"
+      "hash": "037ab6055592b949"
     },
     "core/system/updates/startup.go": {
       "hash": "6e208162cedbeb0f"
     },
     "core/system/updates/store.go": {
-      "hash": "5417f8845ce2c4e4"
+      "hash": "62eaccf471ab36ad"
     },
     "core/system/updates/store_test.go": {
-      "hash": "7f9de8d33259d0d8"
+      "hash": "1730d0cc706b4bf3"
     },
     "core/system/users/claims.go": {
       "hash": "33eebbd23389e837"

@@ -14,8 +14,8 @@ github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8
 github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
 github.com/asaidimu/blobs v1.3.1 h1:rmoFHeM0OQGQ7kMWJ43WRhCJO3oFfaiPAlOuzks8P3A=
 github.com/asaidimu/blobs v1.3.1/go.mod h1:XSvHkdSZrDGBvAzSf40kECiPcfBWj2jaRHpMcxzvwi4=
-github.com/asaidimu/go-anansi/v8 v8.5.11 h1:xTEY3mcy1Y1YClt2KPO1F6ikD368dNWCd5SiitGNHVs=
-github.com/asaidimu/go-anansi/v8 v8.5.11/go.mod h1:m7ZfeG8PYHO3c4ziWj4TYoq4U3AlRFOIBi8VvEEr3+E=
+github.com/asaidimu/go-anansi/v8 v8.6.4 h1:EFF6ZZMXrR8G7JeecQsqte/DO0vsxz6PTd0+Cm6a2SQ=
+github.com/asaidimu/go-anansi/v8 v8.6.4/go.mod h1:NFXJPyN8eqfsCodMu9GBuf6bJywgjUzxt5s1PBua6Hs=
 github.com/asaidimu/go-events v1.1.0 h1:uT2NT6EyMGMR34Pjfu2XzkDRm/0BowvAX2pdXCpflmI=
 github.com/asaidimu/go-events v1.1.0/go.mod h1:n370DkM3mqQeF3DedpTfpZBqWCpR1bQB/myN6f9FKV0=
 github.com/asaidimu/go-events/v2 v2.0.1 h1:K/03ApXDBD4b44toUmGA/dI0mnLTgI3xcUB99PgGsBE=
@@ -89,8 +89,10 @@ github.com/kalbasit/fastcdc v1.0.0 h1:CEAEyNtsy+qCDFeC5rMr6HSOR/9V9V4LZkyKbZ0+MK
 github.com/kalbasit/fastcdc v1.0.0/go.mod h1:HIWLt592bLD2IseFj2G1lKbxaPKK+jdzpt1daxUomzA=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
-github.com/klauspost/compress v1.19.1 h1:VsB4HPswih7mmZ8WleSFQ75c/Ui1M4trX5oAsJnhSlk=
-github.com/klauspost/compress v1.19.1/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
+github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
+github.com/klauspost/compress v1.19.2/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
+github.com/klauspost/cpuid/v2 v2.0.12 h1:p9dKCg8i4gmOxtv35DvrYoWqYzQrvEVdjQ762Y0OqZE=
+github.com/klauspost/cpuid/v2 v2.0.12/go.mod h1:g2LTdtYhdyuGPqyWyv7qRAmj1WBqxuObKfj5c0PQa7c=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
@@ -184,6 +186,12 @@ github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZ
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+github.com/zeebo/assert v1.1.0 h1:hU1L1vLTHsnO8x8c9KAR5GmM5QscxHg5RNU5z5qbUWY=
+github.com/zeebo/assert v1.1.0/go.mod h1:Pq9JiuJQpG8JLJdtkwrJESF0Foym2/D9XMU5ciN/wJ0=
+github.com/zeebo/blake3 v0.2.4 h1:KYQPkhpRtcqh0ssGYcKLG1JYvddkEA8QwCM/yBqhaZI=
+github.com/zeebo/blake3 v0.2.4/go.mod h1:7eeQ6d2iXWRGF6npfaxl2CU+xy2Fjo2gxeyZGCRUjcE=
+github.com/zeebo/pcg v1.0.1 h1:lyqfGeWiv4ahac6ttHs+I5hwtH/+1mrhlCtVNQM2kHo=
+github.com/zeebo/pcg v1.0.1/go.mod h1:09F0S9iiKrwn9rlI5yjLkmrug154/YRW6KnnXVDM/l4=
 go.etcd.io/bbolt v1.5.0 h1:S7GAl7Fxv12yohbwFfIbQCGDWbQbtDGPET4P/bD4lxU=
 go.etcd.io/bbolt v1.5.0/go.mod h1:mkltfYE5aUHQxUct9N9V+Kp7aSjFqjgrhcXIS70Lrdk=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=

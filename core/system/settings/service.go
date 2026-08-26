@@ -13,18 +13,20 @@ import (
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 )
 
-// SettingsService is the service for the key/value settings domain. It wraps
-// the hand-rolled SettingsModel (raw persistence over the _settings_ collection)
-// rather than the generated collection, preserving the existing tenant-scoped
-// read/upsert/delete semantics.
+// SettingsService is the service for the key/value settings domain.
 type SettingsService struct {
-	model *model.SettingsModel
+	model *model.SystemSettingss
 }
 
 func NewSettingsService(rt abstract.Container) (*SettingsService, error) {
 	persist := abstract.MustResolve[persistence.Persistence](rt)
 
-	return &SettingsService{model: model.NewSettingsModel(persist)}, nil
+	model.DangerouslyResetSystemSettingssModel()
+	m, err := model.InitSystemSettingssModel(persist, nil)
+	if err != nil {
+		return nil, err
+	}
+	return &SettingsService{model: m}, nil
 }
 
 // ListSettings lists all settings for the current tenant.

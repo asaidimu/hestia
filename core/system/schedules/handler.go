@@ -25,14 +25,15 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/system/schedules/model"
 )
 
 type ScheduleHandlers struct {
-	model *ScheduleModel
+	model *model.SystemScheduledMessagess
 	live  *LiveSchedule
 }
 
-func NewScheduleHandlers(model *ScheduleModel, live *LiveSchedule) *ScheduleHandlers {
+func NewScheduleHandlers(model *model.SystemScheduledMessagess, live *LiveSchedule) *ScheduleHandlers {
 	return &ScheduleHandlers{model: model, live: live}
 }
 
@@ -67,14 +68,14 @@ func (h *ScheduleHandlers) Create(ctx context.Context, msg abstract.Message) (*a
 		doc.Set("tenant_id", tenantID)
 	}
 
-	saved, err := h.model.Create(ctx, doc)
+	saved, err := h.model.CreateSchedule(ctx, doc)
 	if err != nil {
 		return nil, err
 	}
 
 	h.live.Register(ctx, saved)
 
-	return dispatch.NewDocumentResultFrom(&ScheduleCreatedView{
+	return dispatch.NewDocumentResultFrom(&model.ScheduleCreatedView{
 		ID:      saved.ID(),
 		Message: "schedule created",
 	})
@@ -83,7 +84,7 @@ func (h *ScheduleHandlers) Create(ctx context.Context, msg abstract.Message) (*a
 func (h *ScheduleHandlers) List(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 	tenantID := runtimecontext.GetTenantID(ctx)
 
-	docs, err := h.model.ListByTenant(ctx, tenantID, 50, 0)
+	docs, err := h.model.ListSchedulesByTenant(ctx, tenantID, 50, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (h *ScheduleHandlers) Get(ctx context.Context, msg abstract.Message) (*abst
 		return nil, fmt.Errorf("id is required")
 	}
 
-	schedule, err := h.model.Get(ctx, id)
+	schedule, err := h.model.GetSchedule(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +121,11 @@ func (h *ScheduleHandlers) Update(ctx context.Context, msg abstract.Message) (*a
 	}
 
 	h.live.UnregisterByID(ctx, id)
-	if err := h.model.Update(ctx, id, payload); err != nil {
+	if err := h.model.UpdateSchedule(ctx, id, payload); err != nil {
 		return nil, err
 	}
 
-	saved, err := h.model.Get(ctx, id)
+	saved, err := h.model.GetSchedule(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (h *ScheduleHandlers) Update(ctx context.Context, msg abstract.Message) (*a
 
 	h.live.Register(ctx, saved)
 
-	return dispatch.NewDocumentResultFrom(&MessageOutput{Message: "updated"})
+	return dispatch.NewDocumentResultFrom(&model.MessageOutput{Message: "updated"})
 }
 
 func (h *ScheduleHandlers) Delete(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
@@ -146,9 +147,9 @@ func (h *ScheduleHandlers) Delete(ctx context.Context, msg abstract.Message) (*a
 
 	h.live.UnregisterByID(ctx, id)
 
-	if err := h.model.Delete(ctx, id); err != nil {
+	if err := h.model.DeleteSchedule(ctx, id); err != nil {
 		return nil, err
 	}
 
-	return dispatch.NewDocumentResultFrom(&MessageOutput{Message: "deleted"})
+	return dispatch.NewDocumentResultFrom(&model.MessageOutput{Message: "deleted"})
 }

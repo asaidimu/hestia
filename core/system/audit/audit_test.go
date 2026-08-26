@@ -54,7 +54,11 @@ func TestPolicyBindings(t *testing.T) {
 func TestAuditInsert(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	model := audit.NewAuditModel(p)
+	auditmodel.DangerouslyResetSystemAuditLogsModel()
+	model, err := auditmodel.InitSystemAuditLogsModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemAuditLogsModel: %v", err)
+	}
 
 	entry := auditdomain.AuditEntry{
 		EventName:    "test:msg",
@@ -106,7 +110,11 @@ func TestAuditInsert(t *testing.T) {
 func TestAuditQueryHandler(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	model := audit.NewAuditModel(p)
+	auditmodel.DangerouslyResetSystemAuditLogsModel()
+	model, err := auditmodel.InitSystemAuditLogsModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemAuditLogsModel: %v", err)
+	}
 
 	entries := []auditdomain.AuditEntry{
 		{EventName: "msg:1", ActorID: "user-a", ActorType: auditdomain.ActorTypeUser, Operation: auditdomain.OperationExecute, ResourceType: "test", Status: auditdomain.AuditStatusSuccess, LatencyMs: 10, ServiceName: "hestia"},
@@ -140,7 +148,11 @@ func TestAuditQueryHandler(t *testing.T) {
 func TestAuditQueryHandlerWithLimit(t *testing.T) {
 	ctx := context.Background()
 	p := testutil.NewPersistence(t)
-	model := audit.NewAuditModel(p)
+	auditmodel.DangerouslyResetSystemAuditLogsModel()
+	model, err := auditmodel.InitSystemAuditLogsModel(p, nil)
+	if err != nil {
+		t.Fatalf("InitSystemAuditLogsModel: %v", err)
+	}
 
 	for i := 0; i < 10; i++ {
 		entry := auditdomain.AuditEntry{

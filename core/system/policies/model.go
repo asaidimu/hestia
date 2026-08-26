@@ -5,29 +5,10 @@ import (
 	"encoding/json"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
-	"github.com/asaidimu/go-anansi/v8/core/data"
-	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/query"
 
-	"github.com/asaidimu/hestia/core/internal/util"
 	"github.com/asaidimu/hestia/core/runtime"
-)
-
-const (
-	operationCollName = "_operation_policy_"
-	ruleCollName      = "_iam_rule_"
-)
-
-var (
-	ErrRuleProtected       = common.NewSystemError("RULE_PROTECTED", "rule is protected and cannot be deleted")
-	ErrRuleInUse           = common.NewSystemError("RULE_IN_USE", "rule is referenced by one or more policies and cannot be deleted")
-	ErrPolicyAlreadyExists = common.NewSystemError("POLICY_ALREADY_EXISTS")
-	ErrPolicyNotFound      = common.NewSystemError("POLICY_NOT_FOUND")
-	ErrOperationNotFound   = common.NewSystemError("OPERATION_NOT_FOUND")
-	ErrRuleNotFound        = common.NewSystemError("RULE_NOT_FOUND")
-	ErrAccessCollection    = common.NewSystemError("ACCESS_COLLECTION")
-	ErrCreateRuleDoc       = common.NewSystemError("CREATE_RULE_DOC")
-	ErrMarshalRuleNode     = common.NewSystemError("MARSHAL_RULE_NODE")
+	"github.com/asaidimu/hestia/core/system/policies/model"
 )
 
 // Binding is read-only metadata about a registered operation.
@@ -68,39 +49,46 @@ type Policy struct {
 	Rule      string                   `json:"rule"`
 	TenantID  string                   `json:"tenantID"`
 	Key       string                   `json:"key"`
-	Enabled       bool                     `json:"enabled"`
-	Protected     bool                     `json:"protected"`
-	RateLimit     *runtime.RateLimitPolicy `json:"rateLimit,omitempty"`
-	Throttle      *runtime.ThrottlePolicy  `json:"throttle,omitempty"`
+	Enabled   bool                     `json:"enabled"`
+	Protected bool                     `json:"protected"`
+	RateLimit *runtime.RateLimitPolicy `json:"rateLimit,omitempty"`
+	Throttle  *runtime.ThrottlePolicy  `json:"throttle,omitempty"`
 }
 
+var (
+	ErrRuleProtected       = common.NewSystemError("RULE_PROTECTED", "rule is protected and cannot be deleted")
+	ErrRuleInUse           = common.NewSystemError("RULE_IN_USE", "rule is referenced by one or more policies and cannot be deleted")
+	ErrPolicyAlreadyExists = common.NewSystemError("POLICY_ALREADY_EXISTS")
+	ErrPolicyNotFound      = common.NewSystemError("POLICY_NOT_FOUND")
+	ErrOperationNotFound   = common.NewSystemError("OPERATION_NOT_FOUND")
+	ErrRuleNotFound        = common.NewSystemError("RULE_NOT_FOUND")
+	ErrMarshalRuleNode     = common.NewSystemError("MARSHAL_RULE_NODE")
+)
+
+// PolicyModel orchestrates the _operation_policy_ and _iam_rule_ collections
+// through their generated ModelCollection wrappers. At boot those wrappers are
+// constructed OVER the LiveRepositories backing the permission manager and
+// access controller, so every write here lands in the DB and refreshes the
+// shared live caches atomically — no manual invalidation needed.
 type PolicyModel struct {
-	policyColl    base.Collection
-	ruleColl      base.Collection
+	opModel       *model.SystemOperationPolicys
+	ruleModel     *model.SystemIamRules
 	knownBindings []Binding
 }
 
-func NewPolicyModel(policyColl, ruleColl base.Collection, knownBindings []Binding) *PolicyModel {
+func NewPolicyModel(opModel *model.SystemOperationPolicys, ruleModel *model.SystemIamRules, knownBindings []Binding) *PolicyModel {
 	if knownBindings == nil {
 		knownBindings = []Binding{}
 	}
 	return &PolicyModel{
-		policyColl:    policyColl,
-		ruleColl:      ruleColl,
+		opModel:       opModel,
+		ruleModel:     ruleModel,
 		knownBindings: knownBindings,
 	}
 }
 
 func (m *PolicyModel) SetKnownBindings(bindings []Binding) {
 	m.knownBindings = bindings
-}
-
-func (m *PolicyModel) SetPolicyColl(c base.Collection) {
-	m.policyColl = c
-}
-
-func (m *PolicyModel) SetRuleColl(c base.Collection) {
-	m.ruleColl = c
 }
 
 // ── Operations (read-only, derived from knownBindings) ────────────────────
@@ -124,92 +112,86 @@ func (m *PolicyModel) GetBinding(ctx context.Context, name string) (Binding, err
 
 func (m *PolicyModel) ListRules(ctx context.Context) ([]PolicyRule, error) {
 	q := query.NewQueryBuilder().Build()
-	result, err := m.ruleColl.Read(ctx, &q)
+	rules, err := m.ruleModel.Read(ctx, &q)
 	if err != nil {
 		return nil, common.NewSystemError("LIST_RULES").WithCause(err)
 	}
 
-	rules := make([]PolicyRule, 0, result.Count)
-	for _, doc := range result.Data {
-		r, err := docToRule(doc)
-		if err != nil {
-			continue
-		}
-		rules = append(rules, r)
+	result := make([]PolicyRule, 0, len(rules))
+	for _, r := range rules {
+		result = append(result, ruleFromGenerated(r))
 	}
-	return rules, nil
+	return result, nil
 }
 
 func (m *PolicyModel) GetRule(ctx context.Context, name string) (PolicyRule, error) {
 	q := query.NewQueryBuilder().Where("name").Eq(name).Build()
-	result, err := m.ruleColl.Read(ctx, &q)
+	rules, err := m.ruleModel.Read(ctx, &q)
 	if err != nil {
 		return PolicyRule{}, common.NewSystemError("GET_RULE").WithCause(err)
 	}
-	if result.Count == 0 {
+	if len(rules) == 0 {
 		return PolicyRule{}, ErrRuleNotFound.WithOperation("GetRule").WithMessagef("rule %q not found", name)
 	}
-	return docToRule(result.Data[0])
+	return ruleFromGenerated(rules[0]), nil
 }
 
 func (m *PolicyModel) CreateRule(ctx context.Context, rule PolicyRule) (PolicyRule, error) {
-	fields := util.StructToMap(rule)
-	delete(fields, "id")
+	doc := &model.SystemIamRule{
+		Name:        rule.Name,
+		RuleType:    strPtr(rule.RuleType),
+		Syntax:      strPtr(rule.Syntax),
+		Expression:  strPtr(rule.Expression),
+		Description: strPtr(rule.Description),
+		Protected:   boolPtr(rule.Protected),
+	}
 
+	rulesStr := ""
 	if rule.Rules != nil {
 		b, err := json.Marshal(rule.Rules)
 		if err != nil {
 			return PolicyRule{}, ErrMarshalRuleNode.WithCause(err)
 		}
-		fields["rules"] = string(b)
-	} else {
-		fields["rules"] = ""
+		rulesStr = string(b)
 	}
+	doc.Rules = &rulesStr
 
-	doc, err := data.NewDocument(fields, ctx)
-	if err != nil {
-		return PolicyRule{}, ErrCreateRuleDoc.WithCause(err)
-	}
-
-	created, err := m.ruleColl.CreateOne(ctx, doc)
+	created, err := m.ruleModel.Create(ctx, doc)
 	if err != nil {
 		return PolicyRule{}, common.NewSystemError("CREATE_RULE").WithCause(err)
 	}
 
-	return docToRule(created.Data)
+	return ruleFromGenerated(created), nil
 }
 
 func (m *PolicyModel) UpdateRule(ctx context.Context, name string, updates PolicyRule) (PolicyRule, error) {
 	q := query.NewQueryBuilder().Where("name").Eq(name).Build()
-	existing, err := m.ruleColl.Read(ctx, &q)
+	existing, err := m.ruleModel.Read(ctx, &q)
 	if err != nil {
 		return PolicyRule{}, common.NewSystemError("QUERY_RULE").WithCause(err)
 	}
-	if existing.Count == 0 {
+	if len(existing) == 0 {
 		return PolicyRule{}, ErrRuleNotFound.WithOperation("UpdateRule").WithMessagef("rule %q not found", name)
 	}
+	doc := existing[0]
 
-	docID := existing.Data[0].ID()
-
-	fields := util.StructToMap(updates)
-	delete(fields, "id")
-
+	rulesStr := ""
 	if updates.Rules != nil {
 		b, err := json.Marshal(updates.Rules)
 		if err != nil {
 			return PolicyRule{}, ErrMarshalRuleNode.WithCause(err)
 		}
-		fields["rules"] = string(b)
-	} else {
-		fields["rules"] = ""
+		rulesStr = string(b)
 	}
 
-	setDoc := data.Patch(fields).Document(ctx)
-	_, err = m.ruleColl.Update(ctx, &base.CollectionUpdate{
-		Set:    setDoc,
-		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(docID).Build().Filters,
-	})
-	if err != nil {
+	doc.RuleType = strPtr(updates.RuleType)
+	doc.Syntax = strPtr(updates.Syntax)
+	doc.Expression = strPtr(updates.Expression)
+	doc.Description = strPtr(updates.Description)
+	doc.Protected = boolPtr(updates.Protected)
+	doc.Rules = &rulesStr
+
+	if _, err := m.ruleModel.Update(ctx, doc.ID, doc); err != nil {
 		return PolicyRule{}, common.NewSystemError("UPDATE_RULE").WithCause(err)
 	}
 
@@ -235,13 +217,8 @@ func (m *PolicyModel) DeleteRule(ctx context.Context, name string) error {
 		}
 	}
 
-	filter := query.NewQueryBuilder().Where("name").Eq(name).Build().Filters
-	deleted, err := m.ruleColl.Delete(ctx, filter, false)
-	if err != nil {
+	if err := m.ruleModel.DeleteByID(ctx, rule.ID); err != nil {
 		return common.NewSystemError("DELETE_RULE").WithCause(err)
-	}
-	if deleted == 0 {
-		return ErrRuleNotFound.WithOperation("DeleteRule").WithMessagef("rule %q not found", name)
 	}
 	return nil
 }
@@ -250,162 +227,132 @@ func (m *PolicyModel) DeleteRule(ctx context.Context, name string) error {
 
 func (m *PolicyModel) ListPolicies(ctx context.Context) ([]Policy, error) {
 	q := query.NewQueryBuilder().Build()
-	result, err := m.policyColl.Read(ctx, &q)
+	docs, err := m.opModel.Read(ctx, &q)
 	if err != nil {
 		return nil, common.NewSystemError("LIST_POLICIES").WithCause(err)
 	}
 
-	policies := make([]Policy, 0, result.Count)
-	for _, doc := range result.Data {
-		p, err := docToPolicy(doc)
-		if err != nil {
-			continue
-		}
-		policies = append(policies, p)
+	result := make([]Policy, 0, len(docs))
+	for _, d := range docs {
+		result = append(result, policyFromGenerated(d))
 	}
-	return policies, nil
+	return result, nil
 }
 
 func (m *PolicyModel) GetPolicyForOperation(ctx context.Context, operationName string) (Policy, error) {
 	// Try composite key first (new format), fall back to operation field (old format).
 	compositeKey := ":" + operationName
 	q := query.NewQueryBuilder().Where("key").Eq(compositeKey).Build()
-	result, err := m.policyColl.Read(ctx, &q)
+	docs, err := m.opModel.Read(ctx, &q)
 	if err != nil {
 		return Policy{}, common.NewSystemError("GET_POLICY").WithCause(err)
 	}
-	if result.Count == 0 {
+	if len(docs) == 0 {
 		q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
-		result, err = m.policyColl.Read(ctx, &q)
+		docs, err = m.opModel.Read(ctx, &q)
 		if err != nil {
 			return Policy{}, common.NewSystemError("GET_POLICY").WithCause(err)
 		}
 	}
-	if result.Count == 0 {
+	if len(docs) == 0 {
 		return Policy{}, ErrPolicyNotFound.WithOperation("GetPolicyForOperation").WithMessagef("no policy for operation %q", operationName)
 	}
-	return docToPolicy(result.Data[0])
+	return policyFromGenerated(docs[0]), nil
 }
 
 func (m *PolicyModel) CreatePolicy(ctx context.Context, p Policy) (Policy, error) {
 	compositeKey := p.TenantID + ":" + p.Operation
 	q := query.NewQueryBuilder().Where("key").Eq(compositeKey).Build()
-	existing, err := m.policyColl.Read(ctx, &q)
+	existing, err := m.opModel.Read(ctx, &q)
 	if err != nil {
 		return Policy{}, common.NewSystemError("CHECK_EXISTING_POLICY").WithCause(err)
 	}
-	if existing.Count > 0 {
+	if len(existing) > 0 {
 		return Policy{}, ErrPolicyAlreadyExists.WithOperation("CreatePolicy").WithMessagef("policy for operation %q already exists", p.Operation)
 	}
 
-	fields := map[string]any{
-		"operation": p.Operation,
-		"rule":      p.Rule,
-		"enabled":   p.Enabled,
-		"protected": p.Protected,
-		"key":       compositeKey,
+	doc := &model.SystemOperationPolicy{
+		Operation: p.Operation,
+		Rule:      p.Rule,
+		Enabled:   boolPtr(p.Enabled),
+		Protected: boolPtr(p.Protected),
+		Key:       &compositeKey,
 	}
 	if p.TenantID != "" {
-		fields["tenant_id"] = p.TenantID
+		doc.TenantID = &p.TenantID
 	}
 	if p.RateLimit != nil {
-		fields["rate_limit_enabled"] = p.RateLimit.Enabled
-		fields["rate_identity"] = p.RateLimit.Identity
-		fields["rate_capacity"] = p.RateLimit.Capacity
-		fields["rate_refill"] = p.RateLimit.Refill
-		fields["rate_period"] = p.RateLimit.Period
+		doc.RateLimitEnabled = boolPtr(p.RateLimit.Enabled)
+		doc.RateIdentity = strPtr(p.RateLimit.Identity)
+		doc.RateCapacity = f64Ptr(float64(p.RateLimit.Capacity))
+		doc.RateRefill = f64Ptr(float64(p.RateLimit.Refill))
+		doc.RatePeriod = f64Ptr(float64(p.RateLimit.Period))
 	}
 	if p.Throttle != nil {
-		fields["throttle_limit"] = p.Throttle.Limit
-		fields["throttle_window"] = p.Throttle.Window
+		doc.ThrottleLimit = f64Ptr(float64(p.Throttle.Limit))
+		doc.ThrottleWindow = f64Ptr(float64(p.Throttle.Window))
 		if p.Throttle.Action != nil {
-			fields["throttle_action_msg"] = p.Throttle.Action.Message
-			fields["throttle_action_input"] = p.Throttle.Action.Input
+			doc.ThrottleActionMsg = strPtr(p.Throttle.Action.Message)
+			doc.ThrottleActionInput = p.Throttle.Action.Input
 		}
 	}
 
-	doc, err := data.NewDocument(fields, ctx)
-	if err != nil {
-		return Policy{}, common.NewSystemError("CREATE_POLICY_DOC").WithCause(err)
-	}
-
-	created, err := m.policyColl.CreateOne(ctx, doc)
+	created, err := m.opModel.Create(ctx, doc)
 	if err != nil {
 		return Policy{}, common.NewSystemError("CREATE_POLICY").WithCause(err)
 	}
 
-	return docToPolicy(created.Data)
+	return policyFromGenerated(created), nil
 }
 
 func (m *PolicyModel) UpdatePolicyRule(ctx context.Context, operationName, newRuleName string) (Policy, error) {
-	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
-	existing, err := m.policyColl.Read(ctx, &q)
+	existing, err := m.findPolicyByOperation(ctx, operationName)
 	if err != nil {
-		return Policy{}, common.NewSystemError("QUERY_POLICY").WithCause(err)
-	}
-	if existing.Count == 0 {
-		return Policy{}, ErrPolicyNotFound.WithOperation("UpdatePolicyRule").WithMessagef("no policy for operation %q", operationName)
+		return Policy{}, err
 	}
 
-	docID := existing.Data[0].ID()
-	setDoc := data.Patch(map[string]any{"rule": newRuleName}).Document(ctx)
-	_, err = m.policyColl.Update(ctx, &base.CollectionUpdate{
-		Set:    setDoc,
-		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(docID).Build().Filters,
-	})
-	if err != nil {
+	if _, err := m.opModel.Update(ctx, existing.ID, &model.SystemOperationPolicy{Rule: newRuleName}); err != nil {
 		return Policy{}, common.NewSystemError("UPDATE_POLICY_RULE").WithCause(err)
 	}
 
 	return m.GetPolicyForOperation(ctx, operationName)
 }
 
-func policyFields(p Policy) map[string]any {
-	f := map[string]any{}
+func policyFields(p Policy) *model.SystemOperationPolicy {
+	f := &model.SystemOperationPolicy{}
 	if p.Rule != "" {
-		f["rule"] = p.Rule
+		f.Rule = p.Rule
 	}
 	if p.RateLimit != nil {
-		f["rate_limit_enabled"] = p.RateLimit.Enabled
-		f["rate_identity"] = p.RateLimit.Identity
-		f["rate_capacity"] = p.RateLimit.Capacity
-		f["rate_refill"] = p.RateLimit.Refill
-		f["rate_period"] = p.RateLimit.Period
+		f.RateLimitEnabled = boolPtr(p.RateLimit.Enabled)
+		f.RateIdentity = strPtr(p.RateLimit.Identity)
+		f.RateCapacity = f64Ptr(float64(p.RateLimit.Capacity))
+		f.RateRefill = f64Ptr(float64(p.RateLimit.Refill))
+		f.RatePeriod = f64Ptr(float64(p.RateLimit.Period))
 	}
 	if p.Throttle != nil {
-		f["throttle_limit"] = p.Throttle.Limit
-		f["throttle_window"] = p.Throttle.Window
+		f.ThrottleLimit = f64Ptr(float64(p.Throttle.Limit))
+		f.ThrottleWindow = f64Ptr(float64(p.Throttle.Window))
 		if p.Throttle.Action != nil {
-			f["throttle_action_msg"] = p.Throttle.Action.Message
-			f["throttle_action_input"] = p.Throttle.Action.Input
+			f.ThrottleActionMsg = strPtr(p.Throttle.Action.Message)
+			f.ThrottleActionInput = p.Throttle.Action.Input
 		}
 	}
 	return f
 }
 
 func (m *PolicyModel) UpdatePolicy(ctx context.Context, operationName string, p Policy) (Policy, error) {
-	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
-	existing, err := m.policyColl.Read(ctx, &q)
+	existing, err := m.findPolicyByOperation(ctx, operationName)
 	if err != nil {
-		return Policy{}, common.NewSystemError("QUERY_POLICY").WithCause(err)
-	}
-	if existing.Count == 0 {
-		return Policy{}, ErrPolicyNotFound.WithOperation("UpdatePolicy").WithMessagef("no policy for operation %q", operationName)
+		return Policy{}, err
 	}
 
-	docID := existing.Data[0].ID()
 	fields := policyFields(p)
-
-	if len(fields) == 0 {
+	if fields.Rule == "" && fields.RateLimitEnabled == nil && fields.ThrottleLimit == nil {
 		return m.GetPolicyForOperation(ctx, operationName)
 	}
 
-	setDoc := data.Patch(fields).Document(ctx)
-	_, err = m.policyColl.Update(ctx, &base.CollectionUpdate{
-		Set:    setDoc,
-		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(docID).Build().Filters,
-	})
-	if err != nil {
+	if _, err := m.opModel.Update(ctx, existing.ID, fields); err != nil {
 		return Policy{}, common.NewSystemError("UPDATE_POLICY").WithCause(err)
 	}
 
@@ -413,22 +360,12 @@ func (m *PolicyModel) UpdatePolicy(ctx context.Context, operationName string, p 
 }
 
 func (m *PolicyModel) SetPolicyEnabled(ctx context.Context, operationName string, enabled bool) (Policy, error) {
-	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
-	existing, err := m.policyColl.Read(ctx, &q)
+	existing, err := m.findPolicyByOperation(ctx, operationName)
 	if err != nil {
-		return Policy{}, common.NewSystemError("QUERY_POLICY").WithCause(err)
-	}
-	if existing.Count == 0 {
-		return Policy{}, ErrPolicyNotFound.WithOperation("SetPolicyEnabled").WithMessagef("no policy for operation %q", operationName)
+		return Policy{}, err
 	}
 
-	docID := existing.Data[0].ID()
-	setDoc := data.Patch(map[string]any{"enabled": enabled}).Document(ctx)
-	_, err = m.policyColl.Update(ctx, &base.CollectionUpdate{
-		Set:    setDoc,
-		Filter: query.NewQueryBuilder().Where(data.DocumentIDField).Eq(docID).Build().Filters,
-	})
-	if err != nil {
+	if _, err := m.opModel.Update(ctx, existing.ID, &model.SystemOperationPolicy{Enabled: boolPtr(enabled)}); err != nil {
 		return Policy{}, common.NewSystemError("SET_POLICY_ENABLED").WithCause(err)
 	}
 
@@ -436,121 +373,119 @@ func (m *PolicyModel) SetPolicyEnabled(ctx context.Context, operationName string
 }
 
 func (m *PolicyModel) DeletePolicy(ctx context.Context, operationName string) error {
-	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
-	result, err := m.policyColl.Read(ctx, &q)
+	existing, err := m.findPolicyByOperation(ctx, operationName)
 	if err != nil {
-		return common.NewSystemError("QUERY_POLICY").WithCause(err)
-	}
-	if result.Count == 0 {
-		return ErrPolicyNotFound.WithOperation("DeletePolicy").WithMessagef("no policy for operation %q", operationName)
+		return err
 	}
 
-	filter := query.NewQueryBuilder().Where(data.DocumentIDField).Eq(result.Data[0].ID()).Build().Filters
-	deleted, err := m.policyColl.Delete(ctx, filter, false)
-	if err != nil {
+	if err := m.opModel.DeleteByID(ctx, existing.ID); err != nil {
 		return common.NewSystemError("DELETE_POLICY").WithCause(err)
-	}
-	if deleted == 0 {
-		return ErrPolicyNotFound.WithOperation("DeletePolicy").WithMessagef("policy for operation %q not found", operationName)
 	}
 	return nil
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-func docToPolicy(doc data.Documenter) (Policy, error) {
-	operation, err := doc.GetString("operation")
+// findPolicyByOperation resolves a policy document by its operation field.
+func (m *PolicyModel) findPolicyByOperation(ctx context.Context, operationName string) (*model.SystemOperationPolicy, error) {
+	q := query.NewQueryBuilder().Where("operation").Eq(operationName).Build()
+	docs, err := m.opModel.Read(ctx, &q)
 	if err != nil {
-		return Policy{}, err
+		return nil, common.NewSystemError("QUERY_POLICY").WithCause(err)
 	}
-	rule, err := doc.GetString("rule")
-	if err != nil {
-		return Policy{}, err
+	if len(docs) == 0 {
+		return nil, ErrPolicyNotFound.WithOperation("findPolicyByOperation").WithMessagef("no policy for operation %q", operationName)
 	}
-	enabled, _ := doc.GetBool("enabled")
-	protected, _ := doc.GetBool("protected")
-	tenantID, _ := doc.GetString("tenant_id")
-	key, _ := doc.GetString("key")
+	return docs[0], nil
+}
 
-	p := Policy{
-		ID:        doc.ID(),
-		Operation: operation,
-		Rule:      rule,
-		TenantID:  tenantID,
-		Key:       key,
-		Enabled:   enabled,
-		Protected: protected,
+// ── Mapping helpers (generated structs ⇄ domain types) ───────────────────
+
+func ruleFromGenerated(r *model.SystemIamRule) PolicyRule {
+	result := PolicyRule{
+		ID:          r.ID,
+		Name:        r.Name,
+		RuleType:    derefStr(r.RuleType),
+		Syntax:      derefStr(r.Syntax),
+		Expression:  derefStr(r.Expression),
+		Description: derefStr(r.Description),
+		Protected:   derefBool(r.Protected),
 	}
 
-	if rle, _ := doc.GetBool("rate_limit_enabled"); rle {
-		p.RateLimit = &runtime.RateLimitPolicy{
+	if r.Rules != nil && *r.Rules != "" {
+		var node RuleNode
+		if err := json.Unmarshal([]byte(*r.Rules), &node); err == nil {
+			result.Rules = &node
+		}
+	}
+	return result
+}
+
+func policyFromGenerated(p *model.SystemOperationPolicy) Policy {
+	result := Policy{
+		ID:        p.ID,
+		Operation: p.Operation,
+		Rule:      p.Rule,
+		TenantID:  derefStr(p.TenantID),
+		Key:       derefStr(p.Key),
+		Enabled:   derefBool(p.Enabled),
+		Protected: derefBool(p.Protected),
+	}
+
+	if p.RateLimitEnabled != nil && *p.RateLimitEnabled {
+		result.RateLimit = &runtime.RateLimitPolicy{
 			Enabled:  true,
-			Identity: mustGetString(doc, "rate_identity"),
-			Capacity: int64(mustGetFloat(doc, "rate_capacity")),
-			Refill:   int64(mustGetFloat(doc, "rate_refill")),
-			Period:   int64(mustGetFloat(doc, "rate_period")),
+			Identity: derefStr(p.RateIdentity),
+			Capacity: int64(derefF64(p.RateCapacity)),
+			Refill:   int64(derefF64(p.RateRefill)),
+			Period:   int64(derefF64(p.RatePeriod)),
 		}
 	}
 
-	if tl, _ := doc.GetFloat64("throttle_limit"); tl > 0 {
-		p.Throttle = &runtime.ThrottlePolicy{
+	if tl := derefF64(p.ThrottleLimit); tl > 0 {
+		throttle := &runtime.ThrottlePolicy{
 			Limit:  int64(tl),
-			Window: int64(mustGetFloat(doc, "throttle_window")),
+			Window: int64(derefF64(p.ThrottleWindow)),
 		}
-		if msg, _ := doc.GetString("throttle_action_msg"); msg != "" {
-			p.Throttle.Action = &runtime.ThrottleActionPolicy{Message: msg}
-			if raw, _ := doc.Get("throttle_action_input"); raw != nil {
-				if m, ok := raw.(map[string]any); ok {
-					p.Throttle.Action.Input = m
-				}
+		if msg := derefStr(p.ThrottleActionMsg); msg != "" {
+			throttle.Action = &runtime.ThrottleActionPolicy{
+				Message: msg,
+				Input:   p.ThrottleActionInput,
 			}
 		}
+		result.Throttle = throttle
 	}
 
-	return p, nil
+	return result
 }
 
-func mustGetString(doc data.Documenter, field string) string {
-	s, _ := doc.GetString(field)
-	return s
+func strPtr(s string) *string {
+	return &s
 }
 
-func mustGetFloat(doc data.Documenter, field string) float64 {
-	f, _ := doc.GetFloat64(field)
-	return f
+func boolPtr(b bool) *bool {
+	return &b
 }
 
-func docToRule(doc data.Documenter) (PolicyRule, error) {
-	name, err := doc.GetString("name")
-	if err != nil {
-		return PolicyRule{}, err
+func f64Ptr(f float64) *float64 {
+	return &f
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
 	}
-	ruleType, _ := doc.GetString("ruleType")
-	syntax, _ := doc.GetString("syntax")
-	expression, _ := doc.GetString("expression")
-	desc, _ := doc.GetString("description")
-	protected, _ := doc.GetBool("protected")
-
-	r := PolicyRule{
-		ID:          doc.ID(),
-		Name:        name,
-		RuleType:    ruleType,
-		Syntax:      syntax,
-		Expression:  expression,
-		Description: desc,
-		Protected:   protected,
-	}
-
-	rulesStr, _ := doc.GetString("rules")
-	if rulesStr != "" {
-		var node RuleNode
-		if err := json.Unmarshal([]byte(rulesStr), &node); err == nil {
-			r.Rules = &node
-		}
-	}
-
-	return r, nil
+	return *s
 }
-// @note #hand-rolled-policymodel-should-u-70af02a6 issue P2 #cruft,#model : Hand-rolled PolicyModel should use generated models as building blocks
-//
-// PolicyModel orchestrates across two collections (operation_policy + iam_rule). Generated models exist for both. Refactor to use generated SystemOperationPolicys and SystemIamRules as building blocks, with PolicyModel as a thin orchestration layer. Domain types (Binding, PolicyRule, Policy) are legitimate domain concepts but should be defined alongside the generated models.
+
+func derefBool(b *bool) bool {
+	if b == nil {
+		return false
+	}
+	return *b
+}
+
+func derefF64(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
+}
