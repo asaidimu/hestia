@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/asaidimu/hestia/compare/v1.4.19...v1.5.0) (2026-08-26)
+
+
+### Features
+
+* **core:** implement system logging and audit log streaming ([aa5023f](https://github.com/asaidimu/hestia/commit/aa5023f73e0b48d1fad7822d7335e48b0a18bf76))
+
 ## [1.4.19](https://github.com/asaidimu/hestia/compare/v1.4.18...v1.4.19) (2026-08-26)
 
 
