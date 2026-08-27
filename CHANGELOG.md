@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/asaidimu/hestia/compare/v1.6.1...v1.6.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **config:** remove environment variable support for application version ([15cfe7e](https://github.com/asaidimu/hestia/commit/15cfe7ee7ff4eb59fedaa5552090c39a9072097b))
+
 ## [1.6.1](https://github.com/asaidimu/hestia/compare/v1.6.0...v1.6.1) (2026-08-27)
 
 
