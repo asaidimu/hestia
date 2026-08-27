@@ -77,5 +77,16 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[model.UnreadCountDocument](),
 			Handler: dispatch.HandleDocument[model.NotificationUnreadCountInput, *model.UnreadCountDocument](s.CountUnread),
 		},
+			{
+				Name:        "system:notifications:notification:stream",
+				Description: "Stream new notifications for the current user",
+				Intent:      abstract.Stream,
+				Enabled:     true,
+				Input: abstract.Input{
+					Schema: dispatch.SchemaFromTypeWithTag[model.NotificationStreamInput]("input"),
+				},
+				Output: dispatch.SchemaFromType[model.NotificationStreamOutput](),
+				Handler: dispatch.Handle[model.NotificationStreamInput](s.Stream),
+			},
 	}, nil
 }

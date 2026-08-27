@@ -23,7 +23,6 @@ import (
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	"github.com/asaidimu/hestia/core/system/logs"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
-	"github.com/asaidimu/hestia/core/system/notifications"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
@@ -235,8 +234,8 @@ func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistrati
 	// notification stream registrations are hand-written using
 	// dispatch.Handle[TIn] for proper input binding.
 	all := audit.StreamRegistration(ps.Persist)
-	nStreamRegs, _ := notifications.StreamRegistration(ps.Persist)
-	all = append(all, nStreamRegs...)
+	// nStreamRegs, _ := notifications.StreamRegistration(ps.Persist)
+	// all = append(all, nStreamRegs...)
 	if ps.Logs != nil {
 		all = append(all, ps.Logs.Registrations()...)
 	}

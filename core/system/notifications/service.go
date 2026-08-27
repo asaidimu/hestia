@@ -10,9 +10,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/system/notifications/model"
-	"github.com/asaidimu/hestia/core/system/policies"
 
 	"go.uber.org/zap"
 )
@@ -247,23 +245,4 @@ func (s *NotificationsService) Stream(ctx context.Context, msg abstract.Message,
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil
-}
-
-// StreamRegistration returns the notification stream registration.
-func StreamRegistration(persist persistence.Persistence) ([]abstract.MessageRegistration, []policies.Binding) {
-	return []abstract.MessageRegistration{
-			{
-				Name:        "system:notifications:notification:stream",
-				Description: "Stream new notifications for the current user",
-				Intent:      abstract.Stream,
-				Enabled:     true,
-				Input: abstract.Input{
-					Schema: dispatch.SchemaFromTypeWithTag[model.NotificationStreamInput]("input"),
-				},
-				Output: dispatch.SchemaFromType[model.NotificationStreamOutput](),
-				Handler: dispatch.Handle[model.NotificationStreamInput](nil), // set after service init
-			},
-		}, []policies.Binding{
-			{Name: "system:notifications:notification:stream", RuleKey: "authenticated", Description: "Stream own notifications in real-time"},
-		}
 }
