@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/asaidimu/hestia/compare/v1.6.0...v1.6.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **notifications:** move stream registration into standard notification module ([45d56ce](https://github.com/asaidimu/hestia/commit/45d56ce998a648a95083f2e6ca1a3035f6d3084c))
+
 # [1.6.0](https://github.com/asaidimu/hestia/compare/v1.5.0...v1.6.0) (2026-08-27)
 
 
