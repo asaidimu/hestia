@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/asaidimu/hestia/compare/v1.5.0...v1.6.0) (2026-08-27)
+
+
+### Features
+
+* **system:** add blob management features and system log auditing ([db3ac00](https://github.com/asaidimu/hestia/commit/db3ac0045c8db163b86bd1dcf7756b54a4a2792d))
+
 # [1.5.0](https://github.com/asaidimu/hestia/compare/v1.4.19...v1.5.0) (2026-08-26)
 
 
