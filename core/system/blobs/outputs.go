@@ -86,3 +86,24 @@ type UploadProgressDocument struct {
 type UploadProgressOutput struct {
 	Document UploadProgressDocument `anansi:"document"`
 }
+
+type NamespaceStatsDocument struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	NamespaceID            string `anansi:"namespace_id"`
+	BlobCount              int64  `anansi:"blob_count"`
+	BytesStored            int64  `anansi:"bytes_stored"`
+	BytesPhysical          int64  `anansi:"bytes_physical"`
+	ChunkCount             int64  `anansi:"chunk_count"`
+	DeadBytes              int64  `anansi:"dead_bytes"`
+	DeadChunks             int64  `anansi:"dead_chunks"`
+	SegmentCount           int64  `anansi:"segment_count"`
+}
+
+type NamespaceStatsOutput struct {
+	Document NamespaceStatsDocument `anansi:"document"`
+}
+
+type MessageOutput struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Message                string `anansi:"message"`
+}

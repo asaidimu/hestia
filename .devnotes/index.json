@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-26T15:18:08.513578268Z",
+  "generatedAt": "2026-08-27T08:00:19.470050961Z",
   "root": ".",
   "notes": {
     "83l69u": {
@@ -306,6 +306,22 @@
         "endCol": 3
       },
       "hash": "5fc694791b5a3e48"
+    },
+    "feat-ns-metadata": {
+      "id": "feat-ns-metadata",
+      "category": "feature_request",
+      "status": "open",
+      "priority": "P2",
+      "title": "Add arbitrary metadata to blob namespaces",
+      "body": "BlobNamespaceInfo currently only carries ID, DisplayName, and Public.\nUsers want to attach custom key-value metadata to namespaces (e.g. description,\nowner, environment tags, retention policy) similar to how BlobMeta.Custom works\non individual blobs.\n\nOptions: (1) add Custom map[string]string to BlobNamespaceInfo + persist in\nhestia's layer since the blobs library doesn't support it, (2) store namespace\nmetadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions\nwith a Custom field and persist alongside namespace creation.\n",
+      "location": {
+        "file": "core/system/blobs/store/types.go",
+        "startLine": 36,
+        "startCol": 3,
+        "endLine": 46,
+        "endCol": 3
+      },
+      "hash": "6288b3ce39db2256"
     },
     "mem-20260821-003": {
       "id": "mem-20260821-003",
@@ -1699,7 +1715,10 @@
       "hash": "a942994cf25b247a"
     },
     "core/system/blobs/store/types.go": {
-      "hash": "47b5643157790f41"
+      "hash": "6430d391aad9998b",
+      "noteIds": [
+        "feat-ns-metadata"
+      ]
     },
     "core/system/blobs/typed_input_test.go": {
       "hash": "e64f03ad627ecbf4"

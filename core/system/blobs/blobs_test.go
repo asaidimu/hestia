@@ -26,9 +26,15 @@ func TestMain(m *testing.M) {
 
 type mockBlobNamespace struct {
 	blobutil.BlobNamespace
-	headErr error
-	listErr error
-	listRes []blobutil.BlobMeta
+	headErr    error
+	listErr    error
+	listRes    []blobutil.BlobMeta
+	renameErr  error
+	statsRes   *blobutil.NamespaceStats
+	statsErr   error
+	compactRes *blobutil.CompactResult
+	compactErr error
+	verifyErr  error
 }
 
 func (m mockBlobNamespace) Head(_ context.Context, _ string) (*blobutil.BlobMeta, error) {
@@ -52,6 +58,22 @@ func (m mockBlobNamespace) Put(_ context.Context, key, contentType string, r io.
 
 func (m mockBlobNamespace) UpdateMetadata(_ context.Context, key string, custom map[string]string) (*blobutil.BlobMeta, error) {
 	return &blobutil.BlobMeta{Key: key, NamespaceID: "test-ns", ContentType: "text/plain", Custom: custom}, nil
+}
+
+func (m mockBlobNamespace) Rename(_ context.Context, _, _ string) error {
+	return m.renameErr
+}
+
+func (m mockBlobNamespace) Stats(_ context.Context) (*blobutil.NamespaceStats, error) {
+	return m.statsRes, m.statsErr
+}
+
+func (m mockBlobNamespace) Compact(_ context.Context) (*blobutil.CompactResult, error) {
+	return m.compactRes, m.compactErr
+}
+
+func (m mockBlobNamespace) Verify(_ context.Context) error {
+	return m.verifyErr
 }
 
 type mockBlobStore struct {
@@ -95,12 +117,16 @@ func TestPolicyBindings(t *testing.T) {
 		"system:blobs:namespace:list":   "administrator",
 		"system:blobs:namespace:create": "administrator",
 		"system:blobs:namespace:delete": "administrator",
+		"system:blobs:namespace:stats":  "administrator",
+		"system:blobs:namespace:verify": "administrator",
+		"system:blobs:namespace:compact": "administrator",
 		"system:blobs:blob:list":        "administrator",
 		"system:blobs:blob:head":        "administrator",
 		"system:blobs:blob:upload":      "administrator",
 		"system:blobs:blob:download":    "administrator",
 		"system:blobs:blob:delete":      "administrator",
 		"system:blobs:blob:update":      "administrator",
+		"system:blobs:blob:rename":      "administrator",
 		"system:blobs:blob:begin":       "administrator",
 		"system:blobs:blob:chunk":       "administrator",
 		"system:blobs:blob:complete":    "administrator",
@@ -304,5 +330,192 @@ func TestUploadBlobHandlerEmptyPayload(t *testing.T) {
 	var sysErr *common.SystemError
 	if !errors.As(err, &sysErr) || sysErr.Code != "VALIDATION_ERROR" {
 		t.Errorf("expected VALIDATION_ERROR, got %v", err)
+	}
+}
+
+func TestRenameBlobHandler(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{}}
+	handler := blobs.NewRenameBlobHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobRenameInput]("input", true), `{
+		"arguments": {"ns": "test-ns", "key": "old.txt"},
+		"payload": {"new_key": "new.txt"}
+	}`)
+	msg := testMessage{ctx: ctx, input: input}
+
+	result, err := handler(ctx, msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil || result.Document == nil {
+		t.Fatal("expected non-nil result document")
+	}
+	msg_out, _ := result.Document.GetString("message")
+	if msg_out != "renamed" {
+		t.Errorf("message = %q, want %q", msg_out, "renamed")
+	}
+}
+
+func TestRenameBlobHandlerError(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{renameErr: io.EOF}}
+	handler := blobs.NewRenameBlobHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.BlobRenameInput]("input", true), `{
+		"arguments": {"ns": "test-ns", "key": "old.txt"},
+		"payload": {"new_key": "new.txt"}
+	}`)
+	_, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("expected wrapped EOF, got %v", err)
+	}
+}
+
+func TestStatsNamespaceHandler(t *testing.T) {
+	ctx := context.Background()
+	stats := &blobutil.NamespaceStats{
+		NamespaceID:   "test-ns",
+		BlobCount:     5,
+		BytesStored:   1024,
+		BytesPhysical: 2048,
+		ChunkCount:    10,
+		DeadBytes:     128,
+		DeadChunks:    2,
+		SegmentCount:  3,
+	}
+	store := mockBlobStore{ns: mockBlobNamespace{statsRes: stats}}
+	handler := blobs.NewStatsNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	msg := testMessage{ctx: ctx, input: input}
+
+	result, err := handler(ctx, msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil || result.Document == nil {
+		t.Fatal("expected non-nil result document")
+	}
+	blobs_count, _ := result.Document.GetOr("blob_count", int64(0)).(int64)
+	if blobs_count != 5 {
+		t.Errorf("blob_count = %d, want 5", blobs_count)
+	}
+	stored, _ := result.Document.GetOr("bytes_stored", int64(0)).(int64)
+	if stored != 1024 {
+		t.Errorf("bytes_stored = %d, want 1024", stored)
+	}
+}
+
+func TestStatsNamespaceHandlerError(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{statsErr: io.EOF}}
+	handler := blobs.NewStatsNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	_, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("expected wrapped EOF, got %v", err)
+	}
+}
+
+func TestVerifyNamespaceHandler(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{}}
+	handler := blobs.NewVerifyNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	msg := testMessage{ctx: ctx, input: input}
+
+	result, err := handler(ctx, msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil || result.Document == nil {
+		t.Fatal("expected non-nil result document")
+	}
+	msg_out, _ := result.Document.GetString("message")
+	if msg_out != "ok" {
+		t.Errorf("message = %q, want %q", msg_out, "ok")
+	}
+}
+
+func TestVerifyNamespaceHandlerCorruption(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{verifyErr: &bserrors.CorruptionError{SegmentID: "seg1", Offset: 0, Detail: "bad checksum"}}}
+	handler := blobs.NewVerifyNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	_, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var sysErr *common.SystemError
+	if !errors.As(err, &sysErr) || sysErr.Code != "CORRUPTION" {
+		t.Errorf("expected CORRUPTION, got %v", err)
+	}
+}
+
+func TestCompactNamespaceHandler(t *testing.T) {
+	ctx := context.Background()
+	res := &blobutil.CompactResult{
+		BlobsRemoved:      2,
+		ChunksRemoved:     5,
+		BytesFreed:        1024,
+		SegmentsCompacted: 1,
+	}
+	store := mockBlobStore{ns: mockBlobNamespace{compactRes: res}}
+	handler := blobs.NewCompactNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	msg := testMessage{ctx: ctx, input: input}
+
+	result, err := handler(ctx, msg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil || result.Document == nil {
+		t.Fatal("expected non-nil result document")
+	}
+	freed, _ := result.Document.GetOr("bytes_freed", int64(0)).(int64)
+	if freed != 1024 {
+		t.Errorf("bytes_freed = %d, want 1024", freed)
+	}
+	removed, _ := result.Document.GetOr("blobs_removed", int64(0)).(int64)
+	if removed != 2 {
+		t.Errorf("blobs_removed = %d, want 2", removed)
+	}
+}
+
+func TestCompactNamespaceHandlerError(t *testing.T) {
+	ctx := context.Background()
+	store := mockBlobStore{ns: mockBlobNamespace{compactErr: io.EOF}}
+	handler := blobs.NewCompactNamespaceHandler(store)
+
+	input := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[blobs.NsInput]("input", true), `{
+		"arguments": {"ns": "test-ns"}
+	}`)
+	_, err := handler(ctx, testMessage{ctx: ctx, input: input})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Errorf("expected wrapped EOF, got %v", err)
 	}
 }

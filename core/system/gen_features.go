@@ -7,6 +7,7 @@ import (
 	authsvc "github.com/asaidimu/hestia/core/system/auth"
 	blobsvc "github.com/asaidimu/hestia/core/system/blobs"
 	collectionsvc "github.com/asaidimu/hestia/core/system/collections"
+	logssvc "github.com/asaidimu/hestia/core/system/logs"
 	notificationsvc "github.com/asaidimu/hestia/core/system/notifications"
 	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
@@ -84,6 +85,7 @@ var allPolicyBindings = func() []policies.Binding {
 	all = append(all, operationsvc.Policies()...)
 	all = append(all, authsvc.Policies()...)
 	all = append(all, updatessvc.Policies()...)
+	all = append(all, logssvc.Policies()...)
 	return all
 }()
 

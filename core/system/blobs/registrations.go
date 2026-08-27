@@ -176,5 +176,48 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			},
 			Handler: dispatch.Handle[model.BlobAbortInput](s.AbortUpload),
 		},
+		{
+			Name:        "system:blobs:blob:rename",
+			Description: "Rename a blob key",
+			Intent:      abstract.Update,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobRenameInput]("input"),
+				ResourceIDField: "key",
+			},
+			Handler: dispatch.Handle[model.BlobRenameInput](s.RenameBlob),
+		},
+		{
+			Name:        "system:blobs:namespace:stats",
+			Description: "Get namespace stats",
+			Intent:      abstract.Query,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.NsInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.NamespaceStatsOutput](),
+			Handler: dispatch.Handle[model.NsInput](s.NamespaceStats),
+		},
+		{
+			Name:        "system:blobs:namespace:verify",
+			Description: "Verify namespace integrity",
+			Intent:      abstract.Query,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.NsInput]("input"),
+			},
+			Handler: dispatch.Handle[model.NsInput](s.VerifyNamespace),
+		},
+		{
+			Name:        "system:blobs:namespace:compact",
+			Description: "Compact a namespace to reclaim space",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.NsInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.CompactResultOutput](),
+			Handler: dispatch.Handle[model.NsInput](s.CompactNamespace),
+		},
 	}, nil
 }

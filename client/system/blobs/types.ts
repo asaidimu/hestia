@@ -5,6 +5,24 @@ export interface NamespaceInfo {
   display_name: string
 }
 
+export interface NamespaceStats {
+  namespace_id: string
+  blob_count: number
+  bytes_stored: number
+  bytes_physical: number
+  chunk_count: number
+  dead_bytes: number
+  dead_chunks: number
+  segment_count: number
+}
+
+export interface CompactResult {
+  blobs_removed: number
+  chunks_removed: number
+  bytes_freed: number
+  segments_compacted: number
+}
+
 export interface BlobMeta {
   key: string
   namespace_id: string

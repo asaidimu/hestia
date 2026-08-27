@@ -222,6 +222,65 @@ func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, in
 	return NewAbortUploadHandler(s.staging)(ctx, msg)
 }
 
+// RenameBlob renames a blob key.
+//
+// @hestia.register(
+//
+//	name="system:blobs:blob:rename",
+//	intent="update",
+//	rule="administrator",
+//	resource_id="key",
+//	description="Rename a blob key",
+//
+// )
+func (s *BlobsService) RenameBlob(ctx context.Context, msg abstract.Message, input *model.BlobRenameInput) (*abstract.Result, error) {
+	return NewRenameBlobHandler(s.blobStore)(ctx, msg)
+}
+
+// NamespaceStats gets stats for a blob namespace.
+//
+// @hestia.register(
+//
+//	name="system:blobs:namespace:stats",
+//	intent="query",
+//	rule="administrator",
+//	description="Get namespace stats",
+//	output="model.NamespaceStatsOutput",
+//
+// )
+func (s *BlobsService) NamespaceStats(ctx context.Context, msg abstract.Message, input *model.NsInput) (*abstract.Result, error) {
+	return NewStatsNamespaceHandler(s.blobStore)(ctx, msg)
+}
+
+// VerifyNamespace verifies blob integrity in a namespace.
+//
+// @hestia.register(
+//
+//	name="system:blobs:namespace:verify",
+//	intent="query",
+//	rule="administrator",
+//	description="Verify namespace integrity",
+//
+// )
+func (s *BlobsService) VerifyNamespace(ctx context.Context, msg abstract.Message, input *model.NsInput) (*abstract.Result, error) {
+	return NewVerifyNamespaceHandler(s.blobStore)(ctx, msg)
+}
+
+// CompactNamespace compacts a namespace to reclaim space.
+//
+// @hestia.register(
+//
+//	name="system:blobs:namespace:compact",
+//	intent="create",
+//	rule="administrator",
+//	description="Compact a namespace to reclaim space",
+//	output="model.CompactResultOutput",
+//
+// )
+func (s *BlobsService) CompactNamespace(ctx context.Context, msg abstract.Message, input *model.NsInput) (*abstract.Result, error) {
+	return NewCompactNamespaceHandler(s.blobStore)(ctx, msg)
+}
+
 
 // @note #storage-leak-blobs-never-compact-ad27adbb issue resolved P1 #storage-leak,#blobs : Storage leak: blobs never compacted after deletion
 // @assignee opencode

@@ -67,3 +67,9 @@ type BlobProgressInput struct {
 	NS        string `input:"arguments.ns"`
 	SessionID string `input:"modifiers.session_id"`
 }
+
+type BlobRenameInput struct {
+	NS     string `input:"arguments.ns"`
+	Key    string `input:"arguments.key"`
+	NewKey string `input:"payload.new_key"`
+}

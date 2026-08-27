@@ -180,12 +180,42 @@ func (h *nsHandle) List(ctx context.Context, prefix string, limit int) ([]BlobMe
 	return out, nil
 }
 
-func (h *nsHandle) Compact(ctx context.Context) (int64, error) {
+func (h *nsHandle) Compact(ctx context.Context) (*CompactResult, error) {
 	result, err := h.ns.Compact(ctx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return result.BytesFreed, nil
+	return &CompactResult{
+		BlobsRemoved:      result.BlobsRemoved,
+		ChunksRemoved:     result.ChunksRemoved,
+		BytesFreed:        result.BytesFreed,
+		SegmentsCompacted: result.SegmentsCompacted,
+	}, nil
+}
+
+func (h *nsHandle) Rename(ctx context.Context, oldKey, newKey string) error {
+	return h.ns.Rename(ctx, oldKey, newKey)
+}
+
+func (h *nsHandle) Stats(ctx context.Context) (*NamespaceStats, error) {
+	s, err := h.ns.Stats(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &NamespaceStats{
+		NamespaceID:   s.NamespaceID,
+		BlobCount:     s.BlobCount,
+		BytesStored:   s.BytesStored,
+		BytesPhysical: s.BytesPhysical,
+		ChunkCount:    s.ChunkCount,
+		DeadBytes:     s.DeadBytes,
+		DeadChunks:    s.DeadChunks,
+		SegmentCount:  s.SegmentCount,
+	}, nil
+}
+
+func (h *nsHandle) Verify(ctx context.Context) error {
+	return h.ns.Verify(ctx)
 }
 
 func blobMetaFromInfo(info *object.BlobInfo) *BlobMeta {

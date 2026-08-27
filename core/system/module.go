@@ -26,6 +26,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/blobs"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	"github.com/asaidimu/hestia/core/system/collections"
+	"github.com/asaidimu/hestia/core/system/logs"
 	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
@@ -69,7 +70,8 @@ func (m *SystemModule) Name() string { return "system" }
 
 func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 	persist := abstract.MustResolve[base.Persistence](rt)
-	m.providers = NewProviderSet(persist, m.cfg, m.opts.Logger)
+	ring := abstract.MustResolve[*logs.RingBuffer](rt)
+	m.providers = NewProviderSet(persist, m.cfg, m.opts.Logger, ring)
 
 	if err := m.providers.InitModels(ctx); err != nil {
 		return fmt.Errorf("init models: %w", err)

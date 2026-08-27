@@ -33,6 +33,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
+	"github.com/asaidimu/hestia/core/system/blobs/model"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -270,6 +271,90 @@ func NewDeleteBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
+func NewRenameBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		var input BlobRenameInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		if err := svc.Namespace(input.NS).Rename(ctx, input.Key, input.NewKey); err != nil {
+			return nil, mapBlobError(err)
+		}
+
+		view := MessageOutput{Message: "renamed"}
+		return dispatch.NewDocumentResultFrom(&view)
+	}
+}
+
+func NewStatsNamespaceHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		var input NsInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		stats, err := svc.Namespace(input.NS).Stats(ctx)
+		if err != nil {
+			return nil, mapBlobError(err)
+		}
+
+		view := NamespaceStatsDocument{
+			NamespaceID:  stats.NamespaceID,
+			BlobCount:    stats.BlobCount,
+			BytesStored:  stats.BytesStored,
+			BytesPhysical: stats.BytesPhysical,
+			ChunkCount:   stats.ChunkCount,
+			DeadBytes:    stats.DeadBytes,
+			DeadChunks:   stats.DeadChunks,
+			SegmentCount: stats.SegmentCount,
+		}
+		return dispatch.NewDocumentResultFrom(&view)
+	}
+}
+
+func NewVerifyNamespaceHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		var input NsInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		if err := svc.Namespace(input.NS).Verify(ctx); err != nil {
+			return nil, mapBlobError(err)
+		}
+
+		view := MessageOutput{Message: "ok"}
+		return dispatch.NewDocumentResultFrom(&view)
+	}
+}
+
+func NewCompactNamespaceHandler(svc blobutil.BlobStore) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		var input NsInput
+		if err := msg.Input().BindToTag(&input, "input"); err != nil {
+			return nil, err
+		}
+		msg.Input().Release()
+
+		result, err := svc.Namespace(input.NS).Compact(ctx)
+		if err != nil {
+			return nil, mapBlobError(err)
+		}
+
+		view := model.CompactResultDocument{
+			BlobsRemoved:      result.BlobsRemoved,
+			ChunksRemoved:     result.ChunksRemoved,
+			BytesFreed:        result.BytesFreed,
+			SegmentsCompacted: result.SegmentsCompacted,
+		}
+		return dispatch.NewDocumentResultFrom(&view)
+	}
+}
+
 // ensureKeyWritable enforces overwrite protection: unless overwrite is true,
 // an existing key rejects the write with runtime.ErrAlreadyExists.
 func ensureKeyWritable(ctx context.Context, svc blobutil.BlobStore, nsID, key string, overwrite bool) error {
@@ -317,6 +402,10 @@ func mapBlobError(err error) error {
 	if errors.As(err, &exists) {
 		return runtime.ErrAlreadyExists.WithCause(err)
 	}
+	var corruption *bserrors.CorruptionError
+	if errors.As(err, &corruption) {
+		return common.NewSystemError("CORRUPTION", corruption.Error()).WithCause(err)
+	}
 	return fmt.Errorf("blob: %w", err)
 }
 
@@ -331,6 +420,9 @@ var blobOps = []BlobOp{
 	{"download", "administrator", "Download a blob"},
 	{"delete", "administrator", "Delete a blob"},
 	{"update", "administrator", "Update blob metadata"},
+	{"rename", "administrator", "Rename a blob"},
+	{"stats", "administrator", "Get namespace stats"},
+	{"verify", "administrator", "Verify namespace integrity"},
 	{"begin", "administrator", "Begin a resumable blob upload"},
 	{"chunk", "administrator", "Upload a chunk of a resumable blob upload"},
 	{"complete", "administrator", "Complete a resumable blob upload"},
@@ -362,6 +454,9 @@ func RegisterBlobHandlers(registry abstract.Registry, svc blobutil.BlobStore, mg
 		{"download", NewDownloadBlobHandler(svc)},
 		{"delete", NewDeleteBlobHandler(svc)},
 		{"update", NewUpdateBlobHandler(svc)},
+		{"rename", NewRenameBlobHandler(svc)},
+		{"stats", NewStatsNamespaceHandler(svc)},
+		{"verify", NewVerifyNamespaceHandler(svc)},
 		{"begin", NewBeginUploadHandler(svc, mgr)},
 		{"chunk", NewUploadChunkHandler(mgr)},
 		{"complete", NewCompleteUploadHandler(svc, mgr)},

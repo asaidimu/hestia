@@ -21,6 +21,7 @@ import (
 	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/audit"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
+	"github.com/asaidimu/hestia/core/system/logs"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
 	"github.com/asaidimu/hestia/core/system/notifications"
 	"github.com/asaidimu/hestia/core/system/operations"
@@ -62,6 +63,7 @@ type ProviderSet struct {
 	UpdData  string
 
 	BlobSvc      *blobutil.Service
+	Logs         *logs.LogsService
 	RateStore    *ratestore.InMemoryStore
 	Notifier     abstract.Notifier
 	Scheduler    *scheduler.Scheduler
@@ -77,11 +79,12 @@ type ProviderSet struct {
 	LiveUsers    collection.LiveCollection[*users.UserClaims]
 }
 
-func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger) *ProviderSet {
+func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger, ring *logs.RingBuffer) *ProviderSet {
 	return &ProviderSet{
 		Persist: persist,
 		Config:  cfg,
 		Logger:  logger,
+		Logs:    logs.NewLogsService(cfg.LogPath, ring, logger),
 	}
 }
 
@@ -234,5 +237,8 @@ func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistrati
 	all := audit.StreamRegistration(ps.Persist)
 	nStreamRegs, _ := notifications.StreamRegistration(ps.Persist)
 	all = append(all, nStreamRegs...)
+	if ps.Logs != nil {
+		all = append(all, ps.Logs.Registrations()...)
+	}
 	return append(all, svcRegs...)
 }

@@ -8,9 +8,11 @@ import type { DocumentStore } from "../../core/types";
 import type {
     BlobDocument,
     BlobMeta,
+    CompactResult,
     CreateNamespaceRequest,
     ListBlobsRequest,
     NamespaceInfo,
+    NamespaceStats,
     UploadBeginResult,
     UploadJobSnapshot,
     UploadJobsState,
@@ -1038,6 +1040,35 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     await this.client.dispatch("system:blobs:blob:delete", {
       arguments: { ns: this.ns, key },
     });
+  }
+
+  async rename(oldKey: string, newKey: string): Promise<void> {
+    await this.client.dispatch("system:blobs:blob:rename", {
+      arguments: { ns: this.ns, key: oldKey },
+      payload: { new_key: newKey },
+    });
+  }
+
+  async stats(): Promise<NamespaceStats> {
+    const res = await this.client.dispatch<{ data: NamespaceStats }>(
+      "system:blobs:namespace:stats",
+      { arguments: { ns: this.ns } },
+    );
+    return res.data!.data;
+  }
+
+  async verify(): Promise<void> {
+    await this.client.dispatch("system:blobs:namespace:verify", {
+      arguments: { ns: this.ns },
+    })
+  }
+
+  async compact(): Promise<CompactResult> {
+    const res = await this.client.dispatch<{ data: CompactResult }>(
+      "system:blobs:namespace:compact",
+      { arguments: { ns: this.ns } },
+    )
+    return res.data!.data
   }
 
   async list(options?: QueryDSL<BlobMeta>): Promise<Page<BlobMeta>> {

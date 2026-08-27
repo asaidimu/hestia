@@ -34,10 +34,39 @@ type BlobStore interface {
 	Namespace(nsID string) BlobNamespace
 }
 
+// @note #feat-ns-metadata feature_request P2 : Add arbitrary metadata to blob namespaces
+//
+// BlobNamespaceInfo currently only carries ID, DisplayName, and Public.
+// Users want to attach custom key-value metadata to namespaces (e.g. description,
+// owner, environment tags, retention policy) similar to how BlobMeta.Custom works
+// on individual blobs.
+//
+// Options: (1) add Custom map[string]string to BlobNamespaceInfo + persist in
+// hestia's layer since the blobs library doesn't support it, (2) store namespace
+// metadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions
+// with a Custom field and persist alongside namespace creation.
 type BlobNamespaceInfo struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
 	Public      bool   `json:"public"`
+}
+
+type NamespaceStats struct {
+	NamespaceID   string `json:"namespace_id"`
+	BlobCount     int64  `json:"blob_count"`
+	BytesStored   int64  `json:"bytes_stored"`
+	BytesPhysical int64  `json:"bytes_physical"`
+	ChunkCount    int64  `json:"chunk_count"`
+	DeadBytes     int64  `json:"dead_bytes"`
+	DeadChunks    int64  `json:"dead_chunks"`
+	SegmentCount  int64  `json:"segment_count"`
+}
+
+type CompactResult struct {
+	BlobsRemoved      int64 `json:"blobs_removed"`
+	ChunksRemoved     int64 `json:"chunks_removed"`
+	BytesFreed        int64 `json:"bytes_freed"`
+	SegmentsCompacted int64 `json:"segments_compacted"`
 }
 
 type BlobNamespace interface {
@@ -48,5 +77,8 @@ type BlobNamespace interface {
 	UpdateMetadata(ctx context.Context, key string, custom map[string]string) (*BlobMeta, error)
 	Delete(ctx context.Context, key string) error
 	List(ctx context.Context, prefix string, limit int) ([]BlobMeta, error)
-	Compact(ctx context.Context) (int64, error)
+	Rename(ctx context.Context, oldKey, newKey string) error
+	Stats(ctx context.Context) (*NamespaceStats, error)
+	Compact(ctx context.Context) (*CompactResult, error)
+	Verify(ctx context.Context) error
 }

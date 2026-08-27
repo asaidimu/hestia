@@ -21,5 +21,9 @@ func Policies() []policies.Binding {
 		{Name: "system:blobs:blob:complete", RuleKey: "administrator", Description: "Complete a resumable blob upload"},
 		{Name: "system:blobs:blob:progress", RuleKey: "administrator", Description: "Report progress of a resumable blob upload"},
 		{Name: "system:blobs:blob:abort", RuleKey: "administrator", Description: "Abort a resumable blob upload"},
+		{Name: "system:blobs:blob:rename", RuleKey: "administrator", Description: "Rename a blob key"},
+		{Name: "system:blobs:namespace:stats", RuleKey: "administrator", Description: "Get namespace stats"},
+		{Name: "system:blobs:namespace:verify", RuleKey: "administrator", Description: "Verify namespace integrity"},
+		{Name: "system:blobs:namespace:compact", RuleKey: "administrator", Description: "Compact a namespace to reclaim space"},
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/system/logs"
 )
 
 // UserOutput prints plain-text informational messages to the user on stdout.
@@ -44,6 +45,7 @@ func (u *UserOutput) Banner() {
 type Loggers struct {
 	File       *zap.Logger
 	Stdout     *UserOutput
+	Ring       *logs.RingBuffer
 	lumberjack *lumberjack.Logger
 }
 
@@ -58,14 +60,19 @@ func NewLoggers(cfg *runtime.Config) *Loggers {
 		LocalTime:  true,
 	}
 
+	fileSync := zapcore.AddSync(rotator)
+
+	ring := logs.NewRingBuffer(1000)
+	sink := logs.NewSink(ring, fileSync)
+
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
-		zapcore.AddSync(rotator),
+		sink,
 		zap.InfoLevel,
 	)
 
 	fileLogger := zap.New(fileCore, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
-	return &Loggers{File: fileLogger, Stdout: stdout, lumberjack: rotator}
+	return &Loggers{File: fileLogger, Stdout: stdout, Ring: ring, lumberjack: rotator}
 }
 
 func (l *Loggers) Close() error {

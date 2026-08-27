@@ -100,3 +100,35 @@ type UploadProgressDocument struct {
 type UploadProgressOutput struct {
 	Document UploadProgressDocument `anansi:"document"`
 }
+
+// NamespaceStatsDocument is the body of a namespace stats response.
+type NamespaceStatsDocument struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	NamespaceID            string `anansi:"namespace_id"`
+	BlobCount              int64  `anansi:"blob_count"`
+	BytesStored            int64  `anansi:"bytes_stored"`
+	BytesPhysical          int64  `anansi:"bytes_physical"`
+	ChunkCount             int64  `anansi:"chunk_count"`
+	DeadBytes              int64  `anansi:"dead_bytes"`
+	DeadChunks             int64  `anansi:"dead_chunks"`
+	SegmentCount           int64  `anansi:"segment_count"`
+}
+
+// NamespaceStatsOutput is the envelope declaring the namespace stats schema.
+type NamespaceStatsOutput struct {
+	Document NamespaceStatsDocument `anansi:"document"`
+}
+
+// CompactResultDocument is the body of a compact response.
+type CompactResultDocument struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	BlobsRemoved           int64 `anansi:"blobs_removed"`
+	ChunksRemoved          int64 `anansi:"chunks_removed"`
+	BytesFreed             int64 `anansi:"bytes_freed"`
+	SegmentsCompacted      int64 `anansi:"segments_compacted"`
+}
+
+// CompactResultOutput is the envelope declaring the compact result schema.
+type CompactResultOutput struct {
+	Document CompactResultDocument `anansi:"document"`
+}
