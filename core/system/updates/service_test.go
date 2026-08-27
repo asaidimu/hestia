@@ -313,8 +313,8 @@ func TestSystemdApplySwapsExecutableAndExits(t *testing.T) {
 	if string(got) != "fake-binary" {
 		t.Fatalf("executable not swapped: got %q, want fake-binary", got)
 	}
-	if pending, _ := svc.store.PendingUpdate(ctx); pending == nil {
-		t.Fatal("expected pending metadata to survive the swap")
+	if pending, _ := svc.store.PendingUpdate(ctx); pending != nil {
+		t.Fatalf("expected pending metadata to be cleared after swap, got %+v", pending)
 	}
 }
 

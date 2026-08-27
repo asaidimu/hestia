@@ -332,9 +332,12 @@ func applyCommonEnvOverrides(cfg *Config) {
 	if v := os.Getenv("APP_URL"); v != "" {
 		cfg.AppURL = v
 	}
-	if v := os.Getenv("APP_VERSION"); v != "" {
-		cfg.Version = v
-	}
+	// NOTE: Version is intentionally NOT overridable via environment variable.
+	// It must be baked into the binary at build time via -ldflags
+	// ("-X main.version=vX.Y.Z" or equivalent). Allowing APP_VERSION to
+	// override it would cause a freshly-swapped binary to inherit the old
+	// process's version string from the environment, making Status report the
+	// wrong version after a successful self-update.
 }
 
 func parseSameSite(s string) abstract.SameSite {

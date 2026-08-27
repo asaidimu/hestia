@@ -479,6 +479,10 @@ func (s *UpdatesService) applySwap(ctx context.Context) {
 		return
 	}
 	if !s.systemd {
+		// ApplyUpdate spawns the new binary with --perform-update and then
+		// the current process exits, so ClearUpdate cannot run after it.
+		// The new binary's Reconcile call at boot clears the pending row once
+		// it detects its own version >= the staged version.
 		if err := s.updater.ApplyUpdate(); err != nil {
 			s.logger.Error("updates: apply failed", zap.Error(err))
 		}
@@ -487,6 +491,12 @@ func (s *UpdatesService) applySwap(ctx context.Context) {
 	if err := s.swapExecutable(ctx); err != nil {
 		s.logger.Error("updates: swap executable failed", zap.Error(err))
 		return
+	}
+	// Clear the pending row synchronously before systemd restarts us. Failure
+	// here is non-fatal — Reconcile on the next boot will clear it — but log
+	// it so it is observable.
+	if err := s.store.ClearUpdate(ctx); err != nil {
+		s.logger.Warn("updates: clear pending update after swap failed", zap.Error(err))
 	}
 	exitProcess(0)
 }

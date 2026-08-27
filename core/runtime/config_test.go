@@ -8,8 +8,10 @@ import (
 
 // TestApplyEnvOverridesWinsOverSetupConfig verifies todo/general_todo.md: env
 // vars override hardcoded SetupConfig values.
+// NOTE: Version is intentionally NOT in this list — it is compile-time only
+// (-ldflags) and must not be overridable via environment so that a freshly
+// swapped binary always reports its own baked-in version, not the old one.
 func TestApplyEnvOverridesWinsOverSetupConfig(t *testing.T) {
-	t.Setenv("APP_VERSION", "2.0.0")
 	t.Setenv("PORT", "4321")
 	t.Setenv("SESSION_SECRET", "env-secret")
 	t.Setenv("DB_PATH", "/tmp/env.db")
@@ -25,8 +27,9 @@ func TestApplyEnvOverridesWinsOverSetupConfig(t *testing.T) {
 	if err := ApplyEnvOverrides(conf); err != nil {
 		t.Fatalf("apply overrides: %v", err)
 	}
-	if conf.Version != "2.0.0" {
-		t.Errorf("Version = %q, want env 2.0.0", conf.Version)
+	// Version must NOT be overridden by env — compile-time only.
+	if conf.Version != "1.0.0" {
+		t.Errorf("Version = %q, want hardcoded 1.0.0 (env must not override version)", conf.Version)
 	}
 	if conf.Port != 4321 {
 		t.Errorf("Port = %d, want env 4321", conf.Port)
@@ -47,7 +50,6 @@ func TestApplyEnvOverridesWinsOverSetupConfig(t *testing.T) {
 func TestApplyEnvOverridesLeavesAbsentKnobs(t *testing.T) {
 	// Simulate absence of every overridable knob (the ambient test env may set
 	// some of these).
-	t.Setenv("APP_VERSION", "")
 	t.Setenv("PORT", "")
 	t.Setenv("SESSION_SECRET", "")
 	t.Setenv("DB_PATH", "")

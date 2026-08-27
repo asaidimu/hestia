@@ -244,7 +244,6 @@ func spawnApp(t *testing.T, bin, port, srvURL, pubKeyPEM, dbPath string) *exec.C
 	t.Helper()
 	env := append(os.Environ(),
 		"PORT="+port,
-		"APP_VERSION=",
 		"DB_PATH="+dbPath,
 		"UPDATE_ENABLED=true",
 		"UPDATE_SERVER_URL="+srvURL,
