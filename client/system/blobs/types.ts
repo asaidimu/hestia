@@ -3,6 +3,7 @@ import type { Document } from "../../core/types"
 export interface NamespaceInfo {
   id: string
   display_name: string
+  custom?: Record<string, string>
 }
 
 export interface NamespaceStats {
@@ -43,6 +44,7 @@ export interface ListBlobsRequest {
 export interface CreateNamespaceRequest {
   display_name?: string
   ns: string
+  custom?: Record<string, string>
 }
 
 export interface UploadBeginResult {

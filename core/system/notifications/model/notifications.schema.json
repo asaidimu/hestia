@@ -79,6 +79,57 @@
       "type": "normal"
     }
   },
+  "metadata": {
+    "projections": {
+      "NotificationCreate": {
+        "fields": {
+          "include": [
+            "user_id",
+            "subject",
+            "type",
+            "body",
+            "data",
+            "actions",
+            "expires_at"
+          ],
+          "optional": [
+            "type",
+            "body",
+            "data",
+            "actions",
+            "expires_at"
+          ],
+          "required": [
+            "user_id",
+            "subject"
+          ],
+          "tags": {
+            "actions": {
+              "input": "payload.{name}"
+            },
+            "body": {
+              "input": "payload.{name}"
+            },
+            "data": {
+              "input": "payload.{name}"
+            },
+            "expires_at": {
+              "input": "payload.{name}"
+            },
+            "subject": {
+              "input": "payload.{name}"
+            },
+            "type": {
+              "input": "payload.{name}"
+            },
+            "user_id": {
+              "input": "payload.{name}"
+            }
+          }
+        }
+      }
+    }
+  },
   "name": "_notifications_",
   "schemas": {
     "019f4065-0a3d-7ed7-8ab1-417acc881135": {
@@ -137,56 +188,5 @@
       "name": "notification_action"
     }
   },
-  "version": "1.0.0",
-  "metadata": {
-    "projections": {
-      "NotificationCreate": {
-        "fields": {
-          "include": [
-            "user_id",
-            "subject",
-            "type",
-            "body",
-            "data",
-            "actions",
-            "expires_at"
-          ],
-          "optional": [
-            "type",
-            "body",
-            "data",
-            "actions",
-            "expires_at"
-          ],
-          "required": [
-            "user_id",
-            "subject"
-          ],
-          "tags": {
-            "user_id": {
-              "input": "payload.{name}"
-            },
-            "subject": {
-              "input": "payload.{name}"
-            },
-            "type": {
-              "input": "payload.{name}"
-            },
-            "body": {
-              "input": "payload.{name}"
-            },
-            "data": {
-              "input": "payload.{name}"
-            },
-            "actions": {
-              "input": "payload.{name}"
-            },
-            "expires_at": {
-              "input": "payload.{name}"
-            }
-          }
-        }
-      }
-    }
-  }
+  "version": "1.0.0"
 }

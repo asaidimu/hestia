@@ -47,7 +47,7 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 
 		views := make([]NamespaceView, len(namespaces))
 		for i, ns := range namespaces {
-			views[i] = NamespaceView{ID: ns.ID, DisplayName: ns.DisplayName, Public: ns.Public}
+			views[i] = NamespaceView{ID: ns.ID, DisplayName: ns.DisplayName, Public: ns.Public, Custom: ns.Custom}
 		}
 
 		return dispatch.NewDocumentResultFrom(&NamespaceListDocument{Namespaces: views})
@@ -74,6 +74,9 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, pol
 		if input.Public {
 			opts = append(opts, blobutil.WithPublic(true))
 		}
+		if len(input.Custom) > 0 {
+			opts = append(opts, blobutil.WithCustom(input.Custom))
+		}
 
 		if err := svc.CreateNamespace(ctx, nsID, input.DisplayName, opts...); err != nil {
 			return nil, fmt.Errorf("create namespace: %w", err)
@@ -87,7 +90,7 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, pol
 			return nil, fmt.Errorf("register blob handlers: %w", err)
 		}
 
-		return dispatch.NewDocumentResultFrom(&NamespaceView{ID: nsID, DisplayName: input.DisplayName, Public: input.Public})
+		return dispatch.NewDocumentResultFrom(&NamespaceView{ID: nsID, DisplayName: input.DisplayName, Public: input.Public, Custom: input.Custom})
 	}
 }
 

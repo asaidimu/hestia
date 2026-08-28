@@ -1240,7 +1240,7 @@ export class HestiaBlobClient {
   async createNamespace(data: CreateNamespaceRequest): Promise<NamespaceInfo> {
     const res = await this.client.dispatch<{ data: NamespaceInfo }>(
       "system:blobs:namespace:create",
-      { arguments: { ns: data.ns }, payload: { display_name: data.display_name } },
+      { arguments: { ns: data.ns }, payload: { display_name: data.display_name, custom: data.custom } },
     );
     return res.data!.data;
   }

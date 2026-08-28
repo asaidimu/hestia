@@ -6,9 +6,10 @@ import (
 
 type NamespaceView struct {
 	document.DocumentModel `json:"-" anansi:"-"`
-	ID                     string `anansi:"id"`
-	DisplayName            string `anansi:"display_name"`
-	Public                 bool   `anansi:"public"`
+	ID                     string            `anansi:"id"`
+	DisplayName            string            `anansi:"display_name"`
+	Public                 bool              `anansi:"public"`
+	Custom                 map[string]string `anansi:"custom"`
 }
 
 type NamespaceListDocument struct {

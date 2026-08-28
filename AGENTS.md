@@ -27,6 +27,16 @@ Because operations often require authentication, you must first establish a sess
 }
 
 ```
+
+### Restarting the Server
+
+`pkill` does not work reliably. To restart the test server after Go changes:
+
+```sh
+lsof -ti :8070 | xargs kill   # stop the old process
+go build -o test-server ./cmd/test-server
+./test-server &
+```
 ## Discovering Commands
 
 To discover and understand all available registered commands within the system, query the documentation endpoint:

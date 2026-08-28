@@ -1,5 +1,5 @@
 {
-  "description": "Cron-triggered message dispatch",
+  "description": "Workflow definition storage for the hermes workflow engine",
   "fields": {
     "019f4065-0a3d-7ea1-bc46-bbaeed4bfd6d": {
       "name": "_id_",
@@ -14,39 +14,39 @@
       },
       "type": "object"
     },
-    "019fdc60-69d9-7050-a014-27d3b781c44c": {
-      "name": "disabled",
-      "type": "boolean"
+    "01a04762-d5d3-7605-8ff1-a16932b97e93": {
+      "name": "description",
+      "type": "string"
     },
-    "019fdc60-69d9-7051-ad50-96f5e9967253": {
+    "01a04762-d5d3-7606-967c-a214d71fedd7": {
+      "name": "nodes",
+      "required": true,
+      "type": "record"
+    },
+    "01a04762-d5d3-7607-af6a-f5f38343acb3": {
       "name": "tenant_id",
       "type": "string"
     },
-    "019fdc60-69d9-7052-bf86-dc7525a5d331": {
-      "name": "user_id",
-      "required": true,
-      "type": "string"
-    },
-    "019fdc60-69d9-7053-bd8e-19c311677855": {
+    "01a04762-d5d3-7608-97d6-e9d4b71ae6df": {
       "name": "created_at",
       "type": "integer"
     },
-    "019fdc60-69d9-7054-9687-1230f39f5a54": {
-      "name": "message",
+    "01a04762-d5d3-7609-8cc7-b4d86686c6cf": {
+      "name": "name",
       "required": true,
       "type": "string"
     },
-    "019fdc60-69d9-7055-bb14-0c1fc52a4d37": {
-      "name": "input",
+    "01a04762-d5d3-760a-a583-0b2787c29668": {
+      "name": "edges",
+      "required": true,
       "type": "record"
     },
-    "019fdc60-69d9-7056-8456-1e60dbe13811": {
-      "name": "cron",
-      "required": true,
-      "type": "string"
+    "01a04762-d5d3-760b-8f4c-043581277d10": {
+      "name": "updated_at",
+      "type": "integer"
     }
   },
-  "name": "_scheduled_messages_",
+  "name": "_workflow_definition_",
   "schemas": {
     "019f4065-0a3d-7ed7-8ab1-417acc881135": {
       "fields": {

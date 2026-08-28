@@ -65,7 +65,8 @@ The main entry point. Construct with a `baseUrl` pointing to a Hestia server.
 | `users` | `HestiaUsers` | User management |
 | `keys` | `HestiaKeyStore` | API key management |
 | `policies` | `HestiaPolicies` | Policy operations and rules |
-| `logs` | `HestiaLogs` | Audit log queries |
+| `auditLogs` | `HestiaAuditLogs` | Audit trail queries |
+| `appLogs` | `HestiaAppLogs` | Application runtime log queries |
 | `collections` | `HestiaCollections` | Generic collection metadata |
 | `blobs` | `HestiaBlobClient` | Blob (file) storage |
 | `capabilities` | `HestiaCapabilities` | Available capabilities |

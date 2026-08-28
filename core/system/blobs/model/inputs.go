@@ -5,9 +5,10 @@ type NsInput struct {
 }
 
 type NsCreateInput struct {
-	NS          string `input:"arguments.ns"`
-	DisplayName string `input:"payload.display_name"`
-	Public      bool   `input:"payload.public"`
+	NS          string            `input:"arguments.ns"`
+	DisplayName string            `input:"payload.display_name"`
+	Public      bool              `input:"payload.public"`
+	Custom      map[string]string `input:"payload.custom"`
 }
 
 type BlobKeyInput struct {

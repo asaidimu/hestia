@@ -41,6 +41,8 @@ import (
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	module "github.com/asaidimu/hestia/core/runtime/module"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
+
+	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
 )
 
 type SystemModule struct {
@@ -217,6 +219,10 @@ func (m *SystemModule) seedProviders(rt abstract.Container, apiKeyAuth *auth.API
 		if err := abstract.RegisterInstance[updates.AppVersion](rt, updates.AppVersion(m.cfg.Version)); err != nil {
 			return err
 		}
+	}
+	// Register hermes workflow runtime
+	if err := abstract.RegisterInstance[*hermesruntime.WorkflowRuntime](rt, m.providers.WorkflowRuntime); err != nil {
+		return err
 	}
 	return nil
 }
@@ -505,6 +511,12 @@ func (m *SystemModule) Stop(ctx context.Context) error {
 			m.opts.Logger.Warn("close blob service", zap.Error(err))
 		}
 		m.providers.BlobSvc = nil
+	}
+	// Shutdown hermes workflow runtime
+	if m.providers.WorkflowRuntime != nil {
+		if err := m.providers.WorkflowRuntime.Shutdown(ctx); err != nil {
+			m.opts.Logger.Warn("shutdown workflow runtime", zap.Error(err))
+		}
 	}
 	m.opts.Logger.Info("system module stopped")
 	return nil

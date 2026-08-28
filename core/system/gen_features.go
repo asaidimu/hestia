@@ -16,6 +16,7 @@ import (
 	settingsvc "github.com/asaidimu/hestia/core/system/settings"
 	updatessvc "github.com/asaidimu/hestia/core/system/updates"
 	usersvc "github.com/asaidimu/hestia/core/system/users"
+	workflowsvc "github.com/asaidimu/hestia/core/system/workflows"
 )
 
 var allDefaultPolicyBindings = func() []policies.Policy {
@@ -84,6 +85,7 @@ var allPolicyBindings = func() []policies.Binding {
 	all = append(all, authsvc.Policies()...)
 	all = append(all, updatessvc.Policies()...)
 	all = append(all, logssvc.Policies()...)
+	all = append(all, workflowsvc.Policies()...)
 	return all
 }()
 

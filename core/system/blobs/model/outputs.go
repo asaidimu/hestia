@@ -5,9 +5,10 @@ import "github.com/asaidimu/go-anansi/v8/core/document"
 // NamespaceView is the wire shape of a blob namespace.
 type NamespaceView struct {
 	document.DocumentModel `json:"-" anansi:"-"`
-	ID                     string `anansi:"id"`
-	DisplayName            string `anansi:"display_name"`
-	Public                 bool   `anansi:"public"`
+	ID                     string            `anansi:"id"`
+	DisplayName            string            `anansi:"display_name"`
+	Public                 bool              `anansi:"public"`
+	Custom                 map[string]string `anansi:"custom"`
 }
 
 // NamespaceListDocument is the body of a namespace list response.

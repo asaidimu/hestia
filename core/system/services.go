@@ -15,6 +15,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/settings"
 	"github.com/asaidimu/hestia/core/system/updates"
 	"github.com/asaidimu/hestia/core/system/users"
+	"github.com/asaidimu/hestia/core/system/workflows"
 )
 
 // RegisterServices registers every service provider into the runtime DI
@@ -53,6 +54,9 @@ func RegisterServices(rt abstract.Container) error {
 		return err
 	}
 	if err := users.RegisterService(rt); err != nil {
+		return err
+	}
+	if err := workflows.RegisterService(rt); err != nil {
 		return err
 	}
 	return nil
@@ -114,6 +118,11 @@ func CollectServiceRegistrations(rt abstract.Container) ([]abstract.MessageRegis
 	}
 	regs = append(regs, serviceRegs...)
 	serviceRegs, err = users.Registrations(rt)
+	if err != nil {
+		return nil, err
+	}
+	regs = append(regs, serviceRegs...)
+	serviceRegs, err = workflows.Registrations(rt)
 	if err != nil {
 		return nil, err
 	}

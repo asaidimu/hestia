@@ -76,6 +76,9 @@ func (svc *Service) CreateNamespace(ctx context.Context, nsID, displayName strin
 	if cfg.Public {
 		custom["public"] = "true"
 	}
+	for k, v := range cfg.Custom {
+		custom[k] = v
+	}
 	ns := object.Namespace{
 		ID:          nsID,
 		DisplayName: displayName,
@@ -89,10 +92,18 @@ func (svc *Service) GetNamespace(ctx context.Context, nsID string) (*BlobNamespa
 	if err != nil {
 		return nil, err
 	}
+	custom := make(map[string]string, len(ns.Custom))
+	for k, v := range ns.Custom {
+		if k == "public" {
+			continue
+		}
+		custom[k] = v
+	}
 	info := &BlobNamespaceInfo{
 		ID:          ns.ID,
 		DisplayName: ns.DisplayName,
 		Public:      ns.Custom["public"] == "true",
+		Custom:      custom,
 	}
 	return info, nil
 }
@@ -108,10 +119,18 @@ func (svc *Service) ListNamespaces(ctx context.Context) ([]BlobNamespaceInfo, er
 	}
 	out := make([]BlobNamespaceInfo, len(objs))
 	for i, ns := range objs {
+		custom := make(map[string]string, len(ns.Custom))
+		for k, v := range ns.Custom {
+			if k == "public" {
+				continue
+			}
+			custom[k] = v
+		}
 		out[i] = BlobNamespaceInfo{
 			ID:          ns.ID,
 			DisplayName: ns.DisplayName,
 			Public:      ns.Custom["public"] == "true",
+			Custom:      custom,
 		}
 	}
 	return out, nil

@@ -31,6 +31,10 @@ export * from "./system/policies/types"
 export * from "./system/audit/store"
 export * from "./system/audit/types"
 
+// System: app logs
+export * from "./system/logs/store"
+export * from "./system/logs/types"
+
 // System: blobs
 export * from "./system/blobs/store"
 export * from "./system/blobs/types"
@@ -54,6 +58,10 @@ export * from "./system/settings/types"
 // System: updates
 export * from "./system/updates/store"
 export * from "./system/updates/types"
+
+// System: workflows
+export * from "./system/workflows/store"
+export * from "./system/workflows/types"
 
 // System: core
 export * from "./system/core/store"

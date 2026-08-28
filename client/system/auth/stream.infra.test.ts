@@ -25,7 +25,7 @@ describe("SSE stream — audit log", () => {
 
     await new Promise((r) => setTimeout(r, 500))
 
-    await container.logs.find({ pagination: { type: "offset", offset: 0, limit: 1 } }).catch(() => {})
+    await container.auditLogs.find({ pagination: { type: "offset", offset: 0, limit: 1 } }).catch(() => {})
 
     await new Promise((r) => setTimeout(r, 1500))
 

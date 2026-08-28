@@ -15,7 +15,7 @@ interface StreamDoc {
   data: Document<AuditEntry>
 }
 
-export class HestiaLogs implements DocumentStore<AuditEntry, QueryDSL<AuditEntry>, string, QueryDSL<AuditEntry>, Record<string, unknown>, string, string, Record<string, unknown>> {
+export class HestiaAuditLogs implements DocumentStore<AuditEntry, QueryDSL<AuditEntry>, string, QueryDSL<AuditEntry>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pagerOptions: PageOptions<AuditEntry> = {}
   private pager: PagedData<AuditEntry>
 

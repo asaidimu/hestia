@@ -97,6 +97,19 @@ export const ROUTE_TABLE = {
   "system:users:user:delete": { method: "DELETE", route: "/system/users/user/delete/{user_id}", arguments: ["user_id"] },
   "system:users:user:get": { method: "GET", route: "/system/users/user/get/{user_id}", arguments: ["user_id"] },
   "system:users:user:update": { method: "PATCH", route: "/system/users/user/update/{user_id}", arguments: ["user_id"] },
+  "system:workflows:definition:compile": { method: "POST", route: "/system/workflows/definition/compile", arguments: [] },
+  "system:workflows:definition:create": { method: "POST", route: "/system/workflows/definition/create", arguments: [] },
+  "system:workflows:definition:delete": { method: "DELETE", route: "/system/workflows/definition/delete/{id}", arguments: ["id"] },
+  "system:workflows:definition:get": { method: "GET", route: "/system/workflows/definition/get/{id}", arguments: ["id"] },
+  "system:workflows:definition:list": { method: "GET", route: "/system/workflows/definition/list", arguments: [] },
+  "system:workflows:run:events": { method: "GET", route: "/system/workflows/run/events/{run_id}", arguments: ["run_id"] },
+  "system:workflows:run:get": { method: "GET", route: "/system/workflows/run/get/{run_id}", arguments: ["run_id"] },
+  "system:workflows:run:list": { method: "GET", route: "/system/workflows/run/list", arguments: [] },
+  "system:workflows:run:outcome": { method: "GET", route: "/system/workflows/run/outcome/{run_id}", arguments: ["run_id"] },
+  "system:workflows:run:store": { method: "GET", route: "/system/workflows/run/store/{run_id}", arguments: ["run_id"] },
+  "system:workflows:runtime:abort": { method: "DELETE", route: "/system/workflows/runtime/abort/{run_id}", arguments: ["run_id"] },
+  "system:workflows:runtime:events": { method: "POST", route: "/system/workflows/runtime/events", arguments: [] },
+  "system:workflows:runtime:run": { method: "POST", route: "/system/workflows/runtime/run", arguments: [] },
 } as const;
 
 export type RouteName = keyof typeof ROUTE_TABLE;

@@ -11,7 +11,8 @@ import { WailsTransport } from "./core/wails-transport";
 import { HestiaKeyStore } from "./system/apikeys/store";
 import { HestiaUsers } from "./system/users/store";
 import type { UserIdentity } from "./system/users/types";
-import { HestiaLogs } from "./system/audit/store";
+import { HestiaAuditLogs } from "./system/audit/store";
+import { HestiaAppLogs } from "./system/logs/store";
 import { HestiaPolicies } from "./system/policies/store";
 import { HestiaRules } from "./system/policies/rules";
 import { HestiaBlobClient } from "./system/blobs/store";
@@ -21,6 +22,7 @@ import { HestiaNotificationStore } from "./system/notifications/store";
 import { HestiaScheduleStore } from "./system/schedules/store";
 import { HestiaSettingStore } from "./system/settings/store";
 import { HestiaUpdates } from "./system/updates/store";
+import { HestiaWorkflowStore } from "./system/workflows/store";
 
 export interface HestiaConfig {
   baseUrl: string;
@@ -42,7 +44,8 @@ export class HestiaClient {
   readonly keys: HestiaKeyStore;
   readonly policies: HestiaPolicies;
   readonly rules: HestiaRules;
-  readonly logs: HestiaLogs;
+  readonly auditLogs: HestiaAuditLogs;
+  readonly appLogs: HestiaAppLogs;
   readonly collections: HestiaCollections;
   readonly blobs: HestiaBlobClient;
   readonly core: HestiaCore
@@ -50,6 +53,7 @@ export class HestiaClient {
   readonly schedules: HestiaScheduleStore;
   readonly settings: HestiaSettingStore;
   readonly updates: HestiaUpdates;
+  readonly workflows: HestiaWorkflowStore;
   private tokenProvider: IdentityProvider;
 
   private onAuthStateChanged?: () => void;
@@ -93,11 +97,12 @@ export class HestiaClient {
     this.keys = new HestiaKeyStore(this.client,);
     this.policies = new HestiaPolicies(this.client);
     this.rules = new HestiaRules(this.client);
-    this.logs = new HestiaLogs(
+    this.auditLogs = new HestiaAuditLogs(
       this.client,
       config.baseUrl,
       apiPrefix,
     );
+    this.appLogs = new HestiaAppLogs(this.client, config.baseUrl, apiPrefix);
     this.collections = new HestiaCollections(this.client);
     this.blobs = new HestiaBlobClient(this.client, apiPrefix, config.uploadPersistence);
     this.core = new HestiaCore(this.client)
@@ -105,6 +110,7 @@ export class HestiaClient {
     this.schedules = new HestiaScheduleStore(this.client)
     this.settings = new HestiaSettingStore(this.client)
     this.updates = new HestiaUpdates(this.client)
+    this.workflows = new HestiaWorkflowStore(this.client)
   }
 
   onAuthStateChange(callback: () => void) {

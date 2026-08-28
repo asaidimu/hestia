@@ -20,10 +20,15 @@ type NamespaceOption func(*NamespaceOptions)
 
 type NamespaceOptions struct {
 	Public bool
+	Custom map[string]string
 }
 
 func WithPublic(v bool) NamespaceOption {
 	return func(o *NamespaceOptions) { o.Public = v }
+}
+
+func WithCustom(m map[string]string) NamespaceOption {
+	return func(o *NamespaceOptions) { o.Custom = m }
 }
 
 type BlobStore interface {
@@ -46,9 +51,10 @@ type BlobStore interface {
 // metadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions
 // with a Custom field and persist alongside namespace creation.
 type BlobNamespaceInfo struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	Public      bool   `json:"public"`
+	ID          string            `json:"id"`
+	DisplayName string            `json:"display_name"`
+	Public      bool              `json:"public"`
+	Custom      map[string]string `json:"custom,omitempty"`
 }
 
 type NamespaceStats struct {
