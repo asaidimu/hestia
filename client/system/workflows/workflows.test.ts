@@ -55,7 +55,7 @@ describe("HestiaWorkflowStore — while-loop workflow E2E", () => {
     const runId = await container.workflows.run({ nodes, edges })
     const events = await container.workflows.getEvents(runId)
     expect(events.length).toBeGreaterThan(0)
-    expect(events[0].run_id).toBe(runId)
+    expect(events[0]?.run_id).toBe(runId)
   })
 
   it("can be registered and listed", async () => {
