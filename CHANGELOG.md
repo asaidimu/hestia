@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/asaidimu/hestia/compare/v1.8.2...v1.9.0) (2026-08-29)
+
+
+### Features
+
+* **workflows:** add update method for workflow definitions ([64ef6db](https://github.com/asaidimu/hestia/commit/64ef6db1301d97d4867ea8ea53d61ab747a0777f))
+
 ## [1.8.2](https://github.com/asaidimu/hestia/compare/v1.8.1...v1.8.2) (2026-08-29)
 
 
