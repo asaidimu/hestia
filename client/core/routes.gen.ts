@@ -102,6 +102,7 @@ export const ROUTE_TABLE = {
   "system:workflows:definition:delete": { method: "DELETE", route: "/system/workflows/definition/delete/{id}", arguments: ["id"] },
   "system:workflows:definition:get": { method: "GET", route: "/system/workflows/definition/get/{id}", arguments: ["id"] },
   "system:workflows:definition:list": { method: "GET", route: "/system/workflows/definition/list", arguments: [] },
+  "system:workflows:definition:update": { method: "PATCH", route: "/system/workflows/definition/update/{id}", arguments: ["id"] },
   "system:workflows:registry:get": { method: "GET", route: "/system/workflows/registry/get/{kind}", arguments: ["kind"] },
   "system:workflows:registry:handles": { method: "GET", route: "/system/workflows/registry/handles", arguments: [] },
   "system:workflows:registry:list": { method: "GET", route: "/system/workflows/registry/list", arguments: [] },

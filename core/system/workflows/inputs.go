@@ -72,6 +72,15 @@ type WorkflowDefinitionDeleteInput struct {
 	ID string `input:"arguments.id"`
 }
 
+// Update definition
+type WorkflowDefinitionUpdateInput struct {
+	ID          string           `input:"arguments.id"`
+	Name        string           `input:"payload.name"`
+	Description string           `input:"payload.description"`
+	Nodes       []map[string]any `input:"payload.nodes"`
+	Edges       []map[string]any `input:"payload.edges"`
+}
+
 // Node registry: list all registered node kinds
 type WorkflowRegistryListInput struct{}
 

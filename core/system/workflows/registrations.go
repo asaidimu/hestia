@@ -55,6 +55,18 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.HandleDocument[WorkflowDefinitionDeleteInput, *WorkflowMessageOutput](s.Deregister),
 		},
 		{
+			Name:        "system:workflows:definition:update",
+			Description: "Update a workflow definition",
+			Intent:      abstract.Update,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowDefinitionUpdateInput]("input"),
+				ResourceIDField: "id",
+			},
+			Output:  dispatch.SchemaFromType[WorkflowMessageOutput](),
+			Handler: dispatch.HandleDocument[WorkflowDefinitionUpdateInput, *WorkflowMessageOutput](s.Update),
+		},
+		{
 			Name:        "system:workflows:definition:list",
 			Description: "List all workflow definitions",
 			Intent:      abstract.Read,

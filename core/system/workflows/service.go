@@ -155,6 +155,75 @@ func (s *WorkflowsService) Deregister(ctx context.Context, msg abstract.Message,
 	return document.New(&WorkflowMessageOutput{Message: "workflow deregistered"}), nil
 }
 
+// Update patches a workflow definition's fields (name, description, nodes, edges).
+//
+// @hestia.register(
+//   name="system:workflows:definition:update",
+//   intent="update",
+//   rule="administrator",
+//   description="Update a workflow definition",
+//   resource_id="id",
+// )
+func (s *WorkflowsService) Update(ctx context.Context, msg abstract.Message, input *WorkflowDefinitionUpdateInput) (*WorkflowMessageOutput, error) {
+	if input.ID == "" {
+		return nil, common.NewSystemError("WORKFLOW_ID_REQUIRED", "id is required")
+	}
+
+	existing, err := s.defs.GetDefinition(ctx, input.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, common.NewSystemError("WORKFLOW_NOT_FOUND", fmt.Sprintf("workflow definition %q not found", input.ID))
+	}
+
+	fields := map[string]any{}
+	if input.Name != "" {
+		fields["name"] = input.Name
+	}
+	if input.Description != "" {
+		fields["description"] = input.Description
+	}
+	if input.Nodes != nil {
+		fields["nodes"] = input.Nodes
+	}
+	if input.Edges != nil {
+		fields["edges"] = input.Edges
+	}
+
+	if len(fields) > 0 {
+		if err := s.defs.UpdateDefinition(ctx, input.ID, fields); err != nil {
+			return nil, err
+		}
+	}
+
+	// If nodes/edges changed, re-register with the runtime
+	if input.Nodes != nil || input.Edges != nil {
+		nodes, err := toCompilerNodes(input.Nodes)
+		if err != nil {
+			return nil, common.NewSystemError("WORKFLOW_INVALID_NODES", fmt.Sprintf("invalid nodes: %v", err))
+		}
+		edges, err := toCompilerEdges(input.Edges)
+		if err != nil {
+			return nil, common.NewSystemError("WORKFLOW_INVALID_EDGES", fmt.Sprintf("invalid edges: %v", err))
+		}
+
+		wf, err := compiler.Compile(nodes, edges, nil)
+		if err != nil {
+			return nil, common.NewSystemError("WORKFLOW_COMPILE_FAILED", fmt.Sprintf("compile failed: %v", err))
+		}
+
+		s.runtime.Deregister(input.ID)
+		if err := s.runtime.Register(wf, hermesruntime.RegisterOptions{
+			Mode: hermesruntime.Mode{Type: "serialized"},
+		}); err != nil {
+			return nil, common.NewSystemError("WORKFLOW_REGISTER_FAILED", fmt.Sprintf("register failed: %v", err))
+		}
+	}
+
+	return document.New(&WorkflowMessageOutput{Message: "workflow updated"}), nil
+}
+
 // ListDefinitions lists all stored workflow definitions.
 //
 // @hestia.register(

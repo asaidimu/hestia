@@ -63,6 +63,14 @@ export class HestiaWorkflowStore {
     })
   }
 
+  /** Update a workflow definition's fields. */
+  async update(id: string, payload: Partial<RegisterWorkflowPayload>): Promise<void> {
+    await this.client.dispatch("system:workflows:definition:update", {
+      arguments: { id },
+      payload,
+    })
+  }
+
   /** List all stored workflow definitions. */
   async list(): Promise<Document<WorkflowDefinition>[]> {
     const res = await this.client.dispatch<{ data: Document<WorkflowDefinition>[] }>(
