@@ -18,8 +18,9 @@ import (
 // NotificationsService is the service for the in-app notifications domain. It
 // wraps the generated SystemNotificationss model collection.
 type NotificationsService struct {
-	model  *model.SystemNotificationss
+	model   *model.SystemNotificationss
 	persist persistence.Persistence
+	log     *zap.Logger
 }
 
 func NewNotificationsService(rt abstract.Container) (*NotificationsService, error) {
@@ -30,7 +31,7 @@ func NewNotificationsService(rt abstract.Container) (*NotificationsService, erro
 	if err != nil {
 		return nil, err
 	}
-	return &NotificationsService{model: m, persist: persist}, nil
+	return &NotificationsService{model: m, persist: persist, log: logger}, nil
 }
 
 func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
@@ -47,10 +48,12 @@ func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
 // targets arbitrary users.
 //
 // @hestia.register(
-//   name="system:notifications:notification:create",
-//   intent="create",
-//   rule="administrator",
-//   description="Create an in-app notification for a user",
+//
+//	name="system:notifications:notification:create",
+//	intent="create",
+//	rule="administrator",
+//	description="Create an in-app notification for a user",
+//
 // )
 func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstract.Message, input *model.NotificationCreateInput) (*model.SystemNotifications, error) {
 	if input.UserID == "" {
@@ -96,10 +99,12 @@ func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstr
 // ListNotifications lists notifications for the current user.
 //
 // @hestia.register(
-//   name="system:notifications:notification:list",
-//   intent="read",
-//   rule="authenticated",
-//   description="List notifications for the current user",
+//
+//	name="system:notifications:notification:list",
+//	intent="read",
+//	rule="authenticated",
+//	description="List notifications for the current user",
+//
 // )
 func (s *NotificationsService) ListNotifications(ctx context.Context, msg abstract.Message, input *model.NotificationListInput) ([]*document.Document, error) {
 	userID, err := userIDFrom(ctx, msg)
@@ -124,11 +129,13 @@ func (s *NotificationsService) ListNotifications(ctx context.Context, msg abstra
 // MarkRead marks a notification as read.
 //
 // @hestia.register(
-//   name="system:notifications:notification:read",
-//   intent="update",
-//   rule="authenticated",
-//   description="Mark a notification as read",
-//   resource_id="notification_id",
+//
+//	name="system:notifications:notification:read",
+//	intent="update",
+//	rule="authenticated",
+//	description="Mark a notification as read",
+//	resource_id="notification_id",
+//
 // )
 func (s *NotificationsService) MarkRead(ctx context.Context, msg abstract.Message, input *model.NotificationReadInput) (*model.MessageOutput, error) {
 	if _, err := userIDFrom(ctx, msg); err != nil {
@@ -146,10 +153,12 @@ func (s *NotificationsService) MarkRead(ctx context.Context, msg abstract.Messag
 // MarkAllRead marks all notifications as read for the current user.
 //
 // @hestia.register(
-//   name="system:notifications:read:all",
-//   intent="update",
-//   rule="authenticated",
-//   description="Mark all notifications as read",
+//
+//	name="system:notifications:read:all",
+//	intent="update",
+//	rule="authenticated",
+//	description="Mark all notifications as read",
+//
 // )
 func (s *NotificationsService) MarkAllRead(ctx context.Context, msg abstract.Message, input *model.NotificationMarkAllReadInput) (*model.MessageOutput, error) {
 	userID, err := userIDFrom(ctx, msg)
@@ -166,10 +175,12 @@ func (s *NotificationsService) MarkAllRead(ctx context.Context, msg abstract.Mes
 // CountUnread counts unread notifications for the current user.
 //
 // @hestia.register(
-//   name="system:notifications:unread:count",
-//   intent="read",
-//   rule="authenticated",
-//   description="Count unread notifications",
+//
+//	name="system:notifications:unread:count",
+//	intent="read",
+//	rule="authenticated",
+//	description="Count unread notifications",
+//
 // )
 func (s *NotificationsService) CountUnread(ctx context.Context, msg abstract.Message, input *model.NotificationUnreadCountInput) (*model.UnreadCountDocument, error) {
 	userID, err := userIDFrom(ctx, msg)
@@ -236,7 +247,12 @@ func (s *NotificationsService) Stream(ctx context.Context, msg abstract.Message,
 		select {
 		case <-msg.InputChannel():
 		case <-ctx.Done():
+			close(docCh)
+			s.model.Unsubscribe(ctx, subID)
 		}
+
+		// Phase 2: stream is live. Only close when the client goes away.
+		<-ctx.Done()
 		close(docCh)
 		s.model.Unsubscribe(ctx, subID)
 	}()

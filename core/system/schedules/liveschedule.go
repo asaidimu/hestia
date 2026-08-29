@@ -122,6 +122,7 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 	}
 
 	sysCtx := runtimecontext.SystemContext(ctx)
+	ls.log.Info("schedule: dispatching", zap.String("schedule_id", doc.ID()), zap.String("message", message))
 	msg := dispatch.NewMessage(message, sysCtx, docInput)
 	result, err := dispatch.Await(sysCtx, ls.disp, msg)
 	if err != nil {
