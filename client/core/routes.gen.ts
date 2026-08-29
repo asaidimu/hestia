@@ -110,6 +110,7 @@ export const ROUTE_TABLE = {
   "system:workflows:run:list": { method: "GET", route: "/system/workflows/run/list", arguments: [] },
   "system:workflows:run:outcome": { method: "GET", route: "/system/workflows/run/outcome/{run_id}", arguments: ["run_id"] },
   "system:workflows:run:store": { method: "GET", route: "/system/workflows/run/store/{run_id}", arguments: ["run_id"] },
+  "system:workflows:run:stream": { method: "GET", route: "/system/workflows/run/stream/{run_id}", arguments: ["run_id"] },
   "system:workflows:runtime:abort": { method: "DELETE", route: "/system/workflows/runtime/abort/{run_id}", arguments: ["run_id"] },
   "system:workflows:runtime:events": { method: "POST", route: "/system/workflows/runtime/events", arguments: [] },
   "system:workflows:runtime:has": { method: "GET", route: "/system/workflows/runtime/has/{id}", arguments: ["id"] },

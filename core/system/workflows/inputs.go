@@ -103,3 +103,8 @@ type WorkflowRuntimeResumeInput struct {
 	RunID   string         `input:"payload.run_id"`
 	Payload map[string]any `input:"payload.payload"`
 }
+
+// Stream run events via SSE
+type WorkflowRunStreamInput struct {
+	RunID string `input:"arguments.run_id"`
+}

@@ -27,5 +27,6 @@ func Policies() []policies.Binding {
 		{Name: "system:workflows:runtime:list", RuleKey: "administrator", Description: "List IDs of all registered (active) workflows"},
 		{Name: "system:workflows:runtime:invoke", RuleKey: "administrator", Description: "Invoke a registered workflow's trigger directly"},
 		{Name: "system:workflows:runtime:resume", RuleKey: "administrator", Description: "Resume a paused workflow run"},
+		{Name: "system:workflows:run:stream", RuleKey: "administrator", Description: "Stream workflow run events in real-time via SSE"},
 	}
 }

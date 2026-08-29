@@ -20,6 +20,7 @@ import (
 	"github.com/asaidimu/hermes/pkg/events"
 	"github.com/asaidimu/hermes/pkg/nodekit"
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
+	"github.com/asaidimu/hermes/pkg/timeline"
 	_ "github.com/asaidimu/hermes/pkg/nodes" // register built-in node types
 )
 
@@ -424,6 +425,126 @@ func (s *WorkflowsService) GetRunStore(ctx context.Context, msg abstract.Message
 	})
 
 	return document.New(&WorkflowRunStoreView{State: state}), nil
+}
+
+// ---------------------------------------------------------------------------
+// SSE streaming
+// ---------------------------------------------------------------------------
+
+// Stream streams timeline events for a run in real-time via SSE.
+//
+// It first replays all existing events, then subscribes to the runtime event
+// bus and forwards new events as they arrive. The stream closes automatically
+// on terminal events (pipeline:success, pipeline:failure, pipeline:pause) or
+// when the client disconnects.
+//
+// @hestia.register(
+//   name="system:workflows:run:stream",
+//   intent="stream",
+//   rule="administrator",
+//   description="Stream workflow run events in real-time via SSE",
+//   resource_id="run_id",
+// )
+func (s *WorkflowsService) Stream(ctx context.Context, msg abstract.Message, input *WorkflowRunStreamInput) (*abstract.Result, error) {
+	if input.RunID == "" {
+		return nil, common.NewSystemError("WORKFLOW_RUN_ID_REQUIRED", "run_id is required")
+	}
+
+	// Verify the run exists
+	meta, err := s.runtime.GetRunMeta(ctx, input.RunID)
+	if err != nil {
+		return nil, common.NewSystemError("WORKFLOW_RUN_NOT_FOUND", fmt.Sprintf("run %q not found", input.RunID))
+	}
+
+	eventCh := make(chan *document.Document, 64)
+
+	go func() {
+		defer close(eventCh)
+
+		// Phase 1: Replay existing events
+		existingEvents, err := s.runtime.GetEvents(ctx, input.RunID, 0, 0)
+		if err == nil {
+			for _, e := range existingEvents {
+				doc := document.NewRecordView(timelineEventToMap(e), ctx)
+				select {
+				case eventCh <- doc:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+
+		// If run is already terminal, no need to subscribe to live events
+		if meta.Status != "recording" {
+			return
+		}
+
+		// Phase 2: Subscribe to live bus events
+		done := make(chan struct{})
+		unsub := s.runtime.Bus().Subscribe("*", func(_ context.Context, evt events.PipelineEvent) error {
+			if evt.RunID != input.RunID {
+				return nil
+			}
+			m := map[string]any{
+				"runId":      evt.RunID,
+				"type":       evt.Type,
+				"timestamp":  evt.Timestamp,
+				"pipelineId": evt.PipelineID,
+				"path":       evt.Path,
+			}
+			if evt.Payload != nil {
+				m["payload"] = evt.Payload
+			}
+			if evt.Duration > 0 {
+				m["duration"] = evt.Duration
+			}
+			doc := document.NewRecordView(m, ctx)
+			select {
+			case eventCh <- doc:
+			case <-ctx.Done():
+				return nil
+			}
+
+			// Close on terminal events
+			if evt.Type == "pipeline:success" || evt.Type == "pipeline:failure" || evt.Type == "pipeline:pause" {
+				select {
+				case <-done:
+				default:
+					close(done)
+				}
+			}
+			return nil
+		})
+
+		// Wait for terminal event, client disconnect, or both
+		select {
+		case <-done:
+		case <-ctx.Done():
+		}
+
+		unsub()
+	}()
+
+	return &abstract.Result{DocumentChannel: eventCh}, nil
+}
+
+// timelineEventToMap converts a timeline.TimelineEvent to a JSON-serializable map.
+func timelineEventToMap(e timeline.TimelineEvent) map[string]any {
+	m := map[string]any{
+		"runId":     e.RunID,
+		"seq":       e.Seq,
+		"timestamp": e.Timestamp,
+		"source":    string(e.Source),
+		"type":      e.Type,
+		"path":      e.Path,
+	}
+	if e.Payload != nil {
+		m["payload"] = e.Payload
+	}
+	if e.Delta != nil {
+		m["delta"] = e.Delta
+	}
+	return m
 }
 
 // ---------------------------------------------------------------------------

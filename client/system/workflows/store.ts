@@ -1,5 +1,5 @@
 import type { Document } from "../../core/types"
-import { type Transport } from "../../core/client"
+import { type Transport, type StreamOptions } from "../../core/client"
 import type {
   WorkflowDefinition,
   RegisterWorkflowPayload,
@@ -237,5 +237,58 @@ export class HestiaWorkflowStore {
       { payload },
     )
     return res.data?.data as ResumeWorkflowResult
+  }
+
+  // ---------------------------------------------------------------------------
+  // SSE streaming
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Stream timeline events for a run in real-time via SSE.
+   *
+   * The stream first replays all existing events, then forwards new events
+   * as they arrive from the runtime. It closes automatically on terminal
+   * events (pipeline:success, pipeline:failure, pipeline:pause) or when
+   * the client calls `abort()`.
+   *
+   * Returns an `AbortController` — call `abort()` to close the stream.
+   */
+  streamRun(
+    runId: string,
+    handlers: {
+      onEvent: (event: TimelineEvent) => void
+      onDone?: () => void
+      onError?: (err: Error) => void
+      onOpen?: () => void
+    },
+    options?: StreamOptions,
+  ): AbortController {
+    const controller = new AbortController()
+    const signal = AbortSignal.any([controller.signal, ...(options?.signal ? [options.signal] : [])])
+
+    this.client
+      .openStream(
+        `/system/workflows/run/stream/${encodeURIComponent(runId)}`,
+        {
+          onMessage: (data: string) => {
+            try {
+              const parsed = JSON.parse(data)
+              const event = (parsed.data ?? parsed) as TimelineEvent
+              handlers.onEvent(event)
+            } catch {
+              // Skip malformed events
+            }
+          },
+          onError: handlers.onError,
+          onOpen: handlers.onOpen,
+          onClose: handlers.onDone,
+        },
+        { ...options, signal },
+      )
+      .catch((err) => {
+        handlers.onError?.(err instanceof Error ? err : new Error(String(err)))
+      })
+
+    return controller
   }
 }

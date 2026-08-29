@@ -249,5 +249,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[WorkflowRuntimeResumeView](),
 			Handler: dispatch.HandleDocument[WorkflowRuntimeResumeInput, *WorkflowRuntimeResumeView](s.RuntimeResume),
 		},
+		{
+			Name:        "system:workflows:run:stream",
+			Description: "Stream workflow run events in real-time via SSE",
+			Intent:      abstract.Stream,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowRunStreamInput]("input"),
+				ResourceIDField: "run_id",
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRunEventsView](),
+			Handler: dispatch.Handle[WorkflowRunStreamInput](s.Stream),
+		},
 	}, nil
 }
