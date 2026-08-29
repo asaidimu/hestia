@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/asaidimu/hestia/compare/v1.9.0...v1.10.0) (2026-08-29)
+
+
+### Features
+
+* **updates:** add discard mechanism for failed updates ([c773ca4](https://github.com/asaidimu/hestia/commit/c773ca4be6744d4213732fe8c3e167dca8184d1a))
+
 # [1.9.0](https://github.com/asaidimu/hestia/compare/v1.8.2...v1.9.0) (2026-08-29)
 
 
