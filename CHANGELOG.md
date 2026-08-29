@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/asaidimu/hestia/compare/v1.8.1...v1.8.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* **workflows:** add real-time SSE streaming for workflow runs ([a4eb044](https://github.com/asaidimu/hestia/commit/a4eb0443e63617911066932e1972885b78ee51c8))
+
 ## [1.8.1](https://github.com/asaidimu/hestia/compare/v1.8.0...v1.8.1) (2026-08-29)
 
 
