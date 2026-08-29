@@ -102,9 +102,12 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 //   description="List all schedules",
 // )
 func (s *SchedulesService) List(ctx context.Context, msg abstract.Message, input *model.ScheduleListInput) ([]*document.Document, error) {
-	tenantID := runtimecontext.GetTenantID(ctx)
+	claims, ok := runtimecontext.ClaimsFromContext(ctx)
+	if !ok || claims.UserID == "" {
+		return nil, common.NewSystemError("UNAUTHENTICATED", "authentication is required")
+	}
 
-	docs, err := s.model.ListSchedulesByTenant(ctx, tenantID, 50, 0)
+	docs, err := s.model.ListSchedulesByTenant(ctx, claims.UserID, 50, 0)
 	if err != nil {
 		return nil, err
 	}

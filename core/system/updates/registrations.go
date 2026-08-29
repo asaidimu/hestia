@@ -85,5 +85,16 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[ApplyView](),
 			Handler: dispatch.HandleDocument[NoInput, *ApplyView](s.Apply),
 		},
+		{
+			Name:        "system:updates:update:discard",
+			Description: "Discard a staged update and clean up",
+			Intent:      abstract.Delete,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[NoInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[DiscardView](),
+			Handler: dispatch.HandleDocument[NoInput, *DiscardView](s.Discard),
+		},
 	}, nil
 }

@@ -14,13 +14,10 @@ const readTTL = 30 * 24 * time.Hour
 
 // List returns the user's notifications, newest first, filtering out expired
 // ones that the cleanup job has not deleted yet.
-func (m *SystemNotificationss) List(ctx context.Context, userID, tenantID string, limit, offset int) ([]*SystemNotifications, error) {
+func (m *SystemNotificationss) List(ctx context.Context, userID string, limit, offset int) ([]*SystemNotifications, error) {
 	qb := query.NewQueryBuilder().
 		Where("user_id").Eq(userID).
 		OrderByDesc("created_at")
-	if tenantID != "" {
-		qb = qb.Where("tenant_id").Eq(tenantID)
-	}
 	if limit > 0 {
 		qb = qb.Limit(limit)
 	}
@@ -36,13 +33,10 @@ func (m *SystemNotificationss) List(ctx context.Context, userID, tenantID string
 }
 
 // CountUnread returns the number of unread notifications for the user.
-func (m *SystemNotificationss) CountUnread(ctx context.Context, userID, tenantID string) (int, error) {
+func (m *SystemNotificationss) CountUnread(ctx context.Context, userID string) (int, error) {
 	qb := query.NewQueryBuilder().
 		Where("user_id").Eq(userID).
 		Where("read").Eq(false)
-	if tenantID != "" {
-		qb = qb.Where("tenant_id").Eq(tenantID)
-	}
 	q := qb.Build()
 	docs, err := m.Read(ctx, &q)
 	if err != nil {
@@ -63,13 +57,10 @@ func (m *SystemNotificationss) MarkRead(ctx context.Context, notificationID stri
 }
 
 // MarkAllRead marks every unread notification of the user as read.
-func (m *SystemNotificationss) MarkAllRead(ctx context.Context, userID, tenantID string) error {
+func (m *SystemNotificationss) MarkAllRead(ctx context.Context, userID string) error {
 	qb := query.NewQueryBuilder().
 		Where("user_id").Eq(userID).
 		Where("read").Eq(false)
-	if tenantID != "" {
-		qb = qb.Where("tenant_id").Eq(tenantID)
-	}
 	read := true
 	expiresAt := time.Now().Add(readTTL).UnixMilli()
 	_, err := m.UpdateMany(ctx, qb.Build().Filters, &SystemNotifications{

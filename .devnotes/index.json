@@ -1,8 +1,24 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-27T08:00:19.470050961Z",
+  "generatedAt": "2026-08-29T14:11:16.119919962Z",
   "root": ".",
   "notes": {
+    "74bt56": {
+      "id": "74bt56",
+      "category": "issueopend",
+      "status": "open",
+      "title": "Lack of recovery strategy",
+      "body": "\nWe have no strategy to recover from a failed update\nsuch as cleaning up the staged binary so that it can be\nre-staged\n",
+      "assignee": "opencode",
+      "location": {
+        "file": "core/system/updates/service.go",
+        "startLine": 381,
+        "startCol": 3,
+        "endLine": 387,
+        "endCol": 3
+      },
+      "hash": "0cacd5a5585a55b4"
+    },
     "83l69u": {
       "id": "83l69u",
       "category": "todo",
@@ -182,9 +198,9 @@
       "body": "influence runtime\n@see #ra2yqz\n@see #8uuufn\n",
       "location": {
         "file": "core/internal/boot/app.go",
-        "startLine": 74,
+        "startLine": 75,
         "startCol": 3,
-        "endLine": 78,
+        "endLine": 79,
         "endCol": 3
       },
       "hash": "b70e6ee1755f239e"
@@ -316,9 +332,9 @@
       "body": "BlobNamespaceInfo currently only carries ID, DisplayName, and Public.\nUsers want to attach custom key-value metadata to namespaces (e.g. description,\nowner, environment tags, retention policy) similar to how BlobMeta.Custom works\non individual blobs.\n\nOptions: (1) add Custom map[string]string to BlobNamespaceInfo + persist in\nhestia's layer since the blobs library doesn't support it, (2) store namespace\nmetadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions\nwith a Custom field and persist alongside namespace creation.\n",
       "location": {
         "file": "core/system/blobs/store/types.go",
-        "startLine": 36,
+        "startLine": 41,
         "startCol": 3,
-        "endLine": 46,
+        "endLine": 51,
         "endCol": 3
       },
       "hash": "6288b3ce39db2256"
@@ -639,9 +655,9 @@
       "assignee": "opencode",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 217,
+        "startLine": 222,
         "startCol": 3,
-        "endLine": 268,
+        "endLine": 273,
         "endCol": 3
       },
       "hash": "e15a01cfad1abdd3"
@@ -731,9 +747,9 @@
       "assignee": "opencode",
       "location": {
         "file": "core/system/blobs/service.go",
-        "startLine": 225,
+        "startLine": 284,
         "startCol": 3,
-        "endLine": 232,
+        "endLine": 291,
         "endCol": 3
       },
       "hash": "f7b5e31ab9dada3c"
@@ -747,12 +763,27 @@
       "body": "\nThe staged binary at DataDir/update is copied over the running executable\n(swapExecutable) or executed directly (ApplyUpdate) without verifying its\nSHA-256 checksum against UpdateInfo.Checksum. The Checksum field already\nflows through the persistence layer, but the actual verification against\nthe on-disk binary is never performed. This means a corrupted download —\nor a file tampered with between staging and apply — would silently replace\nthe running binary. The check should re-hash the staged file and abort\nthe swap/exec if it does not match.\n\nReal-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with\n\"missing section headers\" — the update was applied but the binary was\ncorrupted. A pre-apply hash check would have caught this.\n\nWhy staging can succeed while application produces a corrupted binary:\n  1. GitHub provider passes empty checksum (github.go:133) so\n     DownloadBinary skips hash verification entirely.\n  2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)\n     re-hash the staged file before overwriting the executable.\n  3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full\n     condition can leave the destination truncated.\n  4. swapExecutable creates a temp file in filepath.Dir(exe) which may\n     differ from DataDir — if they share a filesystem the Rename is\n     atomic, but a failed copy to the temp file is not caught before the\n     rename.\n\n@see #updater-hash-verify\n",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 412,
+        "startLine": 448,
         "startCol": 3,
-        "endLine": 440,
+        "endLine": 476,
         "endCol": 3
       },
       "hash": "cec997790a6039a4"
+    },
+    "w2ic5i": {
+      "id": "w2ic5i",
+      "category": "issue",
+      "status": "open",
+      "title": "Fix stream registrations",
+      "body": "Streaming annotations are not yet codegen'd — both audit and\nnotification stream registrations are hand-written using\ndispatch.Handle[TIn] for proper input binding.\n",
+      "location": {
+        "file": "core/system/provider.go",
+        "startLine": 310,
+        "startCol": 3,
+        "endLine": 314,
+        "endCol": 3
+      },
+      "hash": "267b74f348e00d84"
     }
   },
   "files": {
@@ -760,7 +791,7 @@
       "hash": "46a0039f89e7b6e3"
     },
     "client/container.ts": {
-      "hash": "345623c3c14ff3a1"
+      "hash": "eb39150055df6e2d"
     },
     "client/core/client.ts": {
       "hash": "7f2790b21210d3b6"
@@ -778,10 +809,10 @@
       "hash": "3edda2b41145c7bd"
     },
     "client/core/routes.gen.ts": {
-      "hash": "a44a6de457ad95ae"
+      "hash": "869e1703cddd72af"
     },
     "client/core/routes.test.ts": {
-      "hash": "a7f14acc62b28ae4"
+      "hash": "348c9f3aa3531fcd"
     },
     "client/core/types.ts": {
       "hash": "d6cf3163d8a9d897"
@@ -790,16 +821,13 @@
       "hash": "6527ced247596e56"
     },
     "client/dist/index.cjs": {
-      "hash": "f7d9c4afe6eb9bfa"
-    },
-    "client/dist/index.d.ts": {
-      "hash": "c20bdc7dbbb86392"
+      "hash": "61f328dcfe4054ee"
     },
     "client/dist/index.mjs": {
-      "hash": "3def4935bfabb522"
+      "hash": "85fb586d09411b7e"
     },
     "client/index.ts": {
-      "hash": "bb2cddd55d10effd"
+      "hash": "0dfcb836bd158cae"
     },
     "client/system/apikeys/store.test.ts": {
       "hash": "94b1f227b94fdee1"
@@ -811,10 +839,10 @@
       "hash": "10af56393f596099"
     },
     "client/system/audit/store.test.ts": {
-      "hash": "c6c0516e77b6760f"
+      "hash": "3cba5b008c754458"
     },
     "client/system/audit/store.ts": {
-      "hash": "c82a0c9088a987b3"
+      "hash": "45de9754242b4b1d"
     },
     "client/system/audit/types.ts": {
       "hash": "614dcaaea6642476"
@@ -832,7 +860,7 @@
       "hash": "61fc53a1bfbcd5de"
     },
     "client/system/auth/stream.infra.test.ts": {
-      "hash": "b8f1dfa2ad372100"
+      "hash": "60f5115abc5e30b6"
     },
     "client/system/auth/types.ts": {
       "hash": "3ce568a7883e6f0c"
@@ -840,11 +868,14 @@
     "client/system/blobs/blobs.test.ts": {
       "hash": "4fd26b147f1ccdf7"
     },
+    "client/system/blobs/compaction.test.ts": {
+      "hash": "08ab414f6c42f581"
+    },
     "client/system/blobs/store.ts": {
-      "hash": "ff7383ac367668bd"
+      "hash": "7720b31786a722fc"
     },
     "client/system/blobs/types.ts": {
-      "hash": "fa54abea52116dd3"
+      "hash": "87133100fe33ddc9"
     },
     "client/system/collections/store.test.ts": {
       "hash": "c3bebf0d35d4db5a"
@@ -864,11 +895,17 @@
     "client/system/core/types.ts": {
       "hash": "6141583aaad82281"
     },
+    "client/system/logs/store.ts": {
+      "hash": "f0aeda87a7ecba94"
+    },
+    "client/system/logs/types.ts": {
+      "hash": "5b3092436ee12565"
+    },
     "client/system/notifications/notifications.test.ts": {
       "hash": "0693b01ce2e52053"
     },
     "client/system/notifications/store.ts": {
-      "hash": "fb4ac57e622b1938"
+      "hash": "f36c94bc647f80b8"
     },
     "client/system/notifications/types.ts": {
       "hash": "f2d8fd3472b91425"
@@ -929,6 +966,15 @@
     },
     "client/system/users/types.ts": {
       "hash": "c3a9e9ab49f36a45"
+    },
+    "client/system/workflows/store.ts": {
+      "hash": "9575e6767bae346e"
+    },
+    "client/system/workflows/types.ts": {
+      "hash": "34eef67866012fc0"
+    },
+    "client/system/workflows/workflows.test.ts": {
+      "hash": "00e27745ba1ead62"
     },
     "client/test-setup.ts": {
       "hash": "2fb80b0c5ea36651"
@@ -1176,13 +1222,16 @@
       ]
     },
     "core/hestia.go": {
-      "hash": "06b2320ddc8f1c2c"
+      "hash": "8dffbc29c97217c5"
     },
     "core/interface/cli/config.go": {
       "hash": "58a5b69dbdf65cf0"
     },
     "core/interface/cli/orchestrator.go": {
       "hash": "2a1af3b52294548b"
+    },
+    "core/interface/http/access_log.go": {
+      "hash": "36823746aa140df5"
     },
     "core/interface/http/config.go": {
       "hash": "22a1caf301ac8b70"
@@ -1239,7 +1288,7 @@
       "hash": "abece2f778bccf22"
     },
     "core/interface/http/transport_fasthttp.go": {
-      "hash": "90bea95be5aa96dd"
+      "hash": "049fcf08f1df5283"
     },
     "core/interface/http/transport_fasthttp_test.go": {
       "hash": "dd090e5820ecb0c2"
@@ -1248,7 +1297,7 @@
       "hash": "5729d474c2e46166"
     },
     "core/internal/boot/app.go": {
-      "hash": "e0f40ca7f69bc57e",
+      "hash": "13dc5c167b80bb72",
       "noteIds": [
         "b3muvk"
       ]
@@ -1272,7 +1321,7 @@
       "hash": "4aa88d531f12b88e"
     },
     "core/internal/boot/logger.go": {
-      "hash": "c3c6e00ef013f9e9"
+      "hash": "82184dfc386cda66"
     },
     "core/internal/boot/message_name_test.go": {
       "hash": "3aa305b9f58de33b"
@@ -1283,38 +1332,41 @@
     "core/internal/boot/sanitize_test.go": {
       "hash": "4d41967cbd9df5ea"
     },
-    "core/internal/migrations/01a0196e-07a4-76a2-8ba6-33d79e4a2761__api_key__major.go": {
-      "hash": "e82534b28edbb6f4"
+    "core/internal/migrations/01a0476f-a2f9-70a1-a9c4-dbd457290054__api_key__major.go": {
+      "hash": "eecbb66840af8c3e"
     },
-    "core/internal/migrations/01a0196e-07a4-7b30-adac-fe4f12d1996e__audit_log__major.go": {
-      "hash": "1be254a70272d42f"
+    "core/internal/migrations/01a0476f-a2fb-76f5-bcdb-d74757bf678c__audit_log__major.go": {
+      "hash": "96a0bddf68bb5516"
     },
-    "core/internal/migrations/01a0196e-07a4-7e86-a0f8-1ec99ad83c17__token_blocklist__major.go": {
-      "hash": "fd777a98193eb76c"
+    "core/internal/migrations/01a0476f-a2fb-7a7a-9696-be4e77f76c0a__token_blocklist__major.go": {
+      "hash": "7bf3461467744562"
     },
-    "core/internal/migrations/01a0196e-07a5-71a0-98bc-b3c6c180b9d6__notifications__major.go": {
-      "hash": "291ec28c2ab1ecee"
+    "core/internal/migrations/01a0476f-a2fb-7d85-98e7-11d3784f1304__notifications__major.go": {
+      "hash": "df9e89f29673656b"
     },
-    "core/internal/migrations/01a0196e-07a5-740d-a057-ae5889bfc0a8__seed__major.go": {
-      "hash": "5d83606ae811d154"
+    "core/internal/migrations/01a0476f-a2fc-7062-829e-9fbec3bbf6a2__seed__major.go": {
+      "hash": "362a4b8f479d7956"
     },
-    "core/internal/migrations/01a0196e-07a5-7695-a835-beeb6e0453bd__iam_rule__major.go": {
-      "hash": "e4aca4e77af0dd4b"
+    "core/internal/migrations/01a0476f-a2fc-7374-bd28-39d282cf1527__iam_rule__major.go": {
+      "hash": "b4fe33f5879735f5"
     },
-    "core/internal/migrations/01a0196e-07a5-7954-b424-3e2e34c3110f__operation_policy__major.go": {
-      "hash": "19a37c6dbe0e3fde"
+    "core/internal/migrations/01a0476f-a2fc-7634-8c04-f990a4fa91e9__operation_policy__major.go": {
+      "hash": "e564b93b63ac7db8"
     },
-    "core/internal/migrations/01a0196e-07a5-7c6a-80ce-1817bb67ab75__scheduled_messages__major.go": {
-      "hash": "98b45151cda7ff24"
+    "core/internal/migrations/01a0476f-a2fc-78c5-9496-ba9a3d665afb__scheduled_messages__major.go": {
+      "hash": "e5370d3f4aa8f45e"
     },
-    "core/internal/migrations/01a0196e-07a5-7e66-b780-dae9d08b2293__settings__major.go": {
-      "hash": "eb6fab2f8473711f"
+    "core/internal/migrations/01a0476f-a2fc-7b76-a9dd-840eae6d3b39__settings__major.go": {
+      "hash": "dfe50b6702382f2e"
     },
-    "core/internal/migrations/01a0196e-07a6-70ab-8209-4c96f452c789__tenant__major.go": {
-      "hash": "a57015c0fdcf4b62"
+    "core/internal/migrations/01a0476f-a2fd-7023-84f4-3538792ed1ba__tenant__major.go": {
+      "hash": "9f92f685ce24e9bd"
     },
-    "core/internal/migrations/01a0196e-07a6-7282-8427-cb9546cb72fc__user__major.go": {
-      "hash": "31f649adbdad09df"
+    "core/internal/migrations/01a0476f-a2fd-74a8-83ef-b52ead1a28e8__user__major.go": {
+      "hash": "750f0ff42da888e0"
+    },
+    "core/internal/migrations/01a0476f-a2fd-772c-b04c-b2474c9e7c02__workflow_definition__major.go": {
+      "hash": "257b27af5638cd94"
     },
     "core/internal/migrations/metadata.go": {
       "hash": "79a8efe0c7e6789a"
@@ -1323,7 +1375,7 @@
       "hash": "b5ff54e27c32f36c"
     },
     "core/internal/migrations/registry.go": {
-      "hash": "2c0e20479f449664"
+      "hash": "333e1b9c9cb1a839"
     },
     "core/internal/testutil/inputdoc.go": {
       "hash": "de71045bbc3b290f"
@@ -1376,14 +1428,14 @@
       "hash": "c9c7bb71afb4c6ea"
     },
     "core/runtime/config.go": {
-      "hash": "346f2d66aea171e7",
+      "hash": "81907c9a80a434eb",
       "noteIds": [
         "org-20260821-003",
         "so98l5"
       ]
     },
     "core/runtime/config_test.go": {
-      "hash": "17a524c04c9837da"
+      "hash": "d4626b15cf4fdcc1"
     },
     "core/runtime/context/context.go": {
       "hash": "6bb87816884d471d"
@@ -1670,34 +1722,34 @@
       "hash": "bb43fe1ce7b05b3f"
     },
     "core/system/blobs/blobs_test.go": {
-      "hash": "fefff57ebda5247e"
+      "hash": "7a39a02147006e55"
     },
     "core/system/blobs/handler.go": {
-      "hash": "1995a12c6b164349",
+      "hash": "27963717accab12c",
       "noteIds": [
         "cruft-20260821-020"
       ]
     },
     "core/system/blobs/inputs.go": {
-      "hash": "ec0b250091f69567"
+      "hash": "2a3c5bface4ae71d"
     },
     "core/system/blobs/model/inputs.go": {
-      "hash": "53a9802d97b90134"
+      "hash": "629e4ff9153d8abc"
     },
     "core/system/blobs/model/outputs.go": {
-      "hash": "09145df71cf2dcdf"
+      "hash": "fd1eb0b68960e967"
     },
     "core/system/blobs/outputs.go": {
-      "hash": "a11d40ee70466c12"
+      "hash": "6135fa80627181a2"
     },
     "core/system/blobs/policies.go": {
-      "hash": "fe892f0d5e2f63c9"
+      "hash": "8ecf7f50c33dffdf"
     },
     "core/system/blobs/registrations.go": {
-      "hash": "223ce539007faefd"
+      "hash": "63b9eb12106ef66c"
     },
     "core/system/blobs/service.go": {
-      "hash": "24b1d5dd6f896f3a",
+      "hash": "5898e22bca5e19d7",
       "noteIds": [
         "storage-leak-blobs-never-compact-ad27adbb"
       ]
@@ -1709,13 +1761,13 @@
       "hash": "84f96a5849768888"
     },
     "core/system/blobs/store/service.go": {
-      "hash": "fd53a3049b0a3c1e"
+      "hash": "8a98560428d7b1a2"
     },
     "core/system/blobs/store/service_test.go": {
       "hash": "a942994cf25b247a"
     },
     "core/system/blobs/store/types.go": {
-      "hash": "6430d391aad9998b",
+      "hash": "de8752cc366c64e7",
       "noteIds": [
         "feat-ns-metadata"
       ]
@@ -1757,28 +1809,52 @@
       "hash": "bb5906f5b5c4e02e"
     },
     "core/system/gen_features.go": {
-      "hash": "de61708ef6a40ef9"
+      "hash": "0539d42138649815"
     },
     "core/system/gen_features_test.go": {
       "hash": "8cd733b9dacff6f5"
+    },
+    "core/system/logs/logs_test.go": {
+      "hash": "8c42f4faed924202"
+    },
+    "core/system/logs/model/inputs.go": {
+      "hash": "77e7127307c7f3fa"
+    },
+    "core/system/logs/model/outputs.go": {
+      "hash": "bc2d551fc0bba281"
+    },
+    "core/system/logs/policies.go": {
+      "hash": "d51ab331b1be9369"
+    },
+    "core/system/logs/reader.go": {
+      "hash": "a5fd5b780c1a4f88"
+    },
+    "core/system/logs/ring.go": {
+      "hash": "9216dc0d77052f88"
+    },
+    "core/system/logs/service.go": {
+      "hash": "d504536c4ff02d7a"
+    },
+    "core/system/logs/sink.go": {
+      "hash": "05d656cc8241e2e9"
     },
     "core/system/model_test.go": {
       "hash": "9bc1d3921e9224ac"
     },
     "core/system/module.go": {
-      "hash": "af167ad5e40df112"
+      "hash": "a7993bd763874fce"
     },
     "core/system/notifications/leak_harness_test.go": {
       "hash": "16ab74c331a26b7e"
     },
     "core/system/notifications/model/inputs.go": {
-      "hash": "faf14b1926d4c017"
+      "hash": "8d3a7baa6d796424"
     },
     "core/system/notifications/model/notifications.schema.model.go": {
       "hash": "b9632b42a8c1d13f"
     },
     "core/system/notifications/model/outputs.go": {
-      "hash": "c3965d38efae19cd"
+      "hash": "61ce851d03182edd"
     },
     "core/system/notifications/model/seed.go": {
       "hash": "4ac284633a7f86db"
@@ -1790,16 +1866,16 @@
       "hash": "b433ed93709fac2a"
     },
     "core/system/notifications/policies.go": {
-      "hash": "5d34801f1a19a3a7"
+      "hash": "2b09accea058c6c2"
     },
     "core/system/notifications/registrations.go": {
-      "hash": "42dc22780e1b5143"
+      "hash": "6df5673dd0538968"
     },
     "core/system/notifications/seed.go": {
       "hash": "aa18d87445f140dc"
     },
     "core/system/notifications/service.go": {
-      "hash": "89c3ee221030848d"
+      "hash": "b67cfd7c8ba91730"
     },
     "core/system/operations/bootstrap.go": {
       "hash": "de1160f52d0c2181"
@@ -1889,7 +1965,10 @@
       "hash": "ce1052193fa3ff27"
     },
     "core/system/provider.go": {
-      "hash": "49b9c94e980ed9ea"
+      "hash": "847a3f53ea4332b7",
+      "noteIds": [
+        "w2ic5i"
+      ]
     },
     "core/system/schedules/inputs.go": {
       "hash": "ec1b62b22a642527"
@@ -1937,7 +2016,7 @@
       "hash": "524ce1f5a61f1ecf"
     },
     "core/system/services.go": {
-      "hash": "3ec290fe35db57a7"
+      "hash": "e6e68fda4402676e"
     },
     "core/system/settings/model/inputs.go": {
       "hash": "9d661d17c8ece433"
@@ -1973,14 +2052,15 @@
       "hash": "0c7b91cb54c642e3"
     },
     "core/system/updates/service.go": {
-      "hash": "e385471ebf2a904b",
+      "hash": "7e9df9edbef2b5b8",
       "noteIds": [
+        "74bt56",
         "review2-20260821-004",
         "update-hash-verify"
       ]
     },
     "core/system/updates/service_test.go": {
-      "hash": "0f4c69a1cb9412a6"
+      "hash": "629612d86d4759c9"
     },
     "core/system/updates/startup.go": {
       "hash": "6e208162cedbeb0f"
@@ -2021,6 +2101,30 @@
     "core/system/users/users_test.go": {
       "hash": "1d01bd90a37015ae"
     },
+    "core/system/workflows/inputs.go": {
+      "hash": "6954721bd029ee0d"
+    },
+    "core/system/workflows/model/system_workflow_definitions_utils.go": {
+      "hash": "aa879ad298317d3c"
+    },
+    "core/system/workflows/model/workflow_definitions.schema.model.go": {
+      "hash": "5cc7ec482b668802"
+    },
+    "core/system/workflows/outputs.go": {
+      "hash": "913bb748219aa452"
+    },
+    "core/system/workflows/policies.go": {
+      "hash": "d146fc802b4a2c32"
+    },
+    "core/system/workflows/registrations.go": {
+      "hash": "7776864835ee25cd"
+    },
+    "core/system/workflows/service.go": {
+      "hash": "764b1ba39c75fcc7"
+    },
+    "core/system/workflows/workflows_test.go": {
+      "hash": "b0657d59f628d14d"
+    },
     "examples/basic/main.go": {
       "hash": "ffe0be65c044466a"
     },
@@ -2055,7 +2159,7 @@
       "hash": "a55ef94a02e587cf"
     },
     "tests/e2e/update/main_test.go": {
-      "hash": "96f654595761a913"
+      "hash": "d54d7fd61494bb39"
     },
     "tests/e2e/update/programmatic_test.go": {
       "hash": "866937f1a55f4f26"

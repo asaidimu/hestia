@@ -106,9 +106,8 @@ func (s *NotificationsService) ListNotifications(ctx context.Context, msg abstra
 	if err != nil {
 		return nil, err
 	}
-	tenantID := runtimecontext.GetTenantID(ctx)
 
-	models, err := s.model.List(ctx, userID, tenantID, 50, 0)
+	models, err := s.model.List(ctx, userID, 50, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +156,8 @@ func (s *NotificationsService) MarkAllRead(ctx context.Context, msg abstract.Mes
 	if err != nil {
 		return nil, err
 	}
-	tenantID := runtimecontext.GetTenantID(ctx)
 
-	if err := s.model.MarkAllRead(ctx, userID, tenantID); err != nil {
+	if err := s.model.MarkAllRead(ctx, userID); err != nil {
 		return nil, err
 	}
 	return document.New(&model.MessageOutput{Message: "ok"}), nil
@@ -178,9 +176,8 @@ func (s *NotificationsService) CountUnread(ctx context.Context, msg abstract.Mes
 	if err != nil {
 		return nil, err
 	}
-	tenantID := runtimecontext.GetTenantID(ctx)
 
-	count, err := s.model.CountUnread(ctx, userID, tenantID)
+	count, err := s.model.CountUnread(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

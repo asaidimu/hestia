@@ -13,5 +13,6 @@ func Policies() []policies.Binding {
 		{Name: "system:updates:check:get", RuleKey: "administrator", Description: "Check whether a newer version is available"},
 		{Name: "system:updates:stage:create", RuleKey: "administrator", Description: "Download and stage the latest update"},
 		{Name: "system:updates:update:apply", RuleKey: "administrator", Description: "Apply the staged update"},
+		{Name: "system:updates:update:discard", RuleKey: "administrator", Description: "Discard a staged update and clean up"},
 	}
 }

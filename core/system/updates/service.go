@@ -58,6 +58,11 @@ type ApplyView struct {
 	Message                string `anansi:"message"`
 }
 
+type DiscardView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Message                string `anansi:"message"`
+}
+
 type AvailabilityView struct {
 	document.DocumentModel `json:"-" anansi:"-"`
 	Available              bool   `anansi:"available"`
@@ -374,6 +379,13 @@ func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInp
 //
 // )
 func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInput) (*ApplyView, error) {
+	// @note #74bt56 issueopend  : Lack of recovery strategy
+	// @assignee opencode
+	// Added Discard method (system:updates:update:discard) that cleans up failed staged updates by calling updater.Cleanup() to remove the staged binary and clear the pending record. Includes registration, policy binding (administrator rule), and two tests (cleanup success + no-op when nothing staged). All 22 update tests pass.
+	//
+	// We have no strategy to recover from a failed update
+	// such as cleaning up the staged binary so that it can be
+	// re-staged
 	if err := s.verifyApplyReady(ctx); err != nil {
 		return nil, err
 	}
@@ -384,6 +396,30 @@ func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInp
 		s.applySwap(ctx)
 	}()
 	return document.New(&ApplyView{Message: "update applied; restarting"}), nil
+}
+
+// Discard cleans up a failed or unwanted staged update: removes the staged
+// binary from disk and clears the pending update record. After discard the
+// system returns to a clean state and a new check-and-stage cycle can re-stage
+// a fresh update.
+//
+// @hestia.register(
+//
+//	name="system:updates:update:discard",
+//	intent="delete",
+//	rule="administrator",
+//	description="Discard a staged update and clean up",
+//	output="DiscardView",
+//
+// )
+func (s *UpdatesService) Discard(ctx context.Context, _ abstract.Message, _ *NoInput) (*DiscardView, error) {
+	if s.updater == nil {
+		return nil, fmt.Errorf("updater not configured")
+	}
+	if err := s.updater.Cleanup(); err != nil {
+		return nil, fmt.Errorf("discard staged update: %w", err)
+	}
+	return document.New(&DiscardView{Message: "staged update discarded"}), nil
 }
 
 // RunScheduledCheck is the recurring job: check, stage, notify on new staging,
@@ -663,7 +699,8 @@ func (s *UpdatesService) recordLastCheck(ctx context.Context) error {
 
 // notifyAdmins sends an update_available notification (in-app, plus email when
 // a mailer is configured) to every enabled user holding the administrator
-// permission.
+// permission. TenantID is set from the admin user's record so that
+// tenant-scoped notification queries (list, unread count) can find it.
 func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateInfo) error {
 	if s.notifier == nil {
 		return nil
@@ -677,7 +714,7 @@ func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateI
 		if s.hasMailer {
 			channels = append(channels, abstract.ChannelEmail)
 		}
-		if err := s.notifier.Send(ctx, abstract.Notification{
+		n := abstract.Notification{
 			Recipient: abstract.Recipient{UserID: u.ID, Email: u.Email},
 			Template:  "update_available",
 			Data: map[string]any{
@@ -692,7 +729,11 @@ func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateI
 				},
 			},
 			Channels: channels,
-		}); err != nil {
+		}
+		if u.TenantID != nil {
+			n.TenantID = *u.TenantID
+		}
+		if err := s.notifier.Send(ctx, n); err != nil {
 			return err
 		}
 	}

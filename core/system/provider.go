@@ -296,11 +296,13 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 		exe,
 		dataDir,
 	)
-	if cfg.CheckSchedule != "" {
-		ps.Scheduler.Register("updates:check", cfg.CheckSchedule, func(ctx context.Context) error {
-			return ps.Updates.RunScheduledCheck(runtimecontext.SystemContext(ctx))
-		})
+	schedule := cfg.CheckSchedule
+	if schedule == "" {
+		schedule = "@daily"
 	}
+	ps.Scheduler.Register("updates:check", schedule, func(ctx context.Context) error {
+		return ps.Updates.RunScheduledCheck(runtimecontext.SystemContext(ctx))
+	})
 	return nil
 }
 

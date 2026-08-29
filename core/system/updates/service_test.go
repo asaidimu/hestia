@@ -379,6 +379,56 @@ func TestStageBackfillsChecksumWhenProviderOmitsIt(t *testing.T) {
 	}
 }
 
+func TestDiscardCleansUpStagedUpdate(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version: "1.2.0",
+	}}, "1.0.0")
+
+	// Stage an update first.
+	if _, err := svc.Check(ctx, nil, nil); err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if !svc.updater.HasPreparedUpdate() {
+		t.Fatal("expected prepared update binary")
+	}
+	pending, err := store.PendingUpdate(ctx)
+	if err != nil || pending == nil || pending.Version != "1.2.0" {
+		t.Fatalf("expected staged 1.2.0, got %+v (err=%v)", pending, err)
+	}
+
+	// Discard it.
+	view, err := svc.Discard(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("discard: %v", err)
+	}
+	if view.Message == "" {
+		t.Fatal("expected a success message")
+	}
+
+	// Verify cleanup: staged binary removed and pending record cleared.
+	if svc.updater.HasPreparedUpdate() {
+		t.Fatal("expected staged binary to be removed after discard")
+	}
+	if pending, _ := store.PendingUpdate(ctx); pending != nil {
+		t.Fatalf("expected pending record to be cleared after discard, got %+v", pending)
+	}
+}
+
+func TestDiscardWhenNothingStaged(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t, &stubProvider{}, "1.0.0")
+
+	// Discard with nothing staged should succeed (no-op cleanup).
+	view, err := svc.Discard(ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("discard: %v", err)
+	}
+	if view.Message == "" {
+		t.Fatal("expected a success message")
+	}
+}
+
 func TestVerifyStagedBinaryDetectsTampering(t *testing.T) {
 	ctx := context.Background()
 	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{

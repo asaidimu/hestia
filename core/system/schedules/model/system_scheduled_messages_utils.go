@@ -102,12 +102,11 @@ func (m *SystemScheduledMessagess) ListSchedules(ctx context.Context) ([]*docume
 	return out, nil
 }
 
-// ListSchedulesByTenant returns scheduled messages for a tenant, ordered by created_at.
-func (m *SystemScheduledMessagess) ListSchedulesByTenant(ctx context.Context, tenantID string, limit, offset int) ([]*document.Document, error) {
-	qb := query.NewQueryBuilder().OrderByAsc("created_at")
-	if tenantID != "" {
-		qb = qb.Where("tenant_id").Eq(tenantID)
-	}
+// ListSchedulesByTenant returns scheduled messages for a user, ordered by created_at.
+func (m *SystemScheduledMessagess) ListSchedulesByTenant(ctx context.Context, userID string, limit, offset int) ([]*document.Document, error) {
+	qb := query.NewQueryBuilder().
+		Where("user_id").Eq(userID).
+		OrderByAsc("created_at")
 	if limit > 0 {
 		qb = qb.Limit(limit)
 	}

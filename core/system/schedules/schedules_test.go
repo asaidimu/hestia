@@ -209,7 +209,7 @@ func TestCreateScheduleHandlerMissingCron(t *testing.T) {
 }
 
 func TestListSchedulesHandler(t *testing.T) {
-	ctx := context.Background()
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-1"})
 	m := newTestModel(t)
 
 	_, err := m.CreateSchedule(ctx, createTestDoc(t))
