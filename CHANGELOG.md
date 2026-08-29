@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/asaidimu/hestia/compare/v1.10.0...v1.10.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **notifications:** fix stream cleanup logic and add service logger ([907a823](https://github.com/asaidimu/hestia/commit/907a8232343931c664ad5a0a6f95b079187aa30b))
+
 # [1.10.0](https://github.com/asaidimu/hestia/compare/v1.9.0...v1.10.0) (2026-08-29)
 
 
