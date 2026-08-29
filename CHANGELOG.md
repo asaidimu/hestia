@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/asaidimu/hestia/compare/v1.7.0...v1.8.0) (2026-08-29)
+
+
+### Features
+
+* **workflows:** add registry and runtime API endpoints ([b76b7c7](https://github.com/asaidimu/hestia/commit/b76b7c7855eff32bea393eb50e595f5d95f8b491))
+
 # [1.7.0](https://github.com/asaidimu/hestia/compare/v1.6.2...v1.7.0) (2026-08-28)
 
 
