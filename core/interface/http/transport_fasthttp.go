@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"mime"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -150,6 +151,25 @@ func (t *HTTPTransport) Shutdown(ctx context.Context) error {
 }
 
 func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
+	defer func() {
+		if r := recover(); r != nil {
+			stack := make([]byte, 4096)
+			n := runtime.Stack(stack, false)
+			if t.logger != nil {
+				t.logger.Error("panic recovered in HTTP handler",
+					zap.Any("panic", r),
+					zap.ByteString("stack", stack[:n]),
+					zap.String("method", string(ctx.Method())),
+					zap.String("path", string(ctx.Path())),
+					zap.String("request_id", string(ctx.Request.Header.Peek("X-Request-ID"))),
+				)
+			}
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response.Header.Set("Content-Type", "application/json")
+			_, _ = ctx.Write([]byte(`{"error":{"code":"INTERNAL_ERROR","message":"internal server error"}}`))
+		}
+	}()
+
 	t.cors(ctx)
 	if string(ctx.Method()) == "OPTIONS" {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
