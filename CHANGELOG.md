@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/asaidimu/hestia/compare/v1.8.0...v1.8.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* **http:** add global panic recovery middleware to transport ([8953953](https://github.com/asaidimu/hestia/commit/8953953b16c7eb6d8143a03550eb5e856420f88c))
+
 # [1.8.0](https://github.com/asaidimu/hestia/compare/v1.7.0...v1.8.0) (2026-08-29)
 
 
