@@ -72,6 +72,7 @@ func (s *LogsService) Query(ctx context.Context, msg abstract.Message, input *mo
 			Caller: e.Caller,
 			Msg:    e.Msg,
 			Fields: e.Fields,
+			Extra:  e.Extra,
 		}
 	}
 
@@ -108,6 +109,7 @@ func (s *LogsService) Stream(ctx context.Context, msg abstract.Message, input *m
 			Caller: e.Caller,
 			Msg:    e.Msg,
 			Fields: e.Fields,
+			Extra:  e.Extra,
 		}
 		result, err := dispatch.NewDocumentResultFrom(&view)
 		if err != nil {

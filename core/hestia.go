@@ -84,6 +84,9 @@ func (a *Application) RegisterModules(m ...Module) error             { return a.
 func (a *Application) NewHTTPInterface(cfg http.Config) runtime.Interface {
 	mod := a.inner.SystemModule()
 	chain := mod.DispatcherChain(a.inner.Dispatcher())
+	// Append access-log middleware so it runs closest to the handler
+	// (after auth), capturing user_id, request_id, and timing.
+	allMiddleware := append(cfg.Middleware, http.AccessLog(a.inner.Loggers.File))
 	return http.New(http.Options{
 		Dispatcher:          chain,
 		InternalDispatcher:  a.inner.Dispatcher(),
@@ -98,7 +101,7 @@ func (a *Application) NewHTTPInterface(cfg http.Config) runtime.Interface {
 		APIPrefix:           cfg.APIPrefix,
 		StaticFS:            cfg.StaticFS,
 		UserModel:           mod.UserModel(),
-		Middleware:          cfg.Middleware,
+		Middleware:          allMiddleware,
 		AllowedOrigins:      cfg.AllowedOrigins,
 	})
 }

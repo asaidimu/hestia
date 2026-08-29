@@ -138,7 +138,21 @@ func matchEntry(entry LogEntry, q Query) bool {
 	if !q.To.IsZero() && t.After(q.To) {
 		return false
 	}
-	if q.Search != "" && !containsIgnoreCase(entry.Msg, q.Search) {
+	if q.Search != "" {
+		if containsIgnoreCase(entry.Msg, q.Search) {
+			return true
+		}
+		// Also search inside structured fields and extra top-level keys
+		for _, m := range []map[string]any{entry.Fields, entry.Extra} {
+			for k, v := range m {
+				if containsIgnoreCase(k, q.Search) {
+					return true
+				}
+				if s, ok := v.(string); ok && containsIgnoreCase(s, q.Search) {
+					return true
+				}
+			}
+		}
 		return false
 	}
 	return true

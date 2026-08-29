@@ -120,3 +120,49 @@ export interface CompiledWorkflow {
   triggers: number
   pipelines: number
 }
+
+// ---------------------------------------------------------------------------
+// Node registry types
+// ---------------------------------------------------------------------------
+
+/** A single node kind definition from the workflow node registry. */
+export interface NodeDefinition {
+  kind: string
+  label: string
+  description?: string
+  icon?: string
+  config_schema?: Record<string, unknown>
+  requirements?: Record<string, unknown>[]
+  scope?: string
+  type?: string
+  body_handle?: string
+}
+
+/** Payload for `runtime:invoke` — invoke a workflow trigger directly. */
+export interface InvokeWorkflowPayload {
+  workflow_id: string
+  trigger_id: string
+  payload?: Record<string, unknown>
+}
+
+/** Payload for `runtime:resume` — resume a paused run. */
+export interface ResumeWorkflowPayload {
+  run_id: string
+  payload?: Record<string, unknown>
+}
+
+/** Result of invoking a workflow trigger. */
+export interface InvokeWorkflowResult {
+  run_id: string
+  status: string
+  ok: boolean
+  error?: string
+}
+
+/** Result of resuming a paused run. */
+export interface ResumeWorkflowResult {
+  run_id: string
+  status: string
+  ok: boolean
+  error?: string
+}

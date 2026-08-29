@@ -170,5 +170,84 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[WorkflowRunStoreView](),
 			Handler: dispatch.HandleDocument[WorkflowRunStoreInput, *WorkflowRunStoreView](s.GetRunStore),
 		},
+		{
+			Name:        "system:workflows:registry:list",
+			Description: "List all registered workflow node kind definitions",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[WorkflowRegistryListInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[NodeRegistryListView](),
+			Handler: dispatch.HandleDocument[WorkflowRegistryListInput, *NodeRegistryListView](s.ListRegisteredNodeKinds),
+		},
+		{
+			Name:        "system:workflows:registry:get",
+			Description: "Get a single workflow node kind definition",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowRegistryGetInput]("input"),
+				ResourceIDField: "kind",
+			},
+			Output:  dispatch.SchemaFromType[NodeRegistryGetView](),
+			Handler: dispatch.HandleDocument[WorkflowRegistryGetInput, *NodeRegistryGetView](s.GetRegisteredNodeKind),
+		},
+		{
+			Name:        "system:workflows:registry:handles",
+			Description: "Get the raw JS handle computation functions for all node kinds",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[WorkflowRegistryHandlesInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRegistryHandlesView](),
+			Handler: dispatch.HandleDocument[WorkflowRegistryHandlesInput, *WorkflowRegistryHandlesView](s.NodeHandlesJS),
+		},
+		{
+			Name:        "system:workflows:runtime:has",
+			Description: "Check if a workflow is registered in the runtime",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowRuntimeHasInput]("input"),
+				ResourceIDField: "id",
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRuntimeHasView](),
+			Handler: dispatch.HandleDocument[WorkflowRuntimeHasInput, *WorkflowRuntimeHasView](s.RuntimeHas),
+		},
+		{
+			Name:        "system:workflows:runtime:list",
+			Description: "List IDs of all registered (active) workflows",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[WorkflowRuntimeListInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRuntimeListView](),
+			Handler: dispatch.HandleDocument[WorkflowRuntimeListInput, *WorkflowRuntimeListView](s.RuntimeListWorkflows),
+		},
+		{
+			Name:        "system:workflows:runtime:invoke",
+			Description: "Invoke a registered workflow's trigger directly",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[WorkflowRuntimeInvokeInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRuntimeInvokeView](),
+			Handler: dispatch.HandleDocument[WorkflowRuntimeInvokeInput, *WorkflowRuntimeInvokeView](s.RuntimeInvoke),
+		},
+		{
+			Name:        "system:workflows:runtime:resume",
+			Description: "Resume a paused workflow run",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[WorkflowRuntimeResumeInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[WorkflowRuntimeResumeView](),
+			Handler: dispatch.HandleDocument[WorkflowRuntimeResumeInput, *WorkflowRuntimeResumeView](s.RuntimeResume),
+		},
 	}, nil
 }

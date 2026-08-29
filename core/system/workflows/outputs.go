@@ -91,3 +91,65 @@ type WorkflowMessageOutput struct {
 	document.DocumentModel `json:"-" anansi:"-"`
 	Message                string `anansi:"message"`
 }
+
+// NodeDefinitionView describes a single workflow node type.
+type NodeDefinitionView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Kind                   string           `json:"kind" anansi:"kind"`
+	Label                  string           `json:"label" anansi:"label"`
+	Description            string           `json:"description,omitempty" anansi:"description,omitempty"`
+	Icon                   string           `json:"icon,omitempty" anansi:"icon,omitempty"`
+	ConfigSchema           map[string]any   `json:"config_schema,omitempty" anansi:"config_schema,omitempty"`
+	Requirements           []map[string]any `json:"requirements,omitempty" anansi:"requirements,omitempty"`
+	Scope                  string           `json:"scope,omitempty" anansi:"scope,omitempty"`
+	Type                   string           `json:"type,omitempty" anansi:"type,omitempty"`
+	BodyHandle             string           `json:"body_handle,omitempty" anansi:"body_handle,omitempty"`
+}
+
+// NodeRegistryListView is the list of all registered node definitions.
+type NodeRegistryListView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Nodes                  []NodeDefinitionView `anansi:"nodes"`
+}
+
+// NodeRegistryGetView is a single node definition.
+type NodeRegistryGetView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	NodeDefinitionView
+}
+
+// WorkflowRegistryHandlesView is the raw JS object literal for handle computation.
+type WorkflowRegistryHandlesView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Code                   string `json:"code" anansi:"code"`
+}
+
+// WorkflowRuntimeHasView checks if a workflow is registered.
+type WorkflowRuntimeHasView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Has                    bool `anansi:"has"`
+}
+
+// WorkflowRuntimeListView lists IDs of registered workflows.
+type WorkflowRuntimeListView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	WorkflowIDs            []string `anansi:"workflow_ids"`
+}
+
+// WorkflowRuntimeInvokeView is the result of invoking a trigger.
+type WorkflowRuntimeInvokeView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	RunID                  string         `anansi:"run_id"`
+	Status                 string         `anansi:"status"`
+	OK                     bool           `anansi:"ok"`
+	Error                  string         `anansi:"error,omitempty"`
+}
+
+// WorkflowRuntimeResumeView is the result of resuming a paused run.
+type WorkflowRuntimeResumeView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	RunID                  string         `anansi:"run_id"`
+	Status                 string         `anansi:"status"`
+	OK                     bool           `anansi:"ok"`
+	Error                  string         `anansi:"error,omitempty"`
+}

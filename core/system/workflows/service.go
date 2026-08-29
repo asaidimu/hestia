@@ -2,7 +2,11 @@ package workflows
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -14,6 +18,7 @@ import (
 
 	"github.com/asaidimu/hermes/pkg/compiler"
 	"github.com/asaidimu/hermes/pkg/events"
+	"github.com/asaidimu/hermes/pkg/nodekit"
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
 	_ "github.com/asaidimu/hermes/pkg/nodes" // register built-in node types
 )
@@ -419,6 +424,193 @@ func (s *WorkflowsService) GetRunStore(ctx context.Context, msg abstract.Message
 	})
 
 	return document.New(&WorkflowRunStoreView{State: state}), nil
+}
+
+// ---------------------------------------------------------------------------
+// Node registry
+// ---------------------------------------------------------------------------
+
+// ListRegisteredNodeKinds returns all registered workflow node type definitions.
+//
+// @hestia.register(
+//   name="system:workflows:registry:list",
+//   intent="read",
+//   rule="administrator",
+//   description="List all registered workflow node kind definitions",
+// )
+func (s *WorkflowsService) ListRegisteredNodeKinds(_ context.Context, _ abstract.Message, _ *WorkflowRegistryListInput) (*NodeRegistryListView, error) {
+	reg := nodekit.Registry()
+	out := make([]NodeDefinitionView, 0, len(reg))
+	for _, def := range reg {
+		out = append(out, nodeDefToView(def))
+	}
+	return document.New(&NodeRegistryListView{Nodes: out}), nil
+}
+
+// GetRegisteredNodeKind returns a single node definition by kind.
+//
+// @hestia.register(
+//   name="system:workflows:registry:get",
+//   intent="read",
+//   rule="administrator",
+//   description="Get a single workflow node kind definition",
+//   resource_id="kind",
+// )
+func (s *WorkflowsService) GetRegisteredNodeKind(_ context.Context, _ abstract.Message, input *WorkflowRegistryGetInput) (*NodeRegistryGetView, error) {
+	if input.Kind == "" {
+		return nil, common.NewSystemError("WORKFLOW_NODE_KIND_REQUIRED", "kind is required")
+	}
+	def, ok := nodekit.Get(input.Kind)
+	if !ok {
+		return nil, common.NewSystemError("WORKFLOW_NODE_KIND_NOT_FOUND", "node kind "+input.Kind+" is not registered")
+	}
+	return document.New(&NodeRegistryGetView{NodeDefinitionView: nodeDefToView(def)}), nil
+}
+
+// NodeHandlesJS returns the raw JS object literal mapping each node kind to its
+// handle computation function, matching the contract: new Function("return (" + code + ")")().
+// The client evals this once and caches the resulting map.
+//
+// @hestia.register(
+//   name="system:workflows:registry:handles",
+//   intent="read",
+//   rule="administrator",
+//   description="Get the raw JS handle computation functions for all node kinds",
+// )
+func (s *WorkflowsService) NodeHandlesJS(_ context.Context, _ abstract.Message, _ *WorkflowRegistryHandlesInput) (*WorkflowRegistryHandlesView, error) {
+	reg := nodekit.Registry()
+	kinds := make([]string, 0, len(reg))
+	for k := range reg {
+		kinds = append(kinds, k)
+	}
+	sort.Strings(kinds)
+
+	entries := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		def := reg[kind]
+		if def.HandlesJS == "" {
+			continue
+		}
+		entries = append(entries, fmt.Sprintf("%s: %s", strconv.Quote(kind), def.HandlesJS))
+	}
+
+	code := "{\n" + strings.Join(entries, ",\n") + "\n}"
+	return document.New(&WorkflowRegistryHandlesView{Code: code}), nil
+}
+
+// ---------------------------------------------------------------------------
+// Runtime convenience methods
+// ---------------------------------------------------------------------------
+
+// RuntimeHas checks whether a workflow is registered in the runtime.
+//
+// @hestia.register(
+//   name="system:workflows:runtime:has",
+//   intent="read",
+//   rule="administrator",
+//   description="Check if a workflow is registered in the runtime",
+//   resource_id="id",
+// )
+func (s *WorkflowsService) RuntimeHas(_ context.Context, _ abstract.Message, input *WorkflowRuntimeHasInput) (*WorkflowRuntimeHasView, error) {
+	if input.ID == "" {
+		return nil, common.NewSystemError("WORKFLOW_ID_REQUIRED", "id is required")
+	}
+	return document.New(&WorkflowRuntimeHasView{Has: s.runtime.HasWorkflow(input.ID)}), nil
+}
+
+// RuntimeListWorkflows returns IDs of all registered (active) workflows.
+//
+// @hestia.register(
+//   name="system:workflows:runtime:list",
+//   intent="read",
+//   rule="administrator",
+//   description="List IDs of all registered (active) workflows",
+// )
+func (s *WorkflowsService) RuntimeListWorkflows(_ context.Context, _ abstract.Message, _ *WorkflowRuntimeListInput) (*WorkflowRuntimeListView, error) {
+	return document.New(&WorkflowRuntimeListView{WorkflowIDs: s.runtime.ListWorkflows()}), nil
+}
+
+// RuntimeInvoke directly invokes a registered workflow's trigger.
+//
+// @hestia.register(
+//   name="system:workflows:runtime:invoke",
+//   intent="create",
+//   rule="administrator",
+//   description="Invoke a registered workflow's trigger directly",
+// )
+func (s *WorkflowsService) RuntimeInvoke(_ context.Context, _ abstract.Message, input *WorkflowRuntimeInvokeInput) (*WorkflowRuntimeInvokeView, error) {
+	if input.WorkflowID == "" {
+		return nil, common.NewSystemError("WORKFLOW_ID_REQUIRED", "workflow_id is required")
+	}
+	if input.TriggerID == "" {
+		return nil, common.NewSystemError("WORKFLOW_TRIGGER_ID_REQUIRED", "trigger_id is required")
+	}
+	result := s.runtime.Invoke(input.WorkflowID, input.TriggerID, events.PipelineEvent{
+		Payload: input.Payload,
+	})
+	v := &WorkflowRuntimeInvokeView{
+		RunID:  result.RunID,
+		Status: result.Status,
+		OK:     result.OK,
+	}
+	if result.Error != nil {
+		v.Error = result.Error.Error()
+	}
+	return document.New(v), nil
+}
+
+// RuntimeResume resumes a paused run with the given event payload.
+//
+// @hestia.register(
+//   name="system:workflows:runtime:resume",
+//   intent="create",
+//   rule="administrator",
+//   description="Resume a paused workflow run",
+// )
+func (s *WorkflowsService) RuntimeResume(_ context.Context, _ abstract.Message, input *WorkflowRuntimeResumeInput) (*WorkflowRuntimeResumeView, error) {
+	if input.RunID == "" {
+		return nil, common.NewSystemError("WORKFLOW_RUN_ID_REQUIRED", "run_id is required")
+	}
+	result := s.runtime.Resume(input.RunID, input.Payload)
+	v := &WorkflowRuntimeResumeView{
+		RunID:  result.RunID,
+		Status: result.Status,
+		OK:     result.OK,
+	}
+	if result.Error != nil {
+		v.Error = result.Error.Error()
+	}
+	return document.New(v), nil
+}
+
+// nodeDefToView converts a nodekit.NodeDefinition into a wire-safe view.
+func nodeDefToView(def nodekit.NodeDefinition) NodeDefinitionView {
+	v := NodeDefinitionView{
+		Kind:       def.Kind,
+		Label:      def.Label,
+		Description: def.Description,
+		Icon:       def.Icon,
+		Scope:      def.Scope,
+		Type:       def.Type,
+		BodyHandle: def.BodyHandle,
+	}
+	if len(def.ConfigSchema) > 0 {
+		var m map[string]any
+		if json.Unmarshal(def.ConfigSchema, &m) == nil {
+			v.ConfigSchema = m
+		}
+	}
+	if len(def.Requirements) > 0 {
+		reqs := make([]map[string]any, len(def.Requirements))
+		for i, r := range def.Requirements {
+			b, _ := json.Marshal(r)
+			var m map[string]any
+			json.Unmarshal(b, &m)
+			reqs[i] = m
+		}
+		v.Requirements = reqs
+	}
+	return v
 }
 
 // toCompilerNodes converts raw JSON maps to compiler.Node structs.

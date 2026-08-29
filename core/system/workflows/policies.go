@@ -20,5 +20,12 @@ func Policies() []policies.Binding {
 		{Name: "system:workflows:run:outcome", RuleKey: "administrator", Description: "Get workflow run outcome"},
 		{Name: "system:workflows:run:events", RuleKey: "administrator", Description: "Get timeline events for a workflow run"},
 		{Name: "system:workflows:run:store", RuleKey: "administrator", Description: "Get the live state of a workflow run"},
+		{Name: "system:workflows:registry:list", RuleKey: "administrator", Description: "List all registered workflow node kind definitions"},
+		{Name: "system:workflows:registry:get", RuleKey: "administrator", Description: "Get a single workflow node kind definition"},
+		{Name: "system:workflows:registry:handles", RuleKey: "administrator", Description: "Get the raw JS handle computation functions for all node kinds"},
+		{Name: "system:workflows:runtime:has", RuleKey: "administrator", Description: "Check if a workflow is registered in the runtime"},
+		{Name: "system:workflows:runtime:list", RuleKey: "administrator", Description: "List IDs of all registered (active) workflows"},
+		{Name: "system:workflows:runtime:invoke", RuleKey: "administrator", Description: "Invoke a registered workflow's trigger directly"},
+		{Name: "system:workflows:runtime:resume", RuleKey: "administrator", Description: "Resume a paused workflow run"},
 	}
 }

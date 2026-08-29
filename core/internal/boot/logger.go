@@ -68,10 +68,10 @@ func NewLoggers(cfg *runtime.Config) *Loggers {
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
 		sink,
-		zap.InfoLevel,
+		zap.DebugLevel,
 	)
 
-	fileLogger := zap.New(fileCore, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
+	fileLogger := zap.New(fileCore, zap.AddCaller(), zap.AddStacktrace(zap.WarnLevel))
 	return &Loggers{File: fileLogger, Stdout: stdout, Ring: ring, lumberjack: rotator}
 }
 

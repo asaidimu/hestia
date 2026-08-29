@@ -1,22 +1,61 @@
 package logs
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 )
 
 // LogEntry is a single parsed log line.
+// Known fields are extracted explicitly; everything else lands in Extra.
 type LogEntry struct {
 	Level  string         `json:"level"`
 	TS     float64        `json:"ts"`
 	Caller string         `json:"caller"`
 	Msg    string         `json:"msg"`
 	Fields map[string]any `json:"fields,omitempty"`
+	Extra  map[string]any `json:"-"` // all other top-level JSON keys
 }
 
 // Time returns the entry's timestamp as time.Time.
 func (e *LogEntry) Time() time.Time {
 	return time.Unix(0, int64(e.TS*1e9))
+}
+
+// UnmarshalJSON implements json.Unmarshaler so that every top-level key
+// that isn't level/ts/caller/msg/fields ends up in Extra.
+func (e *LogEntry) UnmarshalJSON(data []byte) error {
+	// Decode into a flat map first.
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if v, ok := raw["level"].(string); ok {
+		e.Level = v
+	}
+	if v, ok := raw["ts"].(float64); ok {
+		e.TS = v
+	}
+	if v, ok := raw["caller"].(string); ok {
+		e.Caller = v
+	}
+	if v, ok := raw["msg"].(string); ok {
+		e.Msg = v
+	}
+	if v, ok := raw["fields"].(map[string]any); ok {
+		e.Fields = v
+	}
+
+	// Everything else goes into Extra.
+	known := map[string]bool{"level": true, "ts": true, "caller": true, "msg": true, "fields": true}
+	e.Extra = make(map[string]any, len(raw)-len(known))
+	for k, v := range raw {
+		if !known[k] {
+			e.Extra[k] = v
+		}
+	}
+	return nil
 }
 
 // RingBuffer is a fixed-capacity concurrent ring buffer of log entries.

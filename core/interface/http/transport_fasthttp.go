@@ -365,6 +365,15 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 		},
 		"metadata": meta,
 	})
+
+	if t.logger != nil {
+		t.logger.Warn("request error",
+			zap.String("code", issue.Code),
+			zap.Int("status", status),
+			zap.String("error", issue.Message),
+			zap.String("request_id", string(ctx.Request.Header.Peek("X-Request-ID"))),
+		)
+	}
 }
 
 // ── Static file serving ──────────────────────────────────────────────────────

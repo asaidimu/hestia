@@ -102,6 +102,9 @@ export const ROUTE_TABLE = {
   "system:workflows:definition:delete": { method: "DELETE", route: "/system/workflows/definition/delete/{id}", arguments: ["id"] },
   "system:workflows:definition:get": { method: "GET", route: "/system/workflows/definition/get/{id}", arguments: ["id"] },
   "system:workflows:definition:list": { method: "GET", route: "/system/workflows/definition/list", arguments: [] },
+  "system:workflows:registry:get": { method: "GET", route: "/system/workflows/registry/get/{kind}", arguments: ["kind"] },
+  "system:workflows:registry:handles": { method: "GET", route: "/system/workflows/registry/handles", arguments: [] },
+  "system:workflows:registry:list": { method: "GET", route: "/system/workflows/registry/list", arguments: [] },
   "system:workflows:run:events": { method: "GET", route: "/system/workflows/run/events/{run_id}", arguments: ["run_id"] },
   "system:workflows:run:get": { method: "GET", route: "/system/workflows/run/get/{run_id}", arguments: ["run_id"] },
   "system:workflows:run:list": { method: "GET", route: "/system/workflows/run/list", arguments: [] },
@@ -109,6 +112,10 @@ export const ROUTE_TABLE = {
   "system:workflows:run:store": { method: "GET", route: "/system/workflows/run/store/{run_id}", arguments: ["run_id"] },
   "system:workflows:runtime:abort": { method: "DELETE", route: "/system/workflows/runtime/abort/{run_id}", arguments: ["run_id"] },
   "system:workflows:runtime:events": { method: "POST", route: "/system/workflows/runtime/events", arguments: [] },
+  "system:workflows:runtime:has": { method: "GET", route: "/system/workflows/runtime/has/{id}", arguments: ["id"] },
+  "system:workflows:runtime:invoke": { method: "POST", route: "/system/workflows/runtime/invoke", arguments: [] },
+  "system:workflows:runtime:list": { method: "GET", route: "/system/workflows/runtime/list", arguments: [] },
+  "system:workflows:runtime:resume": { method: "POST", route: "/system/workflows/runtime/resume", arguments: [] },
   "system:workflows:runtime:run": { method: "POST", route: "/system/workflows/runtime/run", arguments: [] },
 } as const;
 

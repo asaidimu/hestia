@@ -15,6 +15,7 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"go.uber.org/zap"
 )
 
 // version is set via -ldflags "-X main.version=..." (used by the self-update
@@ -48,6 +49,7 @@ func main() {
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
 		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
+			accessLogger, _ := zap.NewProduction()
 			return []runtime.Interface{
 				app.NewHTTPInterface(httpapi.Config{
 					Port: serverPort(),
@@ -63,6 +65,7 @@ func main() {
 							ctx = runtime.ContextWithAuditIdentity(ctx, claims.UserID, auditdomain.ActorTypeUser, auditdomain.AuthMethodPassword)
 							return next(ctx, req)
 						},
+						httpapi.AccessLog(accessLogger),
 					},
 				}),
 				app.NewCLIInterface(cli.Config{}),

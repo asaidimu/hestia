@@ -71,3 +71,35 @@ type WorkflowDefinitionGetInput struct {
 type WorkflowDefinitionDeleteInput struct {
 	ID string `input:"arguments.id"`
 }
+
+// Node registry: list all registered node kinds
+type WorkflowRegistryListInput struct{}
+
+// Node registry: get a single node definition by kind
+type WorkflowRegistryGetInput struct {
+	Kind string `input:"arguments.kind"`
+}
+
+// Node registry: get the raw JS handle computation functions
+type WorkflowRegistryHandlesInput struct{}
+
+// Runtime: check if a workflow is registered in the runtime
+type WorkflowRuntimeHasInput struct {
+	ID string `input:"arguments.id"`
+}
+
+// Runtime: list IDs of all registered (active) workflows
+type WorkflowRuntimeListInput struct{}
+
+// Runtime: invoke a registered workflow's trigger directly
+type WorkflowRuntimeInvokeInput struct {
+	WorkflowID string         `input:"payload.workflow_id"`
+	TriggerID  string         `input:"payload.trigger_id"`
+	Payload    map[string]any `input:"payload.payload"`
+}
+
+// Runtime: resume a paused run
+type WorkflowRuntimeResumeInput struct {
+	RunID   string         `input:"payload.run_id"`
+	Payload map[string]any `input:"payload.payload"`
+}

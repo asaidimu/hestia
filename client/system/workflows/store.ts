@@ -9,7 +9,26 @@ import type {
   RunMeta,
   RunOutcome,
   TimelineEvent,
+  NodeDefinition,
+  HandleSpec,
+  InvokeWorkflowPayload,
+  InvokeWorkflowResult,
+  ResumeWorkflowPayload,
+  ResumeWorkflowResult,
 } from "./types"
+
+// ---------------------------------------------------------------------------
+// Handles cache — fetched once, eval'd, stored for synchronous access
+// ---------------------------------------------------------------------------
+
+type HandlesMap = Record<string, (config: any) => HandleSpec[]>
+
+let handlesCache: HandlesMap | null = null
+
+/** Synchronous access to the cached handles map. Returns null until fetchHandles() completes. */
+export function getCachedHandles(): HandlesMap | null {
+  return handlesCache
+}
 
 /** Client store for the hermes workflow engine exposed via hestia. */
 export class HestiaWorkflowStore {
@@ -132,5 +151,91 @@ export class HestiaWorkflowStore {
       { arguments: { run_id: runId } },
     )
     return res.data?.data?.state ?? null
+  }
+
+  // ---------------------------------------------------------------------------
+  // Node registry
+  // ---------------------------------------------------------------------------
+
+  /** List all registered workflow node kind definitions. */
+  async getRegistry(): Promise<NodeDefinition[]> {
+    const res = await this.client.dispatch<{ data: { nodes: NodeDefinition[] } }>(
+      "system:workflows:registry:list",
+    )
+    return res.data?.data?.nodes ?? []
+  }
+
+  /** Get a single node definition by kind. */
+  async getNodeDefinition(kind: string): Promise<NodeDefinition | null> {
+    const res = await this.client.dispatch<{ data: NodeDefinition }>(
+      "system:workflows:registry:get",
+      { arguments: { kind } },
+    )
+    return res.data?.data ?? null
+  }
+
+  /**
+   * Fetch the raw JS handle computation functions from the server,
+   * evaluate them, and cache the resulting map.
+   * After this call, use getCachedHandles() for synchronous access.
+   */
+  async fetchHandles(): Promise<HandlesMap> {
+    if (handlesCache) return handlesCache
+    try {
+      const res = await this.client.dispatch<{ data: { code: string } }>(
+        "system:workflows:registry:handles",
+      )
+      const code = res.data?.data?.code
+      if (!code) {
+        handlesCache = {}
+        return handlesCache
+      }
+      // eslint-disable-next-line no-new-func
+      const fn = new Function(`return (${code})`)
+      handlesCache = fn() as HandlesMap
+      return handlesCache
+    } catch {
+      handlesCache = {}
+      return handlesCache
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Runtime convenience methods
+  // ---------------------------------------------------------------------------
+
+  /** Check if a workflow is registered in the runtime. */
+  async hasWorkflow(id: string): Promise<boolean> {
+    const res = await this.client.dispatch<{ data: { has: boolean } }>(
+      "system:workflows:runtime:has",
+      { arguments: { id } },
+    )
+    return res.data?.data?.has ?? false
+  }
+
+  /** List IDs of all registered (active) workflows. */
+  async listWorkflows(): Promise<string[]> {
+    const res = await this.client.dispatch<{ data: { workflow_ids: string[] } }>(
+      "system:workflows:runtime:list",
+    )
+    return res.data?.data?.workflow_ids ?? []
+  }
+
+  /** Invoke a registered workflow's trigger directly. */
+  async invokeWorkflow(payload: InvokeWorkflowPayload): Promise<InvokeWorkflowResult> {
+    const res = await this.client.dispatch<{ data: InvokeWorkflowResult }>(
+      "system:workflows:runtime:invoke",
+      { payload },
+    )
+    return res.data?.data as InvokeWorkflowResult
+  }
+
+  /** Resume a paused workflow run. */
+  async resumeWorkflow(payload: ResumeWorkflowPayload): Promise<ResumeWorkflowResult> {
+    const res = await this.client.dispatch<{ data: ResumeWorkflowResult }>(
+      "system:workflows:runtime:resume",
+      { payload },
+    )
+    return res.data?.data as ResumeWorkflowResult
   }
 }
