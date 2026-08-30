@@ -1,3 +1,11 @@
+## [1.10.2](https://github.com/asaidimu/hestia/compare/v1.10.1...v1.10.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* **auth:** implement critical security patches from batch 1 audit ([7640a10](https://github.com/asaidimu/hestia/commit/7640a109a5e7b758e20d658250ca332f46a885d8))
+* **client:** add system:updates:update:discard route to client SDK ([060a08d](https://github.com/asaidimu/hestia/commit/060a08d8422b770e56d38755e2fa051206ca27ef))
+
 ## [1.10.1](https://github.com/asaidimu/hestia/compare/v1.10.0...v1.10.1) (2026-08-29)
 
 
