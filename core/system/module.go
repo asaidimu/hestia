@@ -507,7 +507,7 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 		runtime.LinkEntry{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
-		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore)},
+		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore, m.opts.Logger)},
 		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger, sharedRateStore)},
 		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
 			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {

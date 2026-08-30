@@ -8,6 +8,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-iam/v2/iam"
+	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
@@ -20,17 +21,19 @@ import (
 // (initPolicyInfra), so reads/writes go through the live repositories and stay
 // in sync with the access controller.
 type PoliciesService struct {
-	model *PolicyModel
-	perm  runtime.ReloadablePermissionManager
-	live  iam.RuleSet[iam.FunctionRule]
+	model  *PolicyModel
+	perm   runtime.ReloadablePermissionManager
+	live   iam.RuleSet[iam.FunctionRule]
+	logger *zap.Logger
 }
 
 func NewPoliciesService(rt abstract.Container) (*PoliciesService, error) {
 	m := abstract.MustResolve[*PolicyModel](rt)
 	perm := abstract.MustResolve[runtime.ReloadablePermissionManager](rt)
 	live := abstract.MustResolve[iam.RuleSet[iam.FunctionRule]](rt)
+	logger := abstract.MustResolve[*zap.Logger](rt)
 
-	return &PoliciesService{model: m, perm: perm, live: live}, nil
+	return &PoliciesService{model: m, perm: perm, live: live, logger: logger}, nil
 }
 
 // GetBinding returns the metadata for a registered operation binding.
@@ -371,12 +374,18 @@ func (s *PoliciesService) Reload(ctx context.Context, msg abstract.Message, inpu
 	}
 
 	ruleCount := 0
+	var compileFailures []string
 	for _, r := range dbRules {
 		if r.Expression == "" {
 			continue
 		}
 		fn, err := CompileCEL(r.Expression)
 		if err != nil {
+			// S-21: silently skipping a rule that fails to compile keeps the
+			// previous compiled rule in place (last good set) but leaked no
+			// signal — stale authorization persisted invisibly. Collect and
+			// surface the failures.
+			compileFailures = append(compileFailures, fmt.Sprintf("%s: %v", r.Name, err))
 			continue
 		}
 		if s.live != nil {
@@ -384,10 +393,16 @@ func (s *PoliciesService) Reload(ctx context.Context, msg abstract.Message, inpu
 			ruleCount++
 		}
 	}
+	if len(compileFailures) > 0 && s.logger != nil {
+		s.logger.Error("policy reload: CEL rules failed to compile; keeping last good versions",
+			zap.Int("failed", len(compileFailures)),
+			zap.Strings("rules", compileFailures))
+	}
 
 	return document.New(&model.PolicyReloadResult{
 		Operations: len(s.perm.ListCapabilities()),
 		Rules:      ruleCount,
+		Failed:     len(compileFailures),
 	}), nil
 }
 

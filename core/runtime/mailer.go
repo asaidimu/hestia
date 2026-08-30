@@ -60,7 +60,10 @@ func NewMailer(cfg MailerConfig) (*Mailer, error) {
 	client, err := mail.NewClient(
 		cfg.SMTPHost,
 		mail.WithPort(cfg.SMTPPort),
-		mail.WithTLSPolicy(mail.TLSOpportunistic),
+		// S-21: Opportunistic TLS let a downgrade attacker capture reset
+		// links and credentials in plaintext. Required by default; an
+		// explicit opt-out is a deliberate code change, not an accident.
+		mail.WithTLSPolicy(mail.TLSMandatory),
 		mail.WithSMTPAuth(parseSMTPAuth(cfg.SMTPAuthType)),
 		mail.WithUsername(cfg.SMTPUsername),
 		mail.WithPassword(cfg.SMTPPassword),

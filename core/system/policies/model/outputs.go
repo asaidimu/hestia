@@ -149,6 +149,7 @@ type PolicyReloadResult struct {
 	document.DocumentModel `json:"-" anansi:"-"`
 	Operations             int `anansi:"operations"`
 	Rules                  int `anansi:"rules"`
+	Failed                 int `anansi:"failed"`
 }
 
 // RuleDeletedResult is the wire shape of a rule deletion response.
