@@ -352,3 +352,36 @@ func TestMapSameSite(t *testing.T) {
 		t.Errorf("default: got %d", got)
 	}
 }
+
+// A-6: feature-scoped codes must map by condition family instead of
+// collapsing into an opaque 500.
+func TestCodeToStatusFallbackConvention(t *testing.T) {
+	cases := []struct {
+		code string
+		want int
+	}{
+		{"WORKFLOW_INVALID_NODES", 400},
+		{"SCHEDULE_INVALID_CRON", 400},
+		{"POLICY_EXPRESSION_REQUIRED", 400},
+		{"BLOB_CHUNK_NOT_FOUND", 404},
+		{"SCHEDULE_FORBIDDEN_OWNER", 403},
+		{"USER_ACCOUNT_DISABLED", 403},
+		{"COLLECTION_ALREADY_EXISTS", 409},
+		{"SESSION_EXPIRED", 401},
+		{"AUTH_LOGIN_RATE_LIMITED", 429},
+		{"TENANT_SHUTTING_DOWN", 503},
+		{"WORKFLOW_STEP_UNSUPPORTED", 501},
+		// no family match: stays 500
+		{"SOMETHING_ODD", 500},
+		{"", 500},
+		// exact map entries still win over the convention
+		{"NOT_FOUND", 404},
+		{"RATE_LIMITED", 429},
+		{"FORBIDDEN", 403},
+	}
+	for _, tc := range cases {
+		if got := codeToStatusFn(tc.code); got != tc.want {
+			t.Errorf("codeToStatusFn(%q) = %d, want %d", tc.code, got, tc.want)
+		}
+	}
+}

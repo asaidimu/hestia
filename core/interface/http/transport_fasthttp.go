@@ -683,12 +683,39 @@ var codeToStatus = map[string]int{
 	"RESTART_REQUIRED":    fasthttp.StatusServiceUnavailable,
 }
 
+// codeToStatusFn maps SystemError codes to HTTP statuses. Exact codes win;
+// unknown feature-scoped codes then fall through a condition-family
+// convention (audit A-6): the codebase communicates with
+// <DOMAIN>_<CONDITION> grammar codes (WORKFLOW_INVALID_NODES,
+// SCHEDULE_INVALID_CRON, ...), and silently promoting every unfamiliar
+// code to 500 hid client-fixable failures behind an opaque internal error.
+// Only codes that match no known family stay 500.
 func codeToStatusFn(code string) int {
 	if s, ok := codeToStatus[code]; ok {
 		return s
 	}
+	switch {
+	// specific credential families before the generic INVALID family
+	case strings.HasSuffix(code, "_INVALID_TOKEN") || strings.HasSuffix(code, "_INVALID_CREDENTIALS") || strings.HasSuffix(code, "_EXPIRED") || strings.HasSuffix(code, "_UNAUTHORIZED"):
+		return fasthttp.StatusUnauthorized
+	case strings.HasSuffix(code, "_INVALID") || strings.Contains(code, "_INVALID_") || strings.HasSuffix(code, "_REQUIRED"):
+		return fasthttp.StatusBadRequest
+	case strings.Contains(code, "_FORBIDDEN") || strings.HasSuffix(code, "_DENIED") || strings.HasSuffix(code, "_DISABLED"):
+		return fasthttp.StatusForbidden
+	case strings.HasSuffix(code, "_NOT_FOUND"):
+		return fasthttp.StatusNotFound
+	case strings.HasSuffix(code, "_EXISTS") || strings.HasSuffix(code, "_CONFLICT"):
+		return fasthttp.StatusConflict
+	case strings.Contains(code, "_RATE_") || strings.HasSuffix(code, "_LIMITED") || strings.HasSuffix(code, "_THROTTLED"):
+		return fasthttp.StatusTooManyRequests
+	case strings.HasSuffix(code, "_UNAVAILABLE") || strings.HasSuffix(code, "_SHUTTING_DOWN"):
+		return fasthttp.StatusServiceUnavailable
+	case strings.HasSuffix(code, "_UNSUPPORTED") || strings.HasSuffix(code, "_NOT_IMPLEMENTED"):
+		return fasthttp.StatusNotImplemented
+	}
 	return fasthttp.StatusInternalServerError
 }
+
 
 func systemErrorToStatus(err *common.SystemError) int {
 	return codeToStatusFn(err.Code)
