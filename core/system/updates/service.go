@@ -455,11 +455,19 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 }
 
 // @note #update-hash-verify issue resolved P1 status=open : Verify binary hash before applying staged update
-// Fixed: stageLatest now backfills a computed SHA-256 into the pending record when the provider omits a checksum (the GitHub-provider hole), so every freshly staged update is verifiable. applySwap re-verifies immediately before ApplyUpdate/swapExecutable, closing the verify-to-swap TOCTOU window; mismatch logs 'staged binary failed verification' and aborts. stagedBinaryPath() handles the Windows .exe suffix. Legacy pending rows without checksums still pass vacuously (documented).
+// Fixed: stageLatest now backfills a computed SHA-256 into the pending record when the provider omits a checksum (the GitHub-provider hole), so every freshly staged update is verifiable. applySwap re-verifies immediately before ApplyUpdate/swapExecutable, closing the verify-to-swap TOCTOU window; mismatch logs 'staged binary failed verification' and aborts. stagedBinaryPath() handles the Windows .exe suffix. S-9: rows without a checksum now FAIL verification instead of passing vacuously — re-stage by re-checking for updates.
 //
 // The staged binary at DataDir/update is copied over the running executable
 // (swapExecutable) or executed directly (ApplyUpdate) without verifying its
 // SHA-256 checksum against UpdateInfo.Checksum. The Checksum field already
+//
+// S-9 residual (authenticity): a self-computed checksum is integrity-only.
+// The GitHub provider supplies no checksum, so the recorded value attests
+// nothing about provenance — a MITM-substituted binary passes by
+// construction. Full remediation requires provider-attested checksums or
+// signed releases verified against an out-of-band-pinned key (updater's
+// server provider already verifies RSA signatures when ServerPublicKey is
+// configured).
 // flows through the persistence layer, but the actual verification against
 // the on-disk binary is never performed. This means a corrupted download —
 // or a file tampered with between staging and apply — would silently replace
@@ -546,17 +554,26 @@ func (s *UpdatesService) applySwap(ctx context.Context) {
 }
 
 // verifyStagedBinary hashes the staged binary at DataDir/update and compares
-// it against the expected checksum from the pending update record. Returns nil
-// when there is no pending record or no recorded checksum (legacy rows staged
-// before checksum backfilling existed), or when the hashes match. Returns an
-// error on mismatch or I/O failure, aborting the apply.
+// it against the expected checksum from the pending update record. It returns
+// an error — aborting the apply — on mismatch, I/O failure, a missing pending
+// record, or a record without a checksum.
+//
+// S-9: verification is mandatory; there is deliberately no vacuous pass. The
+// previous behavior returned nil when the record was missing or carried no
+// checksum ("trust the staged binary"), which disabled the check exactly when
+// it mattered. stageLatest stamps every pending row with a checksum, so this
+// only rejects rows staged by older versions — re-check for updates to
+// re-stage them.
 func (s *UpdatesService) verifyStagedBinary(ctx context.Context) error {
 	pending, err := s.store.PendingUpdate(ctx)
 	if err != nil {
 		return fmt.Errorf("read pending update: %w", err)
 	}
-	if pending == nil || pending.Checksum == "" {
-		return nil // no checksum to verify — trust the staged binary
+	if pending == nil {
+		return fmt.Errorf("no pending update record; refusing to apply an unverified staged binary")
+	}
+	if pending.Checksum == "" {
+		return fmt.Errorf("pending update %s has no recorded checksum; refusing to apply an unverified staged binary (re-check for updates to re-stage it)", pending.Version)
 	}
 
 	staged := s.stagedBinaryPath()
@@ -694,7 +711,7 @@ func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.Updat
 		if err := s.store.SaveUpdate(ctx, staged); err != nil {
 			return nil, false, fmt.Errorf("persist computed checksum: %w", err)
 		}
-		s.logger.Info("updates: computed checksum for staged update",
+		s.logger.Warn("updates: provider supplied no checksum; recorded one computed from the staged download — integrity-only, a substituted malicious binary passes by construction; signed releases or a checksum-publishing provider are required for authenticity",
 			zap.String("version", staged.Version), zap.String("checksum", digest))
 	}
 

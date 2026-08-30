@@ -459,3 +459,36 @@ func TestVerifyStagedBinaryDetectsTampering(t *testing.T) {
 		t.Fatalf("verify should pass with correct checksum: %v", err)
 	}
 }
+
+// TestVerifyStagedBinaryFailsClosedOnMissingRecord pins the S-9 contract: a
+// staged binary with NO pending record must never pass verification.
+func TestVerifyStagedBinaryFailsClosedOnMissingRecord(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newTestService(t, &stubProvider{}, "1.0.0")
+
+	// A staged binary exists (as after an unclean shutdown or an old
+	// version's staging), but the pending record is gone.
+	if err := os.WriteFile(svc.stagedBinaryPath(), []byte("stale-binary"), 0755); err != nil {
+		t.Fatalf("write staged binary: %v", err)
+	}
+	if err := svc.verifyStagedBinary(ctx); err == nil {
+		t.Fatal("expected refusal to apply with no pending record (S-9 vacuous pass removed)")
+	}
+}
+
+// TestVerifyStagedBinaryFailsClosedOnEmptyChecksum pins the other half of
+// S-9: a pending record without a checksum must fail verification, not pass.
+func TestVerifyStagedBinaryFailsClosedOnEmptyChecksum(t *testing.T) {
+	ctx := context.Background()
+	svc, store := newTestService(t, &stubProvider{}, "1.0.0")
+
+	if err := os.WriteFile(svc.stagedBinaryPath(), []byte("legacy-staged-binary"), 0755); err != nil {
+		t.Fatalf("write staged binary: %v", err)
+	}
+	if err := store.SaveUpdate(ctx, &updater.UpdateInfo{Version: "1.2.0"}); err != nil {
+		t.Fatalf("save pending without checksum: %v", err)
+	}
+	if err := svc.verifyStagedBinary(ctx); err == nil {
+		t.Fatal("expected refusal to apply with empty recorded checksum (S-9 vacuous pass removed)")
+	}
+}
