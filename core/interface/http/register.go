@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -246,11 +247,31 @@ func serializeResponse(ctx context.Context, result *abstract.Result, output *def
 // 2. Add a timeout or context to the producer goroutine
 // 3. Consider using a bounded buffer with overflow handling
 // 4. Monitor goroutine count for leak detection
+// managedStream pairs the SSE body channel with a done channel that the
+// fasthttp response writer owns. The producer cannot rely on the request
+// context alone: fasthttp's RequestCtx.Done() returns the server-shutdown
+// channel (server.go: ctx.s.done) and never fires on client disconnect —
+// without the writer-owned done channel, every aborted SSE request leaked
+// the producer goroutine and its upstream subscription until server
+// shutdown (S-19).
+type managedStream struct {
+	ch   abstract.StreamBody
+	once sync.Once
+	done chan struct{}
+}
+
+// Close releases the producer. Called by the response writer when it stops
+// consuming — flush error on client disconnect, or natural stream end.
+func (m *managedStream) Close() {
+	m.once.Do(func() { close(m.done) })
+}
+
 func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) any) (Response, bool) {
 	if src == nil {
 		return Response{}, false
 	}
 	streamCh := make(chan any, 64)
+	ms := &managedStream{ch: streamCh, done: make(chan struct{})}
 	go func() {
 		defer close(streamCh)
 		for {
@@ -261,17 +282,26 @@ func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) a
 				}
 				select {
 				case streamCh <- transform(v):
+				case <-ms.done:
+					// Writer stopped consuming (client disconnect): stop
+					// draining so this goroutine does not leak blocked on
+					// a full buffer.
+					return
 				case <-ctx.Done():
 					return
 				}
+			case <-ms.done:
+				return
 			case <-ctx.Done():
-				// Consumer went away (client disconnect): stop draining so
-				// this goroutine does not leak blocked on a full buffer.
+				// Consumer went away or the request was canceled: stop
+				// draining so this goroutine does not leak blocked on a
+				// full buffer. Note this never fires for fasthttp
+				// RequestCtx on client disconnect (S-19).
 				return
 			}
 		}
 	}()
-	return Response{Status: statusOK, Body: StreamBody(streamCh)}, true
+	return Response{Status: statusOK, Body: ms}, true
 }
 
 func serializeStreamResult(ctx context.Context, result *abstract.Result) (Response, bool) {

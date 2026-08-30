@@ -345,26 +345,18 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 		return
 	}
 
+	if ms, ok := resp.Body.(*managedStream); ok {
+		// S-19: the writer owns the done channel — close it when this writer
+		// stops consuming (flush error on client disconnect, or the stream
+		// drained) so the producer and its upstream subscription are
+		// released. fasthttp's RequestCtx.Done() only fires on server
+		// shutdown and can never release the producer on its own.
+		defer ms.Close()
+		t.writeEventStream(ctx, resp, ms.ch)
+		return
+	}
 	if stream, ok := resp.Body.(abstract.StreamBody); ok {
-		if resp.Status == 0 {
-			resp.Status = fasthttp.StatusOK
-		}
-		ctx.Response.Header.SetContentType("text/event-stream")
-		ctx.Response.Header.Set("Cache-Control", "no-cache")
-		ctx.Response.Header.Set("Connection", "keep-alive")
-		ctx.SetStatusCode(resp.Status)
-		ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
-			for data := range stream {
-				jsonBytes, err := json.Marshal(map[string]any{"data": data})
-				if err != nil {
-					continue
-				}
-				fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
-				if err := w.Flush(); err != nil {
-					return
-				}
-			}
-		})
+		t.writeEventStream(ctx, resp, stream)
 		return
 	}
 
@@ -379,6 +371,29 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
 	json.NewEncoder(ctx).Encode(map[string]any{
 		"data":     resp.Body,
 		"metadata": meta,
+	})
+}
+
+// writeEventStream renders a stream body as an SSE response.
+func (t *HTTPTransport) writeEventStream(ctx *fasthttp.RequestCtx, resp abstract.Response, stream abstract.StreamBody) {
+	if resp.Status == 0 {
+		resp.Status = fasthttp.StatusOK
+	}
+	ctx.Response.Header.SetContentType("text/event-stream")
+	ctx.Response.Header.Set("Cache-Control", "no-cache")
+	ctx.Response.Header.Set("Connection", "keep-alive")
+	ctx.SetStatusCode(resp.Status)
+	ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
+		for data := range stream {
+			jsonBytes, err := json.Marshal(map[string]any{"data": data})
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
+			if err := w.Flush(); err != nil {
+				return
+			}
+		}
 	})
 }
 
