@@ -1,4 +1,4 @@
-// @note #cruft-20260821-013 observation resolved status=open priority=P3 tags=#cruft,#note : Canonical input types for auth
+// @note #cruft-20260821-013 observation resolved priority=P3 tags=#cruft,#note : Canonical input types for auth
 // @see #cruft-20260821-001
 // Duplicate auth/inputs.go deleted. auth/model/inputs.go is now the sole source.
 //

@@ -230,8 +230,15 @@ func serializeResponse(ctx context.Context, result *abstract.Result, output *def
 	return emptyResponse(intent)
 }
 
-// @note #mem-20260821-003 issue resolved status=open priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
-// Resolved: streamChannel in core/interface/http/register.go now selects on the request context while draining the source channel and while forwarding to the response stream. On client disconnect (ctx done) the producer goroutine returns instead of blocking forever on a full buffer, eliminating the leak.
+// @note #mem-20260821-003 issue resolved priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
+// Resolved (S-10, security batch 1; S-19, security batch 2): streamChannel
+// selects on the request context while draining the source channel and while
+// forwarding to the response stream, so on client disconnect the producer
+// returns instead of blocking forever on a full buffer. S-19 additionally
+// verified fasthttp's RequestCtx.Done() never fires on client disconnect
+// (server-shutdown only) and moved SSE teardown to managedStream, whose
+// writer-owned done channel releases the producer on flush error or stream
+// end — the transport, not the request context, owns stream shutdown.
 //
 // streamChannel (line 171) creates a channel with buffer size 64. If the
 // consumer stops reading (e.g., client disconnects), the producer goroutine

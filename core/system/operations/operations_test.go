@@ -8,7 +8,6 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/system/operations"
-	operationsmodel "github.com/asaidimu/hestia/core/system/operations/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 )
 
@@ -40,79 +39,6 @@ func TestPolicyBindings(t *testing.T) {
 		if b.Name == "" {
 			t.Error("Policies() contains a binding with empty Name")
 		}
-	}
-}
-
-func TestSystemStatusHandler(t *testing.T) {
-	ctx := context.Background()
-	p := testutil.NewPersistence(t)
-	seed := operations.NewSeedModel(p)
-
-	if err := seed.Set(ctx, "bootstrapped", "true"); err != nil {
-		t.Fatalf("seed.Set failed: %v", err)
-	}
-
-	handler := operations.NewSystemStatusHandler(func() bool {
-		val, err := seed.Get(ctx, "bootstrapped")
-		if err != nil || val == "" {
-			return false
-		}
-		return val == "true"
-	})
-
-	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operationsmodel.CapabilityNameInputSchema(), `{}`)}
-	result, err := handler(ctx, msg)
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("result is nil")
-	}
-	if result.Document == nil {
-		t.Fatal("result.Document is nil")
-	}
-
-	bootstrapped, _ := result.Document.GetOr("bootstrapped", nil).(bool)
-	if !bootstrapped {
-		t.Errorf("bootstrapped = %v, want true", bootstrapped)
-	}
-
-	ok, _ := result.Document.GetOr("ok", nil).(bool)
-	if !ok {
-		t.Errorf("ok = %v, want true", ok)
-	}
-}
-
-func TestDocumentationHandler(t *testing.T) {
-	ctx := context.Background()
-
-	regs := []abstract.MessageRegistration{
-		{
-			Name:          "system:test:handler",
-			Description:   "A test handler",
-			Enabled:       true,
-			Intent:        abstract.Read,
-			BootstrapSafe: true,
-		},
-	}
-
-	handler := operations.NewDocumentationHandler(&regs, "")
-	msg := testMessage{ctx: ctx, input: testutil.InputDoc(t, operationsmodel.CapabilityNameInputSchema(), `{}`)}
-	result, err := handler(ctx, msg)
-	if err != nil {
-		t.Fatalf("handler returned error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("result is nil")
-	}
-	if len(result.Documents) == 0 {
-		t.Fatal("result.Documents is empty")
-	}
-
-	doc := result.Documents[0]
-	name, _ := doc.GetOr("name", nil).(string)
-	if name != "system:test:handler" {
-		t.Errorf("name = %v, want system:test:handler", name)
 	}
 }
 

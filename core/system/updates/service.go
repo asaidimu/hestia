@@ -454,7 +454,7 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 	return nil
 }
 
-// @note #update-hash-verify issue resolved P1 status=open : Verify binary hash before applying staged update
+// @note #update-hash-verify issue resolved P1 : Verify binary hash before applying staged update
 // Fixed: stageLatest now backfills a computed SHA-256 into the pending record when the provider omits a checksum (the GitHub-provider hole), so every freshly staged update is verifiable. applySwap re-verifies immediately before ApplyUpdate/swapExecutable, closing the verify-to-swap TOCTOU window; mismatch logs 'staged binary failed verification' and aborts. stagedBinaryPath() handles the Windows .exe suffix. S-9: rows without a checksum now FAIL verification instead of passing vacuously — re-stage by re-checking for updates.
 //
 // The staged binary at DataDir/update is copied over the running executable

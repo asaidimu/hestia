@@ -1,4 +1,4 @@
-// @note #arch-20260821-008 issue resolved status=open priority=P1 tags=#arch,#dependency : Subpackage imports parent runtime package
+// @note #arch-20260821-008 issue resolved priority=P1 tags=#arch,#dependency : Subpackage imports parent runtime package
 //
 // notification/channel_email.go imports its own parent runtime package (for *runtime.Mailer).
 // This violates expected hierarchical dependency direction — subpackages should not import

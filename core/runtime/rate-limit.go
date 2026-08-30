@@ -1,4 +1,4 @@
-// @note #arch-20260821-004 issue resolved status=open priority=P2 tags=#arch,#duplication : Separate rate store instances per dispatcher
+// @note #arch-20260821-004 issue resolved priority=P2 tags=#arch,#duplication : Separate rate store instances per dispatcher
 // @assignee opencode
 // @see #arch-20260821-003
 // Shared single ratestore.InMemoryStore between RateLimitDispatcher and ThrottleDispatcher via ProviderSet.RateStore. Created once in DispatcherChain, closed on Stop().

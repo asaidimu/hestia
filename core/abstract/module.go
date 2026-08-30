@@ -30,7 +30,7 @@ type ArgumentDefinition struct {
 	Type definition.FieldType
 }
 
-// @note #review-20260821-020 issue resolved status=open priority=P1 tags=#review,#design : Abstraction leak in Input struct
+// @note #review-20260821-020 issue resolved priority=P1 tags=#review,#design : Abstraction leak in Input struct
 // The Input struct contained a HeaderFields map (an HTTP header → field
 // binding) flagged "THIS IS AN ABSTRACTION LEAK". It has been removed:
 // transport-context fields are now declared in the input schema itself under

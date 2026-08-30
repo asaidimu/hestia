@@ -1,4 +1,4 @@
-// @note #cruft-20260821-020 observation resolved status=open priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
+// @note #cruft-20260821-020 observation resolved priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
 // @see #8uuufn
 // No action needed — dynamically registered via RegisterBlobHandlers, cannot use static codegen.
 //

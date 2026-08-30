@@ -1,4 +1,4 @@
-// @note #arch-20260821-011 issue resolved status=open priority=P2 tags=#arch,#lifecycle : Scheduler jobs have no lifecycle context
+// @note #arch-20260821-011 issue resolved priority=P2 tags=#arch,#lifecycle : Scheduler jobs have no lifecycle context
 // @assignee opencode
 // Scheduler now receives a cancellable context from ProviderSet. context.WithCancel created in initUpdates, cancel called in SystemModule.Stop(). Jobs receive the lifecycle context and are cancelled on shutdown.
 //

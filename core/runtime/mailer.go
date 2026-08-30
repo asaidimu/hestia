@@ -1,4 +1,4 @@
-// @note #arch-20260821-009 issue resolved status=open priority=P2 tags=#arch,#maintainability : Hardcoded HTML template in Go source
+// @note #arch-20260821-009 issue resolved priority=P2 tags=#arch,#maintainability : Hardcoded HTML template in Go source
 //
 // The password reset email HTML template is a fmt.Sprintf string literal
 // (mailer.go:89-98). This makes it difficult to maintain, test, and internationalize.
@@ -101,7 +101,7 @@ func (m *Mailer) Send(to, subject, body string) error {
 	return m.client.DialAndSend(msg)
 }
 
-// @note #review-20260821-005 todo resolved status=open priority=P1 tags=#review,#maintainability : Extract email templates to separate files
+// @note #review-20260821-005 todo resolved priority=P1 tags=#review,#maintainability : Extract email templates to separate files
 // The HTML template in SendPasswordReset is hardcoded as a string literal.
 // This makes it difficult to maintain, test, and internationalize.
 //

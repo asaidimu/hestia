@@ -1,4 +1,4 @@
-// @note #arch-20260821-014 issue resolved status=open priority=P2 tags=#arch,#concurrency : Lock ordering inconsistency in ratestore
+// @note #arch-20260821-014 issue resolved priority=P2 tags=#arch,#concurrency : Lock ordering inconsistency in ratestore
 //
 // The evictStale method (line 150) acquires shard.mu and then bucket.mu,
 // while other methods (CheckAndConsume, Increment) acquire bucket.mu first.
@@ -170,7 +170,7 @@ func (s *InMemoryStore) evictLoop() {
 	}
 }
 
-// @note #review-20260821-018 issue resolved status=open priority=P2 tags=#review,#concurrency : Potential deadlock in evictStale
+// @note #review-20260821-018 issue resolved priority=P2 tags=#review,#concurrency : Potential deadlock in evictStale
 // The evictStale method acquires shard.mu and then bucket.mu, while other
 // methods acquire bucket.mu first (e.g., CheckAndConsume, Increment). This
 // lock ordering inconsistency could lead to deadlocks if concurrent operations

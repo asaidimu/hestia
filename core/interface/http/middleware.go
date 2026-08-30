@@ -26,21 +26,16 @@ const (
 	authRateLimitPeriod = time.Minute
 )
 
-// @note #sec-20260821-003 issue resolved status=open priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
+// @note #sec-20260821-003 issue resolved priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
 //
-// authMiddleware (line 15) has no rate limiting on authentication attempts.
-// An attacker can brute-force passwords or API keys without restriction.
-//
-// The existing RateLimitDispatcher only limits message dispatch, not the
-// authentication flow itself. Attackers can attempt unlimited logins.
-//
-// For IoT/HFT: Credential stuffing attacks could compromise device fleets.
-//
-// Resolution:
-// 1. Add rate limiting to login endpoint (system:auth:session:create)
-// 2. Implement account lockout after N failed attempts
-// 3. Add progressive delays between attempts
-// 4. Log failed attempts for intrusion detection
+// Resolved (S-3, security batch 1): authMiddleware throttles unauthenticated
+// authentication attempts per source IP through authRateLimiter (a shared
+// ratestore) via CheckAndConsume with authRateLimitBurst/authRateLimitPeriod
+// before any credential validation runs; once the bucket is empty the
+// request is rejected with 429. The gate covers the credential-carrying
+// messages listed in authRateLimitedMessages (login, elevate, confirm, ...).
+// The per-operation RateLimitPolicy on the dispatch path remains the second
+// layer (see the ratelimit dispatcher link).
 func (o *Interface) authMiddleware(ctx context.Context, req Request, next handlerFunc) (Response, error) {
 	if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok && claims.UserID != "" {
 		return next(ctx, req)
