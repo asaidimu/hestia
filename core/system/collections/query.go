@@ -156,6 +156,13 @@ func runCollectionQuery(ctx context.Context, msg abstract.Message, name string, 
 		includeTotal := true
 		q.Pagination.IncludeTotal = &includeTotal
 	}
+	// S-17: a client-supplied pagination.limit used to pass through
+	// untouched — limit: 1000000000 materializes the whole collection.
+	// Clamp to a server-side maximum; clients page instead.
+	const maxQueryLimit = 1000
+	if q.Pagination.Limit > maxQueryLimit {
+		q.Pagination.Limit = maxQueryLimit
+	}
 
 	col, err := persist.Collection(ctx, name)
 	if err != nil {
