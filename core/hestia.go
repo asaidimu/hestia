@@ -263,9 +263,9 @@ func (cfg SetupConfig) applyTo(conf *runtime.Config) {
 }
 
 func Setup(cfg SetupConfig) (*Application, error) {
-	if cfg.ProjectName != "" {
-		boot.ProjectName = cfg.ProjectName
-	}
+	// A-7: the project name is passed explicitly to runtime.LoadConfig
+	// below (and boot.NewConfig takes it as a parameter) — no imperative
+	// package-global mutation.
 
 	pn := projectName(cfg.ProjectName)
 	conf, err := runtime.LoadConfig(pn)

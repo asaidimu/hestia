@@ -15,9 +15,9 @@ func TestNewConfigDefaults(t *testing.T) {
 	t.Setenv("SESSION_SECRET", "test-secret")
 	t.Setenv("APP_DATA_DIR", "/tmp/hestia-test-defaults")
 
-	cfg, err := NewConfig()
+	cfg, err := NewConfig("")
 	if err != nil {
-		t.Fatalf("NewConfig() error: %v", err)
+		t.Fatalf("NewConfig error: %v", err)
 	}
 
 	if cfg.Port != 8090 {
@@ -84,9 +84,9 @@ func TestNewConfigCustom(t *testing.T) {
 	t.Setenv("SESSION_COOKIE_NAME", "sid")
 	t.Setenv("SESSION_COOKIE_PATH", "/app")
 
-	cfg, err := NewConfig()
+	cfg, err := NewConfig("")
 	if err != nil {
-		t.Fatalf("NewConfig() error: %v", err)
+		t.Fatalf("NewConfig error: %v", err)
 	}
 
 	if cfg.Port != 9999 {
@@ -142,9 +142,9 @@ func TestNewConfigMissingSessionSecret(t *testing.T) {
 	os.Unsetenv("SESSION_SECRET")
 	t.Setenv("APP_DATA_DIR", t.TempDir())
 
-	cfg, err := NewConfig()
+	cfg, err := NewConfig("")
 	if err != nil {
-		t.Fatalf("NewConfig() error: %v", err)
+		t.Fatalf("NewConfig error: %v", err)
 	}
 	// No default secret constant exists anymore: with SESSION_SECRET unset,
 	// boot must provision a random per-install secret, never ship a known one.
@@ -166,9 +166,9 @@ func TestNewConfigMissingSessionSecret(t *testing.T) {
 		t.Errorf("persisted key file does not match cfg.SessionSecret")
 	}
 
-	cfg2, err := NewConfig()
+	cfg2, err := NewConfig("")
 	if err != nil {
-		t.Fatalf("second NewConfig() error: %v", err)
+		t.Fatalf("second NewConfig error: %v", err)
 	}
 	if cfg2.SessionSecret != cfg.SessionSecret {
 		t.Error("SessionSecret not stable across boots; sessions would not survive restarts")

@@ -11,6 +11,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
 )
 
 type cookieAction struct {
@@ -65,6 +66,11 @@ type Interface struct {
 	// name that is subject to the auth brute-force limiter — see
 	// authMiddleware. Populated in installRegistration.
 	authLimitedOps map[string]struct{}
+	// authRateLimiter limits unauthenticated authentication attempts per
+	// source IP to prevent brute-force attacks (audit A-7: was a package
+	// global, which made parallel tests and library embedding share
+	// state). Owned by the Interface, built in New.
+	authRateLimiter *ratestore.InMemoryStore
 }
 
 func New(opts Options) *Interface {
@@ -110,7 +116,7 @@ func New(opts Options) *Interface {
 		middleware:        opts.Middleware,
 		noRefreshCommands: nrc,
 		noRefreshOps:      make(map[string]struct{}),
-		authLimitedOps:    make(map[string]struct{}),
+		authRateLimiter:   ratestore.New(),
 	}
 	o.trans = newHTTPTransport(opts)
 	return o

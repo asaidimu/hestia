@@ -12,13 +12,11 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
-	"github.com/asaidimu/hestia/core/runtime/ratestore"
 )
 
-// authRateLimiter limits authentication attempts per source IP to prevent
-// brute-force attacks. Uses a token bucket: 10 attempts per minute, burst of 5.
-var authRateLimiter = ratestore.New()
-
+// authRateLimitBurst/authRateLimitPeriod parameterize the per-Interface
+// authentication limiter (Interface.authRateLimiter, built in New): a token
+// bucket of 10 attempts per minute per source IP, refilled continuously.
 const (
 	authRateLimitKey    = "auth:attempts:"
 	authRateLimitBurst  = 10
@@ -146,7 +144,7 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 	//    password:confirm (see register.go authRateLimitedMessages).
 	if _, limited := o.authLimitedOps[req.Operation]; limited {
 		key := authRateLimitKey + req.ClientIP
-		_, allowed, err := authRateLimiter.CheckAndConsume(ctx, key, authRateLimitBurst, authRateLimitRefill, authRateLimitPeriod)
+		_, allowed, err := o.authRateLimiter.CheckAndConsume(ctx, key, authRateLimitBurst, authRateLimitRefill, authRateLimitPeriod)
 		if err == nil && !allowed {
 			_, _ = fmt.Fprintf(os.Stderr, "AUTH RATE LIMIT: IP=%s op=%s\n", req.ClientIP, req.Operation)
 			return Response{Status: 429}, runtime.ErrRateLimited

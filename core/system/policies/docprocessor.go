@@ -3,6 +3,7 @@ package policies
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -12,11 +13,14 @@ import (
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
-var celEnv *cel.Env
-
-func init() {
-	var err error
-	celEnv, err = cel.NewEnv(
+// celEnvOnce builds the shared CEL environment on first use (audit A-7:
+// was an init()-time panic, so importing the package with a broken
+// environment killed every consumer — including tests that never compile a
+// rule). The environment is built from static variable declarations, which
+// cannot fail in practice; a failure therefore panics on first use as a
+// programming-error signal instead of at import time.
+var celEnvOnce = sync.OnceValue(func() *cel.Env {
+	env, err := cel.NewEnv(
 		cel.Variable("identity", cel.AnyType),
 		cel.Variable("resource", cel.AnyType),
 		cel.Variable("environment", cel.AnyType),
@@ -24,17 +28,18 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("create CEL env: %v", err))
 	}
-}
+	return env
+})
 
 func CompileCEL(expr string) (iam.FunctionRule, error) {
-	ast, issues := celEnv.Compile(expr)
+	ast, issues := celEnvOnce().Compile(expr)
 	if issues != nil && issues.Err() != nil {
 		return nil, common.NewSystemError("CEL_COMPILE_FAILED", fmt.Sprintf("compile CEL %q: %v", expr, issues.Err()))
 	}
 	if ast.OutputType() != cel.BoolType {
 		return nil, common.NewSystemError("CEL_COMPILE_FAILED", fmt.Sprintf("CEL %q must return bool, got %v", expr, ast.OutputType()))
 	}
-	prg, err := celEnv.Program(ast)
+	prg, err := celEnvOnce().Program(ast)
 	if err != nil {
 		return nil, common.SystemErrorFrom(err).WithOperation("CompileCEL").WithMessagef("program CEL %q", expr)
 	}
