@@ -244,6 +244,11 @@ func (m *SystemModule) seedProviders(rt abstract.Container, apiKeyAuth *auth.API
 		if err := abstract.RegisterInstance[updates.SystemdMode](rt, updates.SystemdMode(m.cfg.SelfUpdate.SystemdMode)); err != nil {
 			return err
 		}
+		if m.opts.OnRestartRequired != nil {
+			if err := abstract.RegisterInstance[updates.RestartHook](rt, updates.RestartHook(m.opts.OnRestartRequired)); err != nil {
+				return err
+			}
+		}
 		if err := abstract.RegisterInstance[updates.ExePath](rt, updates.ExePath(m.providers.UpdExe)); err != nil {
 			return err
 		}
@@ -534,6 +539,12 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 		m.opts.DispatcherChainFunc(chain)
 	}
 	built := chain.Build(next)
+	// A-15: restart-required outcomes (bootstrap credential rotation, update
+	// swap) are observed outermost so the transport's completion callback
+	// flushes the client response before the host's restart hook fires.
+	if m.opts.OnRestartRequired != nil {
+		built = runtime.NewRestartLink(m.opts.OnRestartRequired).Wrap(built)
+	}
 	m.chainedDisp.Store(built)
 	return built
 }

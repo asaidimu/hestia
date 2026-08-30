@@ -2,6 +2,8 @@ package updates
 
 import (
 	"context"
+	"errors"
+	"github.com/asaidimu/hestia/core/runtime"
 	"os"
 	"path/filepath"
 	"testing"
@@ -286,9 +288,8 @@ func TestSystemdApplySwapsExecutableAndExits(t *testing.T) {
 		t.Fatal("expected prepared update binary")
 	}
 
-	exited := make(chan int, 1)
-	exitProcess = func(code int) { exited <- code }
-	defer func() { exitProcess = os.Exit }()
+	restarted := make(chan error, 1)
+	svc.onRestart = func(err error) { restarted <- err }
 
 	view, err := svc.Apply(ctx, nil, nil)
 	if err != nil {
@@ -298,12 +299,12 @@ func TestSystemdApplySwapsExecutableAndExits(t *testing.T) {
 		t.Fatal("expected an ack message")
 	}
 	select {
-	case code := <-exited:
-		if code != 0 {
-			t.Fatalf("expected clean exit code 0, got %d", code)
+	case err := <-restarted:
+		if !errors.Is(err, runtime.ErrRestartRequired) {
+			t.Fatalf("expected runtime.ErrRestartRequired, got %v", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("expected a scheduled process exit after apply")
+		t.Fatal("expected a restart-required signal after apply")
 	}
 
 	got, err := os.ReadFile(exePath)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -331,11 +330,12 @@ func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Mes
 		return err
 	}
 
-	// Exit after bootstrap so the app restarts with the new configuration.
-	// This is intentional: the bootstrap password flow requires a fresh boot
-	// to activate the new credentials across all subsystems.
-	os.Exit(0)
-	return nil
+	// A-15: the new credentials activate on the next boot across all
+	// subsystems, but terminating the process is the host's decision, not
+	// the service's. Return the sentinel: the stock host exits so its
+	// supervisor restarts the server; embedded hosts interpret it however
+	// their lifecycle requires. The caller receives 503 RESTART_REQUIRED.
+	return fmt.Errorf("%w: bootstrap password updated; the new credentials activate after restart", runtime.ErrRestartRequired)
 }
 
 // ElevateToken issues an ephemeral API key for privilege elevation.

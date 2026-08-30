@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,14 +19,19 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
 )
 
 const lastCheckKey = "updates:last_check"
 
-// exitProcess is indirection over os.Exit so tests can capture the exit
-// instead of terminating the test binary.
-var exitProcess = os.Exit
+// RestartHook interprets a restart-required outcome from the apply path
+// (audit A-15). The stock host registers a hook that exits cleanly so its
+// supervisor restarts the process into the new binary; embedded hosts
+// schedule their own restart or defer it. Resolved from the DI container
+// (registered by SystemModule from SystemOptions.OnRestartRequired); nil
+// means no interpreter is configured and the outcome is only logged.
+type RestartHook func(err error)
 
 // NoInput is the (empty) input for every updates message.
 type NoInput struct{}
@@ -94,6 +100,7 @@ type (
 type UpdatesService struct {
 	updater   *updater.Updater
 	store     *Store
+	onRestart RestartHook
 	notifier  abstract.Notifier
 	users     *usersmodel.SystemUsers
 	logger    *zap.Logger
@@ -126,10 +133,12 @@ func NewUpdatesService(rt abstract.Container) (*UpdatesService, error) {
 	autoApply, _ := abstract.Resolve[AutoApply](rt)
 	appVersion, _ := abstract.Resolve[AppVersion](rt)
 	systemdMode, _ := abstract.Resolve[SystemdMode](rt)
+	restartHook, _ := abstract.Resolve[RestartHook](rt)
 	exePath, _ := abstract.Resolve[ExePath](rt)
 	dataDir, _ := abstract.Resolve[UpdateDataDir](rt)
 
 	return &UpdatesService{
+	onRestart: restartHook,
 		updater:   u,
 		store:     store,
 		notifier:  abstract.MustResolve[abstract.Notifier](rt),
@@ -297,11 +306,11 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 		// Detach before spawning: ctx may be a fasthttp RequestCtx-backed
 		// context that the transport recycles for the next request once this
 		// handler returns. Reading it 300ms later is a data race with
-		// cross-request value bleed (on the path that ends in os.Exit).
+		// cross-request value bleed.
 		applyCtx := context.WithoutCancel(context.Background())
 		go func() {
 			time.Sleep(300 * time.Millisecond)
-			s.applySwap(applyCtx)
+			s.handleApplyOutcome(s.applySwap(applyCtx))
 		}()
 	}
 	return document.New(view), nil
@@ -395,13 +404,14 @@ func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInp
 		return nil, err
 	}
 	// Launch the swap after a short delay so the HTTP response is flushed
-	// before os.Exit(0) terminates the process. The goroutine gets a fully
+	// before the host's restart hook terminates the process (A-15). The
+	// goroutine gets a fully
 	// detached context: ctx may be a fasthttp RequestCtx-backed context that
 	// the transport recycles for the next request once this handler returns.
 	applyCtx := context.WithoutCancel(context.Background())
 	go func() {
 		time.Sleep(300 * time.Millisecond)
-		s.applySwap(applyCtx)
+		s.handleApplyOutcome(s.applySwap(applyCtx))
 	}()
 	return document.New(&ApplyView{Message: "update applied; restarting"}), nil
 }
@@ -448,7 +458,7 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 		}
 		go func() {
 			time.Sleep(300 * time.Millisecond)
-			s.applySwap(ctx)
+			s.handleApplyOutcome(s.applySwap(ctx))
 		}()
 	}
 	return nil
@@ -518,39 +528,68 @@ func (s *UpdatesService) verifyApplyReady(ctx context.Context) error {
 // applySwap performs the actual binary handoff. In the default (spawn) mode it
 // delegates to updater.ApplyUpdate which spawns the staged binary and exits.
 // In SystemdMode it swaps the executable in-place and exits cleanly.
-func (s *UpdatesService) applySwap(ctx context.Context) {
+// applySwap performs the actual binary handoff and returns
+// runtime.ErrRestartRequired when the new binary is in place and the process
+// must restart to run it (audit A-15). It never terminates the process
+// itself; see handleApplyOutcome for how the outcome is interpreted.
+func (s *UpdatesService) applySwap(ctx context.Context) error {
 	if s.updater == nil {
-		s.logger.Error("updates: apply failed", zap.Error(fmt.Errorf("updater not configured")))
-		return
+		return fmt.Errorf("updater not configured")
 	}
 	// Verify immediately before handing off — verifyApplyReady ran earlier
 	// (possibly via a different code path), so re-checking here closes the
 	// window where the staged file could change between check and swap.
 	if err := s.verifyStagedBinary(ctx); err != nil {
 		s.logger.Error("updates: staged binary failed verification; aborting apply", zap.Error(err))
-		return
+		return err
 	}
 	if !s.systemd {
 		// ApplyUpdate spawns the new binary with --perform-update and then
-		// the current process exits, so ClearUpdate cannot run after it.
-		// The new binary's Reconcile call at boot clears the pending row once
-		// it detects its own version >= the staged version.
-		if err := s.updater.ApplyUpdate(); err != nil {
-			s.logger.Error("updates: apply failed", zap.Error(err))
-		}
-		return
+		// the current process exits (inside the updater), so ClearUpdate
+		// cannot run after it. The new binary's Reconcile call at boot
+		// clears the pending row once it detects its own version >= the
+		// staged version.
+		return s.updater.ApplyUpdate()
 	}
 	if err := s.swapExecutable(ctx); err != nil {
 		s.logger.Error("updates: swap executable failed", zap.Error(err))
-		return
+		return err
 	}
-	// Clear the pending row synchronously before systemd restarts us. Failure
-	// here is non-fatal — Reconcile on the next boot will clear it — but log
+	// Clear the pending row synchronously before the restart. Failure here
+	// is non-fatal — Reconcile on the next boot will clear it — but log
 	// it so it is observable.
 	if err := s.store.ClearUpdate(ctx); err != nil {
 		s.logger.Warn("updates: clear pending update after swap failed", zap.Error(err))
 	}
-	exitProcess(0)
+	return fmt.Errorf("%w: update swapped in place; restart to run %s", runtime.ErrRestartRequired, s.stagedVersionOrEmpty(ctx))
+}
+
+// handleApplyOutcome interprets the outcome of a background applySwap
+// (audit A-15): restart-required outcomes go to the host's RestartHook when
+// one is configured; without a hook the honest state is logged — the swap
+// already succeeded and the new binary activates at the next host restart.
+func (s *UpdatesService) handleApplyOutcome(err error) {
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, runtime.ErrRestartRequired):
+		if s.onRestart != nil {
+			s.onRestart(err)
+			return
+		}
+		s.logger.Warn("updates: restart required to activate the applied update; no restart handler configured — the new binary activates at the next host restart", zap.Error(err))
+	default:
+		s.logger.Error("updates: apply failed", zap.Error(err))
+	}
+}
+
+// stagedVersionOrEmpty returns the pending record's version for log
+// messages, tolerating a missing record (best-effort context only).
+func (s *UpdatesService) stagedVersionOrEmpty(ctx context.Context) string {
+	if rec, err := s.store.PendingUpdate(ctx); err == nil && rec != nil {
+		return rec.Version
+	}
+	return ""
 }
 
 // verifyStagedBinary hashes the staged binary at DataDir/update and compares

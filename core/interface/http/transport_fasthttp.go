@@ -21,6 +21,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	hestiaruntime "github.com/asaidimu/hestia/core/runtime"
 )
 
 type Logger interface {
@@ -427,9 +428,17 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 	status := fasthttp.StatusInternalServerError
 	var sysErr *common.SystemError
 
-	if errors.As(err, &sysErr) {
+	switch {
+	case errors.Is(err, hestiaruntime.ErrRestartRequired):
+		// A-15: the operation succeeded but the change activates on restart.
+		// Return an honest 503 instead of an opaque 500; no error logging —
+		// this is an expected outcome, and the host's restart hook (wired
+		// outermost in the chain) handles process termination.
+		sysErr = common.NewSystemError("RESTART_REQUIRED", "the change requires a server restart; retry after the server comes back up")
+		status = fasthttp.StatusServiceUnavailable
+	case errors.As(err, &sysErr):
 		status = systemErrorToStatus(sysErr)
-	} else {
+	default:
 		// S-16: raw internal error strings (SQL errors, filesystem paths)
 		// must not reach clients. Log the cause server-side, return an
 		// opaque message.
@@ -671,6 +680,7 @@ var codeToStatus = map[string]int{
 	"NOT_IMPLEMENTED":     fasthttp.StatusNotImplemented,
 	"SERVICE_UNAVAILABLE": fasthttp.StatusServiceUnavailable,
 	"RATE_LIMITED":        fasthttp.StatusTooManyRequests,
+	"RESTART_REQUIRED":    fasthttp.StatusServiceUnavailable,
 }
 
 func codeToStatusFn(code string) int {

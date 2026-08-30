@@ -174,7 +174,13 @@ type SetupConfig struct {
 
 	OnBootstrapped func()
 	OnReset        func()
-	Migrate        func(ctx context.Context, p base.Persistence) error
+
+	// OnRestartRequired interprets runtime.ErrRestartRequired outcomes
+	// (bootstrap credential rotation, self-update swap — audit A-15). When
+	// nil, the stock interpreter exits cleanly so the supervisor restarts
+	// the process with the new state active.
+	OnRestartRequired func(error)
+	Migrate           func(ctx context.Context, p base.Persistence) error
 
 	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
 
@@ -296,6 +302,7 @@ func Setup(cfg SetupConfig) (*Application, error) {
 	// Phase 2: boot — persistence, migrations, module hydration
 	forceBootstrapped := cfg.ForceBootstrapped || conf.ForceBootstrapped
 
+	restartHook := cfg.OnRestartRequired
 	opts := dispatch.SystemOptions{
 		OnBootstrapped: func() {
 			application.RestartAll(true)
@@ -312,6 +319,19 @@ func Setup(cfg SetupConfig) (*Application, error) {
 		ForceBootstrapped:   forceBootstrapped,
 		Logger:              cfg.Logger,
 		DispatcherChainFunc: cfg.DispatcherChainFunc,
+		OnRestartRequired: func(err error) {
+			if restartHook != nil {
+				restartHook(err)
+				return
+			}
+			// Stock interpreter (A-15): exit cleanly so the supervisor
+			// (systemd/docker/launchd) restarts the process with the new
+			// state active.
+			if cfg.Logger != nil {
+				cfg.Logger.Warn("restart required — exiting so the supervisor restarts the server", zap.Error(err))
+			}
+			os.Exit(0)
+		},
 	}
 
 	if err := application.Boot(context.Background(), opts); err != nil {
