@@ -516,7 +516,7 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 			return ""
 		})},
 		runtime.LinkEntry{Name: "blob", Link: blobutil.NewDispatcherLink(m.providers.BlobSvc)},
-		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger)},
+		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger, m.providers.AuditBuffer)},
 	)
 	if m.opts.DispatcherChainFunc != nil {
 		m.opts.DispatcherChainFunc(chain)
@@ -559,6 +559,14 @@ func (m *SystemModule) Stop(ctx context.Context) error {
 		if err := m.providers.WorkflowRuntime.Shutdown(ctx); err != nil {
 			m.opts.Logger.Warn("shutdown workflow runtime", zap.Error(err))
 		}
+	}
+	// S-15: flush and stop the audit buffer. The chain is built from
+	// Wrap() clones, so without this the queued compliance entries (up
+	// to 4096) silently vanished on every shutdown.
+	if m.providers.AuditBuffer != nil {
+		m.providers.AuditBuffer.Sync()
+		m.providers.AuditBuffer.Close()
+		m.providers.AuditBuffer = nil
 	}
 	m.opts.Logger.Info("system module stopped")
 	return nil

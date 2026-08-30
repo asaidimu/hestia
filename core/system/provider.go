@@ -18,8 +18,8 @@ import (
 	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
-	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/audit"
+	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	"github.com/asaidimu/hestia/core/system/logs"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
@@ -34,10 +34,10 @@ import (
 	"github.com/asaidimu/hestia/core/system/users"
 	"github.com/asaidimu/hestia/core/system/users/model"
 
-	hermesstore "github.com/asaidimu/hermes/pkg/store"
+	hermescore "github.com/asaidimu/hermes/pkg/core"
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
 	hermesscheduler "github.com/asaidimu/hermes/pkg/scheduler"
-	hermescore "github.com/asaidimu/hermes/pkg/core"
+	hermesstore "github.com/asaidimu/hermes/pkg/store"
 	"github.com/asaidimu/hermes/pkg/timeline"
 )
 
@@ -56,6 +56,7 @@ type ProviderSet struct {
 	RuleModel     *policiesmodel.SystemIamRules
 	Seed          *operations.SeedModel
 	Audit         *auditmodel.SystemAuditLogs
+	AuditBuffer   *runtime.AuditBuffer
 	Tenants       *tenantsmodel.SystemTenants
 	Settings      *settingsmodel.SystemSettingss
 	Notifications *notificationsmodel.SystemNotificationss
@@ -116,6 +117,13 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 		return fmt.Errorf("init system audit logs model: %w", err)
 	}
 	ps.Audit = auditModel
+	// S-15: construct the audit buffer eagerly. The previous lazy init
+	// in AuditDispatcher.Buffer() raced concurrent first requests into
+	// competing buffers/flush loops, and because the dispatcher chain is
+	// built from Wrap() clones, nobody held the instance that would ever
+	// flush it. One shared buffer lives here and Sync()/Close() happen
+	// from SystemModule.Stop.
+	ps.AuditBuffer = runtime.NewAuditBuffer(ps.Audit, ps.Logger)
 	tenantsModel, err := tenantsmodel.InitSystemTenantsModel(ps.Persist, ps.Logger)
 	if err != nil {
 		return fmt.Errorf("init system tenants model: %w", err)

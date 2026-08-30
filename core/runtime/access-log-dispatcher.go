@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -97,10 +98,11 @@ func deriveActorType(ctx context.Context) audit.ActorType {
 }
 
 type AuditDispatcher struct {
-	next      abstract.Dispatcher
-	persister audit.AuditPersister
-	logger    *zap.Logger
-	buffer    *AuditBuffer
+	next       abstract.Dispatcher
+	persister  audit.AuditPersister
+	logger     *zap.Logger
+	buffer     *AuditBuffer
+	bufferOnce sync.Once
 }
 
 func NewAuditDispatcher(next abstract.Dispatcher, persister audit.AuditPersister) *AuditDispatcher {
@@ -110,12 +112,16 @@ func NewAuditDispatcher(next abstract.Dispatcher, persister audit.AuditPersister
 	}
 }
 
-func NewAuditDispatcherWithLogger(next abstract.Dispatcher, persister audit.AuditPersister, logger *zap.Logger) *AuditDispatcher {
-	return &AuditDispatcher{
+func NewAuditDispatcherWithLogger(next abstract.Dispatcher, persister audit.AuditPersister, logger *zap.Logger, buffer ...*AuditBuffer) *AuditDispatcher {
+	d := &AuditDispatcher{
 		next:      next,
 		persister: persister,
 		logger:    logger,
 	}
+	if len(buffer) > 0 {
+		d.buffer = buffer[0]
+	}
+	return d
 }
 
 func (d *AuditDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
@@ -127,11 +133,16 @@ func (d *AuditDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	}
 }
 
-// Buffer returns the shared audit buffer, initialising it on first call.
+// Buffer returns the shared audit buffer. In production the buffer is
+// constructed eagerly in the ProviderSet (S-15) and the Once is a
+// belt-and-braces guard for the lazy path (tests) that previously
+// raced concurrent first requests into competing buffers.
 func (d *AuditDispatcher) Buffer() *AuditBuffer {
-	if d.buffer == nil {
-		d.buffer = NewAuditBuffer(d.persister, d.logger)
-	}
+	d.bufferOnce.Do(func() {
+		if d.buffer == nil {
+			d.buffer = NewAuditBuffer(d.persister, d.logger)
+		}
+	})
 	return d.buffer
 }
 
