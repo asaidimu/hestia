@@ -92,6 +92,7 @@ export const ROUTE_TABLE = {
   "system:updates:stage:create": { method: "POST", route: "/system/updates/stage/create", arguments: [] },
   "system:updates:status:get": { method: "GET", route: "/system/updates/status/get", arguments: [] },
   "system:updates:update:apply": { method: "POST", route: "/system/updates/update/apply", arguments: [] },
+  "system:updates:update:discard": { method: "DELETE", route: "/system/updates/update/discard", arguments: [] },
   "system:users:password:change": { method: "PATCH", route: "/system/users/password/change/{user_id}", arguments: ["user_id"] },
   "system:users:user:create": { method: "POST", route: "/system/users/user/create", arguments: [] },
   "system:users:user:delete": { method: "DELETE", route: "/system/users/user/delete/{user_id}", arguments: ["user_id"] },
