@@ -77,7 +77,7 @@ jobs:
 
       - name: Cache govulncheck
         id: cache-govulncheck
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/go/bin/govulncheck
           key: govulncheck-${{ runner.os }}-${{ runner.arch }}

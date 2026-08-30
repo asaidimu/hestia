@@ -2,7 +2,7 @@ name: Versioning Workflow
 
 on:
   workflow_run:
-    workflows: ["Test Workflow"]
+    workflows: ["CI"]
     types:
       - completed
 
@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
