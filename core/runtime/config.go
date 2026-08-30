@@ -63,8 +63,13 @@ const (
 
 	DefaultAPIPrefix     = "/api"
 	DefaultSessionCookie = "session"
-	DefaultSessionSecret = "3ecb5a2ef5014f88-8a00-8227db8b7298"
 	DefaultSessionPath   = "/"
+
+	// SessionSecret has no default constant on purpose: a secret that ships
+	// in a public repo makes every session and reset token forgeable. It is
+	// provisioned by EnsureSessionSecret (operator config or generated and
+	// persisted in the data dir) — see secret.go.
+	sessionSecretFileName = "session.key"
 )
 
 type InteractorFactory func(logger *zap.Logger) (query.DatabaseInteractor, func(), error)
@@ -144,11 +149,12 @@ type CookieConfig struct {
 }
 
 func DefaultConfig() *Config {
+	// SessionSecret is intentionally left empty: EnsureSessionSecret
+	// provisions it (or boot fails loudly).
 	return &Config{
 		Port:           DefaultPort,
 		BcryptCost:     DefaultBcryptCost,
 		SessionTTL:     DefaultSessionTTL,
-		SessionSecret:  DefaultSessionSecret,
 		IdleTTL:        DefaultIdleTTL,
 		RefreshTTL:     DefaultRefreshTTL,
 		LogMaxSize:     DefaultLogMaxSize,
@@ -242,6 +248,12 @@ func LoadConfig(projectName string) (*Config, error) {
 	_ = os.MkdirAll(cfg.BlobsDir, 0700)
 
 	applyCommonEnvOverrides(cfg)
+
+	// Provision the session signing secret last so an explicit SESSION_SECRET
+	// (env or .env) wins over the persisted per-install secret.
+	if err := EnsureSessionSecret(cfg); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }

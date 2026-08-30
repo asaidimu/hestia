@@ -98,9 +98,19 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 		return fmt.Errorf("init live schedule: %w", err)
 	}
 
-	sessionSvc := auth.NewSessionService(m.cfg.SessionSecret)
-	resetSecret := m.cfg.SessionSecret + ":reset"
-	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetSecret, func(ctx context.Context, userID string) (int, error) {
+	// Derive independent per-purpose signing keys from the master secret via
+	// HKDF (see runtime.DerivePurposeKey). This fails boot when no session
+	// secret was provisioned — there is deliberately no default secret.
+	sessionKey, err := runtime.DerivePurposeKey(m.cfg.SessionSecret, "session")
+	if err != nil {
+		return fmt.Errorf("derive session keys: %w", err)
+	}
+	resetKey, err := runtime.DerivePurposeKey(m.cfg.SessionSecret, "password-reset")
+	if err != nil {
+		return fmt.Errorf("derive session keys: %w", err)
+	}
+	sessionSvc := auth.NewSessionService(sessionKey)
+	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetKey, func(ctx context.Context, userID string) (int, error) {
 		user, err := m.providers.Users.GetByID(ctx, userID)
 		if err != nil {
 			return 0, nil
