@@ -1,49 +1,90 @@
-name: Test Workflow
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.27"
 
 jobs:
-  test:
+  lint:
+    name: Lint & Drift
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
+      - uses: actions/setup-go@v7
         with:
-          go-version: '1.27.0-rc.1'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
-
-      - name: Get dependencies
-        run: go mod download
 
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: make test
-
-      - name: Test (race detector)
-        run: go test -race ./core/...
-
-      - name: Build
-        run: go build -v ./...
-
-      # Generated artifacts are committed; a new @hestia.register without
-      # regenerating ships a stale TS route table. Fail loudly on drift.
-      - name: Codegen drift check (client route table)
+      - name: Codegen drift check
         run: |
           go run ./cmd/gen-routes
           if ! git diff --exit-code -- client/core/routes.gen.ts; then
-            echo "::error::client/core/routes.gen.ts is stale. Run 'go run ./cmd/gen-routes' and commit the result."
+            echo "::error::client/core/routes.gen.ts is stale. Run 'go run ./cmd/gen-routes' and commit."
             exit 1
           fi
 
-      - name: Vulnerability scan
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Test
+        run: go test -v -count=1 ./...
+
+  test-race:
+    name: Race Detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Test (race)
+        run: go test -race -count=1 ./core/...
+
+  security:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Cache govulncheck
+        id: cache-govulncheck
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/govulncheck
+          key: govulncheck-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install govulncheck
+        if: steps.cache-govulncheck.outputs.cache-hit != 'true'
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
