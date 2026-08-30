@@ -15,3 +15,9 @@ func NewSchedulesServiceForTest(m *model.SystemScheduledMessagess, live *LiveSch
 func NewSchedulesServiceWithRegistrationsForTest(m *model.SystemScheduledMessagess, live *LiveSchedule, regs []abstract.MessageRegistration) *SchedulesService {
 	return &SchedulesService{model: m, live: live, registrations: &regs}
 }
+
+// NewSchedulesServiceWithAuthorizerForTest creates a SchedulesService with an
+// explicit S-1 authorizer, so target-policy authorization is exercised.
+func NewSchedulesServiceWithAuthorizerForTest(m *model.SystemScheduledMessagess, live *LiveSchedule, regs []abstract.MessageRegistration, auth *ScheduleAuthorizer) *SchedulesService {
+	return &SchedulesService{model: m, live: live, registrations: &regs, auth: auth}
+}

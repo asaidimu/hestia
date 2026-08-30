@@ -40,7 +40,10 @@ type LiveSchedule struct {
 	model *model.SystemScheduledMessagess
 	sched *scheduler.Scheduler
 	disp  abstract.Dispatcher
-	log   *zap.Logger
+	// S-1: optional late-bound chain and authorizer (nil in unit tests).
+	dispFn func() abstract.Dispatcher
+	auth   *ScheduleAuthorizer
+	log    *zap.Logger
 }
 
 func NewLiveSchedule(model *model.SystemScheduledMessagess, sched *scheduler.Scheduler, disp abstract.Dispatcher, log *zap.Logger) *LiveSchedule {
@@ -50,6 +53,46 @@ func NewLiveSchedule(model *model.SystemScheduledMessagess, sched *scheduler.Sch
 		disp:  disp,
 		log:   log,
 	}
+}
+
+// WithAuthorizer wires the S-1 authorization model: create-time target
+// checks plus fire-time resolution of the creator's current claims. Without
+// it, fires degrade to a scope-less creator identity (unit-test behavior).
+func (ls *LiveSchedule) WithAuthorizer(a *ScheduleAuthorizer) *LiveSchedule {
+	ls.auth = a
+	return ls
+}
+
+// WithDispatcherProvider wires a late-binding dispatcher accessor. The full
+// middleware chain (sanitization → bootstrap → secure → ratelimit → throttle
+// → tenant → blob → audit) is built after boot; schedule fires must traverse
+// it so authorization, rate limiting and audit apply. Falls back to the raw
+// dispatcher when the chain has not been built yet.
+func (ls *LiveSchedule) WithDispatcherProvider(fn func() abstract.Dispatcher) *LiveSchedule {
+	ls.dispFn = fn
+	return ls
+}
+
+func (ls *LiveSchedule) dispatcher() abstract.Dispatcher {
+	if ls.dispFn != nil {
+		if d := ls.dispFn(); d != nil {
+			return d
+		}
+	}
+	return ls.disp
+}
+
+// fireClaims resolves the fire-time identity: the creator's current claims
+// when the authorizer is wired, a restricted scope-less creator identity
+// otherwise. Nil means fail closed — skip the fire.
+func (ls *LiveSchedule) fireClaims(creatorID, storedTenantID string) *abstract.Claims {
+	if ls.auth != nil {
+		return ls.auth.FireClaims(creatorID, storedTenantID)
+	}
+	if creatorID == "" {
+		return nil
+	}
+	return &abstract.Claims{UserID: creatorID, TenantID: storedTenantID}
 }
 
 func (ls *LiveSchedule) Init(ctx context.Context) error {
@@ -121,10 +164,24 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 		return err
 	}
 
-	sysCtx := runtimecontext.SystemContext(ctx)
-	ls.log.Info("schedule: dispatching", zap.String("schedule_id", doc.ID()), zap.String("message", message))
-	msg := dispatch.NewMessage(message, sysCtx, docInput)
-	result, err := dispatch.Await(sysCtx, ls.disp, msg)
+	// S-1: fires run as the creator's CURRENT identity — never as SYSTEM.
+	// The previous path (SystemContext + raw terminal dispatcher) bypassed
+	// the entire policy chain: any authenticated user could schedule any
+	// operation (user creation, policy edits, settings writes) and it
+	// executed with system privileges, zero authorization and zero audit.
+	creatorID, _ := doc.GetString("user_id")
+	tenantID, _ := doc.GetString("tenant_id")
+	claims := ls.fireClaims(creatorID, tenantID)
+	if claims == nil {
+		ls.log.Warn("schedule: dispatch skipped — creator is missing or no longer active",
+			zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.String("creator", creatorID))
+		return nil
+	}
+
+	fireCtx := runtimecontext.ContextWithClaims(ctx, claims)
+	ls.log.Info("schedule: dispatching", zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.String("creator", creatorID))
+	msg := dispatch.NewMessage(message, fireCtx, docInput)
+	result, err := dispatch.Await(fireCtx, ls.dispatcher(), msg)
 	if err != nil {
 		// The cron chain only logs panics — returned errors would otherwise
 		// vanish, so every failure is logged here with the offending schedule.

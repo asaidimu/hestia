@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
@@ -54,6 +55,11 @@ type SystemModule struct {
 	disp      *runtime.LocalDispatcher
 	providers *ProviderSet
 
+	// chainedDisp holds the full dispatcher chain once DispatcherChain
+	// builds it (post-boot). Schedule fires resolve it lazily so they
+	// traverse authorization, rate limiting and audit (S-1).
+	chainedDisp atomic.Value
+
 	bootstrapped bool
 	ephemeralKey string
 	adminUserID  string
@@ -93,7 +99,13 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 		return fmt.Errorf("init policy infra: %w", err)
 	}
 
-	m.providers.LiveSchedule = schedules.NewLiveSchedule(m.providers.Schedules, m.providers.Scheduler, m.disp, m.opts.Logger)
+	m.providers.LiveSchedule = schedules.NewLiveSchedule(m.providers.Schedules, m.providers.Scheduler, m.disp, m.opts.Logger).
+		WithAuthorizer(schedules.NewScheduleAuthorizer(
+			m.providers.PermMgr,
+			m.providers.AccessCtrl,
+			func() collection.LiveCollection[*users.UserClaims] { return m.providers.LiveUsers },
+		)).
+		WithDispatcherProvider(m.ChainedDispatcher())
 	if err := m.providers.LiveSchedule.Init(ctx); err != nil {
 		return fmt.Errorf("init live schedule: %w", err)
 	}
@@ -521,7 +533,22 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 	if m.opts.DispatcherChainFunc != nil {
 		m.opts.DispatcherChainFunc(chain)
 	}
-	return chain.Build(next)
+	built := chain.Build(next)
+	m.chainedDisp.Store(built)
+	return built
+}
+
+// ChainedDispatcher returns a late-binding accessor for the full dispatcher
+// chain. The chain is built after boot (BuildInterfaces / desktop wiring),
+// while schedules register during boot — schedule fires resolve the chain at
+// tick time and fall back to the raw local dispatcher until it exists.
+func (m *SystemModule) ChainedDispatcher() func() abstract.Dispatcher {
+	return func() abstract.Dispatcher {
+		if d, ok := m.chainedDisp.Load().(abstract.Dispatcher); ok && d != nil {
+			return d
+		}
+		return m.disp
+	}
 }
 
 func (m *SystemModule) AdminUserID() string  { return m.adminUserID }

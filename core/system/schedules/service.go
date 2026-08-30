@@ -9,6 +9,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/document"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/system/schedules/model"
 
@@ -23,19 +24,24 @@ type SchedulesService struct {
 	// at call time because services are constructed before RegisterServices.
 	// Nil in unit tests: target-schema validation is skipped then.
 	registrations *[]abstract.MessageRegistration
+	// auth carries the S-1 authorization model; nil in unit tests.
+	auth *ScheduleAuthorizer
 }
 
 func NewSchedulesService(rt abstract.Container) (*SchedulesService, error) {
 	persist := abstract.MustResolve[persistence.Persistence](rt)
 	live := abstract.MustResolve[*LiveSchedule](rt)
 	registrations, _ := abstract.Resolve[*[]abstract.MessageRegistration](rt)
+	// S-1: enforce the schedule authorization model when the policy
+	// machinery is registered (prod boot). Nil in unit tests.
+	auth := AuthorizerFromContainer(rt)
 
 	model.DangerouslyResetSystemScheduledMessagessModel()
 	m, err := model.InitSystemScheduledMessagessModel(persist, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &SchedulesService{model: m, live: live, registrations: registrations}, nil
+	return &SchedulesService{model: m, live: live, registrations: registrations, auth: auth}, nil
 }
 
 // assertScheduleOwnership rejects reads/mutations of schedules the caller does
@@ -84,10 +90,22 @@ func (s *SchedulesService) Create(ctx context.Context, msg abstract.Message, inp
 	if err := validateScheduleTarget(s.registrations, input.Message, input.Input); err != nil {
 		return nil, err
 	}
+	// S-1: the schedule's target must be an operation the caller could invoke
+	// directly under the current policy set. Without this check any
+	// authenticated user could schedule privileged operations.
+	if err := s.auth.AuthorizeTarget(ctx, input.Message); err != nil {
+		return nil, err
+	}
 
-	userID := input.UserID
-	if userID == "" {
-		userID = claims.UserID
+	// S-1 companion: a schedule is attributed to its creator. Letting callers
+	// stamp another user's ID would poison both the ownership checks (S-12)
+	// and the fire-time identity resolution.
+	userID := claims.UserID
+	if input.UserID != "" && input.UserID != claims.UserID {
+		if !runtime.IsSystemIdentity(ctx) {
+			return nil, common.NewSystemError("SCHEDULE_FORBIDDEN", "schedules may only be created for the calling user")
+		}
+		userID = input.UserID
 	}
 
 	tenantID := runtimecontext.GetTenantID(ctx)
@@ -237,6 +255,11 @@ func (s *SchedulesService) Update(ctx context.Context, msg abstract.Message, inp
 	// changed; disabling a broken schedule must stay possible.
 	if targetTouched {
 		if err := validateScheduleTarget(s.registrations, message, inputMap); err != nil {
+			return nil, err
+		}
+		// S-1: re-check the (possibly new) target against the caller's
+		// current policies.
+		if err := s.auth.AuthorizeTarget(ctx, message); err != nil {
 			return nil, err
 		}
 	}
