@@ -110,6 +110,16 @@ func (b *AuditBuffer) Write(ctx context.Context, entry audit.AuditEntry) error {
 	case b.entries <- entry:
 		return nil
 	default:
+	}
+	// S-15: bounded blocking send — give the flush loop a chance to drain
+	// during short bursts before dropping compliance events. The request
+	// path pays at most 100ms; sustained overload still opens the breaker.
+	select {
+	case b.entries <- entry:
+		return nil
+	case <-time.After(100 * time.Millisecond):
+	}
+	{
 		b.wg.Done()
 		// Buffer full — open circuit breaker
 		b.mu.Lock()

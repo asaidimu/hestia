@@ -281,25 +281,47 @@ func TestSystemErrorToStatus(t *testing.T) {
 }
 
 func TestClientIP(t *testing.T) {
-	t.Run("X-Forwarded-For", func(t *testing.T) {
+	t.Run("default ignores proxy headers (S-7)", func(t *testing.T) {
+		tr := &HTTPTransport{}
 		ctx := newCtx("GET", "/")
 		ctx.Request.Header.Set("X-Forwarded-For", "1.2.3.4")
-		if ip := clientIP(ctx); ip != "1.2.3.4" {
-			t.Errorf("got %q, want 1.2.3.4", ip)
+		ctx.Request.Header.Set("X-Real-IP", "5.6.7.8")
+		if ip := tr.clientIP(ctx); ip == "1.2.3.4" || ip == "5.6.7.8" {
+			t.Errorf("proxy headers must be ignored without trusted hops, got %q", ip)
 		}
 	})
 
-	t.Run("X-Real-IP fallback", func(t *testing.T) {
+	t.Run("one trusted hop takes the proxy-reported client", func(t *testing.T) {
+		tr := &HTTPTransport{trustedProxyHops: 1}
+		ctx := newCtx("GET", "/")
+		ctx.Request.Header.Set("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
+		if ip := tr.clientIP(ctx); ip != "10.0.0.1" {
+			t.Errorf("got %q, want 10.0.0.1 (right-most proxy-contributed entry)", ip)
+		}
+	})
+
+	t.Run("header shorter than the trust chain falls back to RemoteAddr", func(t *testing.T) {
+		tr := &HTTPTransport{trustedProxyHops: 3}
+		ctx := newCtx("GET", "/")
+		ctx.Request.Header.Set("X-Forwarded-For", "1.2.3.4, 10.0.0.1")
+		if ip := tr.clientIP(ctx); ip == "1.2.3.4" || ip == "10.0.0.1" {
+			t.Errorf("untrustworthy header must be ignored, got %q", ip)
+		}
+	})
+
+	t.Run("one hop X-Real-IP fallback", func(t *testing.T) {
+		tr := &HTTPTransport{trustedProxyHops: 1}
 		ctx := newCtx("GET", "/")
 		ctx.Request.Header.Set("X-Real-IP", "5.6.7.8")
-		if ip := clientIP(ctx); ip != "5.6.7.8" {
+		if ip := tr.clientIP(ctx); ip != "5.6.7.8" {
 			t.Errorf("got %q, want 5.6.7.8", ip)
 		}
 	})
 
 	t.Run("RemoteAddr fallback", func(t *testing.T) {
+		tr := &HTTPTransport{}
 		ctx := newCtx("GET", "/")
-		if ip := clientIP(ctx); ip == "" {
+		if ip := tr.clientIP(ctx); ip == "" {
 			t.Error("expected non-empty RemoteAddr")
 		}
 	})

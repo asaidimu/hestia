@@ -19,7 +19,10 @@ package runtime
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime/ratestore"
@@ -61,21 +64,30 @@ const (
 type RateLimitLookup func(operation string) *RateLimitPolicy
 
 type RateLimitDispatcher struct {
-	next   abstract.Dispatcher
-	lookup RateLimitLookup
-	store  RateLimitStore
+	next     abstract.Dispatcher
+	lookup   RateLimitLookup
+	store    RateLimitStore
+	logger   *zap.Logger
+	storeErrs atomic.Int64
 }
 
-func NewRateLimitDispatcher(lookup RateLimitLookup, store RateLimitStore) *RateLimitDispatcher {
+func NewRateLimitDispatcher(lookup RateLimitLookup, store RateLimitStore, logger ...*zap.Logger) *RateLimitDispatcher {
 	if lookup == nil {
 		lookup = func(string) *RateLimitPolicy { return nil }
 	}
 	if store == nil {
 		store = ratestore.New()
 	}
+	var log *zap.Logger
+	if len(logger) > 0 && logger[0] != nil {
+		log = logger[0]
+	} else {
+		log = zap.NewNop()
+	}
 	return &RateLimitDispatcher{
 		lookup: lookup,
 		store:  store,
+		logger: log,
 	}
 }
 
@@ -84,6 +96,7 @@ func (d *RateLimitDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher
 		next:   next,
 		lookup: d.lookup,
 		store:  d.store,
+		logger: d.logger,
 	}
 }
 
@@ -96,8 +109,17 @@ func (d *RateLimitDispatcher) Send(ctx context.Context, msg abstract.Message, on
 	key := buildRateLimitKey(rate.Identity, msg)
 	remaining, ok, err := d.store.CheckAndConsume(msg.Context(), key, rate.Capacity, rate.Refill, time.Duration(rate.Period)*time.Second)
 	if err != nil {
+		// S-21: silent fail-open meant an attacker who can induce store
+		// errors disables rate limiting with no signal. The request still
+		// proceeds (fail-closed here would turn a store outage into a
+		// full outage), but consecutive failures are counted and logged
+		// loudly so operators can alert on them.
+		n := d.storeErrs.Add(1)
+		d.logger.Error("rate limit store error; failing open",
+			zap.Int64("consecutive_failures", n), zap.Error(err))
 		return d.next.Send(ctx, msg, onComplete)
 	}
+	d.storeErrs.Store(0)
 	if !ok {
 		return &RateLimitError{
 			Remaining: 0,

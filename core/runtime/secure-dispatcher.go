@@ -78,8 +78,23 @@ func (d *SecureDispatcher) Send(ctx context.Context, msg abstract.Message, onCom
 		//
 		// We need to investiagate other auth methods such as a list of trusted domains so that external events such as
 		// Webhooks can be processed without requiring API Keys
-		if ops, ok := GetIdentityProperty[[]any](msg.Context(), "operations"); ok {
-			if strOps, ok := stringSlice(ops); ok && !slices.Contains(strOps, msg.Name()) {
+		// S-20: fetch as any — the property is stored as []string by
+		// ContextWithClaims and as []any by some producers, and asserting
+		// []any directly failed the type check for the former, silently
+		// skipping the gate (allow-all) for exactly the scoped keys it
+		// exists to constrain. A present-but-unparseable property now denies
+		// instead of allowing.
+		if raw, ok := GetIdentityProperty[any](msg.Context(), "operations"); ok {
+			strOps, parseable := stringSlice(raw)
+			if !parseable {
+				return ErrAccessDenied.WithIssues(common.Issues{
+					common.Issue{
+						Message: "API key allowlist is malformed; access denied",
+						Path:    msg.Name(),
+					},
+				})
+			}
+			if !slices.Contains(strOps, msg.Name()) {
 				return ErrAccessDenied.WithIssues(common.Issues{
 					common.Issue{
 						Message: "operation not in API key allowlist",

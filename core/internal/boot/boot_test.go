@@ -2,6 +2,8 @@ package boot
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -138,12 +140,38 @@ func TestNewConfigCustom(t *testing.T) {
 
 func TestNewConfigMissingSessionSecret(t *testing.T) {
 	os.Unsetenv("SESSION_SECRET")
+	t.Setenv("APP_DATA_DIR", t.TempDir())
+
 	cfg, err := NewConfig()
 	if err != nil {
 		t.Fatalf("NewConfig() error: %v", err)
 	}
-	if cfg.SessionSecret != runtime.DefaultSessionSecret {
-		t.Errorf("SessionSecret = %q, want default %q", cfg.SessionSecret, runtime.DefaultSessionSecret)
+	// No default secret constant exists anymore: with SESSION_SECRET unset,
+	// boot must provision a random per-install secret, never ship a known one.
+	if cfg.SessionSecret == "" {
+		t.Fatal("SessionSecret is empty; boot must provision one when SESSION_SECRET is unset")
+	}
+	if cfg.SessionSecret == "3ecb5a2ef5014f88-8a00-8227db8b7298" {
+		t.Fatal("SessionSecret is the retired hardcoded default constant")
+	}
+
+	// The generated secret must be persisted in the data dir (0600) and be
+	// stable across boots, or every restart invalidates all sessions.
+	keyFile := filepath.Join(cfg.DataDir, "session.key")
+	b, err := os.ReadFile(keyFile)
+	if err != nil {
+		t.Fatalf("read persisted session key: %v", err)
+	}
+	if strings.TrimSpace(string(b)) != cfg.SessionSecret {
+		t.Errorf("persisted key file does not match cfg.SessionSecret")
+	}
+
+	cfg2, err := NewConfig()
+	if err != nil {
+		t.Fatalf("second NewConfig() error: %v", err)
+	}
+	if cfg2.SessionSecret != cfg.SessionSecret {
+		t.Error("SessionSecret not stable across boots; sessions would not survive restarts")
 	}
 }
 

@@ -37,10 +37,10 @@ import (
 	"github.com/asaidimu/hestia/core/system/users/model"
 
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	module "github.com/asaidimu/hestia/core/runtime/module"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
@@ -98,15 +98,32 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 		return fmt.Errorf("init live schedule: %w", err)
 	}
 
-	sessionSvc := auth.NewSessionService(m.cfg.SessionSecret)
-	resetSecret := m.cfg.SessionSecret + ":reset"
-	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetSecret, func(ctx context.Context, userID string) (int, error) {
+	// Derive independent per-purpose signing keys from the master secret via
+	// HKDF (see runtime.DerivePurposeKey). This fails boot when no session
+	// secret was provisioned — there is deliberately no default secret.
+	sessionKey, err := runtime.DerivePurposeKey(m.cfg.SessionSecret, "session")
+	if err != nil {
+		return fmt.Errorf("derive session keys: %w", err)
+	}
+	resetKey, err := runtime.DerivePurposeKey(m.cfg.SessionSecret, "password-reset")
+	if err != nil {
+		return fmt.Errorf("derive session keys: %w", err)
+	}
+	// The blocklist backs session revocation (S-4) and reset-token
+	// consumption (S-13); see auth.TokenBlocklist.
+	blocklist, err := auth.NewTokenBlocklist(persist, m.opts.Logger)
+	if err != nil {
+		return fmt.Errorf("init token blocklist: %w", err)
+	}
+
+	sessionSvc := auth.NewSessionService(sessionKey)
+	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetKey, func(ctx context.Context, userID string) (int, error) {
 		user, err := m.providers.Users.GetByID(ctx, userID)
 		if err != nil {
 			return 0, nil
 		}
 		return user.GetTokenVersion(), nil
-	})
+	}, blocklist)
 
 	svc, err := blobutil.NewService(m.cfg.BlobsDir, m.opts.Logger)
 	if err != nil {
@@ -490,7 +507,7 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 		runtime.LinkEntry{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
-		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore)},
+		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore, m.opts.Logger)},
 		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger, sharedRateStore)},
 		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
 			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
@@ -499,7 +516,7 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 			return ""
 		})},
 		runtime.LinkEntry{Name: "blob", Link: blobutil.NewDispatcherLink(m.providers.BlobSvc)},
-		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger)},
+		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger, m.providers.AuditBuffer)},
 	)
 	if m.opts.DispatcherChainFunc != nil {
 		m.opts.DispatcherChainFunc(chain)
@@ -542,6 +559,14 @@ func (m *SystemModule) Stop(ctx context.Context) error {
 		if err := m.providers.WorkflowRuntime.Shutdown(ctx); err != nil {
 			m.opts.Logger.Warn("shutdown workflow runtime", zap.Error(err))
 		}
+	}
+	// S-15: flush and stop the audit buffer. The chain is built from
+	// Wrap() clones, so without this the queued compliance entries (up
+	// to 4096) silently vanished on every shutdown.
+	if m.providers.AuditBuffer != nil {
+		m.providers.AuditBuffer.Sync()
+		m.providers.AuditBuffer.Close()
+		m.providers.AuditBuffer = nil
 	}
 	m.opts.Logger.Info("system module stopped")
 	return nil

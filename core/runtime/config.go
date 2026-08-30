@@ -11,10 +11,10 @@
 // runtime behavior.
 //
 // Resolution:
-// 1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs
-// 2. Create defaults.go with Default* constants and DefaultConfig()
-// 3. Keep config.go with LoadConfig, env helpers, resolveDataDir
-//    (or rename to load.go for clarity)
+//  1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs
+//  2. Create defaults.go with Default* constants and DefaultConfig()
+//  3. Keep config.go with LoadConfig, env helpers, resolveDataDir
+//     (or rename to load.go for clarity)
 //
 // This also addresses #so98l5 and #r9i7ec by consolidating env resolution.
 //
@@ -63,8 +63,13 @@ const (
 
 	DefaultAPIPrefix     = "/api"
 	DefaultSessionCookie = "session"
-	DefaultSessionSecret = "3ecb5a2ef5014f88-8a00-8227db8b7298"
 	DefaultSessionPath   = "/"
+
+	// SessionSecret has no default constant on purpose: a secret that ships
+	// in a public repo makes every session and reset token forgeable. It is
+	// provisioned by EnsureSessionSecret (operator config or generated and
+	// persisted in the data dir) — see secret.go.
+	sessionSecretFileName = "session.key"
 )
 
 type InteractorFactory func(logger *zap.Logger) (query.DatabaseInteractor, func(), error)
@@ -83,6 +88,10 @@ type Config struct {
 	SessionTTL    time.Duration
 	IdleTTL       time.Duration
 	RefreshTTL    time.Duration
+	// TrustedProxyHops is the number of reverse proxies in front of the
+	// HTTP server (S-7). Zero (default) means proxy headers are ignored
+	// and RemoteAddr is authoritative.
+	TrustedProxyHops int
 
 	Version    string
 	SelfUpdate *SelfUpdateConfig
@@ -144,11 +153,12 @@ type CookieConfig struct {
 }
 
 func DefaultConfig() *Config {
+	// SessionSecret is intentionally left empty: EnsureSessionSecret
+	// provisions it (or boot fails loudly).
 	return &Config{
 		Port:           DefaultPort,
 		BcryptCost:     DefaultBcryptCost,
 		SessionTTL:     DefaultSessionTTL,
-		SessionSecret:  DefaultSessionSecret,
 		IdleTTL:        DefaultIdleTTL,
 		RefreshTTL:     DefaultRefreshTTL,
 		LogMaxSize:     DefaultLogMaxSize,
@@ -243,6 +253,12 @@ func LoadConfig(projectName string) (*Config, error) {
 
 	applyCommonEnvOverrides(cfg)
 
+	// Provision the session signing secret last so an explicit SESSION_SECRET
+	// (env or .env) wins over the persisted per-install secret.
+	if err := EnsureSessionSecret(cfg); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
 }
 
@@ -285,6 +301,9 @@ func applyCommonEnvOverrides(cfg *Config) {
 	}
 	if secret, ok := envString("SESSION_SECRET"); ok {
 		cfg.SessionSecret = secret
+	}
+	if n, ok := envInt("TRUSTED_PROXY_HOPS"); ok {
+		cfg.TrustedProxyHops = n
 	}
 	if v := os.Getenv("DB_PATH"); v != "" {
 		cfg.DBPath = v

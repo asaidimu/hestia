@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"mime"
+	"net"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -29,11 +30,12 @@ type Logger interface {
 }
 
 type TransportOptions struct {
-	Addr           string
-	Logger         Logger
-	APIPrefix      string
-	StaticFS       fs.FS
-	AllowedOrigins []string
+	Addr             string
+	Logger           Logger
+	APIPrefix        string
+	StaticFS         fs.FS
+	AllowedOrigins   []string
+	TrustedProxyHops int
 }
 
 // CORSAllowlist manages allowed origins for CORS, safe for concurrent use.
@@ -85,13 +87,15 @@ func (c *CORSAllowlist) List() []string {
 }
 
 type HTTPTransport struct {
-	addr      string
-	logger    Logger
-	apiPrefix string
-	staticFS  fs.FS
-	server    *fasthttp.Server
-	router    *pathTrie
-	corsList  *CORSAllowlist
+	addr             string
+	logger           Logger
+	apiPrefix        string
+	staticFS         fs.FS
+	server           *fasthttp.Server
+	router           *pathTrie
+	corsList         *CORSAllowlist
+	trustedProxyHops int
+	bodyLimits       map[string]int64
 }
 
 func NewTransport(opts TransportOptions) *HTTPTransport {
@@ -100,12 +104,14 @@ func NewTransport(opts TransportOptions) *HTTPTransport {
 		ac = defaultAllowedOrigins()
 	}
 	return &HTTPTransport{
-		addr:      opts.Addr,
-		logger:    opts.Logger,
-		apiPrefix: opts.APIPrefix,
-		staticFS:  opts.StaticFS,
-		router:    newPathTrie(),
-		corsList:  NewCORSAllowlist(ac),
+		addr:             opts.Addr,
+		logger:           opts.Logger,
+		apiPrefix:        opts.APIPrefix,
+		staticFS:         opts.StaticFS,
+		router:           newPathTrie(),
+		corsList:         NewCORSAllowlist(ac),
+		trustedProxyHops: opts.TrustedProxyHops,
+		bodyLimits:       make(map[string]int64),
 	}
 }
 
@@ -127,18 +133,44 @@ func (t *HTTPTransport) Handle(pattern string, handler abstract.Handler) {
 }
 
 const (
-	// maxRequestBodySize caps a single request body (10 GiB). fasthttp's
-	// default is only 4 MiB, which would break resumable-upload chunks.
-	maxRequestBodySize = 10 << 30
+	// maxRequestBodySize caps a single request body at the largest per-op
+	// blob ceiling (maxUploadChunkBytes = 256 MiB). fasthttp's default is
+	// only 4 MiB, which would break resumable-upload chunks. With
+	// StreamRequestBody enabled the server never buffers the whole body;
+	// every non-blob route is additionally capped at defaultBodyLimit by
+	// the transport (S-8).
+	maxRequestBodySize = 256 << 20
+
+	// defaultBodyLimit caps request bodies for every route without an
+	// explicit override; the large allowance is reserved for blob upload
+	// routes via SetBodyLimit.
+	defaultBodyLimit = 8 << 20
+)
+
+// Server timeouts and connection caps (S-8): fasthttp ships with none
+// of these set, which exposes slowloris-style connection exhaustion
+// and unbounded goroutine fan-out.
+const (
+	serverReadTimeout   = 30 * time.Second
+	serverWriteTimeout  = 60 * time.Second
+	serverIdleTimeout   = 120 * time.Second
+	serverMaxConnsPerIP = 500
+	serverConcurrency   = 1024
 )
 
 func (t *HTTPTransport) Start() error {
 	t.server = &fasthttp.Server{
 		Handler: t.serveHTTP,
-		// fasthttp treats MaxRequestBodySize <= 0 as its 4 MB default, which
-		// would reject every resumable-upload chunk. Use a generous explicit
-		// ceiling; individual blob handlers enforce their own per-op limits.
+		// S-8: bound memory and connection lifetime. StreamRequestBody keeps
+		// request bodies off the heap until a handler asks for them, and the
+		// global ceiling matches the largest per-op blob limit.
 		MaxRequestBodySize: maxRequestBodySize,
+		StreamRequestBody:  true,
+		ReadTimeout:        serverReadTimeout,
+		WriteTimeout:       serverWriteTimeout,
+		IdleTimeout:        serverIdleTimeout,
+		MaxConnsPerIP:      serverMaxConnsPerIP,
+		Concurrency:        serverConcurrency,
 	}
 	return t.server.ListenAndServe(t.addr)
 }
@@ -183,6 +215,20 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 
 	handler, params, ok := t.router.lookup(method, path)
 	if ok {
+		// S-8: per-route body ceiling. fasthttp enforces the global cap
+		// while streaming; this check keeps every non-blob route to the
+		// small default without ever reading the body.
+		limit := int64(defaultBodyLimit)
+		if custom, has := t.bodyLimits[method+" "+path]; has {
+			limit = custom
+		}
+		if cl := int64(ctx.Request.Header.ContentLength()); cl > limit {
+			t.writeJSON(ctx, fasthttp.StatusRequestEntityTooLarge, map[string]any{
+				"error": map[string]any{"code": "PAYLOAD_TOO_LARGE", "message": "request body exceeds the route limit"},
+			})
+			return
+		}
+
 		cookies := make(map[string]string)
 		ctx.Request.Header.VisitAllCookie(func(k, v []byte) {
 			cookies[string(k)] = string(v)
@@ -195,7 +241,7 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
 			Query:      queryArgsToMap(ctx.QueryArgs()),
 			Headers:    headersToMap(&ctx.Request.Header),
 			Cookies:    cookies,
-			ClientIP:   clientIP(ctx),
+			ClientIP:   t.clientIP(ctx),
 			UserAgent:  string(ctx.UserAgent()),
 			RequestID:  string(ctx.Request.Header.Peek("X-Request-ID")),
 		}
@@ -369,10 +415,27 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 	if errors.As(err, &sysErr) {
 		status = systemErrorToStatus(sysErr)
 	} else {
-		sysErr = common.NewSystemError("INTERNAL_ERROR", err.Error())
+		// S-16: raw internal error strings (SQL errors, filesystem paths)
+		// must not reach clients. Log the cause server-side, return an
+		// opaque message.
+		if t.logger != nil {
+			t.logger.Error("internal error",
+				zap.Error(err),
+				zap.String("request_id", string(ctx.Request.Header.Peek("X-Request-ID"))),
+			)
+		}
+		sysErr = common.NewSystemError("INTERNAL_ERROR", "internal server error")
 	}
 
 	issue := sysErr.ToIssue()
+
+	// S-16: 5xx causes leak internals to anonymous clients. The cause is
+	// logged server-side above; 4xx details (validation issues, policy
+	// denials) are legitimate client feedback and stay.
+	details := issue.Cause
+	if status >= fasthttp.StatusInternalServerError {
+		details = nil
+	}
 
 	meta := buildResponseMeta(resp, ctx)
 
@@ -381,7 +444,7 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 		"error": responseErrorBody{
 			Code:    issue.Code,
 			Message: issue.Message,
-			Details: issue.Cause,
+			Details: details,
 		},
 		"metadata": meta,
 	})
@@ -486,14 +549,54 @@ func ExtractPathParams(pattern, path string) map[string]string {
 	return params
 }
 
-func clientIP(ctx *fasthttp.RequestCtx) string {
+// SetBodyLimit overrides the default per-route body ceiling. Called at
+// registration time for blob routes, whose payloads are the only ones
+// legitimately larger than defaultBodyLimit (S-8).
+func (t *HTTPTransport) SetBodyLimit(pattern string, maxBytes int64) {
+	if t.bodyLimits == nil {
+		t.bodyLimits = make(map[string]int64)
+	}
+	t.bodyLimits[pattern] = maxBytes
+}
+
+// clientIP resolves the client address for rate limiting, audit and
+// access logs (S-7). Proxy-supplied headers are honored only when the
+// deployment declares how many reverse proxies sit in front of hestia
+// (TrustedProxyHops, env TRUSTED_PROXY_HOPS): direct-to-server clients
+// can otherwise rotate X-Forwarded-For per request to mint fresh
+// rate-limit buckets or forge audit source IPs. With N trusted hops,
+// the N right-most X-Forwarded-For entries were contributed by trusted
+// proxies, so entry len-N is the best client estimate; a header
+// shorter than the configured chain is not trustworthy and falls back
+// to RemoteAddr.
+func (t *HTTPTransport) clientIP(ctx *fasthttp.RequestCtx) string {
+	remote := stripPort(ctx.RemoteAddr().String())
+	if t.trustedProxyHops <= 0 {
+		return remote
+	}
 	if fwd := ctx.Request.Header.Peek("X-Forwarded-For"); len(fwd) > 0 {
-		return string(fwd)
+		parts := strings.Split(string(fwd), ",")
+		idx := len(parts) - t.trustedProxyHops
+		if idx < 0 {
+			return remote
+		}
+		return stripPort(strings.TrimSpace(parts[idx]))
 	}
-	if realIP := ctx.Request.Header.Peek("X-Real-IP"); len(realIP) > 0 {
-		return string(realIP)
+	if t.trustedProxyHops == 1 {
+		if realIP := ctx.Request.Header.Peek("X-Real-IP"); len(realIP) > 0 {
+			return stripPort(strings.TrimSpace(string(realIP)))
+		}
 	}
-	return ctx.RemoteAddr().String()
+	return remote
+}
+
+// stripPort removes the :port suffix so RemoteAddr and proxy headers
+// are keyed identically by rate limiting and audit.
+func stripPort(addr string) string {
+	if host, _, err := net.SplitHostPort(addr); err == nil && host != "" {
+		return host
+	}
+	return addr
 }
 
 func queryArgsToMap(qa *fasthttp.Args) map[string][]string {

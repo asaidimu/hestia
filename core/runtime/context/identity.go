@@ -26,6 +26,10 @@ func ContextWithClaims(ctx context.Context, claims *abstract.Claims) context.Con
 		"permissions": perms,
 		"token_type":  claims.TokenType,
 		"tenant_id":   claims.TenantID,
+		// S-4: expose the session identity so handlers (logout) can address
+		// the live session.
+		"token_id":   claims.TokenID,
+		"expires_at": claims.ExpiresAt,
 	}
 	if claims.Operations != nil {
 		props["operations"] = claims.Operations

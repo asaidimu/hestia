@@ -99,6 +99,14 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 			}
 
 			ident := o.resolveIdentity(ctx, info.UserID)
+			// S-4: carry the live session ID through the identity so handlers
+			// (logout) can address the current session.
+			if ident != nil {
+				if props, ok := ident.Properties.(map[string]any); ok {
+					props["token_id"] = info.SessionID
+					props["expires_at"] = info.ExpiresAt
+				}
+			}
 
 			// Check for API key elevation — if present, overlay elevated
 			// identity on the session, setting on_behalf_of_id for audit.
@@ -188,6 +196,8 @@ func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next
 			TenantID:  getProp[string](props, "tenant_id"),
 			Scopes:    ident.Permissions,
 			TokenType: getProp[string](props, "token_type"),
+			TokenID:   getProp[string](props, "token_id"),
+			ExpiresAt: getProp[int64](props, "expires_at"),
 		}
 	} else {
 		claims = &abstract.Claims{}

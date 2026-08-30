@@ -46,6 +46,10 @@ func newFirstRunConfig(t *testing.T) *runtime.Config {
 	cfg.DBPath = filepath.Join(dir, "test.db")
 	cfg.LogPath = filepath.Join(dir, "server.log")
 	cfg.BlobsDir = filepath.Join(dir, "blobs")
+	// There is no default session secret anymore; provision one like boot does.
+	if err := runtime.EnsureSessionSecret(cfg); err != nil {
+		t.Fatalf("ensure session secret: %v", err)
+	}
 	return cfg
 }
 

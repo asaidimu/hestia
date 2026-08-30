@@ -55,7 +55,7 @@ export const ROUTE_TABLE = {
   "system:core:docs:list": { method: "GET", route: "/system/core/docs/list", arguments: [] },
   "system:core:health:check": { method: "GET", route: "/system/core/health/check", arguments: [] },
   "system:core:heartbeat": { method: "GET", route: "/system/core/heartbeat", arguments: [] },
-  "system:core:reset": { method: "GET", route: "/system/core/reset", arguments: [] },
+  "system:core:reset": { method: "DELETE", route: "/system/core/reset", arguments: [] },
   "system:logs:list": { method: "POST", route: "/system/logs/list", arguments: [] },
   "system:logs:stream": { method: "GET", route: "/system/logs/stream", arguments: [] },
   "system:notifications:notification:create": { method: "POST", route: "/system/notifications/notification/create", arguments: [] },
