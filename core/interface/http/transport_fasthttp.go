@@ -415,10 +415,27 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 	if errors.As(err, &sysErr) {
 		status = systemErrorToStatus(sysErr)
 	} else {
-		sysErr = common.NewSystemError("INTERNAL_ERROR", err.Error())
+		// S-16: raw internal error strings (SQL errors, filesystem paths)
+		// must not reach clients. Log the cause server-side, return an
+		// opaque message.
+		if t.logger != nil {
+			t.logger.Error("internal error",
+				zap.Error(err),
+				zap.String("request_id", string(ctx.Request.Header.Peek("X-Request-ID"))),
+			)
+		}
+		sysErr = common.NewSystemError("INTERNAL_ERROR", "internal server error")
 	}
 
 	issue := sysErr.ToIssue()
+
+	// S-16: 5xx causes leak internals to anonymous clients. The cause is
+	// logged server-side above; 4xx details (validation issues, policy
+	// denials) are legitimate client feedback and stay.
+	details := issue.Cause
+	if status >= fasthttp.StatusInternalServerError {
+		details = nil
+	}
 
 	meta := buildResponseMeta(resp, ctx)
 
@@ -427,7 +444,7 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
 		"error": responseErrorBody{
 			Code:    issue.Code,
 			Message: issue.Message,
-			Details: issue.Cause,
+			Details: details,
 		},
 		"metadata": meta,
 	})
