@@ -16,8 +16,8 @@ import (
 	"github.com/asaidimu/hestia/core/internal/migrations"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/runtime/logsink"
 	"github.com/asaidimu/hestia/core/system"
-	"github.com/asaidimu/hestia/core/system/logs"
 )
 
 func validateMessageName(name string) error {
@@ -83,7 +83,7 @@ func (a *Application) Runtime() *runtime.Runtime {
 			_ = rt.RegisterInstance[base.Persistence](a.PersistenceManager.Persistence())
 		}
 		_ = rt.RegisterInstance[*zap.Logger](a.Loggers.File)
-		_ = rt.RegisterInstance[*logs.RingBuffer](a.Loggers.Ring)
+		_ = rt.RegisterInstance[*logsink.RingBuffer](a.Loggers.Ring)
 		_ = rt.RegisterInstance[*runtime.LocalDispatcher](a.Disp)
 		a.rt = rt
 	}

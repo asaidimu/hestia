@@ -1,4 +1,4 @@
-package logs
+package logsink
 
 import (
 	"encoding/json"

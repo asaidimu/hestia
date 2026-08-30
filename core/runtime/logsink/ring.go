@@ -1,4 +1,9 @@
-package logs
+// Package logsink holds the boot-seeded in-memory log ring buffer and
+// its zapcore sink (audit A-3). This is infrastructure the lowest layer
+// (core/internal/boot) constructs to capture server logs; it used to live
+// in core/system/logs — feature-land — which forced the boot layer to
+// import a feature package.
+package logsink
 
 import (
 	"encoding/json"

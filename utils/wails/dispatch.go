@@ -18,6 +18,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"github.com/asaidimu/hestia/core/abstract"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	"github.com/asaidimu/hestia/core/runtime/route"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
@@ -275,13 +276,13 @@ func (a *Adapter) buildRoutes() {
 			continue
 		}
 
-		httpMethod := httpapi.IntentToHTTPMethod(reg.Intent)
-		httpPath := httpapi.DeriveRoute(reg.Name, reg.Input.Arguments())
+		httpMethod := route.IntentToHTTPMethod(reg.Intent)
+		httpPath := route.DeriveRoute(reg.Name, reg.Input.Arguments())
 		httpPath = a.prefix + httpPath
 
 		a.routes = append(a.routes, routeEntry{
 			method: httpMethod,
-			path:   httpapi.IntentToHTTPPath(reg.Intent, httpPath),
+			path:   route.IntentToHTTPPath(reg.Intent, httpPath),
 			name:   reg.Name,
 			intent: reg.Intent,
 			input:  reg.Input,

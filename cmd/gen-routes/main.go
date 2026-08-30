@@ -12,8 +12,8 @@ import (
 	"github.com/asaidimu/updater"
 
 	hestia "github.com/asaidimu/hestia/core"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/runtime"
+	"github.com/asaidimu/hestia/core/runtime/route"
 )
 
 func main() {
@@ -76,9 +76,9 @@ func main() {
 		if r.Internal {
 			continue
 		}
-		method := httpapi.IntentToHTTPMethod(r.Intent)
-		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments())
-		route := httpapi.IntentToHTTPPath(r.Intent, httpPath)
+		method := route.IntentToHTTPMethod(r.Intent)
+		httpPath := route.DeriveRoute(r.Name, r.Input.Arguments())
+		route := route.IntentToHTTPPath(r.Intent, httpPath)
 
 		args := make([]string, len(r.Input.Arguments()))
 		for i, a := range r.Input.Arguments() {

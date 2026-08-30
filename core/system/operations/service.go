@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/route"
 	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
-	httpapi "github.com/asaidimu/hestia/core/interface/http"
 	"github.com/asaidimu/hestia/core/runtime"
 	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
@@ -161,9 +161,9 @@ func (s *OperationsService) DocsList(ctx context.Context, msg abstract.Message) 
 	regs := *s.registrations
 	docs := make([]*document.Document, 0, len(regs))
 	for _, r := range regs {
-		method := httpapi.IntentToHTTPMethod(r.Intent)
-		httpPath := httpapi.DeriveRoute(r.Name, r.Input.Arguments())
-		pattern := method + " " + httpapi.IntentToHTTPPath(r.Intent, httpPath)
+		method := route.IntentToHTTPMethod(r.Intent)
+		httpPath := route.DeriveRoute(r.Name, r.Input.Arguments())
+		pattern := method + " " + route.IntentToHTTPPath(r.Intent, httpPath)
 		view := &model.EndpointDoc{
 			Name:          r.Name,
 			Description:   r.Description,
@@ -173,7 +173,7 @@ func (s *OperationsService) DocsList(ctx context.Context, msg abstract.Message) 
 			Internal:      r.Internal,
 			HTTP: model.HTTPMapping{
 				Method:  method,
-				Route:   httpapi.IntentToHTTPPath(r.Intent, httpPath),
+				Route:   route.IntentToHTTPPath(r.Intent, httpPath),
 				Pattern: pattern,
 			},
 		}

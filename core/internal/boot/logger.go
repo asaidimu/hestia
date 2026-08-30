@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/system/logs"
+	"github.com/asaidimu/hestia/core/runtime/logsink"
 )
 
 // UserOutput prints plain-text informational messages to the user on stdout.
@@ -45,7 +45,7 @@ func (u *UserOutput) Banner() {
 type Loggers struct {
 	File       *zap.Logger
 	Stdout     *UserOutput
-	Ring       *logs.RingBuffer
+	Ring       *logsink.RingBuffer
 	lumberjack *lumberjack.Logger
 }
 
@@ -62,8 +62,8 @@ func NewLoggers(cfg *runtime.Config) *Loggers {
 
 	fileSync := zapcore.AddSync(rotator)
 
-	ring := logs.NewRingBuffer(1000)
-	sink := logs.NewSink(ring, fileSync)
+	ring := logsink.NewRingBuffer(1000)
+	sink := logsink.NewSink(ring, fileSync)
 
 	fileCore := zapcore.NewCore(
 		zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
