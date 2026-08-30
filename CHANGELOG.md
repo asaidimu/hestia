@@ -1,3 +1,12 @@
+## [1.10.4](https://github.com/asaidimu/hestia/compare/v1.10.3...v1.10.4) (2026-08-30)
+
+
+### Bug Fixes
+
+* **security:** S-1 — schedule fires run as the creator through the full policy chain ([e5c7e6b](https://github.com/asaidimu/hestia/commit/e5c7e6b31782ca594d57e7f6c521c4137dcba23d))
+* **security:** S-19 — writer-owned done channel releases SSE producer on disconnect ([797c65c](https://github.com/asaidimu/hestia/commit/797c65c3bba62126b25e9a3afdb86fdb97947422)), closes [#1](https://github.com/asaidimu/hestia/issues/1)
+* **security:** S-9 — staged-update verification fails closed; honest integrity-only logging ([3b2c089](https://github.com/asaidimu/hestia/commit/3b2c089de258eeaed01dec327a8410c30c8bb08d)), closes [#update-hash-verify](https://github.com/asaidimu/hestia/issues/update-hash-verify)
+
 ## [1.10.3](https://github.com/asaidimu/hestia/compare/v1.10.2...v1.10.3) (2026-08-30)
 
 
