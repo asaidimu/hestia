@@ -1,3 +1,17 @@
+## [1.10.3](https://github.com/asaidimu/hestia/compare/v1.10.2...v1.10.3) (2026-08-30)
+
+
+### Bug Fixes
+
+* **memory:** S-15 — audit buffer lifecycle: eager construction, flush on stop, bounded write ([0a80303](https://github.com/asaidimu/hestia/commit/0a80303dfe60a8cd0645b6fd7bd96c51232d14e6))
+* **security:** S-16 — stop leaking internal error causes to HTTP clients ([1fa38d6](https://github.com/asaidimu/hestia/commit/1fa38d6321654e352ed7bbbe3bfbc7956fd6f86d))
+* **security:** S-17 — clamp client-supplied pagination limits ([09498c6](https://github.com/asaidimu/hestia/commit/09498c6482122c0347a14f9bc0d901770f55627e))
+* **security:** S-2 — replace hardcoded default session secret with provisioned per-boot secret ([732ee21](https://github.com/asaidimu/hestia/commit/732ee211628108f986dbe56f1cc76dbb927a7bfa))
+* **security:** S-20 — API-key allowlist fails closed on type confusion ([91b216d](https://github.com/asaidimu/hestia/commit/91b216d25170679932c43306426e57438d2f55c3))
+* **security:** S-21 — hardening grab-bag (docs:list, core:reset GET, SMTP TLS, rate-limit fail-open signal, silent CEL skips) ([9c3aee6](https://github.com/asaidimu/hestia/commit/9c3aee62718dc76cc9ca67a5bd1f19f046f3c5ff))
+* **security:** S-4 + S-13 — real logout via token blocklist; single-use reset tokens ([5efb841](https://github.com/asaidimu/hestia/commit/5efb841d72280e7154cd04b5d57ca550861b8927))
+* **security:** S-7 + S-8 — trusted-proxy client IP and fasthttp resource limits ([11fadc3](https://github.com/asaidimu/hestia/commit/11fadc3843ea9120db6f565bf12251bc879a957b))
+
 ## [1.10.2](https://github.com/asaidimu/hestia/compare/v1.10.1...v1.10.2) (2026-08-30)
 
 
