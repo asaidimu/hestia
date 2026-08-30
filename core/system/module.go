@@ -37,10 +37,10 @@ import (
 	"github.com/asaidimu/hestia/core/system/users/model"
 
 	"github.com/asaidimu/hestia/core/runtime"
-	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	module "github.com/asaidimu/hestia/core/runtime/module"
+	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
@@ -109,6 +109,13 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 	if err != nil {
 		return fmt.Errorf("derive session keys: %w", err)
 	}
+	// The blocklist backs session revocation (S-4) and reset-token
+	// consumption (S-13); see auth.TokenBlocklist.
+	blocklist, err := auth.NewTokenBlocklist(persist, m.opts.Logger)
+	if err != nil {
+		return fmt.Errorf("init token blocklist: %w", err)
+	}
+
 	sessionSvc := auth.NewSessionService(sessionKey)
 	m.providers.CredProv = auth.NewCredentialsProviderWithVersion(sessionSvc, resetKey, func(ctx context.Context, userID string) (int, error) {
 		user, err := m.providers.Users.GetByID(ctx, userID)
@@ -116,7 +123,7 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 			return 0, nil
 		}
 		return user.GetTokenVersion(), nil
-	})
+	}, blocklist)
 
 	svc, err := blobutil.NewService(m.cfg.BlobsDir, m.opts.Logger)
 	if err != nil {

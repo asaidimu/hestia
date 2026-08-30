@@ -12,6 +12,7 @@ import (
 
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
 	"github.com/asaidimu/hestia/core/system/auth/model"
 	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
@@ -34,6 +35,7 @@ type AuthService struct {
 	users       *usersmodel.SystemUsers
 	apiKeys     *apikeysmodel.SystemAPIKeys
 	credProv    abstract.CredentialsProvider
+	blocklist   *TokenBlocklist
 	apiKeyAuth  *APIKeyAuthenticator
 	adminUserID string
 	sessionTTL  time.Duration
@@ -63,10 +65,16 @@ func NewAuthService(rt abstract.Container) (*AuthService, error) {
 		return nil, common.SystemErrorFrom(err).WithOperation("Init").WithMessage("init api keys model")
 	}
 
+	blocklist, err := NewTokenBlocklist(persist, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AuthService{
 		users:       users,
 		apiKeys:     apiKeys,
 		credProv:    abstract.MustResolve[abstract.CredentialsProvider](rt),
+		blocklist:   blocklist,
 		apiKeyAuth:  abstract.MustResolve[*APIKeyAuthenticator](rt),
 		adminUserID: string(abstract.MustResolve[AdminUserID](rt)),
 		sessionTTL:  time.Duration(abstract.MustResolve[SessionTTL](rt)),
@@ -78,12 +86,14 @@ func NewAuthService(rt abstract.Container) (*AuthService, error) {
 // CreateSession authenticates a user and returns a session token document.
 //
 // @hestia.register(
-//   name="system:auth:session:create",
-//   intent="create",
-//   rule="public",
-//   bootstrap_safe="true",
-//   description="Authenticate and receive a session token",
-//   output="model.LoginOutput",
+//
+//	name="system:auth:session:create",
+//	intent="create",
+//	rule="public",
+//	bootstrap_safe="true",
+//	description="Authenticate and receive a session token",
+//	output="model.LoginOutput",
+//
 // )
 func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, input *model.LoginInput) (*abstract.Result, error) {
 	user, err := s.users.GetByEmail(ctx, input.Email)
@@ -125,24 +135,50 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 // DeleteSession logs out.
 //
 // @hestia.register(
-//   name="system:auth:session:delete",
-//   intent="delete",
-//   rule="authenticated",
-//   bootstrap_safe="true",
-//   description="Logout",
+//
+//	name="system:auth:session:delete",
+//	intent="delete",
+//	rule="authenticated",
+//	bootstrap_safe="true",
+//	description="Logout",
+//
 // )
+// DeleteSession logs out. The handler records the current session ID in
+// the token blocklist; enforcement happens in
+// credentialProvider.ValidateSession, so every transport rejects the
+// revoked session from its next validation onwards. Clearing the
+// browser cookie itself remains the HTTP layer's job.
 func (s *AuthService) DeleteSession(ctx context.Context, msg abstract.Message, input *model.DeleteSessionInput) error {
+	sid := runtime.GetTokenID(ctx)
+	if sid == "" {
+		return common.NewSystemError("UNAUTHENTICATED", "no active session to revoke")
+	}
+
+	// Expiry fallback: if claims are missing (should not happen on an
+	// authenticated route), keep the row alive for one session TTL so the
+	// revocation cannot be pruned while the token could still be live.
+	exp := time.Now().Add(s.sessionTTL).Unix()
+	if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok && claims.ExpiresAt > 0 {
+		exp = claims.ExpiresAt
+	}
+
+	if err := s.blocklist.Revoke(ctx, sid, runtime.GetUserID(ctx), exp); err != nil {
+		return err
+	}
+	_, _ = s.blocklist.Prune(ctx) // opportunistic cleanup; best effort
 	return nil
 }
 
 // PasswordReset requests a password reset email.
 //
 // @hestia.register(
-//   name="system:auth:password:reset",
-//   intent="create",
-//   rule="authenticated",
-//   description="Request password reset email",
-//   output="model.MessageOutput",
+//
+//	name="system:auth:password:reset",
+//	intent="create",
+//	rule="authenticated",
+//	description="Request password reset email",
+//	output="model.MessageOutput",
+//
 // )
 func (s *AuthService) PasswordReset(ctx context.Context, msg abstract.Message, input *model.PasswordResetInput) error {
 	user, err := s.users.GetByEmail(ctx, input.Email)
@@ -169,16 +205,24 @@ func (s *AuthService) PasswordReset(ctx context.Context, msg abstract.Message, i
 // PasswordConfirm confirms a password reset with a token.
 //
 // @hestia.register(
-//   name="system:auth:password:confirm",
-//   intent="update",
-//   rule="public",
-//   description="Confirm password reset with token",
-//   output="model.MessageOutput",
+//
+//	name="system:auth:password:confirm",
+//	intent="update",
+//	rule="public",
+//	description="Confirm password reset with token",
+//	output="model.MessageOutput",
+//
 // )
 func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message, input *model.PasswordConfirmInput) error {
 	userID, err := s.credProv.ValidateResetToken(input.Token)
 	if err != nil {
 		return common.NewSystemError("INVALID_TOKEN", "invalid or expired reset token")
+	}
+
+	// S-13: consume the token atomically before touching the credential —
+	// the blocklist's unique index on jti rejects a second use.
+	if err := s.credProv.ConsumeResetToken(ctx, input.Token); err != nil {
+		return err
 	}
 
 	hashed, err := runtime.HashPassword(input.Password)
@@ -201,12 +245,14 @@ func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message,
 // ValidateSession validates a session token.
 //
 // @hestia.register(
-//   name="system:auth:session:validate",
-//   intent="read",
-//   rule="public",
-//   internal="true",
-//   description="Validate a session token",
-//   output="model.ClaimsOutput",
+//
+//	name="system:auth:session:validate",
+//	intent="read",
+//	rule="public",
+//	internal="true",
+//	description="Validate a session token",
+//	output="model.ClaimsOutput",
+//
 // )
 func (s *AuthService) ValidateSession(ctx context.Context, msg abstract.Message) (*model.ClaimsDocumentView, error) {
 	doc := msg.Input()
@@ -228,12 +274,14 @@ func (s *AuthService) ValidateSession(ctx context.Context, msg abstract.Message)
 // ValidateAPIKey validates an API key.
 //
 // @hestia.register(
-//   name="system:auth:apikey:validate",
-//   intent="read",
-//   rule="public",
-//   internal="true",
-//   description="Validate an API key",
-//   output="model.ClaimsOutput",
+//
+//	name="system:auth:apikey:validate",
+//	intent="read",
+//	rule="public",
+//	internal="true",
+//	description="Validate an API key",
+//	output="model.ClaimsOutput",
+//
 // )
 func (s *AuthService) ValidateAPIKey(ctx context.Context, msg abstract.Message) (*model.APIKeyClaimsView, error) {
 	doc := msg.Input()
@@ -256,12 +304,14 @@ func (s *AuthService) ValidateAPIKey(ctx context.Context, msg abstract.Message) 
 // SetBootstrapPassword sets the bootstrap admin password.
 //
 // @hestia.register(
-//   name="system:auth:bootstrap:password:set",
-//   intent="update",
-//   rule="administrator",
-//   bootstrap_safe="true",
-//   description="Set bootstrap admin password",
-//   output="model.MessageOutput",
+//
+//	name="system:auth:bootstrap:password:set",
+//	intent="update",
+//	rule="administrator",
+//	bootstrap_safe="true",
+//	description="Set bootstrap admin password",
+//	output="model.MessageOutput",
+//
 // )
 func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Message, input *model.BootstrapPasswordInput) error {
 	if input.Email == "" {
@@ -291,11 +341,13 @@ func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Mes
 // ElevateToken issues an ephemeral API key for privilege elevation.
 //
 // @hestia.register(
-//   name="system:auth:token:elevate",
-//   intent="create",
-//   rule="public",
-//   description="Issue an ephemeral API key for privilege elevation",
-//   output="model.ElevateOutput",
+//
+//	name="system:auth:token:elevate",
+//	intent="create",
+//	rule="public",
+//	description="Issue an ephemeral API key for privilege elevation",
+//	output="model.ElevateOutput",
+//
 // )
 func (s *AuthService) ElevateToken(ctx context.Context, msg abstract.Message, input *model.ElevateInput) (*model.ElevateDocumentView, error) {
 	user, err := s.users.GetByEmail(ctx, input.Email)

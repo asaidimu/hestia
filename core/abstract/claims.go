@@ -45,4 +45,7 @@ type CredentialsProvider interface {
 	RefreshSession(info *SessionInfo) (newToken string, err error)
 	IssueResetToken(userID string) (token string, err error)
 	ValidateResetToken(tokenString string) (userID string, err error)
+	// ConsumeResetToken atomically marks a reset token as used (S-13);
+	// a second consumption of the same token must fail.
+	ConsumeResetToken(ctx context.Context, tokenString string) error
 }

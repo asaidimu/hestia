@@ -36,6 +36,10 @@ func (fakeCredProvider) CreateSession(userID string, ttl time.Duration) (string,
 	return token, info, nil
 }
 
+func (fakeCredProvider) ConsumeResetToken(ctx context.Context, tokenString string) error {
+	return nil
+}
+
 func (fakeCredProvider) ValidateSession(tokenString string) (*abstract.SessionInfo, error) {
 	return decodeSessionInfo(tokenString)
 }
@@ -84,11 +88,11 @@ type fakeUserIdentity struct {
 	activeErr error
 }
 
-func (u fakeUserIdentity) GetID() string        { return u.id }
-func (u fakeUserIdentity) GetEmail() string     { return u.email }
-func (u fakeUserIdentity) GetTenantID() string  { return u.tenantID }
+func (u fakeUserIdentity) GetID() string            { return u.id }
+func (u fakeUserIdentity) GetEmail() string         { return u.email }
+func (u fakeUserIdentity) GetTenantID() string      { return u.tenantID }
 func (u fakeUserIdentity) GetPermissions() []string { return u.perms }
-func (u fakeUserIdentity) GetTokenVersion() int { return u.tokenVer }
+func (u fakeUserIdentity) GetTokenVersion() int     { return u.tokenVer }
 
 type fakeUserResolver struct {
 	users map[string]fakeUserIdentity
@@ -148,9 +152,9 @@ func TestInternalRegistrationsAreRoutingOnly(t *testing.T) {
 func TestBootstrapSafeInstallSkipsInternal(t *testing.T) {
 	mt := newMockTransport()
 	internal := abstract.MessageRegistration{
-		Name:         "sys:internal:bootstrap:run",
-		Intent:       abstract.Check,
-		Internal:     true,
+		Name:          "sys:internal:bootstrap:run",
+		Intent:        abstract.Check,
+		Internal:      true,
 		BootstrapSafe: true,
 		Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 			return &abstract.Result{}, nil
