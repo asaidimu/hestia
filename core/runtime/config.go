@@ -11,10 +11,10 @@
 // runtime behavior.
 //
 // Resolution:
-// 1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs
-// 2. Create defaults.go with Default* constants and DefaultConfig()
-// 3. Keep config.go with LoadConfig, env helpers, resolveDataDir
-//    (or rename to load.go for clarity)
+//  1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs
+//  2. Create defaults.go with Default* constants and DefaultConfig()
+//  3. Keep config.go with LoadConfig, env helpers, resolveDataDir
+//     (or rename to load.go for clarity)
 //
 // This also addresses #so98l5 and #r9i7ec by consolidating env resolution.
 //
@@ -88,6 +88,10 @@ type Config struct {
 	SessionTTL    time.Duration
 	IdleTTL       time.Duration
 	RefreshTTL    time.Duration
+	// TrustedProxyHops is the number of reverse proxies in front of the
+	// HTTP server (S-7). Zero (default) means proxy headers are ignored
+	// and RemoteAddr is authoritative.
+	TrustedProxyHops int
 
 	Version    string
 	SelfUpdate *SelfUpdateConfig
@@ -297,6 +301,9 @@ func applyCommonEnvOverrides(cfg *Config) {
 	}
 	if secret, ok := envString("SESSION_SECRET"); ok {
 		cfg.SessionSecret = secret
+	}
+	if n, ok := envInt("TRUSTED_PROXY_HOPS"); ok {
+		cfg.TrustedProxyHops = n
 	}
 	if v := os.Getenv("DB_PATH"); v != "" {
 		cfg.DBPath = v

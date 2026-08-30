@@ -41,6 +41,7 @@ func BuildInterfaces(a *Application, version string, apiCfg httpapi.Config, cliC
 		UserModel:           mod.UserModel(),
 		Middleware:          apiCfg.Middleware,
 		AllowedOrigins:      apiCfg.AllowedOrigins,
+		TrustedProxyHops:    apiCfg.TrustedProxyHops,
 	})
 
 	stdin := cliCfg.Stdin

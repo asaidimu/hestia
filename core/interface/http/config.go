@@ -19,6 +19,7 @@ type Config struct {
 	RefreshTTL        time.Duration
 	NoRefreshCommands []string
 	AllowedOrigins    []string
+	TrustedProxyHops  int
 }
 
 func (c Config) Addr() string {
@@ -31,13 +32,14 @@ func (c Config) Addr() string {
 
 func ConfigFromRuntime(cfg *runtime.Config) Config {
 	return Config{
-		Port:           cfg.Port,
-		APIPrefix:      cfg.APIPrefix,
-		StaticFS:       cfg.StaticFS,
-		CookieConfig:   cfg.CookieConfig,
-		SessionTTL:     cfg.SessionTTL,
-		IdleTTL:        cfg.IdleTTL,
-		RefreshTTL:     cfg.RefreshTTL,
-		AllowedOrigins: cfg.AllowedOrigins,
+		Port:             cfg.Port,
+		APIPrefix:        cfg.APIPrefix,
+		StaticFS:         cfg.StaticFS,
+		CookieConfig:     cfg.CookieConfig,
+		SessionTTL:       cfg.SessionTTL,
+		IdleTTL:          cfg.IdleTTL,
+		RefreshTTL:       cfg.RefreshTTL,
+		TrustedProxyHops: cfg.TrustedProxyHops,
+		AllowedOrigins:   cfg.AllowedOrigins,
 	}
 }

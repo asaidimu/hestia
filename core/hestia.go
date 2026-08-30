@@ -103,6 +103,7 @@ func (a *Application) NewHTTPInterface(cfg http.Config) runtime.Interface {
 		UserModel:           mod.UserModel(),
 		Middleware:          allMiddleware,
 		AllowedOrigins:      cfg.AllowedOrigins,
+		TrustedProxyHops:    cfg.TrustedProxyHops,
 	})
 }
 

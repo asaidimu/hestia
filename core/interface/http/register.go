@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -98,6 +99,14 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
 		// transport sets req.Operation to "POST /api/...").
 		o.authLimitedOps[reg.Name] = struct{}{}
 		o.authLimitedOps[pattern] = struct{}{}
+	}
+
+	// S-8: blob payloads are the only routes allowed bodies larger than
+	// defaultBodyLimit; everything else stays at the small default.
+	if strings.HasPrefix(reg.Name, "system:blobs:") {
+		if ht, ok := o.trans.(*HTTPTransport); ok {
+			ht.SetBodyLimit(pattern, maxRequestBodySize)
+		}
 	}
 
 	o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {

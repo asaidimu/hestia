@@ -41,6 +41,7 @@ type Options struct {
 	Middleware          []Middleware
 	NoRefreshCommands   []string
 	AllowedOrigins      []string
+	TrustedProxyHops    int
 }
 
 type Interface struct {
@@ -117,11 +118,12 @@ func New(opts Options) *Interface {
 
 func newHTTPTransport(opts Options) Transport {
 	return NewTransport(TransportOptions{
-		Addr:           opts.Addr,
-		Logger:         opts.Logger,
-		APIPrefix:      opts.APIPrefix,
-		StaticFS:       opts.StaticFS,
-		AllowedOrigins: opts.AllowedOrigins,
+		Addr:             opts.Addr,
+		Logger:           opts.Logger,
+		APIPrefix:        opts.APIPrefix,
+		StaticFS:         opts.StaticFS,
+		AllowedOrigins:   opts.AllowedOrigins,
+		TrustedProxyHops: opts.TrustedProxyHops,
 	})
 }
 
