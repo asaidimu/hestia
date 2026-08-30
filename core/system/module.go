@@ -13,6 +13,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
 	"github.com/asaidimu/go-anansi/v8/core/query"
+	"github.com/asaidimu/go-anansi/v8/core/sanitize"
 	"github.com/asaidimu/go-iam/v2/iam"
 	"go.uber.org/zap"
 
@@ -75,6 +76,16 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 	ring := abstract.MustResolve[*logs.RingBuffer](rt)
 	m.providers = NewProviderSet(persist, m.cfg, m.opts.Logger, ring)
 
+	// Register feature-scoped sanitization rules. Each feature declares its
+	// own rules via SanitizationRules(); the dispatcher sets the scope in
+	// context based on the message name's feature segment.
+	reg := sanitize.Registry()
+	for scope, config := range allSanitizationRules {
+		if err := reg.Register(scope, config); err != nil {
+			m.opts.Logger.Warn("Failed to register sanitization rules", zap.String("scope", scope), zap.Error(err))
+		}
+	}
+
 	if err := m.providers.InitModels(ctx); err != nil {
 		return fmt.Errorf("init models: %w", err)
 	}
@@ -112,7 +123,7 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 
 	m.providers.PolicyBridge = policies.NewPolicyStoreAdapter(m.providers.Policies, m.providers.PermMgr, m.providers.LiveRules)
 
-	apiKeyAuth := auth.NewAPIKeyAuthenticator(m.providers.APIKeys, m.providers.LiveUsers, m.ephemeralKey, m.adminUserID, m.adminEmail, m.opts.Logger)
+	apiKeyAuth := auth.NewAPIKeyAuthenticator(m.providers.APIKeys, m.providers.LiveUsers, m.ephemeralKey, m.adminUserID, m.adminEmail, m.opts.Logger, m.Bootstrapped)
 
 	if err := m.registerExistingDocumentHandlers(ctx); err != nil {
 		return fmt.Errorf("register document handlers: %w", err)
@@ -286,7 +297,13 @@ func (m *SystemModule) seedData(ctx context.Context) error {
 	m.adminEmail = result.AdminEmail
 	m.bootstrapped = result.Bootstrapped
 
-	if m.ephemeralKey == "" {
+	// The ephemeral bootstrap key exists solely to bootstrap an un-bootstrapped
+	// system. Generate it only in that state and clear it otherwise, so a key
+	// captured from boot logs (container/CI logs, scrollback) cannot retain
+	// permanent admin access after bootstrap (todo/first_run_api_key.md).
+	if m.bootstrapped {
+		m.ephemeralKey = ""
+	} else if m.ephemeralKey == "" {
 		key := make([]byte, 16)
 		if _, err := rand.Read(key); err == nil {
 			m.ephemeralKey = hex.EncodeToString(key)
@@ -378,14 +395,18 @@ func (m *SystemModule) initUserClaimsCache(ctx context.Context) error {
 		QueryKey:   "_id_",
 		AutoLoad:   false,
 		QueryFunc: func(key string) query.Query {
+			// disabled == -1 means active (see users GetActiveByID). The
+			// previous Neq(0) predicate matched active (-1) AND disabled (1),
+			// so disabled users stayed in the claims cache and their API keys
+			// kept authenticating after the account was disabled.
 			if key == "" {
 				return query.NewQueryBuilder().
-					Where("disabled").Neq(0).
+					Where("disabled").Eq(-1).
 					Build()
 			}
 			return query.NewQueryBuilder().
 				Where(data.DocumentIDField).Eq(key).
-				Where("disabled").Neq(0).
+				Where("disabled").Eq(-1).
 				Build()
 		},
 	})
@@ -462,7 +483,11 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 		return p.Throttle
 	}
 
+	// Chain order: recovery (via LocalDispatcher) → sanitization → bootstrap → secure → ... → audit
+	// Recovery is outermost (built into LocalDispatcher). Sanitization sets the
+	// scope context and sanitizes outgoing documents for all downstream links.
 	chain := runtime.NewDispatcherChain(
+		runtime.LinkEntry{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
 		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
 		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
 		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore)},

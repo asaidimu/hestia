@@ -28,12 +28,6 @@ func TestUpdateUserHandlerPreservesUnsetValues(t *testing.T) {
 	}
 	id := created.ID
 
-	before, err := fx.svc.GetUser(ctx, msg, &model.UserGetInput{UserID: id})
-	if err != nil {
-		t.Fatalf("GetUser: %v", err)
-	}
-	hashBefore := before.Password
-
 	doc := testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserUpdateInput]("input", true), `{
 		"arguments": { "user_id": "`+id+`" },
 		"payload": { "name": "Renamed" }
@@ -48,9 +42,6 @@ func TestUpdateUserHandlerPreservesUnsetValues(t *testing.T) {
 	}
 	if updated.Name != "Renamed" {
 		t.Errorf("name = %q, want Renamed", updated.Name)
-	}
-	if updated.Password != hashBefore {
-		t.Errorf("password hash was overwritten: got %q, want %q", updated.Password, hashBefore)
 	}
 	if updated.Email != "handler-update@example.com" {
 		t.Errorf("email = %q, want unchanged", updated.Email)
@@ -72,5 +63,14 @@ func TestUpdateUserHandlerPreservesUnsetValues(t *testing.T) {
 	}
 	if updated.TenantID == nil || *updated.TenantID != "public" {
 		t.Errorf("tenant_id = %v, want preserved public", updated.TenantID)
+	}
+
+	// Verify password is still valid by attempting to change it with the original password
+	changeMsg := testMsg("system:users:password:change", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserChangePasswordInput]("input"), `{
+		"arguments": { "user_id": "`+id+`" },
+		"payload": { "current": "s3cret-pass", "new": "new-pass" }
+	}`))
+	if _, err := fx.handlers["system:users:password:change"](ctx, changeMsg); err != nil {
+		t.Errorf("password change with original password should succeed: %v", err)
 	}
 }

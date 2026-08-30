@@ -106,7 +106,7 @@ func newTestAuthService(t *testing.T, p base.Persistence, opts ...func(*auth.Aut
 	}
 	t.Cleanup(func() { liveUsers.Close() })
 
-	apiKeyAuth := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop())
+	apiKeyAuth := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop(), func() bool { return false })
 
 	svc := auth.NewAuthServiceForTest(userModel, apiKeyModel, credProv, apiKeyAuth, "admin-1", 7*24*time.Hour)
 
@@ -523,7 +523,7 @@ func TestNewAPIKeyAuthenticator(t *testing.T) {
 	}
 	t.Cleanup(func() { liveUsers.Close() })
 
-	a := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop())
+	a := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop(), func() bool { return false })
 	if a == nil {
 		t.Fatal("NewAPIKeyAuthenticator returned nil")
 	}

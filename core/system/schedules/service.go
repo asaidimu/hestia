@@ -38,6 +38,29 @@ func NewSchedulesService(rt abstract.Container) (*SchedulesService, error) {
 	return &SchedulesService{model: m, live: live, registrations: registrations}, nil
 }
 
+// assertScheduleOwnership rejects reads/mutations of schedules the caller does
+// not own. List scopes by user_id, but Get/Update/Delete looked up purely by
+// _id_: any authenticated user holding another user's schedule ID (IDs are
+// returned by List) could read its payload — which may contain secrets —
+// repoint its message/input, or delete it. Administrator bypass is a
+// policy-layer concern and deliberately lives outside this handler.
+func (s *SchedulesService) assertScheduleOwnership(ctx context.Context, schedule *document.Document) error {
+	claims, ok := runtimecontext.ClaimsFromContext(ctx)
+	if !ok || claims.UserID == "" {
+		return common.NewSystemError("UNAUTHENTICATED", "authentication is required")
+	}
+	owner, _ := schedule.GetString("user_id")
+	if owner != claims.UserID {
+		return common.NewSystemError("SCHEDULE_FORBIDDEN", "schedule belongs to another user")
+	}
+	if tenant, _ := schedule.GetString("tenant_id"); tenant != "" {
+		if callerTenant := runtimecontext.GetTenantID(ctx); callerTenant != "" && callerTenant != tenant {
+			return common.NewSystemError("SCHEDULE_FORBIDDEN", "schedule belongs to another tenant")
+		}
+	}
+	return nil
+}
+
 // Create creates a cron-triggered schedule.
 //
 // @hestia.register(
@@ -135,6 +158,9 @@ func (s *SchedulesService) Get(ctx context.Context, msg abstract.Message, input 
 	if schedule == nil {
 		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found", input.ID))
 	}
+	if err := s.assertScheduleOwnership(ctx, schedule); err != nil {
+		return nil, err
+	}
 	var view model.ScheduleDocumentView
 	if err := schedule.BindTo(&view); err != nil {
 		return nil, err
@@ -163,6 +189,9 @@ func (s *SchedulesService) Update(ctx context.Context, msg abstract.Message, inp
 	}
 	if existing == nil {
 		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found", input.ID))
+	}
+	if err := s.assertScheduleOwnership(ctx, existing); err != nil {
+		return nil, err
 	}
 
 	// Merge provided fields over the stored schedule so persistence and
@@ -245,6 +274,20 @@ func (s *SchedulesService) Update(ctx context.Context, msg abstract.Message, inp
 func (s *SchedulesService) Delete(ctx context.Context, msg abstract.Message, input *model.ScheduleDeleteInput) (*model.MessageOutput, error) {
 	if input.ID == "" {
 		return nil, common.NewSystemError("SCHEDULE_ID_REQUIRED", "id is required")
+	}
+
+	// Fetch first so existence and ownership are enforced before any side
+	// effect; a bare unregister-then-delete by ID would let any authenticated
+	// user destroy another user's schedule.
+	existing, err := s.model.GetSchedule(ctx, input.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, common.NewSystemError("SCHEDULE_NOT_FOUND", fmt.Sprintf("schedule %q not found", input.ID))
+	}
+	if err := s.assertScheduleOwnership(ctx, existing); err != nil {
+		return nil, err
 	}
 
 	s.live.UnregisterByID(ctx, input.ID)

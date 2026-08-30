@@ -60,6 +60,10 @@ type Interface struct {
 	middleware        []Middleware
 	noRefreshCommands map[string]struct{}
 	noRefreshOps      map[string]struct{}
+	// authLimitedOps holds every route pattern ("POST /api/...") and message
+	// name that is subject to the auth brute-force limiter — see
+	// authMiddleware. Populated in installRegistration.
+	authLimitedOps map[string]struct{}
 }
 
 func New(opts Options) *Interface {
@@ -105,6 +109,7 @@ func New(opts Options) *Interface {
 		middleware:        opts.Middleware,
 		noRefreshCommands: nrc,
 		noRefreshOps:      make(map[string]struct{}),
+		authLimitedOps:    make(map[string]struct{}),
 	}
 	o.trans = newHTTPTransport(opts)
 	return o

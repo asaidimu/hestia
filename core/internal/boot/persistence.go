@@ -29,8 +29,9 @@ func docFactoryConfig() data.DocumentFactoryConfig {
 	}
 }
 
-// sanitizeConfig intentionally registers masking rules per system collection
-// using exact field names, and keeps the global policy preserve-only.
+// sanitizeConfig returns the global sanitization configuration. Scoped rules
+// are now registered per-feature via allSanitizationRules; this function only
+// sets the global default policy.
 //
 // Sanitization policies match by field NAME alone and masked values are
 // always strings; the sanitizer does not know a field's declared type. A
@@ -44,28 +45,6 @@ func sanitizeConfig() sanitize.Config {
 	return sanitize.Config{
 		Global: &sanitize.FieldMaskConfig{
 			DefaultPolicy: sanitize.MaskPreserve,
-		},
-		Scoped: map[string]*sanitize.FieldMaskConfig{
-			"_user_": {
-				DefaultPolicy: sanitize.MaskPreserve,
-				Fields: map[string]sanitize.MaskedFieldPolicy{
-					"password":      sanitize.MaskRedact,
-					"email":         sanitize.MaskPreserve,
-					"token_version": sanitize.MaskPreserve,
-				},
-			},
-			"_api_key_": {
-				DefaultPolicy: sanitize.MaskPreserve,
-				Fields: map[string]sanitize.MaskedFieldPolicy{
-					"hash": sanitize.MaskRedact,
-				},
-			},
-			"_access_log_": {
-				DefaultPolicy: sanitize.MaskPreserve,
-				Fields: map[string]sanitize.MaskedFieldPolicy{
-					"integrity_hash": sanitize.MaskRedact,
-				},
-			},
 		},
 	}
 }
@@ -142,21 +121,6 @@ func NewPersistenceManager(cfg *runtime.Config, logger *zap.Logger) (*Persistenc
 	if err := reg.LoadFromPersistence(context.Background()); err != nil {
 		logger.Warn("Failed to load sanitization policies from persistence, using in-code defaults", zap.Error(err))
 	}
-
-	_ = reg.Register("_user_", &sanitize.FieldMaskConfig{
-		DefaultPolicy: sanitize.MaskPreserve,
-		Fields: map[string]sanitize.MaskedFieldPolicy{
-			"password":      sanitize.MaskRedact,
-			"email":         sanitize.MaskPreserve,
-			"token_version": sanitize.MaskPreserve,
-		},
-	})
-	_ = reg.Register("_api_key_", &sanitize.FieldMaskConfig{
-		DefaultPolicy: sanitize.MaskPreserve,
-		Fields: map[string]sanitize.MaskedFieldPolicy{
-			"hash": sanitize.MaskRedact,
-		},
-	})
 
 	return &PersistenceManager{
 		Anansi: p,

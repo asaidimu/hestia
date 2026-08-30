@@ -233,7 +233,7 @@ func TestListSchedulesHandler(t *testing.T) {
 }
 
 func TestGetScheduleHandler(t *testing.T) {
-	ctx := context.Background()
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-1"})
 	m := newTestModel(t)
 
 	created, err := m.CreateSchedule(ctx, createTestDoc(t))
@@ -275,7 +275,7 @@ func TestGetScheduleHandlerNotFound(t *testing.T) {
 }
 
 func TestDeleteScheduleHandler(t *testing.T) {
-	ctx := context.Background()
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-1"})
 	m := newTestModel(t)
 
 	created, err := m.CreateSchedule(ctx, createTestDoc(t))
@@ -295,6 +295,58 @@ func TestDeleteScheduleHandler(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+}
+
+// S-12 regression: schedules created by user-1 must be unreadable and
+// undeletable by another authenticated user holding a valid ID.
+func TestGetScheduleHandlerForbidden(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-2"})
+	m := newTestModel(t)
+
+	created, err := m.CreateSchedule(context.Background(), createTestDoc(t))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	log := zap.NewNop()
+	sched := scheduler.New(context.Background(), log)
+	disp := runtime.NewLocalDispatcher()
+	live := schedules.NewLiveSchedule(m, sched, disp, log)
+
+	svc := schedules.NewSchedulesServiceForTest(m, live)
+	_, err = svc.Get(ctx, &testMessage{}, &model.ScheduleGetInput{ID: created.ID()})
+	if err == nil {
+		t.Fatal("expected ownership denial for another user's schedule")
+	}
+}
+
+func TestDeleteScheduleHandlerForbidden(t *testing.T) {
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-2"})
+	m := newTestModel(t)
+
+	created, err := m.CreateSchedule(context.Background(), createTestDoc(t))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	log := zap.NewNop()
+	sched := scheduler.New(context.Background(), log)
+	disp := runtime.NewLocalDispatcher()
+	live := schedules.NewLiveSchedule(m, sched, disp, log)
+
+	svc := schedules.NewSchedulesServiceForTest(m, live)
+	_, err = svc.Delete(ctx, &testMessage{}, &model.ScheduleDeleteInput{ID: created.ID()})
+	if err == nil {
+		t.Fatal("expected ownership denial for another user's schedule")
+	}
+
+	doc, err := m.GetSchedule(context.Background(), created.ID())
+	if err != nil {
+		t.Fatalf("re-fetch after denied delete: %v", err)
+	}
+	if doc == nil {
+		t.Fatal("schedule must survive a denied delete")
 	}
 }
 

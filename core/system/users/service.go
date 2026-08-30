@@ -37,12 +37,16 @@ func NewUsersService(rt abstract.Container) (*UsersService, error) {
 //   rule="administrator",
 //   description="Create a new user",
 // )
-func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, input *model.UserRegisterInput) (*model.SystemUser, error) {
+func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, input *model.UserRegisterInput) (*model.UserPublic, error) {
 	tenantID := ""
 	if input.TenantID != nil {
 		tenantID = *input.TenantID
 	}
-	return s.model.Register(ctx, input.Email, input.Password, input.Name, tenantID, input.Data, input.Permissions...)
+	user, err := s.model.Register(ctx, input.Email, input.Password, input.Name, tenantID, input.Data, input.Permissions...)
+	if err != nil {
+		return nil, err
+	}
+	return user.Public(), nil
 }
 
 // GetUser returns a user by ID.
@@ -54,8 +58,12 @@ func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, inp
 //   description="Get user by ID",
 //   resource_id="user_id",
 // )
-func (s *UsersService) GetUser(ctx context.Context, msg abstract.Message, input *model.UserGetInput) (*model.SystemUser, error) {
-	return s.model.GetByID(ctx, input.UserID)
+func (s *UsersService) GetUser(ctx context.Context, msg abstract.Message, input *model.UserGetInput) (*model.UserPublic, error) {
+	user, err := s.model.GetByID(ctx, input.UserID)
+	if err != nil {
+		return nil, err
+	}
+	return user.Public(), nil
 }
 
 // UpdateUser updates a user profile.
@@ -67,8 +75,12 @@ func (s *UsersService) GetUser(ctx context.Context, msg abstract.Message, input 
 //   description="Update user profile",
 //   resource_id="user_id",
 // )
-func (s *UsersService) UpdateUser(ctx context.Context, msg abstract.Message, input *model.UserUpdateInput) (*model.SystemUser, error) {
-	return s.model.UpdateUserProfile(ctx, input.ID, &input.UserUpdate)
+func (s *UsersService) UpdateUser(ctx context.Context, msg abstract.Message, input *model.UserUpdateInput) (*model.UserPublic, error) {
+	user, err := s.model.UpdateUserProfile(ctx, input.ID, &input.UserUpdate)
+	if err != nil {
+		return nil, err
+	}
+	return user.Public(), nil
 }
 
 // ChangePassword changes a user's password.

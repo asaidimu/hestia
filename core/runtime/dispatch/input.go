@@ -142,7 +142,15 @@ func ValidateInputDocument(s *definition.Schema, doc data.Documenter) ([]common.
 	}
 	v, err := getDocValidator(s)
 	if err != nil {
-		return nil, true
+		// Fail closed. Previously this returned (nil, true), which silently
+		// disabled schema validation for the operation forever — a broken
+		// schema is a boot-time bug, not a per-request inconvenience. The
+		// message is static per operation (schema construction, not request
+		// data), so surfacing it is safe.
+		return []common.Issue{{
+			Code:    "VALIDATOR_INIT_FAILED",
+			Message: "input validator could not be built; failing closed: " + err.Error(),
+		}}, false
 	}
 	return v.ValidateLoose(doc.ToMap())
 }

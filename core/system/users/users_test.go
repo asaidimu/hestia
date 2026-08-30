@@ -172,23 +172,22 @@ func TestChangePasswordHandler(t *testing.T) {
 		t.Fatalf("ChangePasswordHandler: %v", err)
 	}
 
-	storedUser, err := fx.svc.GetUser(ctx, msg, &usermodel.UserGetInput{UserID: userID})
+	// Verify password changed by attempting another change with the new password
+	changeMsg2 := testMsg("system:users:password:change", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserChangePasswordInput]("input"), fmt.Sprintf(
+		`{"arguments":{"user_id":%s},"payload":{"current":"newPassword","new":"anotherPassword"}}`, strconv.Quote(userID),
+	)))
+	_, err = fx.handlers["system:users:password:change"](ctx, changeMsg2)
 	if err != nil {
-		t.Fatalf("GetUser: %v", err)
+		t.Errorf("password change with new password should succeed: %v", err)
 	}
-	ok, err := runtime.CheckPassword("newPassword", storedUser.Password)
-	if err != nil {
-		t.Fatalf("CheckPassword: %v", err)
-	}
-	if !ok {
-		t.Error("new password should match stored hash")
-	}
-	ok, err = runtime.CheckPassword("oldPassword", storedUser.Password)
-	if err != nil {
-		t.Fatalf("CheckPassword: %v", err)
-	}
-	if ok {
-		t.Error("old password should not match stored hash")
+
+	// Verify old password no longer works
+	changeMsg3 := testMsg("system:users:password:change", testutil.InputDoc(t, dispatch.SchemaFromTypeWithTag[usermodel.UserChangePasswordInput]("input"), fmt.Sprintf(
+		`{"arguments":{"user_id":%s},"payload":{"current":"oldPassword","new":"failPassword"}}`, strconv.Quote(userID),
+	)))
+	_, err = fx.handlers["system:users:password:change"](ctx, changeMsg3)
+	if err == nil {
+		t.Error("password change with old password should fail")
 	}
 }
 

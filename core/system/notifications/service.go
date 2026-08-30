@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
@@ -244,17 +245,29 @@ func (s *NotificationsService) Stream(ctx context.Context, msg abstract.Message,
 	})
 
 	go func() {
+		// close/unsubscribe must run at most once: phase 1 and phase 2 can
+		// both observe ctx cancellation, and close of a closed channel panics
+		// in an unrecovered goroutine (crashing the process).
+		var once sync.Once
+		cleanup := func() {
+			once.Do(func() {
+				close(docCh)
+				s.model.Unsubscribe(ctx, subID)
+			})
+		}
+
 		select {
 		case <-msg.InputChannel():
 		case <-ctx.Done():
-			close(docCh)
-			s.model.Unsubscribe(ctx, subID)
+			cleanup()
+			// Phase 1 ended by client disconnect: the stream never went live.
+			// Return — falling through would park on ctx.Done() and double-close.
+			return
 		}
 
 		// Phase 2: stream is live. Only close when the client goes away.
 		<-ctx.Done()
-		close(docCh)
-		s.model.Unsubscribe(ctx, subID)
+		cleanup()
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil

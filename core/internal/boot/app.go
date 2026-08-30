@@ -151,6 +151,15 @@ func (a *Application) Dispatcher() *runtime.LocalDispatcher {
 func (a *Application) RegisterModules(modules ...abstract.Module) error {
 	ctx := context.Background()
 
+	// Handler-registration failures are collected and fail the boot: the
+	// entire security model keys off operation names (policies/bindings/
+	// audit), so a silently dropped registration means a feature is absent
+	// or its policy binding dangles. Warn-and-continue shipped exactly that
+	// class of silent breakage. Message-name grammar violations remain
+	// warnings: several shipped names predate the 4-segment grammar, and
+	// renaming them is a breaking client API change (tracked separately).
+	var registrationErrs []string
+
 	// Topological sort by Dependencies using Kahn's algorithm
 	sorted, err := topoSort(modules)
 	if err != nil {
@@ -191,7 +200,7 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 					Enabled:       mr.Enabled,
 					BootstrapSafe: mr.BootstrapSafe,
 				}); err != nil {
-					a.Loggers.File.Warn("Failed to register handler", zap.String("module", mod.Name()), zap.String("name", mr.Name), zap.Error(err))
+					registrationErrs = append(registrationErrs, fmt.Sprintf("module %s: register handler %q: %v", mod.Name(), mr.Name, err))
 				}
 
 				if mr.Input.Schema != nil {
@@ -203,6 +212,10 @@ func (a *Application) RegisterModules(modules ...abstract.Module) error {
 				a.Registrations = append(a.Registrations, mr)
 			}
 		}
+	}
+
+	if len(registrationErrs) > 0 {
+		return fmt.Errorf("module registration errors:\n\t%s", strings.Join(registrationErrs, "\n\t"))
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 	"time"
@@ -187,6 +188,13 @@ func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message,
 	if _, err := s.users.Update(ctx, userID, &usersmodel.SystemUser{Password: hashed}); err != nil {
 		return err
 	}
+	// Invalidate every session issued before the reset: the token_version
+	// check in the HTTP middleware rejects tokens whose version no longer
+	// matches the user's. Without this bump a stolen cookie keeps working
+	// for up to the absolute session TTL after a password reset.
+	if _, err := s.users.IncrementTokenVersion(ctx, userID); err != nil {
+		return fmt.Errorf("invalidate pre-reset sessions: %w", err)
+	}
 	return nil
 }
 
@@ -265,6 +273,9 @@ func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Mes
 	}
 	if _, err := s.users.Update(ctx, s.adminUserID, &usersmodel.SystemUser{Password: hashed}); err != nil {
 		return err
+	}
+	if _, err := s.users.IncrementTokenVersion(ctx, s.adminUserID); err != nil {
+		return fmt.Errorf("invalidate pre-bootstrap sessions: %w", err)
 	}
 	if err := s.users.UpdateEmail(ctx, s.adminUserID, input.Email); err != nil {
 		return err

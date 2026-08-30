@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
@@ -68,6 +69,7 @@ func Apply(ctx context.Context, p base.Persistence) error {
 		collMigrations[m.Collection] = append(collMigrations[m.Collection], m)
 	}
 
+	var diverged []string
 	for _, ms := range collMigrations {
 		name := ms[0].Collection
 
@@ -90,7 +92,21 @@ func Apply(ctx context.Context, p base.Persistence) error {
 			if err != nil {
 				return fmt.Errorf("schema %s: %w", name, err)
 			}
-			if sc.Version.String() != m.From {
+			v := sc.Version.String()
+			switch {
+			case v == m.From:
+				// Pending migration — apply below.
+			case v == m.To:
+				// Already applied — benign idempotent skip.
+				continue
+			default:
+				// The schema matches neither edge of this migration: no
+				// registered migration can ever bring it to the target
+				// version. Previously this skipped silently, so a
+				// hand-edited or partially-failed DB booted
+				// "successfully" with a schema nothing would fix.
+				diverged = append(diverged,
+					fmt.Sprintf("%s: schema version %s matches no migration edge %s -> %s (%s)", name, v, m.From, m.To, m.UUID))
 				continue
 			}
 			plan := m.Plan()
@@ -98,6 +114,10 @@ func Apply(ctx context.Context, p base.Persistence) error {
 				return fmt.Errorf("migrate %s %s->%s: %w", name, m.From, m.To, err)
 			}
 		}
+	}
+	if len(diverged) > 0 {
+		return fmt.Errorf("schema version drift detected; refusing to boot with a non-converging schema:\n\t%s",
+			strings.Join(diverged, "\n\t"))
 	}
 	return nil
 }

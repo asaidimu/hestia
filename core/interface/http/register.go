@@ -30,7 +30,21 @@ const (
 const (
 	msgSessionCreate = "system:auth:session:create"
 	msgSessionDelete = "system:auth:session:delete"
+
+	msgTokenElevate    = "system:auth:token:elevate"
+	msgPasswordConfirm = "system:auth:password:confirm"
 )
+
+// authRateLimitedMessages lists every password-checking message that is
+// subject to the per-IP brute-force limiter in authMiddleware: login, token
+// elevation (mints a live 5-minute API key) and password-reset confirmation.
+// Both the message name and the derived route pattern are registered so the
+// gate works regardless of how the transport fills req.Operation.
+var authRateLimitedMessages = map[string]struct{}{
+	msgSessionCreate:   {},
+	msgTokenElevate:    {},
+	msgPasswordConfirm: {},
+}
 
 func (o *Interface) installDispatcherRegistrations() {
 	for _, reg := range o.regs {
@@ -76,6 +90,14 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
 
 	if _, ok := o.noRefreshCommands[reg.Name]; ok {
 		o.noRefreshOps[pattern] = struct{}{}
+	}
+
+	if _, ok := authRateLimitedMessages[reg.Name]; ok {
+		// Both forms registered: message name (CLI/internal transports set
+		// req.Operation to the message name) and route pattern (the HTTP
+		// transport sets req.Operation to "POST /api/...").
+		o.authLimitedOps[reg.Name] = struct{}{}
+		o.authLimitedOps[pattern] = struct{}{}
 	}
 
 	o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {

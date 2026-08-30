@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
+	"errors"
 
 	"go.uber.org/zap"
 
@@ -12,6 +14,8 @@ import (
 	"github.com/asaidimu/hestia/core/system/users"
 )
 
+var errInvalidAPIKey = errors.New("invalid api key")
+
 type APIKeyAuthenticator struct {
 	apiKeyModel  *apikeysmodel.SystemAPIKeys
 	liveUsers    collection.LiveCollection[*users.UserClaims]
@@ -19,9 +23,12 @@ type APIKeyAuthenticator struct {
 	adminUserID  string
 	adminEmail   string
 	logger       *zap.Logger
+	// bootstrapped reports whether the system has completed bootstrap. The
+	// ephemeral key is only valid before that point.
+	bootstrapped func() bool
 }
 
-func NewAPIKeyAuthenticator(apiKeyModel *apikeysmodel.SystemAPIKeys, liveUsers collection.LiveCollection[*users.UserClaims], ephemeralKey, adminUserID, adminEmail string, logger *zap.Logger) *APIKeyAuthenticator {
+func NewAPIKeyAuthenticator(apiKeyModel *apikeysmodel.SystemAPIKeys, liveUsers collection.LiveCollection[*users.UserClaims], ephemeralKey, adminUserID, adminEmail string, logger *zap.Logger, bootstrapped func() bool) *APIKeyAuthenticator {
 	return &APIKeyAuthenticator{
 		apiKeyModel:  apiKeyModel,
 		liveUsers:    liveUsers,
@@ -29,6 +36,7 @@ func NewAPIKeyAuthenticator(apiKeyModel *apikeysmodel.SystemAPIKeys, liveUsers c
 		adminUserID:  adminUserID,
 		adminEmail:   adminEmail,
 		logger:       logger,
+		bootstrapped: bootstrapped,
 	}
 }
 
@@ -44,7 +52,15 @@ func (a *APIKeyAuthenticator) loadUserClaims(ctx context.Context, userID string)
 }
 
 func (a *APIKeyAuthenticator) Authenticate(ctx context.Context, key string) (*abstract.Claims, error) {
-	if a.ephemeralKey != "" && key == a.ephemeralKey {
+	// Constant-time comparison: the ephemeral key is a bearer secret.
+	if a.ephemeralKey != "" && subtle.ConstantTimeCompare([]byte(key), []byte(a.ephemeralKey)) == 1 {
+		if a.bootstrapped != nil && a.bootstrapped() {
+			// The bootstrap key's only purpose is to bootstrap the system.
+			// Reject after bootstrap so a key captured from boot logs cannot
+			// keep permanent admin access (todo/first_run_api_key.md).
+			a.logger.Warn("ephemeral API key rejected: system is already bootstrapped")
+			return nil, errInvalidAPIKey
+		}
 		a.logger.Warn("ephemeral API key used for authentication",
 			zap.String("admin_user_id", a.adminUserID),
 			zap.String("admin_email", a.adminEmail),

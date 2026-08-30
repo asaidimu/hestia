@@ -210,3 +210,20 @@ func (u *SystemUser) GetTokenVersion() int {
 	}
 	return int(*u.TokenVersion)
 }
+
+// Public returns the user's public projection, excluding sensitive fields.
+func (u *SystemUser) Public() *UserPublic {
+	return document.New(&UserPublic{
+		Permissions:  u.Permissions,
+		ID:           u.ID,
+		Email:        u.Email,
+		Name:         u.Name,
+		Metadata:     u.Metadata,
+		Data:         u.Data,
+		Disabled:     u.Disabled,
+		Settings:     u.Settings,
+		TenantID:     u.TenantID,
+		TokenVersion: u.TokenVersion,
+		Verified:     u.Verified,
+	})
+}

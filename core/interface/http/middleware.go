@@ -134,7 +134,14 @@ func (o *Interface) authMiddleware(ctx context.Context, req Request, next handle
 	//    brute-force attacks. The actual credential check happens downstream
 	//    in AuthService.CreateSession, but we gate entry here so repeated
 	//    failures are blocked before reaching the database.
-	if req.Operation == msgSessionCreate {
+	//
+	//    authLimitedOps is keyed by BOTH the route pattern ("POST /api/...")
+	//    — which is what the HTTP transport puts in req.Operation — and the
+	//    message name (system:auth:session:create). Matching on the message
+	//    name alone never fired on the HTTP path: the two string formats are
+	//    never equal. Gate covers session:create, token:elevate and
+	//    password:confirm (see register.go authRateLimitedMessages).
+	if _, limited := o.authLimitedOps[req.Operation]; limited {
 		key := authRateLimitKey + req.ClientIP
 		_, allowed, err := authRateLimiter.CheckAndConsume(ctx, key, authRateLimitBurst, authRateLimitRefill, authRateLimitPeriod)
 		if err == nil && !allowed {

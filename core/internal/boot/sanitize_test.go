@@ -31,39 +31,13 @@ func TestSanitizeConfig_GlobalIsPreserveOnly(t *testing.T) {
 	}
 }
 
-// TestSanitizeConfig_ScopedOverrides pins the per-collection exceptions: user
-// passwords are redacted but emails preserved; api key hashes redacted.
-func TestSanitizeConfig_ScopedOverrides(t *testing.T) {
+// TestSanitizeConfig_NoScopedRules verifies that the global config no longer
+// contains scoped rules. Scoped rules are now registered per-feature via
+// allSanitizationRules in the system module.
+func TestSanitizeConfig_NoScopedRules(t *testing.T) {
 	cfg := sanitizeConfig()
-
-	userCfg := cfg.Scoped["_user_"]
-	if userCfg == nil {
-		t.Fatal("expected _user_ scoped config")
-	}
-	if userCfg.Fields["password"] != sanitize.MaskRedact {
-		t.Errorf("_user_.password must be MaskRedact, got %q", userCfg.Fields["password"])
-	}
-	if userCfg.Fields["email"] != sanitize.MaskPreserve {
-		t.Errorf("_user_.email must be MaskPreserve, got %q", userCfg.Fields["email"])
-	}
-	if userCfg.Fields["token_version"] != sanitize.MaskPreserve {
-		t.Errorf("_user_.token_version must be MaskPreserve, got %q", userCfg.Fields["token_version"])
-	}
-
-	keyCfg := cfg.Scoped["_api_key_"]
-	if keyCfg == nil {
-		t.Fatal("expected _api_key_ scoped config")
-	}
-	if keyCfg.Fields["hash"] != sanitize.MaskRedact {
-		t.Errorf("_api_key_.hash must be MaskRedact, got %q", keyCfg.Fields["hash"])
-	}
-
-	logCfg := cfg.Scoped["_access_log_"]
-	if logCfg == nil {
-		t.Fatal("expected _access_log_ scoped config")
-	}
-	if logCfg.Fields["integrity_hash"] != sanitize.MaskRedact {
-		t.Errorf("_access_log_.integrity_hash must be MaskRedact, got %q", logCfg.Fields["integrity_hash"])
+	if len(cfg.Scoped) != 0 {
+		t.Errorf("global config must have no scoped rules, got %d", len(cfg.Scoped))
 	}
 }
 
@@ -112,17 +86,26 @@ func TestSanitizeConfig_GlobalPreservesUnknownCollections(t *testing.T) {
 	}
 }
 
-// TestSanitizeConfig_UserScopeMasksPasswordPreservesEmail exercises the
-// scoped override through the registry.
-func TestSanitizeConfig_UserScopeMasksPasswordPreservesEmail(t *testing.T) {
+// TestSanitizeConfig_FeatureScopedRules tests that feature-scoped rules
+// can be registered and used. This simulates what the system module does.
+func TestSanitizeConfig_FeatureScopedRules(t *testing.T) {
 	sanitize.ResetForTesting()
 	if err := sanitize.Configure(sanitizeConfig(), zap.NewNop()); err != nil {
 		t.Fatalf("Configure: %v", err)
 	}
 
-	userScope := sanitize.GetScopedSanitizer("_user_")
+	// Register feature-scoped rules (simulating what system module does)
+	reg := sanitize.Registry()
+	_ = reg.Register("users", &sanitize.FieldMaskConfig{
+		DefaultPolicy: sanitize.MaskPreserve,
+		Fields: map[string]sanitize.MaskedFieldPolicy{
+			"password": sanitize.MaskRedact,
+		},
+	})
+
+	userScope := sanitize.GetScopedSanitizer("users")
 	if userScope == nil {
-		t.Fatal("expected _user_ scoped sanitizer")
+		t.Fatal("expected users scoped sanitizer")
 	}
 	out := userScope.SanitizeDocumentDeep(map[string]any{
 		"password": "hunter2",

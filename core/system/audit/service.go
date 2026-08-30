@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
@@ -48,14 +49,29 @@ func (s *AuditService) Stream(ctx context.Context, msg abstract.Message, input *
 	}
 
 	go func() {
+		// close/unsubscribe must run at most once (a second close would panic
+		// in an unrecovered goroutine). Mirrors the notifications Stream fix.
+		var once sync.Once
+		var subID string
+		cleanup := func() {
+			once.Do(func() {
+				close(docCh)
+				if subID != "" {
+					col.Unsubscribe(ctx, subID)
+				}
+			})
+		}
+
 		select {
 		case <-msg.InputChannel():
 		case <-ctx.Done():
-			close(docCh)
+			cleanup()
+			// Client disconnected before the stream went live — do not fall
+			// through to phase 2 (would double-close and leak a subscription).
 			return
 		}
 
-		subID := col.Subscribe(ctx, persistence.SubscriptionOptions{
+		subID = col.Subscribe(ctx, persistence.SubscriptionOptions{
 			Event: persistence.DocumentCreateSuccess,
 			Callback: func(_ context.Context, event persistence.PersistenceEvent) error {
 				outMap, ok := event.Output.(map[string]any)
@@ -80,8 +96,7 @@ func (s *AuditService) Stream(ctx context.Context, msg abstract.Message, input *
 		})
 
 		<-ctx.Done()
-		close(docCh)
-		col.Unsubscribe(ctx, subID)
+		cleanup()
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil

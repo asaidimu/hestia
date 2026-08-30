@@ -21,8 +21,29 @@ jobs:
       - name: Get dependencies
         run: go mod download
 
+      - name: Vet
+        run: go vet ./...
+
       - name: Test
         run: make test
 
+      - name: Test (race detector)
+        run: go test -race ./core/...
+
       - name: Build
         run: go build -v ./...
+
+      # Generated artifacts are committed; a new @hestia.register without
+      # regenerating ships a stale TS route table. Fail loudly on drift.
+      - name: Codegen drift check (client route table)
+        run: |
+          go run ./cmd/gen-routes
+          if ! git diff --exit-code -- client/core/routes.gen.ts; then
+            echo "::error::client/core/routes.gen.ts is stale. Run 'go run ./cmd/gen-routes' and commit the result."
+            exit 1
+          fi
+
+      - name: Vulnerability scan
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

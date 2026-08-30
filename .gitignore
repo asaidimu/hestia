@@ -150,3 +150,5 @@ cmd/test-server/test-server
 x.json
 *.bak
 .env
+hestia-batch1-fixes.bundle
+hestia-batch1-patches.md

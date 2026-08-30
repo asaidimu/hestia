@@ -294,9 +294,14 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 		if err := s.verifyApplyReady(ctx); err != nil {
 			return nil, err
 		}
+		// Detach before spawning: ctx may be a fasthttp RequestCtx-backed
+		// context that the transport recycles for the next request once this
+		// handler returns. Reading it 300ms later is a data race with
+		// cross-request value bleed (on the path that ends in os.Exit).
+		applyCtx := context.WithoutCancel(context.Background())
 		go func() {
 			time.Sleep(300 * time.Millisecond)
-			s.applySwap(ctx)
+			s.applySwap(applyCtx)
 		}()
 	}
 	return document.New(view), nil
@@ -390,10 +395,13 @@ func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInp
 		return nil, err
 	}
 	// Launch the swap after a short delay so the HTTP response is flushed
-	// before os.Exit(0) terminates the process.
+	// before os.Exit(0) terminates the process. The goroutine gets a fully
+	// detached context: ctx may be a fasthttp RequestCtx-backed context that
+	// the transport recycles for the next request once this handler returns.
+	applyCtx := context.WithoutCancel(context.Background())
 	go func() {
 		time.Sleep(300 * time.Millisecond)
-		s.applySwap(ctx)
+		s.applySwap(applyCtx)
 	}()
 	return document.New(&ApplyView{Message: "update applied; restarting"}), nil
 }

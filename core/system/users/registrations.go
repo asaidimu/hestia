@@ -28,8 +28,8 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema: dispatch.SchemaFromTypeWithTag[model.UserRegisterInput]("input"),
 			},
-			Output:  dispatch.SchemaFromType[model.SystemUser](),
-			Handler: dispatch.HandleDocument[model.UserRegisterInput, *model.SystemUser](s.CreateUser),
+			Output:  dispatch.SchemaFromType[model.UserPublic](),
+			Handler: dispatch.HandleDocument[model.UserRegisterInput, *model.UserPublic](s.CreateUser),
 		},
 		{
 			Name:        "system:users:user:get",
@@ -40,8 +40,8 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 				Schema:          dispatch.SchemaFromTypeWithTag[model.UserGetInput]("input"),
 				ResourceIDField: "user_id",
 			},
-			Output:  dispatch.SchemaFromType[model.SystemUser](),
-			Handler: dispatch.HandleDocument[model.UserGetInput, *model.SystemUser](s.GetUser),
+			Output:  dispatch.SchemaFromType[model.UserPublic](),
+			Handler: dispatch.HandleDocument[model.UserGetInput, *model.UserPublic](s.GetUser),
 		},
 		{
 			Name:        "system:users:user:update",
@@ -52,8 +52,8 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 				Schema:          dispatch.SchemaFromTypeWithTag[model.UserUpdateInput]("input"),
 				ResourceIDField: "user_id",
 			},
-			Output:  dispatch.SchemaFromType[model.SystemUser](),
-			Handler: dispatch.HandleDocument[model.UserUpdateInput, *model.SystemUser](s.UpdateUser),
+			Output:  dispatch.SchemaFromType[model.UserPublic](),
+			Handler: dispatch.HandleDocument[model.UserUpdateInput, *model.UserPublic](s.UpdateUser),
 		},
 		{
 			Name:        "system:users:password:change",
