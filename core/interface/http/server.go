@@ -116,6 +116,7 @@ func New(opts Options) *Interface {
 		middleware:        opts.Middleware,
 		noRefreshCommands: nrc,
 		noRefreshOps:      make(map[string]struct{}),
+		authLimitedOps:    make(map[string]struct{}),
 		authRateLimiter:   ratestore.New(),
 	}
 	o.trans = newHTTPTransport(opts)

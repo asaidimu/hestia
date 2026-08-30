@@ -452,6 +452,18 @@ func (m *SystemModule) initUserClaimsCache(ctx context.Context) error {
 	return nil
 }
 
+// failClosedChain rebuilds the canonical chain when embedder mutations
+// violate the composition contract (audit A-2). Every violation is logged
+// loudly: the embedder asked for an insecure chain and did not get one.
+func (m *SystemModule) failClosedChain(canonical []runtime.LinkEntry, violations []string) *runtime.DispatcherChain {
+	if m.opts.Logger != nil {
+		for _, v := range violations {
+			m.opts.Logger.Error("dispatcher chain: contract violation — falling back to canonical chain order", zap.String("violation", v))
+		}
+	}
+	return runtime.NewDispatcherChain(canonical...)
+}
+
 func (m *SystemModule) registerExistingBlobHandlers(ctx context.Context) error {
 	namespaces, err := m.providers.BlobSvc.ListNamespaces(ctx)
 	if err != nil {
@@ -520,23 +532,39 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 	// Chain order: recovery (via LocalDispatcher) → sanitization → bootstrap → secure → ... → audit
 	// Recovery is outermost (built into LocalDispatcher). Sanitization sets the
 	// scope context and sanitizes outgoing documents for all downstream links.
-	chain := runtime.NewDispatcherChain(
-		runtime.LinkEntry{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
-		runtime.LinkEntry{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
-		runtime.LinkEntry{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
-		runtime.LinkEntry{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore, m.opts.Logger)},
-		runtime.LinkEntry{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger, sharedRateStore)},
-		runtime.LinkEntry{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
+	// The composition order is validated data (runtime.DefaultChainOrder,
+	// audit A-2): embedder mutations via DispatcherChainFunc go through a
+	// GuardedChainEditor and the final chain is validated — an invalid
+	// chain is discarded and the canonical order is built instead
+	// (fail closed), with the violation logged.
+	canonicalEntries := []runtime.LinkEntry{
+		{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
+		{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},
+		{Name: "secure", Link: runtime.NewSecureDispatcher(nil, m.providers.PermMgr, m.providers.AccessCtrl)},
+		{Name: "ratelimit", Link: runtime.NewRateLimitDispatcher(rateLimitLookup, sharedRateStore, m.opts.Logger)},
+		{Name: "throttle", Link: runtime.NewThrottleDispatcher(throttleLookup, m.disp, m.opts.Logger, sharedRateStore)},
+		{Name: "tenant", Link: runtime.NewTenantDispatcher(nil, func(ctx context.Context) string {
 			if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok {
 				return claims.TenantID
 			}
 			return ""
 		})},
-		runtime.LinkEntry{Name: "blob", Link: blobutil.NewDispatcherLink(m.providers.BlobSvc)},
-		runtime.LinkEntry{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger, m.providers.AuditBuffer)},
-	)
+		{Name: "blob", Link: blobutil.NewDispatcherLink(m.providers.BlobSvc)},
+		{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger, m.providers.AuditBuffer)},
+	}
+	chain := runtime.NewDispatcherChain(canonicalEntries...)
 	if m.opts.DispatcherChainFunc != nil {
-		m.opts.DispatcherChainFunc(chain)
+		guarded := runtime.NewGuardedChainEditor(chain)
+		m.opts.DispatcherChainFunc(guarded)
+		if violations := guarded.Violations(); len(violations) > 0 {
+			chain = m.failClosedChain(canonicalEntries, violations)
+		}
+		if err := chain.Validate(); err != nil {
+			chain = m.failClosedChain(canonicalEntries, []string{err.Error()})
+		}
+	} else if err := chain.Validate(); err != nil {
+		// Even the canonical construction must validate (defense in depth).
+		chain = m.failClosedChain(canonicalEntries, []string{err.Error()})
 	}
 	built := chain.Build(next)
 	// A-15: restart-required outcomes (bootstrap credential rotation, update
