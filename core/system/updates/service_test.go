@@ -280,7 +280,10 @@ func TestSystemdApplySwapsExecutableAndExits(t *testing.T) {
 		t.Fatalf("seed executable: %v", err)
 	}
 
-	svc, _ := newSystemdService(t, &stubProvider{info: &updater.UpdateInfo{Version: "1.2.0"}}, "1.0.0", dataDir, exePath)
+	svc, _ := newSystemdService(t, &stubProvider{info: &updater.UpdateInfo{
+		Version:  "1.2.0",
+		Checksum: "sha256:d551e7e4f06f7d6bc7f9ad6828eb6e00e780dbe60a8adda40186c432495d0b24",
+	}}, "1.0.0", dataDir, exePath)
 	if _, err := svc.Check(ctx, nil, nil); err != nil {
 		t.Fatalf("check: %v", err)
 	}
@@ -342,41 +345,6 @@ func TestSystemdApplyUpToDateDoesNothing(t *testing.T) {
 	}
 	if string(got) != "old-binary" {
 		t.Fatalf("executable must not change when up to date: got %q", got)
-	}
-}
-
-func TestStageBackfillsChecksumWhenProviderOmitsIt(t *testing.T) {
-	ctx := context.Background()
-	svc, store := newTestService(t, &stubProvider{info: &updater.UpdateInfo{
-		Version: "1.2.0",
-	}}, "1.0.0")
-
-	staged, _, err := svc.stageLatest(ctx)
-	if err != nil {
-		t.Fatalf("stage: %v", err)
-	}
-	if staged == nil {
-		t.Fatal("expected staged update")
-	}
-
-	pending, err := store.PendingUpdate(ctx)
-	if err != nil {
-		t.Fatalf("pending: %v", err)
-	}
-	if pending == nil || pending.Checksum == "" {
-		t.Fatal("expected checksum to be backfilled into pending record")
-	}
-	actual, err := hashFile(svc.stagedBinaryPath())
-	if err != nil {
-		t.Fatalf("hash staged: %v", err)
-	}
-	if pending.Checksum != actual {
-		t.Errorf("backfilled checksum %q does not match file digest %q", pending.Checksum, actual)
-	}
-
-	// Verification passes with the backfilled checksum.
-	if err := svc.verifyStagedBinary(ctx); err != nil {
-		t.Fatalf("verify with backfilled checksum: %v", err)
 	}
 }
 

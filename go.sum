@@ -28,8 +28,8 @@ github.com/asaidimu/go-store/v3 v3.3.0 h1:pwz1CaLnanr2md0pkuK9a2FFxIPWMPZ4B1iXDD
 github.com/asaidimu/go-store/v3 v3.3.0/go.mod h1:nw20hez9oDLNBALq/RqY/MSDkBCXjYfbUwyFb+U0hjA=
 github.com/asaidimu/hermes v1.1.0 h1:+XY0XvfXNVwOgu2xuG6nRqeIt4STtCrKLIlcKqWf+no=
 github.com/asaidimu/hermes v1.1.0/go.mod h1:Qc1PTmV415jUJRJ3qhhCezFbYDaHj1etBkRFYEUQPvI=
-github.com/asaidimu/updater v1.1.1 h1:qezWnWmuquCG1haMpsrMY0XFxXub0QScHHAhJAwrSxc=
-github.com/asaidimu/updater v1.1.1/go.mod h1:UCVscE/pNYOh114zE2XmSFIh1fS5ixpwNsZNflrZtt0=
+github.com/asaidimu/updater v1.2.0 h1:vDCSn2MYs57SflLkfShWyj6EmH35hQISq3vV9411anM=
+github.com/asaidimu/updater v1.2.0/go.mod h1:UCVscE/pNYOh114zE2XmSFIh1fS5ixpwNsZNflrZtt0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bep/debounce v1.2.1 h1:v67fRdBA9UQu2NhLFXrSg0Brw7CexQekrBwDMM8bzeY=

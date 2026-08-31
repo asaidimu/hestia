@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"strings"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
@@ -620,7 +621,7 @@ func (s *UpdatesService) verifyStagedBinary(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("hash staged binary for verification: %w", err)
 	}
-	if actual != pending.Checksum {
+	if !strings.EqualFold(actual, pending.Checksum) {
 		return fmt.Errorf("staged binary checksum mismatch: expected %s, got %s", pending.Checksum, actual)
 	}
 	return nil
@@ -704,7 +705,7 @@ func (s *UpdatesService) stagedBinaryPath() string {
 }
 
 // hashFile returns the SHA-256 digest of the file at path, formatted like
-// updater checksums ("SHA256:<hex>").
+// updater checksums ("sha256:<hex>").
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -716,18 +717,13 @@ func hashFile(path string) (string, error) {
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}
-	return "SHA256:" + hex.EncodeToString(h.Sum(nil)), nil
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // stageLatest downloads and prepares the newest release, reporting the staged
 // UpdateInfo (nil when already up to date) and whether it was newly staged
-// relative to the pending row.
-//
-// When the provider did not supply a checksum, one is computed from the
-// freshly downloaded binary and persisted with the pending record so that
-// pre-apply verification always has something to compare against. This closes
-// the corrupted-download hole: without it a truncated or mid-copy-failed
-// download would pass verification vacuously (see #update-hash-verify).
+// relative to the pending row. The provider is responsible for supplying a
+// checksum (GitHub API asset digests since June 2025).
 func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.UpdateInfo, newlyStaged bool, err error) {
 	if s.updater == nil {
 		return nil, false, fmt.Errorf("updater not configured")
@@ -739,19 +735,6 @@ func (s *UpdatesService) stageLatest(ctx context.Context) (staged *updater.Updat
 	}
 	if staged == nil {
 		return nil, false, nil
-	}
-
-	if staged.Checksum == "" {
-		digest, err := hashFile(s.stagedBinaryPath())
-		if err != nil {
-			return nil, false, fmt.Errorf("hash staged update: %w", err)
-		}
-		staged.Checksum = digest
-		if err := s.store.SaveUpdate(ctx, staged); err != nil {
-			return nil, false, fmt.Errorf("persist computed checksum: %w", err)
-		}
-		s.logger.Warn("updates: provider supplied no checksum; recorded one computed from the staged download — integrity-only, a substituted malicious binary passes by construction; signed releases or a checksum-publishing provider are required for authenticity",
-			zap.String("version", staged.Version), zap.String("checksum", digest))
 	}
 
 	return staged, prev == nil || prev.Version != staged.Version, nil
