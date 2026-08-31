@@ -183,6 +183,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.HandleDocument[WorkflowRunStoreInput, *WorkflowRunStoreView](s.GetRunStore),
 		},
 		{
+			Name:        "system:workflows:run:stream",
+			Description: "Stream workflow run events in real-time via SSE",
+			Intent:      abstract.Stream,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowRunStreamInput]("input"),
+				ResourceIDField: "run_id",
+			},
+			Handler: dispatch.Handle[WorkflowRunStreamInput](s.Stream),
+		},
+		{
 			Name:        "system:workflows:registry:list",
 			Description: "List all registered workflow node kind definitions",
 			Intent:      abstract.Read,
@@ -260,18 +271,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			},
 			Output:  dispatch.SchemaFromType[WorkflowRuntimeResumeView](),
 			Handler: dispatch.HandleDocument[WorkflowRuntimeResumeInput, *WorkflowRuntimeResumeView](s.RuntimeResume),
-		},
-		{
-			Name:        "system:workflows:run:stream",
-			Description: "Stream workflow run events in real-time via SSE",
-			Intent:      abstract.Stream,
-			Enabled:     true,
-			Input: abstract.Input{
-				Schema:          dispatch.SchemaFromTypeWithTag[WorkflowRunStreamInput]("input"),
-				ResourceIDField: "run_id",
-			},
-			Output:  dispatch.SchemaFromType[WorkflowRunEventsView](),
-			Handler: dispatch.Handle[WorkflowRunStreamInput](s.Stream),
 		},
 	}, nil
 }

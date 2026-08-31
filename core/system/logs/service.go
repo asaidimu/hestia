@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/system/logs/model"
-	"github.com/asaidimu/hestia/core/system/policies"
 )
 
 // LogsService provides log querying and streaming.
@@ -20,13 +20,18 @@ type LogsService struct {
 	logger *zap.Logger
 }
 
-// NewLogsService creates a LogsService. ring may be nil if streaming is not needed.
-func NewLogsService(logPath string, ring *RingBuffer, logger *zap.Logger) *LogsService {
+// NewLogsService creates a LogsService from the runtime DI container (the
+// generated RegisterService wires it during module setup). Boot registers the
+// shared ring buffer, file logger, and runtime config resolved here.
+func NewLogsService(rt abstract.Container) (*LogsService, error) {
+	logger := abstract.MustResolve[*zap.Logger](rt)
+	ring := abstract.MustResolve[*RingBuffer](rt)
+	cfg := abstract.MustResolve[*runtime.Config](rt)
 	return &LogsService{
-		reader: NewReader(logPath),
+		reader: NewReader(cfg.LogPath),
 		ring:   ring,
 		logger: logger,
-	}
+	}, nil
 }
 
 // Query searches historical logs from the NDJSON file.
@@ -154,37 +159,4 @@ func (s *LogsService) Stream(ctx context.Context, msg abstract.Message, input *m
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil
-}
-
-// Registrations returns the message registrations for the logs feature.
-func (s *LogsService) Registrations() []abstract.MessageRegistration {
-	return []abstract.MessageRegistration{
-		{
-			Name:        "system:logs:list",
-			Description: "Query application logs",
-			Intent:      abstract.Query,
-			Enabled:     true,
-			Input: abstract.Input{
-				Schema: dispatch.SchemaFromTypeWithTag[model.LogQueryInput]("input"),
-			},
-			Output:  dispatch.SchemaFromType[model.LogListOutput](),
-			Handler: dispatch.Handle[model.LogQueryInput](s.Query),
-		},
-		{
-			Name:        "system:logs:stream",
-			Description: "Stream live log entries",
-			Intent:      abstract.Stream,
-			Enabled:     true,
-			Input: abstract.Input{
-				Schema: dispatch.SchemaFromTypeWithTag[model.LogStreamInput]("input"),
-			},
-			Output:  dispatch.SchemaFromType[model.LogStreamOutput](),
-			Handler: dispatch.Handle[model.LogStreamInput](s.Stream),
-		},
-	}
-}
-
-// LogPolicyBindings returns policy bindings for the logs feature.
-func LogPolicyBindings() []policies.Binding {
-	return Policies()
 }

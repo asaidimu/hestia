@@ -9,9 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime/dispatch"
 	"github.com/asaidimu/hestia/core/system/audit/model"
-	"github.com/asaidimu/hestia/core/system/policies"
 )
 
 const auditCollectionName = "_audit_log_"
@@ -100,31 +98,4 @@ func (s *AuditService) Stream(ctx context.Context, msg abstract.Message, input *
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil
-}
-
-// StreamRegistration returns the system:audit:log:stream registration.
-// The generator skips streaming annotations, so this is hand-written
-// but uses dispatch.Handle for proper input binding.
-func StreamRegistration(persist persistence.Persistence) []abstract.MessageRegistration {
-	svc := &AuditService{persist: persist}
-	return []abstract.MessageRegistration{
-		{
-			Name:        "system:audit:log:stream",
-			Description: "Stream audit log entries in real-time",
-			Intent:      abstract.Stream,
-			Enabled:     true,
-			Input: abstract.Input{
-				Schema: dispatch.SchemaFromTypeWithTag[model.LogStreamInput]("input"),
-			},
-			Output:  dispatch.SchemaFromType[model.LogStreamOutput](),
-			Handler: dispatch.Handle[model.LogStreamInput](svc.Stream),
-		},
-	}
-}
-
-// StreamPolicyBinding binds system:audit:log:stream to the administrator rule.
-func StreamPolicyBinding() []policies.Binding {
-	return []policies.Binding{
-		{Name: "system:audit:log:stream", RuleKey: "administrator", Description: "Stream access logs in real-time"},
-	}
 }

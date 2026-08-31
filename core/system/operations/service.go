@@ -211,9 +211,12 @@ func (s *OperationsService) MarkBootstrapped(ctx context.Context, msg abstract.M
 
 // Reset resets the system to its initial state.
 //
+// S-21: a state-changing operation declared as Read maps to GET, inviting
+// prefetchers/crawlers to wipe the system. DELETE requires an explicit request.
+//
 // @hestia.register(
 //   name="system:core:reset",
-//   intent="read",
+//   intent="delete",
 //   rule="administrator",
 //   description="Reset system to initial state",
 // )

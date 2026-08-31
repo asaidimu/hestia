@@ -5,9 +5,11 @@ package system
 import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/system/apikeys"
+	"github.com/asaidimu/hestia/core/system/audit"
 	"github.com/asaidimu/hestia/core/system/auth"
 	"github.com/asaidimu/hestia/core/system/blobs"
 	"github.com/asaidimu/hestia/core/system/collections"
+	"github.com/asaidimu/hestia/core/system/logs"
 	"github.com/asaidimu/hestia/core/system/notifications"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
@@ -26,6 +28,9 @@ func RegisterServices(rt abstract.Container) error {
 	if err := apikeys.RegisterService(rt); err != nil {
 		return err
 	}
+	if err := audit.RegisterService(rt); err != nil {
+		return err
+	}
 	if err := auth.RegisterService(rt); err != nil {
 		return err
 	}
@@ -33,6 +38,9 @@ func RegisterServices(rt abstract.Container) error {
 		return err
 	}
 	if err := collections.RegisterService(rt); err != nil {
+		return err
+	}
+	if err := logs.RegisterService(rt); err != nil {
 		return err
 	}
 	if err := notifications.RegisterService(rt); err != nil {
@@ -72,6 +80,11 @@ func CollectServiceRegistrations(rt abstract.Container) ([]abstract.MessageRegis
 		return nil, err
 	}
 	regs = append(regs, serviceRegs...)
+	serviceRegs, err = audit.Registrations(rt)
+	if err != nil {
+		return nil, err
+	}
+	regs = append(regs, serviceRegs...)
 	serviceRegs, err = auth.Registrations(rt)
 	if err != nil {
 		return nil, err
@@ -83,6 +96,11 @@ func CollectServiceRegistrations(rt abstract.Container) ([]abstract.MessageRegis
 	}
 	regs = append(regs, serviceRegs...)
 	serviceRegs, err = collections.Registrations(rt)
+	if err != nil {
+		return nil, err
+	}
+	regs = append(regs, serviceRegs...)
+	serviceRegs, err = logs.Registrations(rt)
 	if err != nil {
 		return nil, err
 	}

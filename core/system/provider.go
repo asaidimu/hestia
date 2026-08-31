@@ -18,10 +18,8 @@ import (
 	"github.com/asaidimu/hestia/core/runtime/ratestore"
 	"github.com/asaidimu/hestia/core/runtime/scheduler"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
-	"github.com/asaidimu/hestia/core/system/audit"
 	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
-	"github.com/asaidimu/hestia/core/system/logs"
 	notificationsmodel "github.com/asaidimu/hestia/core/system/notifications/model"
 	"github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
@@ -69,7 +67,6 @@ type ProviderSet struct {
 	UpdData  string
 
 	BlobSvc      *blobutil.Service
-	Logs         *logs.LogsService
 	RateStore    *ratestore.InMemoryStore
 	Notifier     abstract.Notifier
 	Scheduler    *scheduler.Scheduler
@@ -87,12 +84,11 @@ type ProviderSet struct {
 	WorkflowRuntime *hermesruntime.WorkflowRuntime
 }
 
-func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger, ring *logs.RingBuffer) *ProviderSet {
+func NewProviderSet(persist base.Persistence, cfg *runtime.Config, logger *zap.Logger) *ProviderSet {
 	return &ProviderSet{
 		Persist: persist,
 		Config:  cfg,
 		Logger:  logger,
-		Logs:    logs.NewLogsService(cfg.LogPath, ring, logger),
 	}
 }
 
@@ -314,20 +310,9 @@ func (ps *ProviderSet) initUpdates(ctx context.Context) error {
 	return nil
 }
 
-// CollectRegistrations returns all message registrations from every feature,
-// plus any new-style service registrations (svcRegs) so they are visible to
-// documentation and the docs/list handler.
+// CollectRegistrations returns the generated service registrations so they are
+// visible to documentation and the docs/list handler. Streaming ops included:
+// every feature registers via the generated services.go collector.
 func (ps *ProviderSet) CollectRegistrations(svcRegs []abstract.MessageRegistration) []abstract.MessageRegistration {
-	// @note #w2ic5i issue : Fix stream registrations
-	//
-	// Streaming annotations are not yet codegen'd — both audit and
-	// notification stream registrations are hand-written using
-	// dispatch.Handle[TIn] for proper input binding.
-	all := audit.StreamRegistration(ps.Persist)
-	// nStreamRegs, _ := notifications.StreamRegistration(ps.Persist)
-	// all = append(all, nStreamRegs...)
-	if ps.Logs != nil {
-		all = append(all, ps.Logs.Registrations()...)
-	}
-	return append(all, svcRegs...)
+	return svcRegs
 }

@@ -8,11 +8,11 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/internal/testutil"
+	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	"github.com/asaidimu/hestia/core/system/audit"
 	auditmodel "github.com/asaidimu/hestia/core/system/audit/model"
 	"github.com/asaidimu/hestia/core/system/collections"
-	"github.com/asaidimu/hestia/core/internal/testutil"
-	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 )
 
 type testMessage struct {
@@ -20,19 +20,19 @@ type testMessage struct {
 	input data.Documenter
 }
 
-func (m testMessage) ID() string                             { return "" }
-func (m testMessage) Name() string                           { return "" }
-func (m testMessage) Context() context.Context               { return m.ctx }
-func (m testMessage) Input() data.Documenter                  { return m.input }
-func (m testMessage) InputChannel() <-chan abstract.StreamItem    { return nil }
-func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
-func (m testMessage) TenantID() string                       { return "" }
-func (m testMessage) TraceID() string                        { return "" }
-func (m testMessage) RequestID() string                      { return "" }
-func (m testMessage) SourceIP() string                       { return "" }
-func (m testMessage) UserAgent() string                      { return "" }
-func (m testMessage) ResourceID() string                     { return "" }
-func (m testMessage) SessionID() string                      { return "" }
+func (m testMessage) ID() string                               { return "" }
+func (m testMessage) Name() string                             { return "" }
+func (m testMessage) Context() context.Context                 { return m.ctx }
+func (m testMessage) Input() data.Documenter                   { return m.input }
+func (m testMessage) InputChannel() <-chan abstract.StreamItem { return nil }
+func (m testMessage) BlobInputChannel() <-chan abstract.Blob   { return nil }
+func (m testMessage) TenantID() string                         { return "" }
+func (m testMessage) TraceID() string                          { return "" }
+func (m testMessage) RequestID() string                        { return "" }
+func (m testMessage) SourceIP() string                         { return "" }
+func (m testMessage) UserAgent() string                        { return "" }
+func (m testMessage) ResourceID() string                       { return "" }
+func (m testMessage) SessionID() string                        { return "" }
 
 var _ abstract.Message = testMessage{}
 
@@ -45,9 +45,9 @@ func queryHandler(p base.Persistence) abstract.MessageHandler {
 }
 
 func TestPolicyBindings(t *testing.T) {
-	bindings := audit.StreamPolicyBinding()
+	bindings := audit.Policies()
 	if len(bindings) == 0 {
-		t.Fatal("StreamPolicyBinding() returned empty slice")
+		t.Fatal("Policies() returned empty slice")
 	}
 }
 

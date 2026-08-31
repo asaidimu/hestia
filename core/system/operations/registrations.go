@@ -129,9 +129,6 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 		{
 			Name:        "system:core:reset",
 			Description: "Reset system to initial state",
-			// S-21: a state-changing operation declared as Read maps to GET,
-			// inviting prefetchers/crawlers to wipe the system. DELETE requires
-			// an explicit request.
 			Intent:      abstract.Delete,
 			Enabled:     true,
 			Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {

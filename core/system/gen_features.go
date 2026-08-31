@@ -72,7 +72,7 @@ var allDefaultPolicyBindings = func() []policies.Policy {
 
 var allPolicyBindings = func() []policies.Binding {
 	var all []policies.Binding
-	all = append(all, audit.StreamPolicyBinding()...)
+	all = append(all, audit.Policies()...)
 	all = append(all, blobsvc.Policies()...)
 	all = append(all, collectionsvc.Policies()...)
 	all = append(all, usersvc.Policies()...)

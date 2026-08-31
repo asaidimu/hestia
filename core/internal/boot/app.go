@@ -85,6 +85,7 @@ func (a *Application) Runtime() *runtime.Runtime {
 		_ = rt.RegisterInstance[*zap.Logger](a.Loggers.File)
 		_ = rt.RegisterInstance[*logsink.RingBuffer](a.Loggers.Ring)
 		_ = rt.RegisterInstance[*runtime.LocalDispatcher](a.Disp)
+		_ = rt.RegisterInstance[*runtime.Config](a.Config)
 		a.rt = rt
 	}
 	return a.rt

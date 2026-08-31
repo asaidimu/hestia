@@ -30,7 +30,7 @@ annotations alone:
 | ~~B9~~ | `SanitizationDispatcher` never sanitizes `DocumentChannel` (SSE) or `Blob` results | `core/runtime/sanitization-dispatcher.go` | **landed** (channel; blob N/A — binary) |
 | B10 | Sanitization rules are hand-written per feature + hand-maintained aggregator (`gen_sanitization.go` is not generated) | `core/system/*/sanitization.go`, `core/system/gen_sanitization.go` | **open** — needs format decision (§D) | B9 landed |
 | B11 | Duplex (`HandleStream`) needs a persistent-connection transport (WebSocket/gRPC/HTTP2) — fasthttp recycles `RequestCtx` when `serveHTTP` returns | spec §3.6 | **deferred by design** |
-| B12 | Codegen contract erosion: hand-edits to DO-NOT-EDIT files (`97d9695` touched `schedules/registrations.go`); audit/logs hand-registered | workflow | **mitigated** by B8 landing (audit stream reg can now be generated) |
+| B12 | Codegen contract erosion: hand-edits to DO-NOT-EDIT files (`97d9695` touched `schedules/registrations.go`); audit/logs hand-registered | workflow | **landed** — audit/logs migrated to generated files; schedules absorbed into annotations; S-21 reset intent repaired at the annotation source (2026-08-31) |
 | B13 | Per-item error policy / backpressure undecided | spec §8 | **decided** — see §C |
 | B14 | Client SDK + `routes.gen.ts` + docs have no streaming-op awareness | `client/`, `cmd/gen-routes` | open, follow-up |
 
@@ -133,3 +133,28 @@ they land.
   producers park on `ctx.Done()` (server shutdown) after writer abandonment —
   pre-existing, service-side; the dispatcher-side stash introduces no new
   goroutine.
+
+## I. Full-coverage migration (2026-08-31, same day)
+
+- **audit + logs migrated to generated code**: single-service
+  `hestia service generate system audit|logs` bootstrapped
+  `registrations.go`/`policies.go` (batch mode requires an existing seed
+  file; single-service mode does not). Hand-written `StreamRegistration`,
+  `StreamPolicyBinding`, `logs.Registrations()`, and `LogPolicyBindings()`
+  deleted; `provider.go CollectRegistrations` reduced to the collector
+  passthrough; `gen_features.go` now aggregates `audit.Policies()`.
+- **logs constructor moved to the DI convention**: `NewLogsService(rt
+  abstract.Container)` resolves `*zap.Logger`, `*RingBuffer` (type alias ==
+  `*logsink.RingBuffer`), and `*runtime.Config`; boot now registers
+  `*runtime.Config` in the runtime container. This matches the generator's
+  `New<X>Service(rt)` assumption every generated service relies on.
+- **S-21 erosion repaired at the source**: `system:core:reset` was hand-fixed
+  to `Intent: abstract.Delete` in the generated file while the annotation
+  still said `intent="read"` — regenerating would have silently reverted the
+  security fix. The annotation now carries `intent="delete"` (rationale in
+  the doc comment); the generated output keeps Delete across regenerations.
+- **Batch generate is idempotent**: repeated `hestia service generate --all`
+  across all 14 services is byte-identical (hash-verified), including the
+  collector. Codegen can now be run for every feature service.
+- Still open: B10 (sanitization-rule codegen, format decision §D) and B14
+  (client SDK streaming ergonomics). Duplex (B11) deferred per §3.6.

@@ -12,7 +12,7 @@ func Policies() []policies.Binding {
 		{Name: "system:core:capability:list", RuleKey: "administrator", Description: "List all registered commands and queries with descriptions and enabled status"},
 		{Name: "system:core:capability:set", RuleKey: "administrator", Description: "Enable or disable a registered command or query"},
 		{Name: "system:core:audit:log", RuleKey: "authenticated", Description: "Log an API access entry"},
-		{Name: "system:core:docs:list", RuleKey: "authenticated", Description: "List all registered API endpoints with metadata"},
+		{Name: "system:core:docs:list", RuleKey: "public", Description: "List all registered API endpoints with metadata"},
 		{Name: "system:core:bootstrap:mark", RuleKey: "public", Description: "Mark system as bootstrapped"},
 		{Name: "system:core:reset", RuleKey: "administrator", Description: "Reset system to initial state"},
 		{Name: "system:scheduler:job:list", RuleKey: "administrator", Description: "List all registered scheduler jobs"},

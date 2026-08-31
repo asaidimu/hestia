@@ -10,6 +10,7 @@ func Policies() []policies.Binding {
 		{Name: "system:workflows:definition:compile", RuleKey: "administrator", Description: "Compile a workflow graph into a pipeline definition"},
 		{Name: "system:workflows:definition:create", RuleKey: "administrator", Description: "Store and register a workflow definition"},
 		{Name: "system:workflows:definition:delete", RuleKey: "administrator", Description: "Deregister a workflow definition"},
+		{Name: "system:workflows:definition:update", RuleKey: "administrator", Description: "Update a workflow definition"},
 		{Name: "system:workflows:definition:list", RuleKey: "administrator", Description: "List all workflow definitions"},
 		{Name: "system:workflows:definition:get", RuleKey: "administrator", Description: "Get a workflow definition by ID"},
 		{Name: "system:workflows:runtime:run", RuleKey: "administrator", Description: "Compile and run a workflow graph"},
@@ -20,6 +21,7 @@ func Policies() []policies.Binding {
 		{Name: "system:workflows:run:outcome", RuleKey: "administrator", Description: "Get workflow run outcome"},
 		{Name: "system:workflows:run:events", RuleKey: "administrator", Description: "Get timeline events for a workflow run"},
 		{Name: "system:workflows:run:store", RuleKey: "administrator", Description: "Get the live state of a workflow run"},
+		{Name: "system:workflows:run:stream", RuleKey: "administrator", Description: "Stream workflow run events in real-time via SSE"},
 		{Name: "system:workflows:registry:list", RuleKey: "administrator", Description: "List all registered workflow node kind definitions"},
 		{Name: "system:workflows:registry:get", RuleKey: "administrator", Description: "Get a single workflow node kind definition"},
 		{Name: "system:workflows:registry:handles", RuleKey: "administrator", Description: "Get the raw JS handle computation functions for all node kinds"},
@@ -27,6 +29,5 @@ func Policies() []policies.Binding {
 		{Name: "system:workflows:runtime:list", RuleKey: "administrator", Description: "List IDs of all registered (active) workflows"},
 		{Name: "system:workflows:runtime:invoke", RuleKey: "administrator", Description: "Invoke a registered workflow's trigger directly"},
 		{Name: "system:workflows:runtime:resume", RuleKey: "administrator", Description: "Resume a paused workflow run"},
-		{Name: "system:workflows:run:stream", RuleKey: "administrator", Description: "Stream workflow run events in real-time via SSE"},
 	}
 }

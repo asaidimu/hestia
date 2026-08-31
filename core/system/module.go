@@ -28,7 +28,6 @@ import (
 	"github.com/asaidimu/hestia/core/system/blobs"
 	blobutil "github.com/asaidimu/hestia/core/system/blobs/store"
 	"github.com/asaidimu/hestia/core/system/collections"
-	"github.com/asaidimu/hestia/core/system/logs"
 	operationsvc "github.com/asaidimu/hestia/core/system/operations"
 	"github.com/asaidimu/hestia/core/system/policies"
 	policiesmodel "github.com/asaidimu/hestia/core/system/policies/model"
@@ -79,8 +78,7 @@ func (m *SystemModule) Name() string { return "system" }
 
 func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 	persist := abstract.MustResolve[base.Persistence](rt)
-	ring := abstract.MustResolve[*logs.RingBuffer](rt)
-	m.providers = NewProviderSet(persist, m.cfg, m.opts.Logger, ring)
+	m.providers = NewProviderSet(persist, m.cfg, m.opts.Logger)
 
 	// Register feature-scoped sanitization rules. Each feature declares its
 	// own rules via SanitizationRules(); the dispatcher sets the scope in
