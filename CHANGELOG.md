@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/asaidimu/hestia/compare/v1.12.0...v1.12.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **updates:** remove auto-backfilling of checksums ([c3a000a](https://github.com/asaidimu/hestia/commit/c3a000a242f7dd314282046ea0ade7bd5f47a09b))
+
 # [1.12.0](https://github.com/asaidimu/hestia/compare/v1.11.0...v1.12.0) (2026-08-31)
 
 
