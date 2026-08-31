@@ -79,6 +79,84 @@ func GenerateCollector(serviceRoot, modulePath string) error {
         return writeFormatted(filepath.Join(serviceRoot, "services.go"), src)
 }
 
+// SeedSanitization writes a scaffolding sanitization.go into dir when the
+// service does not have one yet. Unlike registrations.go and policies.go the
+// sanitization file is a SEED, not a regenerated artifact: it is written once
+// so feature authors (human or agent) have a documented, in-place place to
+// declare mask policies for sensitive properties, and it is never overwritten
+// afterwards. Reports whether the seed was written.
+func SeedSanitization(dir string) (bool, error) {
+        path := filepath.Join(dir, "sanitization.go")
+        if _, err := os.Stat(path); err == nil {
+                return false, nil
+        } else if !os.IsNotExist(err) {
+                return false, err
+        }
+        pkg, err := packageName(dir)
+        if err != nil {
+                return false, err
+        }
+        if err := writeFormatted(path, renderSanitizationSeed(pkg)); err != nil {
+                return false, err
+        }
+        return true, nil
+}
+
+// GenerateSanitizationCollector scans serviceRoot for services declaring
+// SanitizationRules() (a sanitization.go containing the function) and writes
+// the module's sanitization collector — gen_sanitization.go — exposing
+// allSanitizationRules: the scope-keyed map the system module feeds into
+// sanitize.Registry() during Setup. Unlike the per-service sanitization file,
+// the collector is a DO NOT EDIT output and is regenerated on every service
+// add/generate. modulePath is the Go module's import path.
+func GenerateSanitizationCollector(serviceRoot, modulePath string) error {
+        services, err := discoverSanitizedServices(serviceRoot, modulePath)
+        if err != nil {
+                return err
+        }
+        pkg, err := packageName(serviceRoot)
+        if err != nil {
+                pkg = filepath.Base(serviceRoot)
+        }
+        src, err := renderSanitizationCollector(pkg, services)
+        if err != nil {
+                return err
+        }
+        return writeFormatted(filepath.Join(serviceRoot, "gen_sanitization.go"), src)
+}
+
+// discoverSanitizedServices lists direct subdirectories of serviceRoot whose
+// sanitization.go declares SanitizationRules(), sorted by package name for
+// deterministic output. Dirs without a sanitization file (model-only or
+// sanitize-free services) are skipped — the runtime simply has no scope to
+// register for them.
+func discoverSanitizedServices(serviceRoot, modulePath string) ([]Service, error) {
+        entries, err := os.ReadDir(serviceRoot)
+        if err != nil {
+                return nil, err
+        }
+        var services []Service
+        for _, e := range entries {
+                if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), "_") {
+                        continue
+                }
+                src, err := os.ReadFile(filepath.Join(serviceRoot, e.Name(), "sanitization.go"))
+                if err != nil || !bytes.Contains(src, []byte("func SanitizationRules()")) {
+                        continue
+                }
+                pkg, err := packageName(filepath.Join(serviceRoot, e.Name()))
+                if err != nil {
+                        continue
+                }
+                services = append(services, Service{
+                        Package:    pkg,
+                        ImportPath: serviceImportPath(serviceRoot, modulePath, e.Name()),
+                })
+        }
+        sort.Slice(services, func(i, j int) bool { return services[i].Package < services[j].Package })
+        return services, nil
+}
+
 // Service identifies one discovered service package.
 type Service struct {
         // Package is the Go package name (e.g. "users").

@@ -48,6 +48,12 @@ var scaffoldModuleCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Failed to generate initial registrations for %s: %v\n", featureName, err)
 			os.Exit(1)
 		}
+		if seeded, err := gen.SeedSanitization(featureDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", featureName, err)
+			os.Exit(1)
+		} else if seeded {
+			fmt.Printf("Generated sanitization.go (seed) for %q\n", featureName)
+		}
 		refreshCollector(modDir)
 
 		fmt.Printf("Scaffolded module %q at %s\n", modName, modDir)

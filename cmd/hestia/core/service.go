@@ -149,6 +149,12 @@ var serviceNewCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Printf("Generated registrations.go and policies.go for %q\n", name)
+		if seeded, err := gen.SeedSanitization(serviceDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", name, err)
+			os.Exit(1)
+		} else if seeded {
+			fmt.Printf("Generated sanitization.go (seed) for %q\n", name)
+		}
 
 		fmt.Printf("Scaffolded service %q in module %q at %s\n", name, module, serviceDir)
 		refreshCollector(moduleDir)
@@ -329,6 +335,12 @@ var serviceGenerateCmd = &cobra.Command{
 						os.Exit(1)
 					}
 					fmt.Printf("Generated registrations.go and policies.go for %q\n", e.Name())
+					if seeded, err := gen.SeedSanitization(dir); err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", e.Name(), err)
+						os.Exit(1)
+					} else if seeded {
+						fmt.Printf("Generated sanitization.go (seed) for %q\n", e.Name())
+					}
 				}
 				refreshCollector(moduleDir)
 			}
@@ -351,6 +363,12 @@ var serviceGenerateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Printf("Generated registrations.go and policies.go for %q\n", name)
+		if seeded, err := gen.SeedSanitization(dir); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", name, err)
+			os.Exit(1)
+		} else if seeded {
+			fmt.Printf("Generated sanitization.go (seed) for %q\n", name)
+		}
 
 		refreshCollector(moduleDir)
 	},
@@ -371,4 +389,14 @@ func refreshCollector(moduleDir string) {
 		rel = filepath.Join(moduleDir, "services.go")
 	}
 	fmt.Printf("Generated %s (service collector)\n", rel)
+
+	if err := gen.GenerateSanitizationCollector(moduleDir, modulePath); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to regenerate sanitization collector: %v\n", err)
+		os.Exit(1)
+	}
+	relSan, err := filepath.Rel(rootDir, filepath.Join(moduleDir, "gen_sanitization.go"))
+	if err != nil {
+		relSan = filepath.Join(moduleDir, "gen_sanitization.go")
+	}
+	fmt.Printf("Generated %s (sanitization collector)\n", relSan)
 }

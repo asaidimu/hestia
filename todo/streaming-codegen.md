@@ -28,7 +28,7 @@ annotations alone:
 | ~~B7~~ | `dispatch.Item[TIn]` / `StreamHandler[TIn]` / `HandleInputStream` / `HandleOutputStream` missing | `core/runtime/dispatch/bind.go` | **landed** |
 | ~~B8~~ | Generator refuses streaming annotations (`render.go` hard error, `gen.go` skip) — no registration, no policy binding | `cmd/hestia/core/gen/{gen,render}.go` | **landed** |
 | ~~B9~~ | `SanitizationDispatcher` never sanitizes `DocumentChannel` (SSE) or `Blob` results | `core/runtime/sanitization-dispatcher.go` | **landed** (channel; blob N/A — binary) |
-| B10 | Sanitization rules are hand-written per feature + hand-maintained aggregator (`gen_sanitization.go` is not generated) | `core/system/*/sanitization.go`, `core/system/gen_sanitization.go` | **open** — needs format decision (§D) | B9 landed |
+| ~~B10~~ | Sanitization rules hand-written per feature + hand-maintained aggregator | `core/system/*/sanitization.go`, `core/system/gen_sanitization.go` | **landed** — format decision: keep hand-written `SanitizationRules()` as source of truth; generator seeds `sanitization.go` when missing + generates the collector (2026-08-31, §D/§J) | B9 landed |
 | B11 | Duplex (`HandleStream`) needs a persistent-connection transport (WebSocket/gRPC/HTTP2) — fasthttp recycles `RequestCtx` when `serveHTTP` returns | spec §3.6 | **deferred by design** |
 | B12 | Codegen contract erosion: hand-edits to DO-NOT-EDIT files (`97d9695` touched `schedules/registrations.go`); audit/logs hand-registered | workflow | **landed** — audit/logs migrated to generated files; schedules absorbed into annotations; S-21 reset intent repaired at the annotation source (2026-08-31) |
 | B13 | Per-item error policy / backpressure undecided | spec §8 | **decided** — see §C |
@@ -72,15 +72,31 @@ annotations alone:
 - **Backpressure decision**: unbuffered `streamDocuments` channel — the HTTP
   body reader blocks on a slow consumer (natural backpressure), per spec §8.
 
-## D. Sanitization policies (B10) — needs a format decision before codegen
+## D. Sanitization policies (B10) — LANDED (decision: seed + generated collector)
 
-Current: each feature hand-writes `SanitizationRules() *sanitize.FieldMaskConfig`;
-`core/system/gen_sanitization.go` is a hand-maintained aggregator. Candidate
-formats: (a) an annotation attribute (`@hestia.sanitize(...)` blocks on input
-and output model types), (b) a JSON sidecar next to the schema, (c) struct
-tags on the model. Until picked, sanitization codegen stays open; the runtime
-gap (B9) is fixed independently so generated stream ops are safe the moment
-they land.
+Decision (2026-08-31): the hand-written `SanitizationRules()
+*sanitize.FieldMaskConfig` Go function **is** the format. The candidate
+alternatives were rejected: (a) annotation attributes would pull masking
+knowledge away from the code that owns it and cannot express policy intent as
+readably; (b) a JSON sidecar and (c) struct tags would add a second parsing
+path for something Go already expresses well. What was missing was
+discoverability and collection — both are codegen-owned now:
+
+- **Seeding**: `service new`, `service generate` (single + `--all`) and
+  `add module` write `sanitization.go` only while it is missing. The seed
+  carries the policy vocabulary (MaskRedact / MaskObscure / MaskHash /
+  MaskPreserve, regex families via Patterns + MustCompilePattern) and
+  instructs the author — human or coding agent — to enumerate every sensitive
+  property the service can emit. It is author-owned afterwards and is never
+  overwritten (proven by TestSeedSanitization).
+- **Collection**: `gen_sanitization.go` is now a generated (DO NOT EDIT)
+  collector produced by `GenerateSanitizationCollector`: it scans service
+  dirs whose `sanitization.go` declares `SanitizationRules()` and emits the
+  scope-keyed `allSanitizationRules` map, refreshed by `refreshCollector`
+  alongside services.go. The system module's Setup consumes it unchanged.
+- S-21 rule respected by construction: hand-written rules stay the source of
+  truth and the generated file is pure aggregation, so no regeneration can
+  ever clobber a security fix.
 
 ## E. Generator (§4) — LANDED
 
@@ -107,7 +123,7 @@ they land.
 
 - `HandleStream` (duplex) — needs WebSocket/gRPC/HTTP2 transport first; spec
   §3.6 recommendation stands. Annotations for duplex signatures fail loudly.
-- Sanitization-rule codegen (B10) — format decision pending (§D).
+- ~~Sanitization-rule codegen (B10)~~ — landed 2026-08-31 (§D, §J).
 - Client SDK streaming ergonomics (B14).
 
 ---
@@ -156,5 +172,31 @@ they land.
 - **Batch generate is idempotent**: repeated `hestia service generate --all`
   across all 14 services is byte-identical (hash-verified), including the
   collector. Codegen can now be run for every feature service.
-- Still open: B10 (sanitization-rule codegen, format decision §D) and B14
-  (client SDK streaming ergonomics). Duplex (B11) deferred per §3.6.
+- Still open: B14 (client SDK streaming ergonomics). Duplex (B11) deferred
+  per §3.6. B10 sanitization codegen landed (§J).
+
+## J. Sanitization codegen (2026-08-31) — LANDED
+
+- `gen.SeedSanitization(dir)` (cmd/hestia/core/gen): writes a scaffold
+  `sanitization.go` for services without one — package-aware, carrying the
+  masking-policy vocabulary and author guidance (credentials → MaskRedact,
+  partly-readable identifiers → MaskObscure, correlatable values → MaskHash,
+  regex families via Patterns). Missing-only semantics: an author-owned file
+  is never touched.
+- `gen.GenerateSanitizationCollector(serviceRoot, modulePath)`: generates
+  `gen_sanitization.go` (DO NOT EDIT) — the scope-keyed `allSanitizationRules`
+  aggregator. Discovery scans service dirs for `sanitization.go` declaring
+  `SanitizationRules()`; output is sorted by scope and byte-stable across
+  runs. Wired into `refreshCollector` so every `service new` /
+  `service generate` (single + `--all`) / `add module` refreshes it.
+- Seed emission is announced (`Generated sanitization.go (seed)`) only when a
+  file is actually written, so batch runs over mature services stay quiet.
+- In-repo regeneration migrated `core/system/gen_sanitization.go` from
+  hand-maintained to generated: same 14 scopes, sorted plain imports,
+  generated header; all 14 hand-written feature `sanitization.go` files
+  untouched; `services.go` byte-identical. Full `--all` regeneration remains
+  byte-identical across runs (sha256-verified).
+- Tests: TestSeedSanitization (seed-once semantics, author edits survive),
+  TestSanitizationCollector (discovery, sorting, skip of sanitize-free
+  services, byte stability), plus TestGenerateCollectorCompiles and
+  TestScaffoldService extended to build the seed + collector in temp modules.

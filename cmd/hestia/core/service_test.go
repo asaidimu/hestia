@@ -142,10 +142,15 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	if err := gen.Generate(serviceDir); err != nil {
 		t.Fatalf("gen.Generate: %v", err)
 	}
+	seeded, err := gen.SeedSanitization(serviceDir)
+	if err != nil || !seeded {
+		t.Fatalf("gen.SeedSanitization: seeded=%v err=%v", seeded, err)
+	}
 	refreshCollector(modDir)
 
 	for _, p := range []string{
 		"module/billing/users/service.go",
+		"module/billing/users/sanitization.go",
 		"module/billing/users/model/users.schema.json",
 		"module/billing/users/model/users.schema.model.go",
 	} {

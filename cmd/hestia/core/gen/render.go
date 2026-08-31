@@ -296,3 +296,86 @@ func sortedKeys(m map[string]string) []string {
         sort.Strings(keys)
         return keys
 }
+
+// renderSanitizationSeed renders the sanitization.go scaffold for a service.
+// The seed carries the authoring guidance (which properties need masking,
+// which policies exist) so agents and humans discover the sanitization
+// contract at the right place and time; the surrounding flow never overwrites
+// it once written.
+func renderSanitizationSeed(pkg string) string {
+        var b bytes.Buffer
+        fmt.Fprintf(&b, "// Sanitization rules for the %s feature.\n", pkg)
+        b.WriteString("//\n")
+        b.WriteString("// Scaffolded by `hestia service new` / `hestia service generate`. This file\n")
+        b.WriteString("// is a seed, not a generated artifact: it is written only while missing and\n")
+        b.WriteString("// is then OWNED BY THE FEATURE AUTHOR (human or coding agent). Enumerate\n")
+        b.WriteString("// every sensitive property this service can emit - credentials, personal\n")
+        b.WriteString("// data, confidential business fields - and give each an explicit policy.\n")
+        b.WriteString("//\n")
+        b.WriteString("// Policy vocabulary (sanitize.MaskedFieldPolicy):\n")
+        b.WriteString("//\n")
+        b.WriteString("//   - MaskRedact   - replace the value with \"***\". Default for secrets:\n")
+        b.WriteString("//     password, secret, token, api key, private key, session material.\n")
+        b.WriteString("//   - MaskObscure  - keep a short prefix/suffix (see ObscureConfig). For\n")
+        b.WriteString("//     identifiers that must stay partly readable: email, phone, card PAN.\n")
+        b.WriteString("//   - MaskHash     - short deterministic hash. For values that must remain\n")
+        b.WriteString("//     correlatable across log lines without revealing them.\n")
+        b.WriteString("//   - MaskPreserve - keep as-is. Safe fields only.\n")
+        b.WriteString("//\n")
+        b.WriteString("// Field families can be matched with regex patterns via\n")
+        b.WriteString("// sanitize.MustCompilePattern(\"pattern\", policy) in the Patterns field\n")
+        b.WriteString("// (e.g. \".*_token$\" or \"(?i)password.*\"). Everything not listed falls back\n")
+        b.WriteString("// to DefaultPolicy - MaskPreserve keeps it verbatim.\n")
+        b.WriteString("//\n")
+        b.WriteString("// An empty Fields map is acceptable only while the service provably emits\n")
+        b.WriteString("// no sensitive properties; revisit this file whenever inputs, outputs or\n")
+        b.WriteString("// log shapes change. The generated collector (gen_sanitization.go)\n")
+        b.WriteString("// registers this config under this feature's scope and the runtime\n")
+        b.WriteString("// sanitization dispatcher applies it to responses, logs and streams.\n")
+        fmt.Fprintf(&b, "package %s\n\n", pkg)
+        b.WriteString("import \"github.com/asaidimu/go-anansi/v8/core/sanitize\"\n\n")
+        b.WriteString("func SanitizationRules() *sanitize.FieldMaskConfig {\n")
+        b.WriteString("\treturn &sanitize.FieldMaskConfig{\n")
+        b.WriteString("\t\tDefaultPolicy: sanitize.MaskPreserve,\n")
+        b.WriteString("\t\tFields: map[string]sanitize.MaskedFieldPolicy{\n")
+        b.WriteString("\t\t\t// \"password\": sanitize.MaskRedact,\n")
+        b.WriteString("\t\t\t// \"email\":    sanitize.MaskObscure,\n")
+        b.WriteString("\t\t},\n")
+        b.WriteString("\t}\n")
+        b.WriteString("}\n")
+        return b.String()
+}
+
+// renderSanitizationCollector renders the module's sanitization aggregator:
+// allSanitizationRules maps each feature scope (the second segment of a
+// message name, e.g. "system:users:user:get" -> "users") to that feature's
+// declared FieldMaskConfig. The system module registers every entry with
+// sanitize.Registry() during Setup.
+func renderSanitizationCollector(pkg string, services []Service) (string, error) {
+        var b bytes.Buffer
+        b.WriteString(header + "\n\n")
+        fmt.Fprintf(&b, "package %s\n\n", pkg)
+
+        b.WriteString("import \"github.com/asaidimu/go-anansi/v8/core/sanitize\"\n\n")
+
+        if len(services) > 0 {
+                b.WriteString("import (\n")
+                for _, s := range services {
+                        fmt.Fprintf(&b, "\t%q\n", s.ImportPath)
+                }
+                b.WriteString(")\n\n")
+        }
+
+        b.WriteString("// allSanitizationRules aggregates every feature's sanitization rules,\n")
+        b.WriteString("// keyed by feature scope. A feature appears here when its package declares\n")
+        b.WriteString("// SanitizationRules() in sanitization.go; add rules for sensitive\n")
+        b.WriteString("// properties by editing that file - never this generated collector.\n")
+        b.WriteString("var allSanitizationRules = func() map[string]*sanitize.FieldMaskConfig {\n")
+        b.WriteString("\tm := make(map[string]*sanitize.FieldMaskConfig)\n")
+        for _, s := range services {
+                fmt.Fprintf(&b, "\tm[%q] = %s.SanitizationRules()\n", s.Package, s.Package)
+        }
+        b.WriteString("\treturn m\n")
+        b.WriteString("}()\n")
+        return b.String(), nil
+}
