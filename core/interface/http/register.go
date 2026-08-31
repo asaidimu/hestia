@@ -1,40 +1,42 @@
 package http
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"strconv"
-	"strings"
-	"sync"
+        "context"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io"
+        "strconv"
+        "strings"
+        "sync"
 
-	"github.com/asaidimu/go-anansi/v8/core/common"
-	"github.com/asaidimu/go-anansi/v8/core/data"
-	"github.com/asaidimu/go-anansi/v8/core/document"
-	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	"go.uber.org/zap"
+        "github.com/asaidimu/go-anansi/v8/core/common"
+        "github.com/asaidimu/go-anansi/v8/core/data"
+        "github.com/asaidimu/go-anansi/v8/core/document"
+        "github.com/asaidimu/go-anansi/v8/core/schema/definition"
+        "go.uber.org/zap"
 
-	"github.com/asaidimu/hestia/core/abstract"
-	"github.com/asaidimu/hestia/core/runtime"
-	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
-	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
+        "github.com/asaidimu/hestia/core/abstract"
+        "github.com/asaidimu/hestia/core/runtime"
+        runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
+        dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 const (
-	statusOK        = 200
-	statusCreated   = 201
-	statusAccepted  = 202
-	statusNoContent = 204
-	statusNotFound  = 404
-	statusTooMany   = 429
+        statusOK        = 200
+        statusCreated   = 201
+        statusAccepted  = 202
+        statusNoContent = 204
+        statusNotFound  = 404
+        statusTooMany   = 429
 )
 
 const (
-	msgSessionCreate = "system:auth:session:create"
-	msgSessionDelete = "system:auth:session:delete"
+        msgSessionCreate = "system:auth:session:create"
+        msgSessionDelete = "system:auth:session:delete"
 
-	msgTokenElevate    = "system:auth:token:elevate"
-	msgPasswordConfirm = "system:auth:password:confirm"
+        msgTokenElevate    = "system:auth:token:elevate"
+        msgPasswordConfirm = "system:auth:password:confirm"
 )
 
 // authRateLimitedMessages lists every password-checking message that is
@@ -43,191 +45,319 @@ const (
 // Both the message name and the derived route pattern are registered so the
 // gate works regardless of how the transport fills req.Operation.
 var authRateLimitedMessages = map[string]struct{}{
-	msgSessionCreate:   {},
-	msgTokenElevate:    {},
-	msgPasswordConfirm: {},
+        msgSessionCreate:   {},
+        msgTokenElevate:    {},
+        msgPasswordConfirm: {},
 }
 
 func (o *Interface) installDispatcherRegistrations() {
-	for _, reg := range o.regs {
-		if reg.Internal {
-			continue
-		}
-		if err := o.installRegistration(reg); err != nil {
-			o.opts.Logger.Error("failed to install registration", zap.String("name", reg.Name), zap.Error(err))
-		}
-	}
+        for _, reg := range o.regs {
+                if reg.Internal {
+                        continue
+                }
+                if err := o.installRegistration(reg); err != nil {
+                        o.opts.Logger.Error("failed to install registration", zap.String("name", reg.Name), zap.Error(err))
+                }
+        }
 }
 
 func (o *Interface) installBootstrapSafeRegistrations() {
-	for _, reg := range o.regs {
-		if reg.Internal {
-			continue
-		}
-		if !reg.BootstrapSafe {
-			continue
-		}
-		if err := o.installRegistration(reg); err != nil {
-			o.opts.Logger.Error("failed to install bootstrap-safe registration", zap.String("name", reg.Name), zap.Error(err))
-		}
-	}
+        for _, reg := range o.regs {
+                if reg.Internal {
+                        continue
+                }
+                if !reg.BootstrapSafe {
+                        continue
+                }
+                if err := o.installRegistration(reg); err != nil {
+                        o.opts.Logger.Error("failed to install bootstrap-safe registration", zap.String("name", reg.Name), zap.Error(err))
+                }
+        }
 }
 
 func (o *Interface) installRegistration(reg abstract.MessageRegistration) error {
-	httpMethod := IntentToHTTPMethod(reg.Intent)
-	httpPath := DeriveRoute(reg.Name, reg.Input.Arguments())
-	if o.opts.APIPrefix != "" {
-		httpPath = o.opts.APIPrefix + httpPath
-	}
-	pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
+        httpMethod := IntentToHTTPMethod(reg.Intent)
+        httpPath := DeriveRoute(reg.Name, reg.Input.Arguments())
+        if o.opts.APIPrefix != "" {
+                httpPath = o.opts.APIPrefix + httpPath
+        }
+        pattern := httpMethod + " " + IntentToHTTPPath(reg.Intent, httpPath)
 
-	var pool *document.DocumentPool
-	if reg.Input.Schema != nil {
-		p, err := document.NewDocumentPool(reg.Input.Schema)
-		if err != nil {
-			return fmt.Errorf("install %s: input pool: %w", reg.Name, err)
-		}
-		pool = p
-	}
+        var pool *document.DocumentPool
+        if reg.Input.Schema != nil {
+                p, err := document.NewDocumentPool(reg.Input.Schema)
+                if err != nil {
+                        return fmt.Errorf("install %s: input pool: %w", reg.Name, err)
+                }
+                pool = p
+        }
 
-	if _, ok := o.noRefreshCommands[reg.Name]; ok {
-		o.noRefreshOps[pattern] = struct{}{}
-	}
+        if _, ok := o.noRefreshCommands[reg.Name]; ok {
+                o.noRefreshOps[pattern] = struct{}{}
+        }
 
-	if _, ok := authRateLimitedMessages[reg.Name]; ok {
-		// Both forms registered: message name (CLI/internal transports set
-		// req.Operation to the message name) and route pattern (the HTTP
-		// transport sets req.Operation to "POST /api/...").
-		o.authLimitedOps[reg.Name] = struct{}{}
-		o.authLimitedOps[pattern] = struct{}{}
-	}
+        if _, ok := authRateLimitedMessages[reg.Name]; ok {
+                // Both forms registered: message name (CLI/internal transports set
+                // req.Operation to the message name) and route pattern (the HTTP
+                // transport sets req.Operation to "POST /api/...").
+                o.authLimitedOps[reg.Name] = struct{}{}
+                o.authLimitedOps[pattern] = struct{}{}
+        }
 
-	// S-8: blob payloads are the only routes allowed bodies larger than
-	// defaultBodyLimit; everything else stays at the small default.
-	if strings.HasPrefix(reg.Name, "system:blobs:") {
-		if ht, ok := o.trans.(*HTTPTransport); ok {
-			ht.SetBodyLimit(pattern, maxRequestBodySize)
-		}
-	}
+        // S-8: blob payloads are the only routes allowed bodies larger than
+        // defaultBodyLimit; everything else stays at the small default.
+        if strings.HasPrefix(reg.Name, "system:blobs:") {
+                if ht, ok := o.trans.(*HTTPTransport); ok {
+                        ht.SetBodyLimit(pattern, maxRequestBodySize)
+                }
+        }
 
-	o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
-		doc, err := buildDoc(ctx, req, reg.Input, pool)
-		if err != nil {
-			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues([]common.Issue{{
-				Code:    "INVALID_INPUT",
-				Message: err.Error(),
-			}})
-		}
+        // Streaming registrations need an item schema (per-item validation is
+        // the producer's job) and a request-response lifecycle (the dispatcher
+        // call must be awaited to stream the body synchronously).
+        if reg.Input.Streaming {
+                if pool == nil {
+                        return fmt.Errorf("install %s: streaming registration requires an input schema", reg.Name)
+                }
+                if reg.FireAndForget {
+                        return fmt.Errorf("install %s: streaming registrations cannot be fire_and_forget", reg.Name)
+                }
+        }
 
-		if issues, ok := dispatch.ValidateInputDocument(reg.Input.Schema, doc); !ok {
-			return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
-		}
+        var routeOpts []RouteOption
+        if reg.Input.Streaming {
+                routeOpts = append(routeOpts, WithStreamingBody())
+        }
 
-		if reg.Input.ResourceIDField != "" && doc != nil {
-			if rid, ok := doc.GetOr("arguments."+reg.Input.ResourceIDField, "").(string); ok && rid != "" {
-				ctx = runtimecontext.ContextWithResourceID(ctx, rid)
-			}
-		}
+        o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
+                if reg.Input.Streaming {
+                        return o.handleStreamingInput(ctx, req, reg, pool, httpPath)
+                }
+                doc, err := buildDoc(ctx, req, reg.Input, pool)
+                if err != nil {
+                        return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues([]common.Issue{{
+                                Code:    "INVALID_INPUT",
+                                Message: err.Error(),
+                        }})
+                }
 
-		idempotencyKey := ""
-		if keys := req.Headers["Idempotency-Key"]; len(keys) > 0 && keys[0] != "" {
-			idempotencyKey = keys[0]
-			ctx = runtimecontext.ContextWithTraceID(ctx, idempotencyKey)
-		}
+                if issues, ok := dispatch.ValidateInputDocument(reg.Input.Schema, doc); !ok {
+                        return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues(issues)
+                }
 
-		if reg.FireAndForget {
-			id, err := dispatch.Enqueue(ctx, o.disp, dispatch.DispatchInput{
-				Name:     reg.Name,
-				Context:  ctx,
-				ID:       idempotencyKey,
-				Document: doc,
-				Intent:   reg.Intent,
-			})
-			if err != nil {
-				resp := o.attachCookieClearingResponse(Response{}, reg.Name)
-				var rle *runtime.RateLimitError
-				if errors.As(err, &rle) {
-					if resp.Headers == nil {
-						resp.Headers = map[string][]string{}
-					}
-					resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
-					resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
-				}
-				return resp, err
-			}
-			return acceptedResponse(id), nil
-		}
+                if reg.Input.ResourceIDField != "" && doc != nil {
+                        if rid, ok := doc.GetOr("arguments."+reg.Input.ResourceIDField, "").(string); ok && rid != "" {
+                                ctx = runtimecontext.ContextWithResourceID(ctx, rid)
+                        }
+                }
 
-		result, err := dispatch.Dispatch(ctx, o.disp, dispatch.DispatchInput{
-			Name:     reg.Name,
-			Context:  ctx,
-			ID:       idempotencyKey,
-			Document: doc,
-			Intent:   reg.Intent,
-		})
-		if err != nil {
-			resp := o.attachCookieClearingResponse(Response{}, reg.Name)
-			var rle *runtime.RateLimitError
-			if errors.As(err, &rle) {
-				if resp.Headers == nil {
-					resp.Headers = map[string][]string{}
-				}
-				resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
-				resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
-			}
-			return resp, err
-		}
+                idempotencyKey := ""
+                if keys := req.Headers["Idempotency-Key"]; len(keys) > 0 && keys[0] != "" {
+                        idempotencyKey = keys[0]
+                        ctx = runtimecontext.ContextWithTraceID(ctx, idempotencyKey)
+                }
 
-		defer result.Release()
-		resp := serializeResponse(ctx, result, reg.Output, reg.Intent, httpPath)
-		resp = o.attachCookieToResponse(resp, result, reg.Name)
-		return resp, nil
-	}))
-	return nil
+                if reg.FireAndForget {
+                        id, err := dispatch.Enqueue(ctx, o.disp, dispatch.DispatchInput{
+                                Name:     reg.Name,
+                                Context:  ctx,
+                                ID:       idempotencyKey,
+                                Document: doc,
+                                Intent:   reg.Intent,
+                        })
+                        if err != nil {
+                                resp := o.attachCookieClearingResponse(Response{}, reg.Name)
+                                var rle *runtime.RateLimitError
+                                if errors.As(err, &rle) {
+                                        if resp.Headers == nil {
+                                                resp.Headers = map[string][]string{}
+                                        }
+                                        resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
+                                        resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
+                                }
+                                return resp, err
+                        }
+                        return acceptedResponse(id), nil
+                }
+
+                result, err := dispatch.Dispatch(ctx, o.disp, dispatch.DispatchInput{
+                        Name:     reg.Name,
+                        Context:  ctx,
+                        ID:       idempotencyKey,
+                        Document: doc,
+                        Intent:   reg.Intent,
+                })
+                if err != nil {
+                        resp := o.attachCookieClearingResponse(Response{}, reg.Name)
+                        var rle *runtime.RateLimitError
+                        if errors.As(err, &rle) {
+                                if resp.Headers == nil {
+                                        resp.Headers = map[string][]string{}
+                                }
+                                resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
+                                resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
+                        }
+                        return resp, err
+                }
+
+                defer result.Release()
+                resp := serializeResponse(ctx, result, reg.Output, reg.Intent, httpPath)
+                resp = o.attachCookieToResponse(resp, result, reg.Name)
+                return resp, nil
+        }), routeOpts...)
+        return nil
+}
+
+// handleStreamingInput drives a streamed-input registration: the request body
+// is consumed as NDJSON (one item per line), each item is wrapped in the
+// request's constant envelope and validated by the streamDocuments producer,
+// and the handler receives them over msg.InputChannel(). Synchronous relative
+// to serveHTTP: Dispatch returns only after the handler has consumed the
+// whole stream, so the RequestCtx stays alive for the body's lifetime.
+func (o *Interface) handleStreamingInput(ctx context.Context, req Request, reg abstract.MessageRegistration, pool *document.DocumentPool, httpPath string) (Response, error) {
+        if req.BodyStream == nil {
+                return Response{}, common.NewSystemError("STREAMING_REQUIRED", "this operation requires a streamed request body")
+        }
+
+        env, err := newStreamEnvelope(reg.Input, req)
+        if err != nil {
+                return Response{}, common.NewSystemError("VALIDATION_ERROR", "input validation failed").WithIssues([]common.Issue{{
+                        Code:    "INVALID_INPUT",
+                        Message: err.Error(),
+                }})
+        }
+
+        // Resource identity for streamed ops comes from the path (arguments
+        // are path-derived and constant across items).
+        if reg.Input.ResourceIDField != "" {
+                if rid, ok := req.PathParams[reg.Input.ResourceIDField]; ok && rid != "" {
+                        ctx = runtimecontext.ContextWithResourceID(ctx, rid)
+                }
+        }
+
+        idempotencyKey := ""
+        if keys := req.Headers["Idempotency-Key"]; len(keys) > 0 && keys[0] != "" {
+                idempotencyKey = keys[0]
+                ctx = runtimecontext.ContextWithTraceID(ctx, idempotencyKey)
+        }
+
+        items := streamDocuments(ctx, req.BodyStream, reg.Input, pool, env)
+        result, err := dispatch.Dispatch(ctx, o.disp, dispatch.DispatchInput{
+                Name:           reg.Name,
+                Context:        ctx,
+                ID:             idempotencyKey,
+                DocumentStream: items,
+                Intent:         reg.Intent,
+        })
+        if err != nil {
+                resp := o.attachCookieClearingResponse(Response{}, reg.Name)
+                var rle *runtime.RateLimitError
+                if errors.As(err, &rle) {
+                        if resp.Headers == nil {
+                                resp.Headers = map[string][]string{}
+                        }
+                        resp.Headers["Retry-After"] = []string{strconv.Itoa(rle.RetryAfter())}
+                        resp.Headers["X-RateLimit-Remaining"] = []string{"0"}
+                }
+                return resp, err
+        }
+
+        defer result.Release()
+        resp := serializeResponse(ctx, result, reg.Output, reg.Intent, httpPath)
+        resp = o.attachCookieToResponse(resp, result, reg.Name)
+        return resp, nil
+}
+
+// streamDocuments reads an NDJSON request body and emits one StreamItem per
+// item. Framing is line-delimited JSON: json.Decoder.Decode reads one value
+// at a time. Decisions (todo/streaming-codegen.md §C):
+//   - Framing errors (a non-EOF Decode failure — unrecoverable byte-stream
+//     corruption) emit one StreamItem{Err} and end the stream.
+//   - Per-item schema validation failures emit StreamItem{Err} and continue —
+//     the handler owns the abort-vs-collect policy. Validator init failures
+//     fail closed per item (S-14): every item errors, never silently passes.
+//   - The channel is unbuffered: the body reader blocks on a slow consumer
+//     (natural backpressure).
+//   - The producer owns close semantics: the channel closes on EOF, framing
+//     error, or ctx cancellation.
+func streamDocuments(ctx context.Context, r io.Reader, input runtime.Input, pool *document.DocumentPool, env *streamEnvelope) <-chan abstract.StreamItem {
+        out := make(chan abstract.StreamItem)
+        go func() {
+                defer close(out)
+                dec := json.NewDecoder(r)
+                for item := 0; ; item++ {
+                        var payload json.RawMessage
+                        if err := dec.Decode(&payload); err != nil {
+                                if err != io.EOF {
+                                        select {
+                                        case out <- abstract.StreamItem{Err: fmt.Errorf("item %d: %w", item, err)}:
+                                        case <-ctx.Done():
+                                        }
+                                }
+                                return
+                        }
+                        doc, err := env.itemDocument(pool, input, payload)
+                        if err != nil {
+                                select {
+                                case out <- abstract.StreamItem{Err: fmt.Errorf("item %d: %w", item, err)}:
+                                case <-ctx.Done():
+                                        return
+                                }
+                                continue
+                        }
+                        select {
+                        case out <- abstract.StreamItem{Doc: doc}:
+                        case <-ctx.Done():
+                                doc.Release()
+                                return
+                        }
+                }
+        }()
+        return out
 }
 
 func buildDoc(ctx context.Context, req Request, input runtime.Input, pool *document.DocumentPool) (data.Documenter, error) {
-	if pool == nil {
-		return nil, nil
-	}
-	return BuildInputDocument(pool, input, req)
+        if pool == nil {
+                return nil, nil
+        }
+        return BuildInputDocument(pool, input, req)
 }
 
 func serializeResponse(ctx context.Context, result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) Response {
-	if result == nil {
-		return emptyResponse(intent)
-	}
+        if result == nil {
+                return emptyResponse(intent)
+        }
 
-	if streamResp, ok := serializeStreamResult(ctx, result); ok {
-		copyMeta(&streamResp, result)
-		return streamResp
-	}
+        if streamResp, ok := serializeStreamResult(ctx, result); ok {
+                copyMeta(&streamResp, result)
+                return streamResp
+        }
 
-	if result.Blob.Data != nil {
-		resp := blobResponse(result.Blob)
-		copyMeta(&resp, result)
-		return resp
-	}
+        if result.Blob.Data != nil {
+                resp := blobResponse(result.Blob)
+                copyMeta(&resp, result)
+                return resp
+        }
 
-	if result.DocumentChannel != nil {
-		return drainChannelResponse(result.DocumentChannel)
-	}
+        if result.DocumentChannel != nil {
+                return drainChannelResponse(result.DocumentChannel)
+        }
 
-	if result.BlobChannel != nil {
-		return Response{Status: statusOK}
-	}
+        if result.BlobChannel != nil {
+                return Response{Status: statusOK}
+        }
 
-	if output == nil || len(output.Fields) == 0 {
-		return emptyResponse(intent)
-	}
+        if output == nil || len(output.Fields) == 0 {
+                return emptyResponse(intent)
+        }
 
-	if resp, ok := serializeOutputField(result, output, intent, httpPath); ok {
-		resp.Metadata = result.Metadata
-		promoteMetadataHeaders(&resp)
-		return resp
-	}
+        if resp, ok := serializeOutputField(result, output, intent, httpPath); ok {
+                resp.Metadata = result.Metadata
+                promoteMetadataHeaders(&resp)
+                return resp
+        }
 
-	return emptyResponse(intent)
+        return emptyResponse(intent)
 }
 
 // @note #mem-20260821-003 issue resolved priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
@@ -262,233 +392,234 @@ func serializeResponse(ctx context.Context, result *abstract.Result, output *def
 // the producer goroutine and its upstream subscription until server
 // shutdown (S-19).
 type managedStream struct {
-	ch   abstract.StreamBody
-	once sync.Once
-	done chan struct{}
+        ch   abstract.StreamBody
+        once sync.Once
+        done chan struct{}
 }
 
 // Close releases the producer. Called by the response writer when it stops
 // consuming — flush error on client disconnect, or natural stream end.
 func (m *managedStream) Close() {
-	m.once.Do(func() { close(m.done) })
+        m.once.Do(func() { close(m.done) })
 }
 
 func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) any) (Response, bool) {
-	if src == nil {
-		return Response{}, false
-	}
-	streamCh := make(chan any, 64)
-	ms := &managedStream{ch: streamCh, done: make(chan struct{})}
-	go func() {
-		defer close(streamCh)
-		for {
-			select {
-			case v, ok := <-src:
-				if !ok {
-					return
-				}
-				select {
-				case streamCh <- transform(v):
-				case <-ms.done:
-					// Writer stopped consuming (client disconnect): stop
-					// draining so this goroutine does not leak blocked on
-					// a full buffer.
-					return
-				case <-ctx.Done():
-					return
-				}
-			case <-ms.done:
-				return
-			case <-ctx.Done():
-				// Consumer went away or the request was canceled: stop
-				// draining so this goroutine does not leak blocked on a
-				// full buffer. Note this never fires for fasthttp
-				// RequestCtx on client disconnect (S-19).
-				return
-			}
-		}
-	}()
-	return Response{Status: statusOK, Body: ms}, true
+        if src == nil {
+                return Response{}, false
+        }
+        streamCh := make(chan any, 64)
+        ms := &managedStream{ch: streamCh, done: make(chan struct{})}
+        go func() {
+                defer close(streamCh)
+                for {
+                        select {
+                        case v, ok := <-src:
+                                if !ok {
+                                        return
+                                }
+                                select {
+                                case streamCh <- transform(v):
+                                case <-ms.done:
+                                        // Writer stopped consuming (client disconnect): stop
+                                        // draining so this goroutine does not leak blocked on
+                                        // a full buffer.
+                                        return
+                                case <-ctx.Done():
+                                        return
+                                }
+                        case <-ms.done:
+                                return
+                        case <-ctx.Done():
+                                // Consumer went away or the request was canceled: stop
+                                // draining so this goroutine does not leak blocked on a
+                                // full buffer. Note this never fires for fasthttp
+                                // RequestCtx on client disconnect (S-19).
+                                return
+                        }
+                }
+        }()
+        return Response{Status: statusOK, Body: ms}, true
 }
 
 func serializeStreamResult(ctx context.Context, result *abstract.Result) (Response, bool) {
-	if resp, ok := streamChannel(ctx, result.DocumentChannel, func(d *document.Document) any {
-		sane, _ := d.Sanitize()
-		return sane
-	}); ok {
-		return resp, true
-	}
-	return streamChannel(ctx, result.BlobChannel, func(b abstract.Blob) any {
-		return map[string]any{"data": b.Data, "content_type": b.ContentType}
-	})
+        sanitizeArgs := runtime.StreamSanitizeArgs(ctx, result)
+        if resp, ok := streamChannel(ctx, result.DocumentChannel, func(d *document.Document) any {
+                sane, _ := d.Sanitize(sanitizeArgs...)
+                return sane
+        }); ok {
+                return resp, true
+        }
+        return streamChannel(ctx, result.BlobChannel, func(b abstract.Blob) any {
+                return map[string]any{"data": b.Data, "content_type": b.ContentType}
+        })
 }
 
 func blobResponse(blob abstract.Blob) Response {
-	return Response{
-		Status:  statusOK,
-		Body:    blob.Data,
-		Headers: map[string][]string{"Content-Type": {blob.ContentType}},
-	}
+        return Response{
+                Status:  statusOK,
+                Body:    blob.Data,
+                Headers: map[string][]string{"Content-Type": {blob.ContentType}},
+        }
 }
 
 func drainChannelResponse(docCh <-chan *document.Document) Response {
-	var docs []data.Documenter
-	for d := range docCh {
-		sane, _ := d.Sanitize()
-		docs = append(docs, sane)
-	}
-	if docs == nil {
-		docs = []data.Documenter{}
-	}
-	return Response{Status: statusOK, Body: map[string]any{"items": docs}}
+        var docs []data.Documenter
+        for d := range docCh {
+                sane, _ := d.Sanitize()
+                docs = append(docs, sane)
+        }
+        if docs == nil {
+                docs = []data.Documenter{}
+        }
+        return Response{Status: statusOK, Body: map[string]any{"items": docs}}
 }
 
 func emptyResponse(intent abstract.Verb) Response {
-	status := statusOK
-	if intent == abstract.Create {
-		status = statusCreated
-	}
-	if intent == abstract.Delete {
-		status = statusNoContent
-	}
-	return Response{Status: status}
+        status := statusOK
+        if intent == abstract.Create {
+                status = statusCreated
+        }
+        if intent == abstract.Delete {
+                status = statusNoContent
+        }
+        return Response{Status: status}
 }
 
 // acceptedResponse is the envelope for fire-and-forget dispatches: 202
 // Accepted plus the correlation ID of the accepted message.
 func acceptedResponse(id string) Response {
-	return Response{
-		Status: statusAccepted,
-		Body: map[string]any{
-			"data": map[string]any{
-				"id":     id,
-				"status": "accepted",
-			},
-			"metadata": map[string]any{},
-		},
-	}
+        return Response{
+                Status: statusAccepted,
+                Body: map[string]any{
+                        "data": map[string]any{
+                                "id":     id,
+                                "status": "accepted",
+                        },
+                        "metadata": map[string]any{},
+                },
+        }
 }
 
 func createStatus(intent abstract.Verb) int {
-	if intent == abstract.Create {
-		return statusCreated
-	}
-	return statusOK
+        if intent == abstract.Create {
+                return statusCreated
+        }
+        return statusOK
 }
 
 func locationHeader(intent abstract.Verb, doc data.Documenter, httpPath string) map[string][]string {
-	if intent != abstract.Create {
-		return nil
-	}
-	if id := doc.ID(); id != "" {
-		return map[string][]string{"Location": {httpPath + "/" + id}}
-	}
-	return nil
+        if intent != abstract.Create {
+                return nil
+        }
+        if id := doc.ID(); id != "" {
+                return map[string][]string{"Location": {httpPath + "/" + id}}
+        }
+        return nil
 }
 
 func serializeOutputField(result *abstract.Result, output *definition.Schema, intent abstract.Verb, httpPath string) (Response, bool) {
-	status := createStatus(intent)
+        status := createStatus(intent)
 
-	// The concrete result payload is the ground truth for the response body,
-	// not the output schema's declared shape: the schema is introspection only
-	// and may be a flat model schema (service codegen) or a wrapper envelope
-	// (feature DTOs). Serialize whichever result field the handler populated.
-	if result.Document != nil {
-		sane, _ := result.Document.Sanitize()
-		return Response{
-			Status:  status,
-			Body:    sane,
-			Headers: locationHeader(intent, result.Document, httpPath),
-		}, true
-	}
-	if result.Documents != nil {
-		items := make([]data.Documenter, 0, len(result.Documents))
-		for _, d := range result.Documents {
-			if sane, _ := d.Sanitize(); sane != nil {
-				items = append(items, sane)
-			}
-		}
-		return Response{Status: statusOK, Body: items}, true
-	}
-	if result.Page != nil {
-		items := make([]data.Documenter, 0, len(result.Page.Documents))
-		for _, d := range result.Page.Documents {
-			if sane, _ := d.Sanitize(); sane != nil {
-				items = append(items, sane)
-			}
-		}
-		return Response{
-			Status: statusOK,
-			Body:   items,
-			Page:   result.Page.Pagination,
-		}, true
-	}
-	return Response{}, false
+        // The concrete result payload is the ground truth for the response body,
+        // not the output schema's declared shape: the schema is introspection only
+        // and may be a flat model schema (service codegen) or a wrapper envelope
+        // (feature DTOs). Serialize whichever result field the handler populated.
+        if result.Document != nil {
+                sane, _ := result.Document.Sanitize()
+                return Response{
+                        Status:  status,
+                        Body:    sane,
+                        Headers: locationHeader(intent, result.Document, httpPath),
+                }, true
+        }
+        if result.Documents != nil {
+                items := make([]data.Documenter, 0, len(result.Documents))
+                for _, d := range result.Documents {
+                        if sane, _ := d.Sanitize(); sane != nil {
+                                items = append(items, sane)
+                        }
+                }
+                return Response{Status: statusOK, Body: items}, true
+        }
+        if result.Page != nil {
+                items := make([]data.Documenter, 0, len(result.Page.Documents))
+                for _, d := range result.Page.Documents {
+                        if sane, _ := d.Sanitize(); sane != nil {
+                                items = append(items, sane)
+                        }
+                }
+                return Response{
+                        Status: statusOK,
+                        Body:   items,
+                        Page:   result.Page.Pagination,
+                }, true
+        }
+        return Response{}, false
 }
 
 func copyMeta(resp *Response, result *abstract.Result) {
-	resp.Metadata = result.Metadata
-	promoteMetadataHeaders(resp)
+        resp.Metadata = result.Metadata
+        promoteMetadataHeaders(resp)
 }
 
 var metaHeaderPromotions = map[string]string{
-	"rates": "X-RateLimit",
+        "rates": "X-RateLimit",
 }
 
 func promoteMetadataHeaders(resp *Response) {
-	for key, headerPrefix := range metaHeaderPromotions {
-		v, ok := resp.Metadata[key]
-		if !ok {
-			continue
-		}
-		m, ok := v.(*runtime.RateLimitMeta)
-		if !ok {
-			continue
-		}
-		if resp.Headers == nil {
-			resp.Headers = map[string][]string{}
-		}
-		resp.Headers[headerPrefix+"-Remaining"] = []string{strconv.Itoa(m.Remaining)}
-		resp.Headers[headerPrefix+"-Limit"] = []string{strconv.Itoa(m.Limit)}
-		resp.Headers[headerPrefix+"-Reset"] = []string{strconv.FormatInt(m.ResetAt, 10)}
-	}
+        for key, headerPrefix := range metaHeaderPromotions {
+                v, ok := resp.Metadata[key]
+                if !ok {
+                        continue
+                }
+                m, ok := v.(*runtime.RateLimitMeta)
+                if !ok {
+                        continue
+                }
+                if resp.Headers == nil {
+                        resp.Headers = map[string][]string{}
+                }
+                resp.Headers[headerPrefix+"-Remaining"] = []string{strconv.Itoa(m.Remaining)}
+                resp.Headers[headerPrefix+"-Limit"] = []string{strconv.Itoa(m.Limit)}
+                resp.Headers[headerPrefix+"-Reset"] = []string{strconv.FormatInt(m.ResetAt, 10)}
+        }
 }
 
 func extractSessionToken(result *abstract.Result) string {
-	if result == nil {
-		return ""
-	}
-	return result.SessionToken
+        if result == nil {
+                return ""
+        }
+        return result.SessionToken
 }
 
 func (o *Interface) attachCookieToResponse(resp Response, result *abstract.Result, name string) Response {
-	switch name {
-	case msgSessionCreate:
-		token := extractSessionToken(result)
-		if token == "" {
-			return resp
-		}
-		resp.Cookies = append(resp.Cookies, newSessionCookie(
-			o.cookieCfg.SessionName, token, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg,
-		))
+        switch name {
+        case msgSessionCreate:
+                token := extractSessionToken(result)
+                if token == "" {
+                        return resp
+                }
+                resp.Cookies = append(resp.Cookies, newSessionCookie(
+                        o.cookieCfg.SessionName, token, o.cookieCfg.SessionPath, o.sessionTTL, o.cookieCfg,
+                ))
 
-	case msgSessionDelete:
-		if o.cookieCfg.SessionName != "" {
-			resp.Cookies = append(resp.Cookies, clearSessionCookie(
-				o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg,
-			))
-		}
-	}
-	return resp
+        case msgSessionDelete:
+                if o.cookieCfg.SessionName != "" {
+                        resp.Cookies = append(resp.Cookies, clearSessionCookie(
+                                o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg,
+                        ))
+                }
+        }
+        return resp
 }
 
 func (o *Interface) attachCookieClearingResponse(resp Response, name string) Response {
-	if name == msgSessionCreate || name == msgSessionDelete {
-		if o.cookieCfg.SessionName != "" {
-			resp.Cookies = append(resp.Cookies, clearSessionCookie(
-				o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg,
-			))
-		}
-	}
-	return resp
+        if name == msgSessionCreate || name == msgSessionDelete {
+                if o.cookieCfg.SessionName != "" {
+                        resp.Cookies = append(resp.Cookies, clearSessionCookie(
+                                o.cookieCfg.SessionName, o.cookieCfg.SessionPath, o.cookieCfg,
+                        ))
+                }
+        }
+        return resp
 }

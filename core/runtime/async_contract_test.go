@@ -31,7 +31,7 @@ func (m *chanMessage) ID() string                             { return "" }
 func (m *chanMessage) Name() string                           { return m.name }
 func (m *chanMessage) Context() context.Context               { return m.ctx }
 func (m *chanMessage) Input() data.Documenter                 { return nil }
-func (m *chanMessage) InputChannel() <-chan data.Documenter   { return nil }
+func (m *chanMessage) InputChannel() <-chan abstract.StreamItem   { return nil }
 func (m *chanMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m *chanMessage) TenantID() string                       { return "" }
 func (m *chanMessage) TraceID() string                        { return "" }

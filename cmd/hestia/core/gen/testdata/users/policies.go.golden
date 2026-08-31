@@ -12,5 +12,6 @@ func Policies() []policies.Binding {
 		{Name: "system:users:user:check", RuleKey: "authenticated", Description: ""},
 		{Name: "system:collections:user:query", RuleKey: "authenticated", Description: ""},
 		{Name: "system:users:callback:ack", RuleKey: "authenticated", Description: "Acknowledge a callback without waiting"},
+		{Name: "system:users:user:import", RuleKey: "administrator", Description: "Bulk-import users from an NDJSON stream"},
 	}
 }

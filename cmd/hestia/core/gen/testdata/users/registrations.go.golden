@@ -74,5 +74,16 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			},
 			Handler: dispatch.HandleEmpty[AckCallbackInput](s.AckCallback),
 		},
+		{
+			Name:        "system:users:user:import",
+			Description: "Bulk-import users from an NDJSON stream",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:    dispatch.SchemaFromTypeWithTag[ImportUserInput]("input"),
+				Streaming: true,
+			},
+			Handler: dispatch.HandleInputStream[ImportUserInput](s.ImportUsers),
+		},
 	}, nil
 }

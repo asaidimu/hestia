@@ -1,23 +1,26 @@
 package http
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"strings"
+        "bytes"
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "strings"
 
-	"github.com/asaidimu/go-anansi/v8/core/document"
-	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
+        "github.com/asaidimu/go-anansi/v8/core/common"
+        "github.com/asaidimu/go-anansi/v8/core/document"
+        "github.com/asaidimu/go-anansi/v8/core/schema/definition"
 
-	"github.com/asaidimu/hestia/core/runtime"
+        "github.com/asaidimu/hestia/core/runtime"
+        dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
 func rootField(s *definition.Schema, name string) bool {
-	if s == nil {
-		return false
-	}
-	_, f := s.FindField(name)
-	return f != nil
+        if s == nil {
+                return false
+        }
+        _, f := s.FindField(name)
+        return f != nil
 }
 
 // requestHeaderValue returns the first value of the named request header,
@@ -26,19 +29,19 @@ func rootField(s *definition.Schema, name string) bool {
 // in their canonical, human-readable form, so an exact map lookup would
 // silently drop headers like X-Session-ID and X-Chunk-SHA256.
 func requestHeaderValue(headers map[string][]string, name string) (string, bool) {
-	if vals, ok := headers[name]; ok && len(vals) > 0 {
-		return vals[0], true
-	}
-	canonical := http.CanonicalHeaderKey(name)
-	if vals, ok := headers[canonical]; ok && len(vals) > 0 {
-		return vals[0], true
-	}
-	for k, vals := range headers {
-		if len(vals) > 0 && strings.EqualFold(k, name) {
-			return vals[0], true
-		}
-	}
-	return "", false
+        if vals, ok := headers[name]; ok && len(vals) > 0 {
+                return vals[0], true
+        }
+        canonical := http.CanonicalHeaderKey(name)
+        if vals, ok := headers[canonical]; ok && len(vals) > 0 {
+                return vals[0], true
+        }
+        for k, vals := range headers {
+                if len(vals) > 0 && strings.EqualFold(k, name) {
+                        return vals[0], true
+                }
+        }
+        return "", false
 }
 
 // @note #perf-20260821-004 issue status=open priority=P0 tags=#performance,#correctness : BuildInputDocument uses unnecessary JSON round-trip
@@ -53,9 +56,9 @@ func requestHeaderValue(headers map[string][]string, name string) (string, bool)
 //
 // The anansi Document has direct Set* methods:
 //
-//	doc, _ := pool.New()
-//	doc.SetString("arguments.name", value)
-//	doc.SetBytes("payload", req.Body)
+//      doc, _ := pool.New()
+//      doc.SetString("arguments.name", value)
+//      doc.SetBytes("payload", req.Body)
 //
 // This should populate fields directly without JSON:
 //  1. pool.New() to get an empty document
@@ -85,22 +88,146 @@ func requestHeaderValue(headers map[string][]string, name string) (string, bool)
 // form covers custom transport headers like X-Session-ID. Matching is done
 // case-insensitively by requestHeaderValue.
 func contextHeaderCandidates(field string) []string {
-	kebab := toKebabTitle(field)
-	return []string{kebab, "X-" + kebab}
+        kebab := toKebabTitle(field)
+        return []string{kebab, "X-" + kebab}
 }
 
 // toKebabTitle converts a snake_case schema field name to canonical HTTP
 // header casing: "session_id" → "Session-Id", "sha256" → "Sha256",
 // "chunk_sha256" → "Chunk-Sha256".
 func toKebabTitle(name string) string {
-	parts := strings.Split(name, "_")
-	for i, p := range parts {
-		if p == "" {
-			continue
-		}
-		parts[i] = strings.ToUpper(p[:1]) + p[1:]
-	}
-	return strings.Join(parts, "-")
+        parts := strings.Split(name, "_")
+        for i, p := range parts {
+                if p == "" {
+                        continue
+                }
+                parts[i] = strings.ToUpper(p[:1]) + p[1:]
+        }
+        return strings.Join(parts, "-")
+}
+
+// streamEnvelope holds the constant (per-request) sections of an input
+// document — context, arguments, modifiers — computed once so streamed items
+// only pay for payload substitution. It is the factored-out prefix of
+// BuildInputDocument (todo/streaming-codegen.md §B).
+type streamEnvelope struct {
+        prefix []byte // JSON object fragment, e.g. `"context":{...},"arguments":{...}`; no surrounding braces, empty when no sections present
+}
+
+// newStreamEnvelope builds the constant prefix from the request: headers for
+// context fields, path params for arguments, query params for modifiers.
+func newStreamEnvelope(input runtime.Input, req Request) (*streamEnvelope, error) {
+        var buf bytes.Buffer
+        buf.WriteByte('{')
+
+        writeSection := func(name string, val []byte) {
+                if buf.Len() > 1 {
+                        buf.WriteByte(',')
+                }
+                buf.WriteString(`"`)
+                buf.WriteString(name)
+                buf.WriteString(`":`)
+                buf.Write(val)
+        }
+
+        if fields := input.ContextFields(); len(fields) > 0 && rootField(input.Schema, "context") {
+                contextVals := make(map[string]any)
+                for _, field := range fields {
+                        for _, candidate := range contextHeaderCandidates(field) {
+                                if v, ok := requestHeaderValue(req.Headers, candidate); ok {
+                                        contextVals[field] = v
+                                        break
+                                }
+                        }
+                }
+                if len(contextVals) > 0 {
+                        ctxJSON, err := json.Marshal(contextVals)
+                        if err != nil {
+                                return nil, err
+                        }
+                        writeSection("context", ctxJSON)
+                }
+        }
+
+        if rootField(input.Schema, "arguments") {
+                args := make(map[string]any)
+                for _, argDef := range input.Arguments() {
+                        if v, ok := req.PathParams[argDef.Name]; ok {
+                                args[argDef.Name] = v
+                        }
+                }
+                if len(args) > 0 {
+                        argsJSON, err := json.Marshal(args)
+                        if err != nil {
+                                return nil, err
+                        }
+                        writeSection("arguments", argsJSON)
+                }
+        }
+
+        if rootField(input.Schema, "modifiers") {
+                modifiers := make(map[string]any)
+                for name := range input.Modifiers() {
+                        if vals, ok := req.Query[name]; ok && len(vals) > 0 {
+                                modifiers[name] = vals[0]
+                        }
+                }
+                if len(modifiers) > 0 {
+                        modifiersJSON, err := json.Marshal(modifiers)
+                        if err != nil {
+                                return nil, err
+                        }
+                        writeSection("modifiers", modifiersJSON)
+                }
+        }
+
+        // Close the object, then strip the braces: prefix is the bare fragment
+        // between them ("a":1,"b":2), empty when no sections were written.
+        buf.WriteByte('}')
+        return &streamEnvelope{prefix: buf.Bytes()[1 : buf.Len()-1]}, nil
+}
+
+// itemDocument materializes one streamed item: the constant envelope plus the
+// item's raw JSON payload, then validates it against the input schema. A
+// validation failure (including validator init failure — fail closed per
+// S-14) returns an error and releases the document; the producer turns that
+// into a StreamItem{Err} and keeps going, leaving the abort decision to the
+// handler.
+func (e *streamEnvelope) itemDocument(pool *document.DocumentPool, input runtime.Input, payload json.RawMessage) (*document.Document, error) {
+        if pool == nil {
+                return nil, fmt.Errorf("no input schema: streamed items cannot be materialized")
+        }
+        if rootField(input.Schema, "payload") && input.Payload() == definition.FieldTypeBytes {
+                return nil, fmt.Errorf("bytes payloads cannot be streamed as NDJSON")
+        }
+
+        var buf bytes.Buffer
+        buf.WriteByte('{')
+        buf.Write(e.prefix)
+        if buf.Len() > 1 {
+                buf.WriteByte(',')
+        }
+        buf.WriteString(`"payload":`)
+        buf.Write(payload)
+        buf.WriteByte('}')
+
+        doc, err := pool.FromJSON(buf.Bytes())
+        if err != nil {
+                return nil, err
+        }
+        if issues, ok := dispatch.ValidateInputDocument(input.Schema, doc); !ok {
+                doc.Release()
+                return nil, validationIssuesError(issues)
+        }
+        return doc, nil
+}
+
+func validationIssuesError(issues []common.Issue) error {
+        msgs := make([]string, 0, len(issues))
+        for _, issue := range issues {
+                msgs = append(msgs, issue.Message)
+        }
+        return fmt.Errorf("validation failed: %s", strings.Join(msgs, "; "))
 }
 
 // BuildInputDocument assembles the dispatch document from the request:
@@ -110,83 +237,33 @@ func toKebabTitle(name string) string {
 //   - modifiers  : from query parameters
 //   - payload    : raw body (JSON or bytes per schema)
 func BuildInputDocument(pool *document.DocumentPool, input runtime.Input, req Request) (*document.Document, error) {
-	var buf bytes.Buffer
-	buf.WriteByte('{')
+        env, err := newStreamEnvelope(input, req)
+        if err != nil {
+                return nil, err
+        }
 
-	writeSection := func(name string, val []byte) {
-		if buf.Len() > 1 {
-			buf.WriteByte(',')
-		}
-		buf.WriteString(`"`)
-		buf.WriteString(name)
-		buf.WriteString(`":`)
-		buf.Write(val)
-	}
+        var buf bytes.Buffer
+        buf.WriteByte('{')
+        buf.Write(env.prefix)
 
-	if fields := input.ContextFields(); len(fields) > 0 && rootField(input.Schema, "context") {
-		contextVals := make(map[string]any)
-		for _, field := range fields {
-			for _, candidate := range contextHeaderCandidates(field) {
-				if v, ok := requestHeaderValue(req.Headers, candidate); ok {
-					contextVals[field] = v
-					break
-				}
-			}
-		}
-		if len(contextVals) > 0 {
-			ctxJSON, err := json.Marshal(contextVals)
-			if err != nil {
-				return nil, err
-			}
-			writeSection("context", ctxJSON)
-		}
-	}
+        if rootField(input.Schema, "payload") {
+                if buf.Len() > 1 {
+                        buf.WriteByte(',')
+                }
+                if input.Payload() == definition.FieldTypeBytes {
+                        p, err := json.Marshal(req.Body)
+                        if err != nil {
+                                return nil, err
+                        }
+                        buf.WriteString(`"payload":`)
+                        buf.Write(p)
+                } else if len(req.Body) > 0 {
+                        buf.WriteString(`"payload":`)
+                        buf.Write(req.Body)
+                }
+        }
 
-	if rootField(input.Schema, "arguments") {
-		args := make(map[string]any)
-		for _, argDef := range input.Arguments() {
-			if v, ok := req.PathParams[argDef.Name]; ok {
-				args[argDef.Name] = v
-			}
-		}
-		if len(args) > 0 {
-			argsJSON, err := json.Marshal(args)
-			if err != nil {
-				return nil, err
-			}
-			writeSection("arguments", argsJSON)
-		}
-	}
+        buf.WriteByte('}')
 
-	if rootField(input.Schema, "modifiers") {
-		modifiers := make(map[string]any)
-		for name := range input.Modifiers() {
-			if vals, ok := req.Query[name]; ok && len(vals) > 0 {
-				modifiers[name] = vals[0]
-			}
-		}
-		if len(modifiers) > 0 {
-			modifiersJSON, err := json.Marshal(modifiers)
-			if err != nil {
-				return nil, err
-			}
-			writeSection("modifiers", modifiersJSON)
-		}
-	}
-
-	if rootField(input.Schema, "payload") {
-		if input.Payload() == definition.FieldTypeBytes {
-			p, err := json.Marshal(req.Body)
-			if err != nil {
-				return nil, err
-			}
-			writeSection("payload", p)
-		} else if len(req.Body) > 0 {
-			writeSection("payload", req.Body)
-		}
-	}
-
-	buf.WriteByte('}')
-
-	return pool.FromJSON(buf.Bytes())
+        return pool.FromJSON(buf.Bytes())
 }

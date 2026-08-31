@@ -68,7 +68,7 @@ func (m benchMessage) ID() string                             { return "" }
 func (m benchMessage) Name() string                           { return m.name }
 func (m benchMessage) Context() context.Context               { return m.ctx }
 func (m benchMessage) Input() data.Documenter                  { return nil }
-func (m benchMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m benchMessage) InputChannel() <-chan abstract.StreamItem    { return nil }
 func (m benchMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m benchMessage) TenantID() string                       { return "" }
 func (m benchMessage) TraceID() string                        { return "" }

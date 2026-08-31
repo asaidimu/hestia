@@ -9,9 +9,9 @@ import (
 
 func TestPathTrie_StaticRoutes(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/health", handler())
-	trie.insert("POST", "/api/users", handler())
-	trie.insert("DELETE", "/api/users/{id}", handler())
+	trie.insert("GET", "/health", routeEntry{handler: handler()})
+	trie.insert("POST", "/api/users", routeEntry{handler: handler()})
+	trie.insert("DELETE", "/api/users/{id}", routeEntry{handler: handler()})
 
 	_, _, ok := trie.lookup("GET", "/health")
 	if !ok {
@@ -29,7 +29,7 @@ func TestPathTrie_StaticRoutes(t *testing.T) {
 
 func TestPathTrie_MethodMismatch(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("POST", "/api/users", handler())
+	trie.insert("POST", "/api/users", routeEntry{handler: handler()})
 
 	_, _, ok := trie.lookup("GET", "/api/users")
 	if ok {
@@ -39,8 +39,8 @@ func TestPathTrie_MethodMismatch(t *testing.T) {
 
 func TestPathTrie_PathParams(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/users/{id}", handler())
-	trie.insert("GET", "/{ns}/items/{key}", handler())
+	trie.insert("GET", "/users/{id}", routeEntry{handler: handler()})
+	trie.insert("GET", "/{ns}/items/{key}", routeEntry{handler: handler()})
 
 	_, params, ok := trie.lookup("GET", "/users/42")
 	if !ok {
@@ -64,7 +64,7 @@ func TestPathTrie_PathParams(t *testing.T) {
 
 func TestPathTrie_NotFound(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/api/users", handler())
+	trie.insert("GET", "/api/users", routeEntry{handler: handler()})
 
 	_, _, ok := trie.lookup("GET", "/api/items")
 	if ok {
@@ -79,7 +79,7 @@ func TestPathTrie_NotFound(t *testing.T) {
 
 func TestPathTrie_RootPath(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/", handler())
+	trie.insert("GET", "/", routeEntry{handler: handler()})
 
 	_, _, ok := trie.lookup("GET", "/")
 	if !ok {
@@ -94,31 +94,31 @@ func TestPathTrie_DuplicatePanics(t *testing.T) {
 		}
 	}()
 	trie := newPathTrie()
-	trie.insert("GET", "/api/users", handler())
-	trie.insert("GET", "/api/users", handler())
+	trie.insert("GET", "/api/users", routeEntry{handler: handler()})
+	trie.insert("GET", "/api/users", routeEntry{handler: handler()})
 }
 
 func TestPathTrie_StaticBeforeParam(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/users/{id}", handler())
-	trie.insert("GET", "/users/me", handler())
+	trie.insert("GET", "/users/{id}", routeEntry{handler: handler()})
+	trie.insert("GET", "/users/me", routeEntry{handler: handler()})
 
-	h, params, ok := trie.lookup("GET", "/users/me")
+	e, params, ok := trie.lookup("GET", "/users/me")
 	if !ok {
 		t.Fatal("expected /users/me to match")
 	}
-	if h == nil {
+	if e.handler == nil {
 		t.Error("expected non-nil handler")
 	}
 	if len(params) != 0 {
 		t.Errorf("expected empty params, got %v", params)
 	}
 
-	h, params, ok = trie.lookup("GET", "/users/42")
+	e, params, ok = trie.lookup("GET", "/users/42")
 	if !ok {
 		t.Fatal("expected /users/42 to match")
 	}
-	if h == nil {
+	if e.handler == nil {
 		t.Error("expected non-nil handler")
 	}
 	if params["id"] != "42" {
@@ -128,17 +128,32 @@ func TestPathTrie_StaticBeforeParam(t *testing.T) {
 
 func TestPathTrie_Operation(t *testing.T) {
 	trie := newPathTrie()
-	trie.insert("GET", "/api/system/health", handler())
+	trie.insert("GET", "/api/system/health", routeEntry{handler: handler()})
 
-	handler, params, ok := trie.lookup("GET", "/api/system/health")
+	e, params, ok := trie.lookup("GET", "/api/system/health")
 	if !ok {
 		t.Fatal("expected /api/system/health to match")
 	}
-	if handler == nil {
+	if e.handler == nil {
 		t.Error("expected non-nil handler")
 	}
 	if len(params) != 0 {
 		t.Errorf("expected no params, got %v", params)
+	}
+}
+
+func TestPathTrie_StreamingBodyFlag(t *testing.T) {
+	trie := newPathTrie()
+	trie.insert("POST", "/import", routeEntry{handler: handler(), streamingBody: true})
+	trie.insert("POST", "/normal", routeEntry{handler: handler()})
+
+	e, _, ok := trie.lookup("POST", "/import")
+	if !ok || !e.streamingBody {
+		t.Error("expected /import to match with streamingBody=true")
+	}
+	e, _, ok = trie.lookup("POST", "/normal")
+	if !ok || e.streamingBody {
+		t.Error("expected /normal to match with streamingBody=false")
 	}
 }
 

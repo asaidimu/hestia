@@ -1,9 +1,10 @@
 package abstract
 
 import (
-	"context"
+        "context"
+        "io"
 
-	"github.com/asaidimu/go-anansi/v8/core/query"
+        "github.com/asaidimu/go-anansi/v8/core/query"
 )
 
 // @note #perf-20260821-001 issue status=open priority=P2 tags=#performance,#struct-packing : Request struct has poor field ordering
@@ -40,34 +41,53 @@ import (
 // Resolution: Reorder fields to minimize padding. Consider using a pool
 // for Request objects to reduce allocations.
 type Request struct {
-	Operation  string
-	Body       []byte
-	PathParams map[string]string
-	Query      map[string][]string
-	Headers    map[string][]string
-	Cookies    map[string]string
-	ClientIP   string
-	UserAgent  string
-	RequestID  string
+        Operation string
+        // Body is the fully-buffered request body, set for non-streaming routes.
+        Body []byte
+        // BodyStream is set INSTEAD of Body for streaming routes: the transport
+        // must not touch ctx.Request.Body() on that path, or fasthttp buffers the
+        // whole body and defeats streaming. Owned by the handler closure for the
+        // lifetime of exactly one serveHTTP invocation.
+        BodyStream io.Reader
+        PathParams map[string]string
+        Query      map[string][]string
+        Headers    map[string][]string
+        Cookies    map[string]string
+        ClientIP   string
+        UserAgent  string
+        RequestID  string
 }
+
+// RouteOptions carries per-route transport behavior. RouteOption mutators are
+// passed to Transport.Handle as variadic options so the transport can decide
+// before touching the body whether a route streams.
+type RouteOptions struct {
+        StreamingBody bool
+}
+
+type RouteOption func(*RouteOptions)
+
+// WithStreamingBody marks a route as expecting a streamed request body. The
+// transport then hands the handler BodyStream instead of buffering Body.
+func WithStreamingBody() RouteOption { return func(o *RouteOptions) { o.StreamingBody = true } }
 
 type SameSite int
 
 const (
-	SameSiteStrictMode SameSite = iota + 1
-	SameSiteLaxMode
-	SameSiteNoneMode
+        SameSiteStrictMode SameSite = iota + 1
+        SameSiteLaxMode
+        SameSiteNoneMode
 )
 
 type Cookie struct {
-	Name     string
-	Value    string
-	Path     string
-	Domain   string
-	MaxAge   int
-	Secure   bool
-	HTTPOnly bool
-	SameSite SameSite
+        Name     string
+        Value    string
+        Path     string
+        Domain   string
+        MaxAge   int
+        Secure   bool
+        HTTPOnly bool
+        SameSite SameSite
 }
 
 type StreamBody <-chan any
@@ -93,18 +113,20 @@ type StreamBody <-chan any
 // 2. Group pointer types together to minimize padding
 // 3. Consider using a pool for Response objects
 type Response struct {
-	Status   int
-	Headers  map[string][]string
-	Body     any
-	Cookies  []Cookie
-	Page     *query.PaginationInfo
-	Metadata map[string]any
+        Status   int
+        Headers  map[string][]string
+        Body     any
+        Cookies  []Cookie
+        Page     *query.PaginationInfo
+        Metadata map[string]any
 }
 
 type Handler func(ctx context.Context, req Request) (Response, error)
 
 type Transport interface {
-	Handle(pattern string, handler Handler)
-	Start() error
-	Shutdown(ctx context.Context) error
+        // Handle registers a route. Options are appended (backward compatible);
+        // WithStreamingBody opts the route into streamed-body delivery.
+        Handle(pattern string, handler Handler, opts ...RouteOption)
+        Start() error
+        Shutdown(ctx context.Context) error
 }

@@ -95,7 +95,7 @@ func (m testMessage) ID() string                             { return "" }
 func (m testMessage) Name() string                           { return "" }
 func (m testMessage) Context() context.Context               { return m.ctx }
 func (m testMessage) Input() data.Documenter                  { return m.input }
-func (m testMessage) InputChannel() <-chan data.Documenter    { return nil }
+func (m testMessage) InputChannel() <-chan abstract.StreamItem    { return nil }
 func (m testMessage) BlobInputChannel() <-chan abstract.Blob { return nil }
 func (m testMessage) TenantID() string                       { return "" }
 func (m testMessage) TraceID() string                        { return "" }
