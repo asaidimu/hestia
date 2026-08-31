@@ -46,6 +46,7 @@ export class HestiaKeyStore implements DocumentStore<APIKey, QueryDSL<APIKey>, s
       )
       return res.data?.data
     } catch (err: any) {
+      if (err?.code === "DOCUMENT_NOT_FOUND") return undefined
       if (err?.code === "SYNC-001-NF") return undefined
       if (err?.code === "INTERNAL_ERROR" && typeof err?.message === "string" && err.message.includes("not found")) return undefined
       throw err

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/go-anansi/v8/core/query"
@@ -104,7 +105,7 @@ func (m *SystemAPIKeys) Get(ctx context.Context, keyID, userID string) (*SystemA
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
 	if len(keys) == 0 {
-		return nil, fmt.Errorf("api key not found")
+		return nil, common.NewSystemError("DOCUMENT_NOT_FOUND", "api key not found")
 	}
 	return keys[0], nil
 }

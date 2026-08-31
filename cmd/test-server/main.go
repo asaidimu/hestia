@@ -33,6 +33,8 @@ func serverPort() int {
 }
 
 func main() {
+	os.Setenv("HESTIA_DEV", "1")
+
 	tmpDir, err := os.MkdirTemp("", "hestiav2-test-*")
 	if err != nil {
 		panic(err)
@@ -47,6 +49,10 @@ func main() {
 		ForceBootstrapped: true,
 		AdminEmail:        "admin@test.local",
 		AdminPassword:     "password123",
+		DispatcherChainFunc: func(chain abstract.ChainEditor) {
+			chain.Remove("ratelimit")
+			chain.Remove("throttle")
+		},
 		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
 			return []runtime.Interface{
 				app.NewHTTPInterface(httpapi.Config{

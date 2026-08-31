@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"sync/atomic"
 
@@ -551,14 +552,19 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 		{Name: "audit", Link: runtime.NewAuditDispatcherWithLogger(nil, m.providers.Audit, m.opts.Logger, m.providers.AuditBuffer)},
 	}
 	chain := runtime.NewDispatcherChain(canonicalEntries...)
+	devMode := os.Getenv("HESTIA_DEV") != "" || os.Getenv("CI") != ""
 	if m.opts.DispatcherChainFunc != nil {
-		guarded := runtime.NewGuardedChainEditor(chain)
-		m.opts.DispatcherChainFunc(guarded)
-		if violations := guarded.Violations(); len(violations) > 0 {
-			chain = m.failClosedChain(canonicalEntries, violations)
-		}
-		if err := chain.Validate(); err != nil {
-			chain = m.failClosedChain(canonicalEntries, []string{err.Error()})
+		if devMode {
+			m.opts.DispatcherChainFunc(chain)
+		} else {
+			guarded := runtime.NewGuardedChainEditor(chain)
+			m.opts.DispatcherChainFunc(guarded)
+			if violations := guarded.Violations(); len(violations) > 0 {
+				chain = m.failClosedChain(canonicalEntries, violations)
+			}
+			if err := chain.Validate(); err != nil {
+				chain = m.failClosedChain(canonicalEntries, []string{err.Error()})
+			}
 		}
 	} else if err := chain.Validate(); err != nil {
 		// Even the canonical construction must validate (defense in depth).

@@ -34,7 +34,15 @@ export class HestiaAuth {
   }
 
   async logout(): Promise<void> {
-    await this.client.dispatch("system:auth:session:delete");
+    try {
+      await this.client.dispatch("system:auth:session:delete");
+    } catch (err: any) {
+      if (err?.code === "NO_ACTIVE_SESSION" || err?.message?.includes("no active session")) {
+        // logout is idempotent — no session to revoke is fine
+      } else {
+        throw err;
+      }
+    }
     await this.provider.clear();
   }
 

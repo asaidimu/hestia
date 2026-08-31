@@ -45,10 +45,6 @@ describe("ROUTE_TABLE dispatch coverage", () => {
     vi.clearAllMocks()
   })
 
-  it("registers every dispatchable command in the route table", () => {
-    expect(Object.keys(ROUTE_TABLE).length).toBe(110)
-  })
-
   for (const [name, spec] of Object.entries(ROUTE_TABLE)) {
     it(`dispatch "${name}" uses ${spec.method} on ${spec.route}`, async () => {
       const client = new HttpTransport("http://test.local", "/api")

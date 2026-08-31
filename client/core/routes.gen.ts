@@ -77,6 +77,7 @@ export const ROUTE_TABLE = {
   "system:policies:rule:update": { method: "PATCH", route: "/system/policies/rule/update/{name}", arguments: ["name"] },
   "system:policies:rule:validate": { method: "POST", route: "/system/policies/rule/validate", arguments: [] },
   "system:scheduler:job:list": { method: "GET", route: "/system/scheduler/job/list", arguments: [] },
+  "system:schedules:schedule:all": { method: "GET", route: "/system/schedules/schedule/all", arguments: [] },
   "system:schedules:schedule:create": { method: "POST", route: "/system/schedules/schedule/create", arguments: [] },
   "system:schedules:schedule:delete": { method: "DELETE", route: "/system/schedules/schedule/delete/{id}", arguments: ["id"] },
   "system:schedules:schedule:get": { method: "GET", route: "/system/schedules/schedule/get/{id}", arguments: ["id"] },
