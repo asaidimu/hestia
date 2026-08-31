@@ -1,3 +1,16 @@
+# [1.11.0](https://github.com/asaidimu/hestia/compare/v1.10.4...v1.11.0) (2026-08-31)
+
+
+### Bug Fixes
+
+* **system:** improve error handling and dispatcher chain configuration ([38eba9e](https://github.com/asaidimu/hestia/commit/38eba9e9d5eea843a47552096a25eae6d30ad977))
+
+
+### Features
+
+* **schedules:** add admin-only endpoint to list all schedules ([97d9695](https://github.com/asaidimu/hestia/commit/97d96953e02383e1acbf59d64199334510e6528c))
+* **streaming:** input-streaming stack end-to-end — contract, transport, adapters, codegen, sanitization ([c270808](https://github.com/asaidimu/hestia/commit/c270808662a4fb3188700c11952b02480936b0b7))
+
 ## [1.10.4](https://github.com/asaidimu/hestia/compare/v1.10.3...v1.10.4) (2026-08-30)
 
 
