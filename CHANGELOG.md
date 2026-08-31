@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/asaidimu/hestia/compare/v1.11.0...v1.12.0) (2026-08-31)
+
+
+### Features
+
+* **codegen:** seed sanitization.go and generate the sanitization collector ([c6955cc](https://github.com/asaidimu/hestia/commit/c6955cc75e38039d20010dff97f3a78980efaedc))
+
 # [1.11.0](https://github.com/asaidimu/hestia/compare/v1.10.4...v1.11.0) (2026-08-31)
 
 
