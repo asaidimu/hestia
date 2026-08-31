@@ -232,6 +232,40 @@ func TestListSchedulesHandler(t *testing.T) {
 	}
 }
 
+func TestAllSchedulesHandler(t *testing.T) {
+	m := newTestModel(t)
+
+	// Create schedules for two different users.
+	_, err := m.CreateSchedule(context.Background(), createTestDoc(t))
+	if err != nil {
+		t.Fatalf("Create user-1: %v", err)
+	}
+	doc2 := data.MustNewDocument(map[string]any{
+		"user_id": "user-2",
+		"message": "system:test:handler",
+		"input":   map[string]any{},
+		"cron":    "@every 2h",
+	})
+	_, err = m.CreateSchedule(context.Background(), doc2)
+	if err != nil {
+		t.Fatalf("Create user-2: %v", err)
+	}
+
+	log := zap.NewNop()
+	sched := scheduler.New(context.Background(), log)
+	disp := runtime.NewLocalDispatcher()
+	live := schedules.NewLiveSchedule(m, sched, disp, log)
+
+	svc := schedules.NewSchedulesServiceForTest(m, live)
+	docs, err := svc.All(context.Background(), &testMessage{}, &model.ScheduleListInput{})
+	if err != nil {
+		t.Fatalf("all handler: %v", err)
+	}
+	if len(docs) != 2 {
+		t.Fatalf("expected 2 documents, got %d", len(docs))
+	}
+}
+
 func TestGetScheduleHandler(t *testing.T) {
 	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{UserID: "user-1"})
 	m := newTestModel(t)

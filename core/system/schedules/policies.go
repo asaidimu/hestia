@@ -9,6 +9,7 @@ func Policies() []policies.Binding {
 	return []policies.Binding{
 		{Name: "system:schedules:schedule:create", RuleKey: "authenticated", Description: "Create a cron-triggered schedule"},
 		{Name: "system:schedules:schedule:list", RuleKey: "authenticated", Description: "List all schedules"},
+		{Name: "system:schedules:schedule:all", RuleKey: "administrator", Description: "List all schedules (admin)"},
 		{Name: "system:schedules:schedule:get", RuleKey: "authenticated", Description: "Get a single schedule by ID"},
 		{Name: "system:schedules:schedule:update", RuleKey: "authenticated", Description: "Update a schedule"},
 		{Name: "system:schedules:schedule:delete", RuleKey: "authenticated", Description: "Delete a schedule"},

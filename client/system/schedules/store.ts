@@ -23,6 +23,14 @@ export class HestiaScheduleStore {
     return res.data?.data ?? []
   }
 
+  /** List all schedules across all users. Admin only. */
+  async all(): Promise<Document<Schedule>[]> {
+    const res = await this.client.dispatch<{ data: Document<Schedule>[] }>(
+      "system:schedules:schedule:all",
+    )
+    return res.data?.data ?? []
+  }
+
   /** Get a single schedule by ID. Returns null if not found. */
   async get(id: string): Promise<Document<Schedule> | null> {
     const res = await this.client.dispatch<{ data: Document<Schedule> }>(

@@ -44,6 +44,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.HandleDocuments[model.ScheduleListInput](s.List),
 		},
 		{
+			Name:        "system:schedules:schedule:all",
+			Description: "List all schedules (admin)",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.ScheduleListInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[document.Document](),
+			Handler: dispatch.HandleDocuments[model.ScheduleListInput](s.All),
+		},
+		{
 			Name:        "system:schedules:schedule:get",
 			Description: "Get a single schedule by ID",
 			Intent:      abstract.Read,

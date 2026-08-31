@@ -155,6 +155,22 @@ func (s *SchedulesService) List(ctx context.Context, msg abstract.Message, input
 	return docs, nil
 }
 
+// All lists all schedules across all users. Restricted to administrators.
+//
+// @hestia.register(
+//   name="system:schedules:schedule:all",
+//   intent="read",
+//   rule="administrator",
+//   description="List all schedules (admin)",
+// )
+func (s *SchedulesService) All(ctx context.Context, msg abstract.Message, input *model.ScheduleListInput) ([]*document.Document, error) {
+	docs, err := s.model.ListSchedules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
 // Get returns a single schedule by ID.
 //
 // @hestia.register(
