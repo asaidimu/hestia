@@ -1,0 +1,52 @@
+{
+  "name": "@asaidimu/hestia-mock",
+  "version": "1.0.0",
+  "description": "IndexedDB-backed mock server + transport for the Hestia TypeScript client SDK — full API parity, persistent offline emulation, and realistic error semantics",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "clean": "[ -e ./dist ] && rm -rf ./dist || echo No dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asaidimu/hestia.git",
+    "directory": "client-mock"
+  },
+  "author": "Saidimu <47994458+asaidimu@users.noreply.github.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@asaidimu/hestia": "file:../client",
+    "@asaidimu/utils-error": "^1.1.10",
+    "@asaidimu/query": "^1.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "@types/bun": "latest",
+    "fake-indexeddb": "^6.2.3",
+    "tsdown": "^0.22.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
