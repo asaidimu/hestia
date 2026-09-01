@@ -25,6 +25,9 @@ jobs:
       - name: Build client
         run: cd client && bun ci && bun run build
 
+      - name: Build client-mock
+        run: cd client-mock && bun ci && bun run build
+
       - name: version
         uses: cycjimmy/semantic-release-action@v6
         env:

@@ -20,11 +20,14 @@
     "dist"
   ],
   "scripts": {
+    "ci": "bun install --frozen-lockfile",
     "build": "tsdown",
     "clean": "[ -e ./dist ] && rm -rf ./dist || echo No dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prebuild": "bun clean && bun run .sync-package.ts",
+    "postbuild": "cp README.md LICENSE.md ./dist && mv ./out.package.json ./dist/package.json"
   },
   "repository": {
     "type": "git",
@@ -32,7 +35,7 @@
     "directory": "client-mock"
   },
   "author": "Saidimu <47994458+asaidimu@users.noreply.github.com>",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "dependencies": {
     "@asaidimu/hestia": "file:../client",
     "@asaidimu/utils-error": "^1.1.10",
