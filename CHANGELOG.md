@@ -1,3 +1,15 @@
+# [1.13.0](https://github.com/asaidimu/hestia/compare/v1.12.1...v1.13.0) (2026-09-01)
+
+
+### Bug Fixes
+
+* **deps:** Implement mock hestia client and migrate project licenses to AGPL-3.0 ([7534f65](https://github.com/asaidimu/hestia/commit/7534f65003cfbdb871dd96792a674376d74e6bbb))
+
+
+### Features
+
+* **client-mock:** add IndexedDB-backed mock Hestia server & transport ([c4452f7](https://github.com/asaidimu/hestia/commit/c4452f7aef7c881a476b848e8191bf4e740fec9b))
+
 ## [1.12.1](https://github.com/asaidimu/hestia/compare/v1.12.0...v1.12.1) (2026-08-31)
 
 
