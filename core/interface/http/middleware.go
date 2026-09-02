@@ -179,6 +179,12 @@ func (o *Interface) resolveIdentity(ctx context.Context, userID string) *iam.Ide
 	}
 }
 
+
+// @note #l2z9mr issue : Duplicated claims to identity code.
+
+// if ever the mapping between identity and claims change,
+// alot of code will need to change.
+// Consider making iam.Identity generic over claims data
 func (o *Interface) authenticated(ctx context.Context, ident *iam.Identity, next handlerFunc, req Request) (Response, error) {
 	var claims *abstract.Claims
 	if ident != nil {

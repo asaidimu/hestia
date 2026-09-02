@@ -22,14 +22,14 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - name: Build client
-        run: cd client && bun ci && bun run build
+      - name: Install dependencies
+        run: cd client && bun ci
 
-      - name: Build client-mock
-        run: cd client-mock && bun ci && bun run build
+      - name: Build all packages
+        run: cd client && bun run build
 
-      - name: version
-        uses: cycjimmy/semantic-release-action@v6
+      - name: Release
+        run: cd client && bun run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

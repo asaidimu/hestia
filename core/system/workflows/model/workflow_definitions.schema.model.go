@@ -27,6 +27,7 @@ type SystemWorkflowDefinitionMetadata struct {
 	Created   string  `anansi:"created,required=true" json:"created"`
 	Updated   string  `anansi:"updated,required=true" json:"updated"`
 	Signature *string `anansi:"signature,required=false,omitempty" json:"signature,omitempty"`
+	TraceID   *string `anansi:"trace_id,required=false,omitempty" json:"trace_id,omitempty"`
 	Version   float64 `anansi:"version,required=true" json:"version"`
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/asaidimu/hestia/core/system/auth"
 	"github.com/asaidimu/hestia/core/system/notifications"
 	"github.com/asaidimu/hestia/core/system/policies"
+	"github.com/asaidimu/hestia/core/system/schedules"
 )
 
 // SeedOptions groups optional parameters for SeedAll.
@@ -58,6 +59,10 @@ func SeedAll(ctx context.Context, ps *ProviderSet, opts SeedOptions, defaults []
 
 	if err := notifications.SeedNotificationTemplates(ctx, ps.Persist); err != nil {
 		return result, fmt.Errorf("seed notification templates: %w", err)
+	}
+
+	if err := schedules.SeedSchedules(ctx, ps.Schedules); err != nil {
+		return result, fmt.Errorf("seed schedules: %w", err)
 	}
 
 	return SeedResult{

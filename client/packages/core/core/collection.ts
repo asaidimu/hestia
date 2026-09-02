@@ -1,4 +1,3 @@
-import type { QueryDSL } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { type Transport } from "./client";
 import { createPagedController, type PageOptions } from "./pager";
@@ -10,6 +9,7 @@ import type {
     StoreEvent,
 } from "./types";
 import type { DocumentStore } from "./types";
+import type { QueryDSL } from "@asaidimu/query";
 
 interface ServerEnvelope<T extends Record<string, any>> {
   data: Document<T>[];
@@ -41,7 +41,7 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
     return this.collectionName;
   }
 
-  async find(query?: Record<string, unknown>): Promise<Page<T>> {
+  async find(query?: QueryDSL<T>): Promise<Page<T>> {
     const res = await this.client.dispatch<ServerEnvelope<T>>(
       "system:collections:document:query",
       { arguments: { name: this.collectionName }, payload: query ?? {} },
@@ -80,6 +80,10 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
     );
     return res.data!.data;
   }
+
+  // @note #5ag9xj issue : We should make options an object.
+  //
+  // The parameters of this method are very ambigious
 
   async update(props: { data: Partial<T>; options?: string }): Promise<Document<T> | undefined> {
     const id = props.options!;

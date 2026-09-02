@@ -329,6 +329,12 @@ func (s *SchedulesService) Delete(ctx context.Context, msg abstract.Message, inp
 		return nil, err
 	}
 
+	if v, err := existing.Get("protected"); err == nil {
+		if b, ok := v.(bool); ok && b {
+			return nil, common.NewSystemError("SCHEDULE_PROTECTED", "cannot delete a protected schedule")
+		}
+	}
+
 	s.live.UnregisterByID(ctx, input.ID)
 
 	if err := s.model.DeleteSchedule(ctx, input.ID); err != nil {

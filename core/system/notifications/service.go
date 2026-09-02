@@ -49,14 +49,12 @@ func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
 // targets arbitrary users.
 //
 // @hestia.register(
-//
 //	name="system:notifications:notification:create",
 //	intent="create",
 //	rule="administrator",
 //	description="Create an in-app notification for a user",
-//
 // )
-func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstract.Message, input *model.NotificationCreateInput) (*model.SystemNotifications, error) {
+func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstract.Message, input *model.NotificationCreate) (*model.SystemNotifications, error) {
 	if input.UserID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
@@ -271,4 +269,20 @@ func (s *NotificationsService) Stream(ctx context.Context, msg abstract.Message,
 	}()
 
 	return &abstract.Result{DocumentChannel: docCh}, nil
+}
+
+// CleanupExpired deletes expired notifications.
+//
+// @hestia.register(
+//
+//	name="system:notifications:notification:cleanup",
+//	intent="create",
+//	rule="public",
+//	internal="true",
+//	description="Delete expired notifications",
+//
+// )
+func (s *NotificationsService) CleanupExpired(ctx context.Context, msg abstract.Message) error {
+	_, err := s.model.DeleteExpired(ctx)
+	return err
 }

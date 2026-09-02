@@ -63,6 +63,11 @@ func (p *hestiaIdentityProvider) authenticateAPIKey(key string) (*iam.Identity, 
 	return claimsToIdentity(claims), nil
 }
 
+// @note #mdzmre issue : Performance issue.
+//
+// This method will likely run on every request,
+// creating a map churn. Figure out if this is
+// entirely necessary
 func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 	perms := claims.Scopes
 	if perms == nil {
@@ -85,6 +90,10 @@ func claimsToIdentity(claims *abstract.Claims) *iam.Identity {
 		Properties:  props,
 	}
 }
+
+// @note #41htq3 issue : Map allocation churn
+//
+// @see #mdzmre
 
 func extractClaims(doc data.Documenter) *abstract.Claims {
 	if doc == nil {

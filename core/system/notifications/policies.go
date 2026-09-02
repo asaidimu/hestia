@@ -13,5 +13,6 @@ func Policies() []policies.Binding {
 		{Name: "system:notifications:read:all", RuleKey: "authenticated", Description: "Mark all notifications as read"},
 		{Name: "system:notifications:unread:count", RuleKey: "authenticated", Description: "Count unread notifications"},
 		{Name: "system:notifications:notification:stream", RuleKey: "authenticated", Description: "Stream new notifications for the current user"},
+		{Name: "system:notifications:notification:cleanup", RuleKey: "public", Description: "Delete expired notifications"},
 	}
 }

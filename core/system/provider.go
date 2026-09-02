@@ -145,15 +145,6 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 	schedCtx, schedCancel := context.WithCancel(context.Background())
 	ps.SchedCancel = schedCancel
 	ps.Scheduler = scheduler.New(schedCtx, ps.Logger)
-	ps.Scheduler.Register("notifications:cleanup", "@every 1h", func(ctx context.Context) error {
-		deleted, err := ps.Notifications.DeleteExpired(ctx)
-		if err != nil {
-			ps.Logger.Warn("cleanup: expired notifications failed", zap.Error(err))
-		} else {
-			ps.Logger.Debug("cleanup: deleted expired notifications", zap.Int("count", deleted))
-		}
-		return nil
-	})
 
 	resolver := notification.NewSettingsResolver(ps.Persist)
 

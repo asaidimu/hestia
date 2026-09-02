@@ -41,6 +41,7 @@ type SystemScheduledMessages struct {
 	CreatedAt *int64                           `anansi:"created_at,required=false,omitempty" json:"created_at,omitempty"`
 	Disabled  *bool                            `anansi:"disabled,required=false,omitempty" json:"disabled,omitempty"`
 	Input     map[string]any                   `anansi:"input,required=false,omitempty" json:"input,omitempty"`
+	Protected *bool                            `anansi:"protected,required=false,omitempty" json:"protected,omitempty"`
 	TenantID  *string                          `anansi:"tenant_id,required=false,omitempty" json:"tenant_id,omitempty"`
 }
 

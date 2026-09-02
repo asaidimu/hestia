@@ -108,7 +108,12 @@ func newTestAuthService(t *testing.T, p base.Persistence, opts ...func(*auth.Aut
 
 	apiKeyAuth := auth.NewAPIKeyAuthenticator(apiKeyModel, liveUsers, "ephemeral-key", "admin-1", "admin@example.com", zap.NewNop(), func() bool { return false })
 
-	svc := auth.NewAuthServiceForTest(userModel, apiKeyModel, credProv, apiKeyAuth, "admin-1", 7*24*time.Hour)
+	blocklist, err := auth.NewTokenBlocklist(p, zap.NewNop())
+	if err != nil {
+		t.Fatalf("NewTokenBlocklist: %v", err)
+	}
+
+	svc := auth.NewAuthServiceForTest(userModel, apiKeyModel, credProv, apiKeyAuth, "admin-1", 7*24*time.Hour, blocklist)
 
 	for _, opt := range opts {
 		opt(svc)

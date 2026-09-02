@@ -28,11 +28,9 @@ func TestCreateNotificationGoroutineStability(t *testing.T) {
 	runtime.GC()
 	before := runtime.NumGoroutine()
 	for i := 0; i < 100; i++ {
-		if _, err := svc.CreateNotification(ctx, nil, &model.NotificationCreateInput{
-			NotificationCreate: model.NotificationCreate{
+		if _, err := svc.CreateNotification(ctx, nil, &model.NotificationCreate{
 				UserID:  "goroutine-stability",
 				Subject: fmt.Sprintf("note %d", i),
-			},
 		}); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}

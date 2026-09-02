@@ -23,6 +23,7 @@ import { HestiaScheduleStore } from "./system/schedules/store";
 import { HestiaSettingStore } from "./system/settings/store";
 import { HestiaUpdates } from "./system/updates/store";
 import { HestiaWorkflowStore } from "./system/workflows/store";
+import { HestiaOperations } from "./system/operations/store";
 
 export interface HestiaConfig {
   baseUrl: string;
@@ -54,6 +55,7 @@ export class HestiaClient {
   readonly settings: HestiaSettingStore;
   readonly updates: HestiaUpdates;
   readonly workflows: HestiaWorkflowStore;
+  readonly operations: HestiaOperations
   private tokenProvider: IdentityProvider;
 
   private onAuthStateChanged?: () => void;
@@ -111,6 +113,7 @@ export class HestiaClient {
     this.settings = new HestiaSettingStore(this.client)
     this.updates = new HestiaUpdates(this.client)
     this.workflows = new HestiaWorkflowStore(this.client)
+    this.operations = new HestiaOperations(this.client)
   }
 
   onAuthStateChange(callback: () => void) {

@@ -15,5 +15,6 @@ func Policies() []policies.Binding {
 		{Name: "system:auth:apikey:validate", RuleKey: "public", Description: "Validate an API key"},
 		{Name: "system:auth:bootstrap:password:set", RuleKey: "administrator", Description: "Set bootstrap admin password"},
 		{Name: "system:auth:token:elevate", RuleKey: "public", Description: "Issue an ephemeral API key for privilege elevation"},
+		{Name: "system:auth:token:blocklist:prune", RuleKey: "public", Description: "Prune expired token blocklist entries"},
 	}
 }

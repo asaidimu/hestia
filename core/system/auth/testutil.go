@@ -16,6 +16,7 @@ func NewAuthServiceForTest(
 	apiKeyAuth *APIKeyAuthenticator,
 	adminUserID string,
 	sessionTTL time.Duration,
+	blocklist *TokenBlocklist,
 ) *AuthService {
 	return &AuthService{
 		users:       users,
@@ -24,6 +25,7 @@ func NewAuthServiceForTest(
 		apiKeyAuth:  apiKeyAuth,
 		adminUserID: adminUserID,
 		sessionTTL:  sessionTTL,
+		blocklist:   blocklist,
 	}
 }
 

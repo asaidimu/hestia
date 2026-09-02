@@ -28,6 +28,14 @@ func (m *SystemScheduledMessagess) CreateSchedule(ctx context.Context, doc data.
 		}
 	}
 
+	if v, err := doc.Get("protected"); err == nil {
+		if b, ok := v.(*bool); ok && b != nil {
+			scheduled.Protected = b
+		} else if b, ok := v.(bool); ok {
+			scheduled.Protected = &b
+		}
+	}
+
 	created, err := m.Create(ctx, scheduled)
 	if err != nil {
 		return nil, err

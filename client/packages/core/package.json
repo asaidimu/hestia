@@ -1,0 +1,83 @@
+{
+  "name": "@asaidimu/hestia",
+  "version": "1.0.1",
+  "description": "TypeScript client SDK for the Hestia platform — auth, collections, API keys, policies, audit logs, blobs, and capabilities",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "ci": "bun install --frozen-lockfile",
+    "build": "tsdown",
+    "test": "vitest --run",
+    "test:ci": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "vitest --browser --run",
+    "clean": "[ -e ./dist ] && rm -rf ./dist || echo No dist",
+    "prebuild": "bun clean && bun run .sync-package.ts",
+    "postbuild": "cp README.md LICENSE.md ./dist && mv ./out.package.json ./dist/package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asaidimu/hestia.git",
+    "directory": "packages/core"
+  },
+  "author": "Saidimu <47994458+asaidimu@users.noreply.github.com>",
+  "license": "AGPL-3.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "release": {
+    "plugins": [
+      [
+        "@semantic-release/npm",
+        {
+          "pkgRoot": "./dist"
+        }
+      ],
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "CHANGELOG.md",
+            "package.json"
+          ],
+          "message": "chore(release): Release @asaidimu/hestia v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        }
+      ]
+    ]
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "@types/bun": "latest",
+    "tsdown": "^0.22.9",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@asaidimu/utils-persistence": "^6.1.22",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@asaidimu/network-client": "^2.0.0",
+    "@asaidimu/query": "^1.0.0",
+    "@asaidimu/utils-artifacts": "^8.2.25",
+    "@asaidimu/utils-error": "^1.1.10",
+    "@asaidimu/utils-schema": "^1.0.10",
+    "@asaidimu/utils-store": "^10.2.18",
+    "@asaidimu/utils-sync": "^2.3.10",
+    "uuid": "^14.0.1"
+  }
+}

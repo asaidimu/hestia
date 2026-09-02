@@ -3,6 +3,7 @@
 package notifications
 
 import (
+	"context"
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	"github.com/asaidimu/hestia/core/abstract"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
@@ -27,10 +28,10 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Intent:      abstract.Create,
 			Enabled:     true,
 			Input: abstract.Input{
-				Schema: dispatch.SchemaFromTypeWithTag[model.NotificationCreateInput]("input"),
+				Schema: dispatch.SchemaFromTypeWithTag[model.NotificationCreate]("input"),
 			},
 			Output:  dispatch.SchemaFromType[model.SystemNotifications](),
-			Handler: dispatch.HandleDocument[model.NotificationCreateInput, *model.SystemNotifications](s.CreateNotification),
+			Handler: dispatch.HandleDocument[model.NotificationCreate, *model.SystemNotifications](s.CreateNotification),
 		},
 		{
 			Name:        "system:notifications:notification:list",
@@ -87,6 +88,19 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			},
 			Output:  dispatch.SchemaFromType[model.NotificationStreamOutput](),
 			Handler: dispatch.Handle[model.NotificationStreamInput](s.Stream),
+		},
+		{
+			Name:        "system:notifications:notification:cleanup",
+			Description: "Delete expired notifications",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Internal:    true,
+			Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+				if err := s.CleanupExpired(ctx, msg); err != nil {
+					return nil, err
+				}
+				return &abstract.Result{}, nil
+			},
 		},
 	}, nil
 }

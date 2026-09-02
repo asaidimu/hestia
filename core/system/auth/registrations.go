@@ -127,5 +127,18 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Output:  dispatch.SchemaFromType[model.ElevateOutput](),
 			Handler: dispatch.HandleDocument[model.ElevateInput, *model.ElevateDocumentView](s.ElevateToken),
 		},
+		{
+			Name:        "system:auth:token:blocklist:prune",
+			Description: "Prune expired token blocklist entries",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Internal:    true,
+			Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+				if err := s.PruneBlocklist(ctx, msg); err != nil {
+					return nil, err
+				}
+				return &abstract.Result{}, nil
+			},
+		},
 	}, nil
 }

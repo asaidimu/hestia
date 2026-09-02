@@ -95,7 +95,7 @@ func TestNotificationStreamNeverDelivers(t *testing.T) {
 	}
 
 	err = disp.RegisterHandler("system:notifications:notification:create",
-		dispatch.HandleDocument[notifmodel.NotificationCreateInput, *notifmodel.SystemNotifications](svc.CreateNotification),
+		dispatch.HandleDocument[notifmodel.NotificationCreate, *notifmodel.SystemNotifications](svc.CreateNotification),
 		abstract.HandlerInfo{Description: "notification create", Enabled: true},
 	)
 	if err != nil {

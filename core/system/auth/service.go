@@ -341,13 +341,11 @@ func (s *AuthService) SetBootstrapPassword(ctx context.Context, msg abstract.Mes
 // ElevateToken issues an ephemeral API key for privilege elevation.
 //
 // @hestia.register(
-//
 //	name="system:auth:token:elevate",
 //	intent="create",
 //	rule="public",
 //	description="Issue an ephemeral API key for privilege elevation",
 //	output="model.ElevateOutput",
-//
 // )
 func (s *AuthService) ElevateToken(ctx context.Context, msg abstract.Message, input *model.ElevateInput) (*model.ElevateDocumentView, error) {
 	user, err := s.users.GetByEmail(ctx, input.Email)
@@ -377,4 +375,20 @@ func (s *AuthService) ElevateToken(ctx context.Context, msg abstract.Message, in
 	}
 
 	return document.New(&model.ElevateDocumentView{Key: key.FullKey}), nil
+}
+
+// PruneBlocklist removes expired entries from the token blocklist.
+//
+// @hestia.register(
+//
+//	name="system:auth:token:blocklist:prune",
+//	intent="create",
+//	rule="public",
+//	internal="true",
+//	description="Prune expired token blocklist entries",
+//
+// )
+func (s *AuthService) PruneBlocklist(ctx context.Context, msg abstract.Message) error {
+	_, err := s.blocklist.Prune(ctx)
+	return err
 }
