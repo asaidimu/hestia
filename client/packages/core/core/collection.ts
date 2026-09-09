@@ -22,6 +22,9 @@ interface SingleEnvelope<T extends Record<string, any>> {
 
 export class HestiaCollection<T extends Record<string, any>> implements DocumentStore<T, Record<string, unknown>, string, Record<string, unknown>, Record<string, unknown>, string, string, Record<string, unknown>> {
   private pagerOptions: PageOptions<T> = {};
+  // @note #qhx9r0 issue : Impotent Page options
+  //
+  // There is effectively no way to pass in custom pager options
   private pager: PagedData<T>;
 
   constructor(
@@ -83,8 +86,8 @@ export class HestiaCollection<T extends Record<string, any>> implements Document
 
   // @note #5ag9xj issue : We should make options an object.
   //
-  // The parameters of this method are very ambigious
-
+  // The parameters of this method are very ambigious,
+  // we get ID from options??
   async update(props: { data: Partial<T>; options?: string }): Promise<Document<T> | undefined> {
     const id = props.options!;
     const res = await this.client.dispatch<SingleEnvelope<T>>(

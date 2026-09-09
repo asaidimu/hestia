@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -23,83 +22,48 @@ var addCmdCmd = &cobra.Command{
 	Use:   "cmd <name>",
 	Short: "Add a new command entry point",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		requireRoot()
-
-		if isHestiaModule(rootDir) {
-			fmt.Println("Skipping: 'add cmd' is for downstream projects, not for the hestia library repo itself")
-			return
+		p, err := newProject(".", false)
+		if err != nil {
+			return err
+		}
+		if p.isHestia() {
+			return nil
 		}
 
-		cfg := readConfig(rootDir)
-		if cfg.Module == "" {
-			cfg.Module = detectModulePath(rootDir)
-		}
-		if len(cfg.Modules) == 0 {
-			cfg.Modules = Modules{"module"}
+		if p.Cfg.Commands == nil {
+			p.Cfg.Commands = map[string]CommandConfig{}
 		}
 
-		alreadyRegistered := false
-		for _, c := range cfg.Cmds {
-			if c == name {
-				alreadyRegistered = true
-				break
+		if _, exists := p.Cfg.Commands[name]; !exists {
+			p.Cfg.Commands[name] = CommandConfig{
+				Entry: filepath.ToSlash(filepath.Join("cmd", name, "main.go")),
+				Uses:  []string{},
 			}
 		}
-		if !alreadyRegistered {
-			cfg.Cmds = append(cfg.Cmds, name)
+		if err := writeConfig(p.Root, p.Cfg); err != nil {
+			return err
 		}
-		writeConfig(rootDir, cfg)
 
-		cmdDir := filepath.Join(rootDir, "cmd", name)
+		cmdDir := filepath.Join(p.Root, "cmd", name)
 		if _, err := os.Stat(cmdDir); err == nil {
-			fmt.Fprintf(os.Stderr, "Command %q already exists at %s\n", name, cmdDir)
-			os.Exit(1)
+			return fmt.Errorf("command %q already exists at %s", name, cmdDir)
 		}
 		os.MkdirAll(cmdDir, 0755)
 
-		modName := modulePath
-		if idx := strings.LastIndex(modName, "/"); idx >= 0 {
-			modName = modName[idx+1:]
-		}
-		mainContent := fmt.Sprintf(`package main
-
-import (
-	"os"
-
-	hestia "github.com/asaidimu/hestia/core"
-	%q
-)
-
-var version = "dev"
-
-func main() {
-	app, err := hestia.Setup(hestia.SetupConfig{
-		Version:      version,
-		ProjectName:  %q,
-		Modules: autogen.Modules(),
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	if err := app.Start(); err != nil {
-		panic(err)
-	}
-	defer app.Close()
-
-	os.Stdout.Sync()
-	select {}
-}
-`, modulePath+"/"+filepath.ToSlash(autogenDir), modName)
+		funcName := commandFuncName(name)
+		mainContent := commandMainContent(p.modPath, p.autoDir, name, funcName)
 
 		mainPath := filepath.Join(cmdDir, "main.go")
 		if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", mainPath, err)
-			os.Exit(1)
+			return fmt.Errorf("write %s: %w", mainPath, err)
 		}
 		fmt.Printf("Added command %q at %s\n", name, cmdDir)
+
+		if err := writeCommandStub(p.Root, p.Cfg, name); err != nil {
+			return fmt.Errorf("write command stub: %w", err)
+		}
+		return nil
 	},
 }

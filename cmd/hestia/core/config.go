@@ -9,18 +9,84 @@ import (
 
 // Config is the project configuration read from hestia.json. Fields:
 //
-//   - module:   the Go module import path (e.g. github.com/user/app).
-//   - modules:  directories where modules live. Accepts a single string or a
-//     list; modules are scanned from every entry, and new modules/services are
-//     scaffolded into the first entry. Defaults to ["module"].
-//   - autogen:  where generated code (the module registry) is written.
+//   - module:      the Go module import path (e.g. github.com/user/app).
+//   - core_dir:    directory holding shared services, always loaded.
+//     Defaults to "core".
+//   - modules_dir: directory holding feature modules, selected per command.
+//     Defaults to "modules".
+//   - autogen:     where generated code (the module registry) is written.
 //     Defaults to "internal/autogen".
-//   - cmds:     names of entry points created via 'add cmd' (bookkeeping).
+//   - commands:    named entry points. Each command declares the feature
+//     modules it uses; core modules are always loaded implicitly.
+//   - modules:     LEGACY — directories where modules live. Accepts a single
+//     string or a list. Honoured when core_dir/modules_dir are unset so old
+//     projects keep working. New projects use core_dir + modules_dir.
+//   - cmds:        LEGACY — names of entry points created via 'add cmd'.
 type Config struct {
-	Module  string   `json:"module,omitempty"`
-	Modules Modules  `json:"modules,omitempty"`
-	Autogen string   `json:"autogen,omitempty"`
-	Cmds    []string `json:"cmds,omitempty"`
+	Module     string                   `json:"module,omitempty"`
+	CoreDir    string                   `json:"core_dir,omitempty"`
+	ModulesDir string                   `json:"modules_dir,omitempty"`
+	Autogen    string                   `json:"autogen,omitempty"`
+	Commands   map[string]CommandConfig `json:"commands,omitempty"`
+	Modules    Modules                  `json:"modules,omitempty"`
+	Cmds       []string                 `json:"cmds,omitempty"`
+}
+
+// CommandConfig describes a single binary entry point: where its main.go
+// lives and which feature modules it loads.
+type CommandConfig struct {
+	Entry string   `json:"entry"`
+	Uses  []string `json:"uses,omitempty"`
+}
+
+// CoreDirResolved returns the configured core directory or the default.
+func (c Config) CoreDirResolved() string {
+	if c.CoreDir != "" {
+		return c.CoreDir
+	}
+	return "core"
+}
+
+// ModulesDirResolved returns the configured feature-module directory or the
+// default. When only the legacy "modules" list is set, its first entry is
+// used so old projects keep working.
+func (c Config) ModulesDirResolved() string {
+	if c.ModulesDir != "" {
+		return c.ModulesDir
+	}
+	if len(c.Modules) > 0 {
+		return c.Modules[0]
+	}
+	return "modules"
+}
+
+// AutogenResolved returns the configured autogen directory or the default.
+func (c Config) AutogenResolved() string {
+	if c.Autogen != "" {
+		return c.Autogen
+	}
+	return "internal/autogen"
+}
+
+// UsesFor returns the feature modules a command declares.
+func (c Config) UsesFor(cmd string) []string {
+	if c.Commands == nil {
+		return nil
+	}
+	return c.Commands[cmd].Uses
+}
+
+// effectiveModulesDirs returns the directories to scan for modules. New-style
+// configs (core_dir/modules_dir/commands set) scan both core and modules
+// dirs; legacy configs keep scanning the old "modules" list.
+func effectiveModulesDirs(cfg Config) []string {
+	if cfg.CoreDir != "" || cfg.ModulesDir != "" || len(cfg.Commands) > 0 {
+		return []string{cfg.CoreDirResolved(), cfg.ModulesDirResolved()}
+	}
+	if len(cfg.Modules) > 0 {
+		return []string(cfg.Modules)
+	}
+	return []string{"module"}
 }
 
 // Modules is a list of directories that hold modules. It unmarshals from
@@ -55,18 +121,17 @@ func readConfig(root string) Config {
 	return cfg
 }
 
-func writeConfig(root string, cfg Config) {
+func writeConfig(root string, cfg Config) error {
 	path := filepath.Join(root, "hestia.json")
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to marshal config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("marshal config: %w", err)
 	}
 	if err := os.WriteFile(path, data, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-		os.Exit(1)
+		return fmt.Errorf("write %s: %w", path, err)
 	}
 	fmt.Printf("Wrote %s\n", path)
+	return nil
 }
 
 func detectModulePath(root string) string {

@@ -10,106 +10,109 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var initCmdMain string
-
-func init() {
-	InitCmd.Flags().StringVar(&initCmdMain, "cmd", "./main.go", "Path to the entry point")
-}
-
 var InitCmd = &cobra.Command{
-	Use:   "init",
+	Use:   "init [module-path] [root]",
 	Short: "Initialise a new hestia project",
-	Long: `Creates hestia.json, generates a stub module registry, writes an entry point, and runs go mod tidy.
+	Long: `Creates a new hestia project: go.mod (if missing), hestia.json,
+core/ and modules/ directories, a command entry point, the generated
+module registry, and runs go mod tidy.
 
-Flags:
-  --cmd  path to the entry point (default ./main.go)`,
-	Run: func(cmd *cobra.Command, args []string) {
-		if _, err := os.Stat("hestia.json"); err == nil {
-			fmt.Println("hestia.json already exists")
-			return
-		}
-
+Examples:
+  hestia init github.com/user/myapp
+  hestia init github.com/user/myapp ./src`,
+	Args: cobra.RangeArgs(0, 2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
 			dir = "."
 		}
+		if len(args) >= 2 {
+			dir = args[1]
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("create %s: %w", dir, err)
+			}
+		}
 
-		modPath := detectModulePath(dir)
+		if _, err := os.Stat(filepath.Join(dir, "hestia.json")); err == nil {
+			fmt.Println("hestia.json already exists")
+			return nil
+		}
+
+		modPath := ""
+		if len(args) >= 1 {
+			modPath = args[0]
+		} else {
+			modPath = detectModulePath(dir)
+		}
 		if modPath == "" {
-			fmt.Fprintln(os.Stderr, "Cannot detect module path: ensure go.mod exists in this directory or a parent directory")
-			os.Exit(1)
+			return fmt.Errorf("cannot detect module path: pass it explicitly (hestia init <module-path>) or ensure go.mod exists")
+		}
+
+		// go.mod first so detectModulePath and go mod tidy work.
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); os.IsNotExist(err) {
+			fmt.Println("Running go mod init...")
+			initCmd := exec.Command("go", "mod", "init", modPath)
+			initCmd.Dir = dir
+			initCmd.Stdout = os.Stdout
+			initCmd.Stderr = os.Stderr
+			if err := initCmd.Run(); err != nil {
+				return fmt.Errorf("go mod init failed: %w", err)
+			}
+		}
+
+		basename := modPath
+		if idx := strings.LastIndex(basename, "/"); idx >= 0 {
+			basename = basename[idx+1:]
 		}
 
 		cfg := Config{
-			Module:  modPath,
-			Modules: Modules{"module"},
+			Module:     modPath,
+			CoreDir:    "core",
+			ModulesDir: "modules",
+			Autogen:    "internal/autogen",
+			Commands: map[string]CommandConfig{
+				basename: {
+					Entry: filepath.ToSlash(filepath.Join("cmd", basename, "main.go")),
+					Uses:  []string{},
+				},
+			},
 		}
-		writeConfig(dir, cfg)
+		if err := writeConfig(dir, cfg); err != nil {
+			return err
+		}
 
-		// Seed global vars so helpers can use them
-		rootDir = dir
-		modulePath = modPath
-		modulesDirs = cfg.Modules
-		autogenDir = cfg.Autogen
-		if autogenDir == "" {
-			autogenDir = "internal/autogen"
+		p, err := newProject(dir, false)
+		if err != nil {
+			return err
 		}
 
 		// Create module source directories
-		for _, src := range modulesDirs {
-			srcDir := filepath.Join(rootDir, src)
+		for _, src := range []string{p.coreDir(), p.modulesDir()} {
+			srcDir := filepath.Join(dir, src)
 			os.MkdirAll(srcDir, 0755)
 		}
 
 		// Generate stub module registry
-		genModuleRegistry()
+		if err := p.genModuleRegistry(); err != nil {
+			return err
+		}
 
 		// Write entry point
-		mainPath := filepath.Join(dir, initCmdMain)
-		mainDir := filepath.Dir(mainPath)
-		os.MkdirAll(mainDir, 0755)
+		cmdDir := filepath.Join(dir, "cmd", basename)
+		os.MkdirAll(cmdDir, 0755)
 
-		modName := modulePath
-		if idx := strings.LastIndex(modName, "/"); idx >= 0 {
-			modName = modName[idx+1:]
-		}
-		mainContent := fmt.Sprintf(`package main
-
-import (
-	"os"
-
-	hestia "github.com/asaidimu/hestia/core"
-	"%s/%s"
-)
-
-var version = "dev"
-
-func main() {
-	app, err := hestia.Setup(hestia.SetupConfig{
-		Version:      version,
-		ProjectName:  %q,
-		Modules: autogen.Modules(),
-	})
-
-	if err != nil {
-		panic(err)
-	}
-
-	if err := app.Start(); err != nil {
-		panic(err)
-	}
-	defer app.Close()
-
-	os.Stdout.Sync()
-	select {}
-}
-`, modulePath, filepath.ToSlash(autogenDir), modName)
-
+		funcName := commandFuncName(basename)
+		mainContent := commandMainContent(p.modPath, p.autoDir, basename, funcName)
+		mainPath := filepath.Join(cmdDir, "main.go")
 		if err := os.WriteFile(mainPath, []byte(mainContent), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", mainPath, err)
-			os.Exit(1)
+			return fmt.Errorf("write %s: %w", mainPath, err)
 		}
 		fmt.Printf("Wrote %s\n", mainPath)
+
+		// Generate per-command stub
+		if err := writeCommandStub(dir, cfg, basename); err != nil {
+			return fmt.Errorf("write command stub: %w", err)
+		}
 
 		// Write minimal Makefile
 		makefilePath := filepath.Join(dir, "Makefile")
@@ -120,17 +123,16 @@ LDFLAGS   := -ldflags '-X github.com/asaidimu/hestia/core/internal/boot.ProjectN
 .PHONY: build run clean
 
 build:
-	go build $(LDFLAGS) -o $(PROJECT) %s
+	go build $(LDFLAGS) -o $(PROJECT) ./cmd/%s
 
 run: build
 	./$(PROJECT)
 
 clean:
 	rm -f $(PROJECT)
-`, modName, initCmdMain)
+`, basename, basename)
 		if err := os.WriteFile(makefilePath, []byte(makefileContent), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", makefilePath, err)
-			os.Exit(1)
+			return fmt.Errorf("write %s: %w", makefilePath, err)
 		}
 		fmt.Printf("Wrote %s\n", makefilePath)
 
@@ -147,8 +149,7 @@ COOKIE_SECURE=false
 COOKIE_SAMESITE=lax
 `
 		if err := os.WriteFile(envPath, []byte(envContent), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", envPath, err)
-			os.Exit(1)
+			return fmt.Errorf("write %s: %w", envPath, err)
 		}
 		fmt.Printf("Wrote %s\n", envPath)
 
@@ -157,22 +158,18 @@ COOKIE_SAMESITE=lax
 		gitignoreEntry := ".env\n"
 		existing, err := os.ReadFile(gitignorePath)
 		if err != nil {
-			// .gitignore doesn't exist — create it
 			if err := os.WriteFile(gitignorePath, []byte(gitignoreEntry), 0644); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", gitignorePath, err)
-				os.Exit(1)
+				return fmt.Errorf("write %s: %w", gitignorePath, err)
 			}
 			fmt.Printf("Wrote %s\n", gitignorePath)
 		} else if !strings.Contains(string(existing), ".env") {
-			// .gitignore exists but missing .env entry
 			f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open %s: %v\n", gitignorePath, err)
-				os.Exit(1)
+				return fmt.Errorf("open %s: %w", gitignorePath, err)
 			}
 			if _, err := f.WriteString(gitignoreEntry); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to update %s: %v\n", gitignorePath, err)
-				os.Exit(1)
+				f.Close()
+				return fmt.Errorf("update %s: %w", gitignorePath, err)
 			}
 			f.Close()
 			fmt.Printf("Updated %s\n", gitignorePath)
@@ -183,13 +180,14 @@ COOKIE_SAMESITE=lax
 		// Run go mod tidy
 		fmt.Println("Running go mod tidy...")
 		tidy := exec.Command("go", "mod", "tidy")
+		tidy.Dir = dir
 		tidy.Stdout = os.Stdout
 		tidy.Stderr = os.Stderr
 		if err := tidy.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "go mod tidy failed: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("go mod tidy failed: %w", err)
 		}
 
 		fmt.Println("Project initialised successfully.")
+		return nil
 	},
 }

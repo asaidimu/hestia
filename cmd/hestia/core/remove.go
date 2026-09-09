@@ -19,27 +19,58 @@ func init() {
 
 var removeModuleCmd = &cobra.Command{
 	Use:   "module <module-name>",
-	Short: "Remove an external module",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		requireRoot()
-		if isHestiaModule(rootDir) {
-			fmt.Println("Skipping: 'remove module' is for downstream projects, not for the hestia library repo itself")
-			return
+	Short: "Remove a module",
+	Long: `Deletes the module directory (from core_dir or modules_dir),
+removes it from every command's uses list, and regenerates the
+module registry and command modules.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := newProject(".", false)
+		if err != nil {
+			return err
+		}
+		if p.isHestia() {
+			return nil
 		}
 		modName := args[0]
-		modDir := filepath.Join(rootDir, modulesTarget(), modName)
 
-		if _, err := os.Stat(modDir); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Module %q not found at %s\n", modName, modDir)
-			os.Exit(1)
+		removed := false
+		for _, dir := range []string{p.coreDir(), p.modulesDir()} {
+			modDir := filepath.Join(p.Root, dir, modName)
+			if _, err := os.Stat(modDir); os.IsNotExist(err) {
+				continue
+			}
+			if err := os.RemoveAll(modDir); err != nil {
+				return fmt.Errorf("remove %s: %w", modDir, err)
+			}
+			fmt.Printf("Removed module %q from %s\n", modName, dir)
+			removed = true
+		}
+		if !removed {
+			return fmt.Errorf("module %q not found under %s or %s", modName, p.coreDir(), p.modulesDir())
 		}
 
-		if err := os.RemoveAll(modDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to remove %s: %v\n", modDir, err)
-			os.Exit(1)
+		// Strip from every command's uses list.
+		for cmdName, cc := range p.Cfg.Commands {
+			var kept []string
+			for _, u := range cc.Uses {
+				if u != modName {
+					kept = append(kept, u)
+				}
+			}
+			cc.Uses = kept
+			p.Cfg.Commands[cmdName] = cc
 		}
-		fmt.Printf("Removed module %q\n", modName)
-		genModuleRegistry()
+		if err := writeConfig(p.Root, p.Cfg); err != nil {
+			return err
+		}
+
+		if err := p.genModuleRegistry(); err != nil {
+			return err
+		}
+		if err := p.regenCommandModules(); err != nil {
+			return fmt.Errorf("regenerate command modules: %w", err)
+		}
+		return nil
 	},
 }

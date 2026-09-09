@@ -13,9 +13,7 @@ import (
 	"github.com/asaidimu/hestia/cmd/hestia/core/gen"
 )
 
-// ServiceCmd scaffolds and manages services inside modules. A module is a
-// collection of services: each service lives at <module-dir>/<name>/ and is
-// registered by the module's generated collector (services.go).
+// ServiceCmd scaffolds and manages services inside modules.
 var ServiceCmd = &cobra.Command{
 	Use:   "service",
 	Short: "Scaffold and manage services inside a module",
@@ -33,89 +31,25 @@ func init() {
 	ServiceCmd.AddCommand(serviceGenerateCmd)
 }
 
-// serviceModuleDir resolves the module directory a service belongs to. In the
-// hestia library the module is "system" (core/system); downstream the module
-// dir is located among the configured modulesDirs.
-func serviceModuleDir(module string) (string, error) {
-	if isHestiaModule(rootDir) {
-		if module != "" && module != "system" {
-			return "", fmt.Errorf("unknown module %q: the hestia library provides only the 'system' module (core/system)", module)
-		}
-		root := filepath.Join(rootDir, "core", "system")
-		if _, err := os.Stat(root); err != nil {
-			return "", err
-		}
-		return root, nil
-	}
-	if module == "" {
-		return "", fmt.Errorf("missing module name: use 'hestia service new <module> <name>'")
-	}
-	for _, src := range modulesDirs {
-		dir := filepath.Join(rootDir, src, module)
-		if _, err := os.Stat(filepath.Join(dir, "module.go")); err == nil {
-			return dir, nil
-		}
-	}
-	return "", fmt.Errorf("module %q not found under %s (create it first with 'hestia add module %s')", module, strings.Join(modulesDirs, ", "), module)
-}
-
-// moduleImportPath returns the import path of a directory relative to the
-// module root.
-func moduleImportPath(dir string) string {
-	rel, err := filepath.Rel(rootDir, dir)
-	if err != nil {
-		rel = dir
-	}
-	return modulePath + "/" + filepath.ToSlash(rel)
-}
-
-// allModuleDirs returns every module directory: the system module for the
-// hestia library, or every configured module dir for downstream projects.
-func allModuleDirs() []string {
-	if isHestiaModule(rootDir) {
-		if _, err := os.Stat(filepath.Join(rootDir, "core", "system")); err == nil {
-			return []string{filepath.Join(rootDir, "core", "system")}
-		}
-		return nil
-	}
-	var dirs []string
-	for _, src := range modulesDirs {
-		srcDir := filepath.Join(rootDir, src)
-		entries, err := os.ReadDir(srcDir)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || strings.HasPrefix(entry.Name(), "_") {
-				continue
-			}
-			if _, err := os.Stat(filepath.Join(srcDir, entry.Name(), "module.go")); err != nil {
-				continue
-			}
-			dirs = append(dirs, filepath.Join(srcDir, entry.Name()))
-		}
-	}
-	return dirs
-}
-
 var serviceNewCmd = &cobra.Command{
 	Use:   "new <module> <name>",
 	Short: "Scaffold a new service inside a module",
 	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		requireRoot()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := newProject(".", false)
+		if err != nil {
+			return err
+		}
 		module, name := args[0], args[1]
 
-		moduleDir, err := serviceModuleDir(module)
+		moduleDir, err := p.serviceModuleDir(module)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
+			return err
 		}
 
 		serviceDir := filepath.Join(moduleDir, name)
 		if _, err := os.Stat(serviceDir); err == nil {
-			fmt.Fprintf(os.Stderr, "Service %q already exists at %s\n", name, serviceDir)
-			os.Exit(1)
+			return fmt.Errorf("service %q already exists at %s", name, serviceDir)
 		}
 
 		entity := serviceNewEntity
@@ -124,45 +58,125 @@ var serviceNewCmd = &cobra.Command{
 		}
 
 		if err := os.MkdirAll(serviceDir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to create %s: %v\n", serviceDir, err)
-			os.Exit(1)
+			return fmt.Errorf("create %s: %w", serviceDir, err)
 		}
 
-		modelImport := moduleImportPath(serviceDir) + "/model"
+		modelImport := p.moduleImport(serviceDir) + "/model"
 		if serviceNewModel {
 			modelDir := filepath.Join(serviceDir, "model")
 			if err := os.MkdirAll(modelDir, 0755); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create %s: %v\n", modelDir, err)
-				os.Exit(1)
+				return fmt.Errorf("create %s: %w", modelDir, err)
+			}
+			migrationsDir := filepath.Join(modelDir, "migrations")
+			if err := os.MkdirAll(migrationsDir, 0755); err != nil {
+				return fmt.Errorf("create %s: %w", migrationsDir, err)
 			}
 
 			schemaPath := filepath.Join(modelDir, name+".schema.json")
-			writeStubSchema(schemaPath, entity)
-			generateModel(modelDir, name, schemaPath)
+			if err := writeStubSchema(schemaPath, entity); err != nil {
+				return err
+			}
+			if err := generateModel(modelDir, name, schemaPath); err != nil {
+				return err
+			}
 		}
 
 		servicePath := filepath.Join(serviceDir, "service.go")
-		writeService(servicePath, name, entity, serviceNewModel, modelImport)
+		if err := writeService(servicePath, name, entity, serviceNewModel, modelImport); err != nil {
+			return err
+		}
 
 		if err := gen.Generate(serviceDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to generate initial registrations for %s: %v\n", name, err)
-			os.Exit(1)
+			return fmt.Errorf("generate initial registrations for %s: %w", name, err)
 		}
 		fmt.Printf("Generated registrations.go and policies.go for %q\n", name)
 		if seeded, err := gen.SeedSanitization(serviceDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", name, err)
-			os.Exit(1)
+			return fmt.Errorf("seed sanitization.go for %s: %w", name, err)
 		} else if seeded {
 			fmt.Printf("Generated sanitization.go (seed) for %q\n", name)
 		}
 
 		fmt.Printf("Scaffolded service %q in module %q at %s\n", name, module, serviceDir)
-		refreshCollector(moduleDir)
+		return p.refreshCollector(moduleDir)
 	},
 }
 
-// singularize converts a plural service name to its singular entity form using a
-// light heuristic. It is overridable via --entity when it guesses wrong.
+var serviceGenerateCmd = &cobra.Command{
+	Use:   "generate <module> <name>",
+	Short: "Regenerate registrations.go and policies.go for a service",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if serviceGenerateAll && len(args) != 0 {
+			return fmt.Errorf("'generate --all' takes no arguments")
+		}
+		if !serviceGenerateAll && len(args) != 2 {
+			return fmt.Errorf("requires exactly <module> <name>, or --all")
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := newProject(".", false)
+		if err != nil {
+			return err
+		}
+
+		if serviceGenerateAll {
+			modules := p.allModuleDirs()
+			if len(modules) == 0 {
+				return fmt.Errorf("no modules found")
+			}
+			for _, moduleDir := range modules {
+				entries, err := os.ReadDir(moduleDir)
+				if err != nil {
+					continue
+				}
+				for _, e := range entries {
+					if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), "_") {
+						continue
+					}
+					if _, err := os.Stat(filepath.Join(moduleDir, e.Name(), "registrations.go")); err != nil {
+						continue
+					}
+					dir := filepath.Join(moduleDir, e.Name())
+					if err := gen.Generate(dir); err != nil {
+						return fmt.Errorf("generate %s: %w", e.Name(), err)
+					}
+					fmt.Printf("Generated registrations.go and policies.go for %q\n", e.Name())
+					if seeded, err := gen.SeedSanitization(dir); err != nil {
+						return fmt.Errorf("seed sanitization.go for %s: %w", e.Name(), err)
+					} else if seeded {
+						fmt.Printf("Generated sanitization.go (seed) for %q\n", e.Name())
+					}
+				}
+				if err := p.refreshCollector(moduleDir); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		module, name := args[0], args[1]
+		moduleDir, err := p.serviceModuleDir(module)
+		if err != nil {
+			return err
+		}
+		dir := filepath.Join(moduleDir, name)
+		if _, err := os.Stat(dir); err != nil {
+			return fmt.Errorf("service %q not found at %s", name, dir)
+		}
+		if err := gen.Generate(dir); err != nil {
+			return fmt.Errorf("generate %s: %w", name, err)
+		}
+		fmt.Printf("Generated registrations.go and policies.go for %q\n", name)
+		if seeded, err := gen.SeedSanitization(dir); err != nil {
+			return fmt.Errorf("seed sanitization.go for %s: %w", name, err)
+		} else if seeded {
+			fmt.Printf("Generated sanitization.go (seed) for %q\n", name)
+		}
+
+		return p.refreshCollector(moduleDir)
+	},
+}
+
 func singularize(s string) string {
 	if s == "" {
 		return s
@@ -182,7 +196,7 @@ func singularize(s string) string {
 	return s
 }
 
-func writeStubSchema(path, entity string) {
+func writeStubSchema(path, entity string) error {
 	content := fmt.Sprintf(`{
   "fields": {
     "name": { "name": "name", "required": true, "type": "string" }
@@ -191,19 +205,13 @@ func writeStubSchema(path, entity string) {
   "version": "1.0.0"
 }
 `, entity)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-		os.Exit(1)
-	}
+	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// generateModel runs anansi codegen in-process against the stub schema and
-// writes the generated <name>.schema.model.go beside it.
-func generateModel(modelDir, name, schemaPath string) {
+func generateModel(modelDir, name, schemaPath string) error {
 	raw, err := os.ReadFile(schemaPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read %s: %v\n", schemaPath, err)
-		os.Exit(1)
+		return fmt.Errorf("read %s: %w", schemaPath, err)
 	}
 
 	gen := golang.NewGoGenerator(&golang.GeneratorConfig{
@@ -214,8 +222,7 @@ func generateModel(modelDir, name, schemaPath string) {
 
 	result, err := gen.Generate(raw)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to generate model for %s: %v\n", schemaPath, err)
-		os.Exit(1)
+		return fmt.Errorf("generate model for %s: %w", schemaPath, err)
 	}
 
 	formatted, err := format.Source([]byte(result))
@@ -225,17 +232,13 @@ func generateModel(modelDir, name, schemaPath string) {
 
 	outPath := strings.TrimSuffix(schemaPath, filepath.Ext(schemaPath)) + ".model.go"
 	if err := os.WriteFile(outPath, formatted, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", outPath, err)
-		os.Exit(1)
+		return fmt.Errorf("write %s: %w", outPath, err)
 	}
 	fmt.Printf("generated %s (package model)\n", outPath)
+	return nil
 }
 
-// writeService scaffolds service.go. With a model it resolves persistence from
-// the abstract.Container DI container and initializes the model collection in
-// the constructor; without one it is a plain struct — the feature author brings
-// their own deps. modelImport is the import path of the model package.
-func writeService(path, name, entity string, withModel bool, modelImport string) {
+func writeService(path, name, entity string, withModel bool, modelImport string) error {
 	if withModel {
 		content := fmt.Sprintf(`package %s
 
@@ -267,10 +270,9 @@ func New%sService(rt abstract.Container) (*%sService, error) {
 }
 `, name, modelImport, gen.Title(name), name, gen.Title(name), gen.Title(entity)+"s", gen.Title(name), gen.Title(name), gen.Title(entity)+"s", gen.Title(name))
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-			os.Exit(1)
+			return fmt.Errorf("write %s: %w", path, err)
 		}
-		return
+		return nil
 	}
 
 	content := fmt.Sprintf(`package %s
@@ -287,116 +289,5 @@ func New%sService(rt abstract.Container) (*%sService, error) {
 	return &%sService{}, nil
 }
 `, name, gen.Title(name), name, gen.Title(name), gen.Title(name), gen.Title(name), gen.Title(name))
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-		os.Exit(1)
-	}
-}
-
-// serviceGenerateCmd regenerates registrations.go and policies.go for a
-// service inside a module from its @hestia.register annotations, or for every
-// module's services with --all.
-var serviceGenerateCmd = &cobra.Command{
-	Use:   "generate <module> <name>",
-	Short: "Regenerate registrations.go and policies.go for a service",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if serviceGenerateAll && len(args) != 0 {
-			return fmt.Errorf("'generate --all' takes no arguments")
-		}
-		if !serviceGenerateAll && len(args) != 2 {
-			return fmt.Errorf("requires exactly <module> <name>, or --all")
-		}
-		return nil
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		requireRoot()
-
-		if serviceGenerateAll {
-			modules := allModuleDirs()
-			if len(modules) == 0 {
-				fmt.Fprintln(os.Stderr, "No modules found")
-				os.Exit(1)
-			}
-			for _, moduleDir := range modules {
-				entries, err := os.ReadDir(moduleDir)
-				if err != nil {
-					continue
-				}
-				for _, e := range entries {
-					if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || strings.HasPrefix(e.Name(), "_") {
-						continue
-					}
-					if _, err := os.Stat(filepath.Join(moduleDir, e.Name(), "registrations.go")); err != nil {
-						continue
-					}
-					dir := filepath.Join(moduleDir, e.Name())
-					if err := gen.Generate(dir); err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to generate %s: %v\n", e.Name(), err)
-						os.Exit(1)
-					}
-					fmt.Printf("Generated registrations.go and policies.go for %q\n", e.Name())
-					if seeded, err := gen.SeedSanitization(dir); err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", e.Name(), err)
-						os.Exit(1)
-					} else if seeded {
-						fmt.Printf("Generated sanitization.go (seed) for %q\n", e.Name())
-					}
-				}
-				refreshCollector(moduleDir)
-			}
-			return
-		}
-
-		module, name := args[0], args[1]
-		moduleDir, err := serviceModuleDir(module)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		dir := filepath.Join(moduleDir, name)
-		if _, err := os.Stat(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "Service %q not found at %s\n", name, dir)
-			os.Exit(1)
-		}
-		if err := gen.Generate(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to generate %s: %v\n", name, err)
-			os.Exit(1)
-		}
-		fmt.Printf("Generated registrations.go and policies.go for %q\n", name)
-		if seeded, err := gen.SeedSanitization(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", name, err)
-			os.Exit(1)
-		} else if seeded {
-			fmt.Printf("Generated sanitization.go (seed) for %q\n", name)
-		}
-
-		refreshCollector(moduleDir)
-	},
-}
-
-// refreshCollector regenerates a module's service collector (services.go)
-// after a service's registrations change or a service is added/removed.
-func refreshCollector(moduleDir string) {
-	if _, err := os.Stat(moduleDir); err != nil {
-		return
-	}
-	if err := gen.GenerateCollector(moduleDir, modulePath); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to regenerate service collector: %v\n", err)
-		os.Exit(1)
-	}
-	rel, err := filepath.Rel(rootDir, filepath.Join(moduleDir, "services.go"))
-	if err != nil {
-		rel = filepath.Join(moduleDir, "services.go")
-	}
-	fmt.Printf("Generated %s (service collector)\n", rel)
-
-	if err := gen.GenerateSanitizationCollector(moduleDir, modulePath); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to regenerate sanitization collector: %v\n", err)
-		os.Exit(1)
-	}
-	relSan, err := filepath.Rel(rootDir, filepath.Join(moduleDir, "gen_sanitization.go"))
-	if err != nil {
-		relSan = filepath.Join(moduleDir, "gen_sanitization.go")
-	}
-	fmt.Printf("Generated %s (sanitization collector)\n", relSan)
+	return os.WriteFile(path, []byte(content), 0644)
 }

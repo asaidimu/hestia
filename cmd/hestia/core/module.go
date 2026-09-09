@@ -10,19 +10,30 @@ import (
 	"github.com/asaidimu/hestia/cmd/hestia/core/gen"
 )
 
+var scaffoldModuleCore bool
+
 func init() {
+	scaffoldModuleCmd.Flags().BoolVar(&scaffoldModuleCore, "core", false, "Create a shared core module (always loaded) instead of a feature module")
 	AddCmd.AddCommand(scaffoldModuleCmd)
 }
 
 var scaffoldModuleCmd = &cobra.Command{
 	Use:   "module <module-name> [feature-name]",
-	Short: "Add a new external module",
-	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		requireRoot()
-		if isHestiaModule(rootDir) {
-			fmt.Println("Skipping: 'add module' is for downstream projects, not for the hestia library repo itself")
-			return
+	Short: "Add a new module",
+	Long: `Scaffolds a self-contained module with a stub service, model
+directory, and migrations directory.
+
+By default the module is created as a feature module under modules_dir.
+With --core it is created as a shared module under core_dir and loaded
+by every command.`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		p, err := newProject(".", false)
+		if err != nil {
+			return err
+		}
+		if p.isHestia() {
+			return nil
 		}
 		modName := args[0]
 		featureName := modName
@@ -30,48 +41,58 @@ var scaffoldModuleCmd = &cobra.Command{
 			featureName = args[1]
 		}
 
-		modDir := filepath.Join(rootDir, modulesTarget(), modName)
+		target := p.modulesDir()
+		if scaffoldModuleCore {
+			target = p.coreDir()
+		}
+
+		modDir := filepath.Join(p.Root, target, modName)
 		featureDir := filepath.Join(modDir, featureName)
 
 		if _, err := os.Stat(modDir); err == nil {
-			fmt.Fprintf(os.Stderr, "Module %q already exists at %s\n", modName, modDir)
-			os.Exit(1)
+			return fmt.Errorf("module %q already exists at %s", modName, modDir)
 		}
 
 		os.MkdirAll(featureDir, 0755)
+		os.MkdirAll(filepath.Join(featureDir, "model", "migrations"), 0755)
 
-		writeFile(filepath.Join(modDir, "module.go"), scaffoldModule(modName))
-		writeFile(filepath.Join(featureDir, "handler.go"), scaffoldHandler(modName, featureName))
-		writeFile(filepath.Join(featureDir, "model.go"), scaffoldModel(featureName))
+		if err := writeFile(filepath.Join(modDir, "module.go"), scaffoldModule(modName)); err != nil {
+			return err
+		}
+		if err := writeFile(filepath.Join(featureDir, "handler.go"), scaffoldHandler(modName, featureName)); err != nil {
+			return err
+		}
+		if err := writeFile(filepath.Join(featureDir, "model.go"), scaffoldModel(featureName)); err != nil {
+			return err
+		}
 
 		if err := gen.Generate(featureDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to generate initial registrations for %s: %v\n", featureName, err)
-			os.Exit(1)
+			return fmt.Errorf("generate initial registrations for %s: %w", featureName, err)
 		}
 		if seeded, err := gen.SeedSanitization(featureDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to seed sanitization.go for %s: %v\n", featureName, err)
-			os.Exit(1)
+			return fmt.Errorf("seed sanitization.go for %s: %w", featureName, err)
 		} else if seeded {
 			fmt.Printf("Generated sanitization.go (seed) for %q\n", featureName)
 		}
-		refreshCollector(modDir)
+		if err := p.refreshCollector(modDir); err != nil {
+			return err
+		}
 
 		fmt.Printf("Scaffolded module %q at %s\n", modName, modDir)
-		genModuleRegistry()
+		if err := p.genModuleRegistry(); err != nil {
+			return err
+		}
+		if err := p.regenCommandModules(); err != nil {
+			return fmt.Errorf("regenerate command modules: %w", err)
+		}
+		return nil
 	},
 }
 
-func writeFile(path, content string) {
-	if err := os.WriteFile(path, []byte(content+"\n"), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to write %s: %v\n", path, err)
-		os.Exit(1)
-	}
+func writeFile(path, content string) error {
+	return os.WriteFile(path, []byte(content+"\n"), 0644)
 }
 
-// scaffoldModule emits module.go. It delegates Setup/Capabilities to the
-// generated services.go collector (RegisterServices/CollectServiceRegistrations)
-// in the same package, so services added later via 'hestia service new' are
-// picked up automatically.
 func scaffoldModule(modName string) string {
 	return fmt.Sprintf(`package %s
 
@@ -90,13 +111,13 @@ func New() *Module {
 	return &Module{}
 }
 
-func (m *Module) Name() string { return %q }
+func (m Module) Name() string { return %q }
 
-func (m *Module) Setup(ctx context.Context, rt abstract.Container) error {
+func (m Module) Setup(ctx context.Context, rt abstract.Container) error {
 	return RegisterServices(rt)
 }
 
-func (m *Module) Capabilities(rt abstract.Container) ([]abstract.Capability, error) {
+func (m Module) Capabilities(rt abstract.Container) ([]abstract.Capability, error) {
 	regs, err := CollectServiceRegistrations(rt)
 	if err != nil {
 		return nil, err

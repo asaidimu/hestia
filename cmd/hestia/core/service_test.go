@@ -32,12 +32,9 @@ func TestSingularize(t *testing.T) {
 	}
 }
 
-// TestModulesConfig verifies that the Modules config field accepts both a
-// single string and a list, defaulting the target to the first entry.
 func TestModulesConfig(t *testing.T) {
 	var single Config
 	writeFile(filepath.Join(t.TempDir(), "hestia.json"), `{"module":"m","modules":"mods"}`)
-	// UnmarshalJSON is exercised via readConfig below.
 	dir := t.TempDir()
 	writeFile(filepath.Join(dir, "hestia.json"), `{"module":"github.com/example/bench","modules":"mods"}`)
 	cfg := readConfig(dir)
@@ -61,8 +58,6 @@ func TestModulesConfig(t *testing.T) {
 	_ = single
 }
 
-// TestScaffoldService runs the service-new flow against a temporary module and
-// asserts the expected tree plus a compile-check of the generated package.
 func TestScaffoldService(t *testing.T) {
 	dir := t.TempDir()
 	wd, err := os.Getwd()
@@ -87,30 +82,16 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
   "modules": ["module", "vendor"]
 }`)
 
-	// Copy the module graph from the hestia repo (test runs inside its module)
-	// so the temp module can resolve go-anansi offline.
 	if data, err := os.ReadFile(filepath.Join(repoRoot, "go.sum")); err == nil {
 		if err := os.WriteFile(filepath.Join(dir, "go.sum"), data, 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	prevRoot, prevModule, prevDirs, prevAutogen := rootDir, modulePath, modulesDirs, autogenDir
-	t.Cleanup(func() {
-		rootDir, modulePath, modulesDirs, autogenDir = prevRoot, prevModule, prevDirs, prevAutogen
-	})
-	rootDir, modulePath, modulesDirs, autogenDir = dir, "github.com/example/bench", []string{"module", "vendor"}, "internal/autogen"
-
-	// service-new expects the process cwd to contain hestia.json. Temporarily
-	// chdir so requireRoot() resolves against the fixture, not the hestia repo.
-	oldwd, err := os.Getwd()
+	p, err := newProject(dir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
 
 	// The module must exist before a service can be added to it.
 	modDir := filepath.Join(dir, "module", "billing")
@@ -122,10 +103,8 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	entity := "user"
 	serviceDir := filepath.Join(modDir, "users")
 
-	rootDir, modulePath = "", ""
-	requireRoot()
-	if len(modulesDirs) != 2 || modulesDirs[0] != "module" {
-		t.Fatalf("requireRoot modulesDirs = %v", modulesDirs)
+	if len(p.modDirs) != 2 || p.modDirs[0] != "module" {
+		t.Fatalf("p.modDirs = %v", p.modDirs)
 	}
 	if _, err := os.Stat(serviceDir); err == nil {
 		t.Fatalf("service dir should not exist yet: %s", serviceDir)
@@ -137,7 +116,7 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	schemaPath := filepath.Join(modelDir, "users.schema.json")
 	writeStubSchema(schemaPath, entity)
 	generateModel(modelDir, "users", schemaPath)
-	modelImport := moduleImportPath(serviceDir) + "/model"
+	modelImport := p.moduleImport(serviceDir) + "/model"
 	writeService(filepath.Join(serviceDir, "service.go"), "users", entity, true, modelImport)
 	if err := gen.Generate(serviceDir); err != nil {
 		t.Fatalf("gen.Generate: %v", err)
@@ -146,16 +125,16 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	if err != nil || !seeded {
 		t.Fatalf("gen.SeedSanitization: seeded=%v err=%v", seeded, err)
 	}
-	refreshCollector(modDir)
+	p.refreshCollector(modDir)
 
-	for _, p := range []string{
+	for _, path := range []string{
 		"module/billing/users/service.go",
 		"module/billing/users/sanitization.go",
 		"module/billing/users/model/users.schema.json",
 		"module/billing/users/model/users.schema.model.go",
 	} {
-		if _, err := os.Stat(filepath.Join(dir, p)); err != nil {
-			t.Errorf("missing scaffolded file %s: %v", p, err)
+		if _, err := os.Stat(filepath.Join(dir, path)); err != nil {
+			t.Errorf("missing scaffolded file %s: %v", path, err)
 		}
 	}
 
@@ -183,9 +162,6 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 		}
 	}
 
-	// Compile proof: the scaffolded package must build against the real
-	// go-anansi dependency. Resolve the temp module's graph (deps are in the
-	// local module cache, so tidy stays offline), then build.
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = dir
 	if out, err := tidy.CombinedOutput(); err != nil {
@@ -198,9 +174,6 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	}
 }
 
-// TestScaffoldModule runs the add-module flow against a temporary module and
-// asserts the expected tree (module.go + annotation-style feature + generated
-// registrations and module collector) plus a compile-check of the packages.
 func TestScaffoldModule(t *testing.T) {
 	dir := t.TempDir()
 	wd, err := os.Getwd()
@@ -231,23 +204,10 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 		}
 	}
 
-	prevRoot, prevModule, prevDirs, prevAutogen := rootDir, modulePath, modulesDirs, autogenDir
-	t.Cleanup(func() {
-		rootDir, modulePath, modulesDirs, autogenDir = prevRoot, prevModule, prevDirs, prevAutogen
-	})
-	rootDir, modulePath, modulesDirs, autogenDir = dir, "github.com/example/bench", []string{"module"}, "internal/autogen"
-
-	oldwd, err := os.Getwd()
+	p, err := newProject(dir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-
-	rootDir, modulePath = "", ""
-	requireRoot()
 
 	modName, featureName := "billing", "billing"
 	modDir := filepath.Join(dir, "module", modName)
@@ -261,9 +221,9 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	if err := gen.Generate(featureDir); err != nil {
 		t.Fatalf("gen.Generate: %v", err)
 	}
-	refreshCollector(modDir)
+	p.refreshCollector(modDir)
 
-	for _, p := range []string{
+	for _, path := range []string{
 		"module/billing/module.go",
 		"module/billing/services.go",
 		"module/billing/billing/handler.go",
@@ -271,8 +231,8 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 		"module/billing/billing/registrations.go",
 		"module/billing/billing/policies.go",
 	} {
-		if _, err := os.Stat(filepath.Join(dir, p)); err != nil {
-			t.Errorf("missing scaffolded file %s: %v", p, err)
+		if _, err := os.Stat(filepath.Join(dir, path)); err != nil {
+			t.Errorf("missing scaffolded file %s: %v", path, err)
 		}
 	}
 
@@ -311,8 +271,6 @@ replace github.com/asaidimu/hestia => `+repoRoot+`
 	}
 }
 
-// TestScaffoldServiceNoModel verifies --model=false skips the model package
-// entirely and emits a plain service struct inside a module.
 func TestScaffoldServiceNoModel(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(filepath.Join(dir, "go.mod"), "module github.com/example/bench\n\ngo 1.27rc1\n")
@@ -321,23 +279,10 @@ func TestScaffoldServiceNoModel(t *testing.T) {
   "modules": "module"
 }`)
 
-	prevRoot, prevModule, prevDirs := rootDir, modulePath, modulesDirs
-	t.Cleanup(func() {
-		rootDir, modulePath, modulesDirs = prevRoot, prevModule, prevDirs
-	})
-	rootDir, modulePath, modulesDirs = dir, "github.com/example/bench", []string{"module"}
-
-	oldwd, err := os.Getwd()
+	p, err := newProject(dir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-
-	rootDir, modulePath = "", ""
-	requireRoot()
 
 	modDir := filepath.Join(dir, "module", "billing")
 	if err := os.MkdirAll(modDir, 0755); err != nil {
@@ -351,7 +296,6 @@ func TestScaffoldServiceNoModel(t *testing.T) {
 	}
 	writeService(filepath.Join(serviceDir, "service.go"), "events", "event", false, "")
 
-	// No model package should exist.
 	if _, err := os.Stat(filepath.Join(serviceDir, "model")); !os.IsNotExist(err) {
 		t.Errorf("model package should not exist for --model=false")
 	}
@@ -369,4 +313,5 @@ func TestScaffoldServiceNoModel(t *testing.T) {
 	if !strings.Contains(string(svc), "func NewEventsService(rt abstract.Container) (*EventsService, error)") {
 		t.Errorf("service.go missing DI-shaped constructor:\n%s", svc)
 	}
+	_ = p
 }

@@ -18,6 +18,8 @@ func main() {
 	root.AddCommand(cmd.AddCmd)
 	root.AddCommand(cmd.RemoveCmd)
 	root.AddCommand(cmd.ServiceCmd)
+	root.AddCommand(cmd.UseCmd)
+	root.AddCommand(cmd.UnuseCmd)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
