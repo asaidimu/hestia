@@ -1,6 +1,6 @@
 {
   "name": "@asaidimu/hestia-mock",
-  "version": "1.0.0",
+  "version": "1.14.0",
   "description": "IndexedDB-backed mock server + transport for the Hestia TypeScript client SDK — full API parity, persistent offline emulation, and realistic error semantics",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -57,7 +57,7 @@
     ]
   },
   "dependencies": {
-    "@asaidimu/hestia": "workspace:*",
+    "@asaidimu/hestia": "1.14.0",
     "@asaidimu/utils-error": "^1.1.10",
     "@asaidimu/query": "^1.0.0"
   },
