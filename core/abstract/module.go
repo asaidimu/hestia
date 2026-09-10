@@ -28,6 +28,11 @@ import (
 type ArgumentDefinition struct {
         Name string
         Type definition.FieldType
+        // CatchAll marks a trailing path argument that greedily consumes all
+        // remaining path segments (e.g. a blob key containing slashes).
+        // DeriveRoute renders it as {Name*}; transports must not encode the
+        // embedded slashes when substituting it.
+        CatchAll bool
 }
 
 // @note #review-20260821-020 issue resolved priority=P1 tags=#review,#design : Abstraction leak in Input struct
@@ -47,6 +52,12 @@ type Input struct {
         // into Message.InputChannel(). Orthogonal to Verb — Verb still drives
         // the HTTP method (a streaming bulk import registers as Create → POST).
         Streaming bool
+        // CatchAll names the trailing path argument (if any) that greedily
+        // consumes all remaining path segments, e.g. a blob key containing
+        // slashes. Declared via catchall="key" in @hestia.register.
+        // Arguments() marks the matching definition; DeriveRoute renders it
+        // as {Name*}.
+        CatchAll string
 }
 
 // Arguments extracts argument definitions by looking up the "arguments" field
@@ -90,8 +101,9 @@ func (i Input) Arguments() []ArgumentDefinition {
         for _, id := range ids {
                 f := nestedSchema.Fields[id]
                 args = append(args, ArgumentDefinition{
-                        Name: string(f.Name),
-                        Type: f.Type,
+                        Name:     string(f.Name),
+                        Type:     f.Type,
+                        CatchAll: i.CatchAll != "" && string(f.Name) == i.CatchAll,
                 })
         }
 

@@ -311,6 +311,27 @@ describe("BlobNamespace — E2E", () => {
       expect(result).toBeUndefined()
     })
   })
+
+  describe("slashed keys", () => {
+    const slashedKey = "such/keys/are/allowed.txt"
+
+    it("round-trips upload/head/download/delete with slashes in the key", async () => {
+      const file = new File(["slashed"], "allowed.txt", { type: "text/plain" })
+      const created = await ns.upload({ file, options: { key: slashedKey } })
+      expect(created!.key).toBe(slashedKey)
+
+      const meta = await ns.read(slashedKey)
+      expect(meta).toBeDefined()
+      expect(meta!.key).toBe(slashedKey)
+      expect(meta!._id_).toBeTruthy()
+
+      const dl = await ns.download(slashedKey)
+      expect(await dl.data.text()).toBe("slashed")
+
+      await ns.delete(slashedKey)
+      expect(await ns.read(slashedKey)).toBeUndefined()
+    })
+  })
 })
 
 describe("getMissingRanges", () => {

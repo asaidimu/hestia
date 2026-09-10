@@ -42,9 +42,9 @@
     },
     "packages/mock": {
       "name": "@asaidimu/hestia-mock",
-      "version": "1.0.0",
+      "version": "1.14.0",
       "dependencies": {
-        "@asaidimu/hestia": "workspace:*",
+        "@asaidimu/hestia": "1.14.0",
         "@asaidimu/query": "^1.0.0",
         "@asaidimu/utils-error": "^1.1.10",
       },
@@ -1006,6 +1006,10 @@
 
     "@asaidimu/anansi/uuid": ["uuid@11.1.1", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ=="],
 
+    "@asaidimu/hestia-mock/@asaidimu/hestia": ["@asaidimu/hestia@1.14.0", "", { "dependencies": { "@asaidimu/network-client": "^2.0.0", "@asaidimu/query": "^1.0.0", "@asaidimu/utils-artifacts": "^8.2.25", "@asaidimu/utils-error": "^1.1.10", "@asaidimu/utils-schema": "^1.0.10", "@asaidimu/utils-store": "^10.2.18", "@asaidimu/utils-sync": "^2.3.10", "uuid": "^14.0.1" } }, "sha512-X99oiZifs96IJAPmgHveW/rmoGJBy2moP+5BvoVa1iABDQENN3Vvoq8iTWnLjSCyjsh2Eyhd0b9DS5sO+vZozA=="],
+
+    "@asaidimu/hestia-mock/@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
+
     "@asaidimu/indexed/uuid": ["uuid@11.1.1", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ=="],
 
     "@asaidimu/utils-database/@asaidimu/anansi": ["@asaidimu/anansi@4.0.2", "", { "dependencies": { "@asaidimu/events": "^1.0.0", "@asaidimu/query": "^1.1.2", "@faker-js/faker": "^9.4.0", "@isomorphic-git/lightning-fs": "^4.6.0", "@standard-schema/spec": "^1.0.0", "@types/uuid": "^10.0.0", "buffer": "^6.0.3", "isomorphic-git": "^1.29.0", "uuid": "^11.0.5", "zod": "^3.24.1" } }, "sha512-eHSZvDz3eRbfe8D6a2dQOANJBx2g8i2haCU4a7YErJesZtQ7Q2KP+uvxt3L/C+0cc24KioR+TwR2QDWHtrV8kg=="],
@@ -1471,6 +1475,10 @@
     "yuku-parser/@yuku-toolchain/types": ["@yuku-toolchain/types@0.6.11", "", {}, "sha512-i1JYFNJaKNCgyJ/nVoR8GK7wvlXF+ShYzFHBauWcvg8IoiXInK7pVziHcgNz/MWLPNr/Mb/CtmXccrJMkKqSHQ=="],
 
     "yuku-parser/yuku-ast": ["yuku-ast@0.6.11", "", { "dependencies": { "@yuku-toolchain/types": "0.6.8" } }, "sha512-ZfXkFYVsDewS45+kv3WiA/qNB73CRfxFDEQwfnRMUAR4AD5zRI7PRqxmI2U3Jz/oG41GneTVW6mxDOQal0lgeA=="],
+
+    "@asaidimu/hestia-mock/@asaidimu/hestia/uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
+
+    "@asaidimu/hestia-mock/@types/bun/bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
 
     "@asaidimu/utils-database/@asaidimu/anansi/@faker-js/faker": ["@faker-js/faker@9.9.0", "", {}, "sha512-OEl393iCOoo/z8bMezRlJu+GlRGlsKbUAN7jKB6LhnKoqKve5DXRpalbItIIcwnCjs1k/FOPjFzcA6Qn+H+YbA=="],
 

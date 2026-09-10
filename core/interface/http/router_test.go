@@ -157,6 +157,45 @@ func TestPathTrie_StreamingBodyFlag(t *testing.T) {
 	}
 }
 
+func TestPathTrie_GreedyParam(t *testing.T) {
+	trie := newPathTrie()
+	trie.insert("POST", "/api/blobs/blob/upload/{ns}/{key*}", routeEntry{handler: handler()})
+	trie.insert("DELETE", "/api/blobs/blob/delete/{ns}/{key*}", routeEntry{handler: handler()})
+
+	// Single segment still matches.
+	_, params, ok := trie.lookup("POST", "/api/blobs/blob/upload/admissions/photo.jpg")
+	if !ok {
+		t.Fatal("expected single-segment key to match")
+	}
+	if params["ns"] != "admissions" || params["key"] != "photo.jpg" {
+		t.Errorf("params = %v, want ns=admissions key=photo.jpg", params)
+	}
+
+	// Slashes in the key are consumed greedily.
+	_, params, ok = trie.lookup("DELETE", "/api/blobs/blob/delete/admissions/such/keys/are/allowed.txt")
+	if !ok {
+		t.Fatal("expected slashed key to match")
+	}
+	if params["key"] != "such/keys/are/allowed.txt" {
+		t.Errorf("params[key] = %q, want such/keys/are/allowed.txt", params["key"])
+	}
+
+	// Wrong method on a greedy route does not match.
+	if _, _, ok = trie.lookup("GET", "/api/blobs/blob/upload/admissions/a/b"); ok {
+		t.Error("expected method mismatch to not match")
+	}
+}
+
+func TestPathTrie_GreedyMustBeTerminal(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic on non-terminal greedy param")
+		}
+	}()
+	trie := newPathTrie()
+	trie.insert("GET", "/api/{key*}/suffix", routeEntry{handler: handler()})
+}
+
 func handler() Handler {
 	return func(ctx context.Context, req abstract.Request) (abstract.Response, error) {
 		return abstract.Response{Status: 200}, nil

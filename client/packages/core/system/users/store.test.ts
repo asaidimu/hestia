@@ -19,6 +19,24 @@ describe("HestiaUsers — E2E", () => {
     userId = user!._id_
   })
 
+  it("finds a user by email filter", async () => {
+    const page = await container.users.find({
+      filter: { field: "email", operator: "eq", value: email },
+      pagination: { type: "offset", offset: 0, limit: 1 },
+    } as never)
+    expect(page.data.length).toBe(1)
+    expect(page.data[0]!.email).toBe(email)
+  })
+
+  it("finds a user by canonical filters key", async () => {
+    const page = await container.users.find({
+      filters: { field: "email", operator: "eq", value: email },
+      pagination: { type: "offset", offset: 0, limit: 1 },
+    } as never)
+    expect(page.data.length).toBe(1)
+    expect(page.data[0]!.email).toBe(email)
+  })
+
   it("lists users via collection query (find)", async () => {
     const page = await container.users.find()
     expect(page.data.some((u) => u._id_ === userId)).toBe(true)

@@ -72,6 +72,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobKeyInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Output:  dispatch.SchemaFromType[model.BlobMetaOutput](),
 			Handler: dispatch.Handle[model.BlobKeyInput](s.HeadBlob),
@@ -84,6 +85,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobUploadInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Output:  dispatch.SchemaFromType[model.BlobMetaOutput](),
 			Handler: dispatch.Handle[model.BlobUploadInput](s.UploadBlob),
@@ -96,6 +98,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobKeyInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Handler: dispatch.Handle[model.BlobKeyInput](s.DownloadBlob),
 		},
@@ -107,6 +110,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobKeyInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Handler: dispatch.Handle[model.BlobKeyInput](s.DeleteBlob),
 		},
@@ -118,6 +122,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobUpdateInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Output:  dispatch.SchemaFromType[model.BlobMetaOutput](),
 			Handler: dispatch.Handle[model.BlobUpdateInput](s.UpdateBlob),
@@ -184,6 +189,7 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Input: abstract.Input{
 				Schema:          dispatch.SchemaFromTypeWithTag[model.BlobRenameInput]("input"),
 				ResourceIDField: "key",
+				CatchAll:        "key",
 			},
 			Handler: dispatch.Handle[model.BlobRenameInput](s.RenameBlob),
 		},

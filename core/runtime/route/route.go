@@ -15,11 +15,17 @@ import (
 
 // DeriveRoute converts a message name (system:blobs:ns:download) into a
 // URL path with argument placeholders (/system/blobs/ns/download/{ns}).
+// A catch-all trailing argument renders as {name*} and consumes the rest
+// of the path at match time.
 func DeriveRoute(name string, arguments []abstract.ArgumentDefinition) string {
 	parts := strings.Split(name, ":")
 	path := "/" + strings.Join(parts, "/")
 	for _, arg := range arguments {
-		path += fmt.Sprintf("/{%s}", arg.Name)
+		if arg.CatchAll {
+			path += fmt.Sprintf("/{%s*}", arg.Name)
+		} else {
+			path += fmt.Sprintf("/{%s}", arg.Name)
+		}
 	}
 	return path
 }

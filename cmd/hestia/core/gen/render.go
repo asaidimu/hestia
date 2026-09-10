@@ -127,6 +127,9 @@ func writeRegistration(b *bytes.Buffer, a annotate.Annotation) error {
                 if a.ResourceIDField != "" {
                         fmt.Fprintf(b, "\t\t\t\tResourceIDField: %q,\n", a.ResourceIDField)
                 }
+                if a.CatchAll != "" {
+                        fmt.Fprintf(b, "\t\t\t\tCatchAll:        %q,\n", a.CatchAll)
+                }
                 if a.HasStream {
                         b.WriteString("\t\t\t\tStreaming:       true,\n")
                 }

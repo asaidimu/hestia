@@ -20,6 +20,33 @@ func IsSystemCollection(name string) bool {
 	return len(name) > 2 && name[0] == '_' && name[len(name)-1] == '_'
 }
 
+// parseCollectionQuery decodes a QDSL query document carried in a message
+// payload. The canonical filter key is "filters" (plural, matching
+// core/query and the TypeScript QueryDSL type); a singular "filter" is
+// accepted as a deprecated alias and normalized before parsing because the
+// query parser silently drops unknown top-level keys — without this, a
+// singular filter is ignored and the query returns everything.
+func parseCollectionQuery(raw any) (*query.Query, error) {
+	body, err := json.Marshal(raw)
+	if err != nil || len(body) == 0 {
+		return nil, err
+	}
+	var shaped map[string]any
+	if err := json.Unmarshal(body, &shaped); err == nil && shaped != nil {
+		if _, ok := shaped["filters"]; !ok {
+			if singular, ok := shaped["filter"]; ok && singular != nil {
+				shaped["filters"] = singular
+				delete(shaped, "filter")
+				normalized, err := json.Marshal(shaped)
+				if err == nil {
+					body = normalized
+				}
+			}
+		}
+	}
+	return query.FromBytes(body)
+}
+
 type CollectionMeta struct {
 	Name    string         `json:"name"`
 	Schema  *schema.Schema `json:"schema,omitempty"`
@@ -132,14 +159,11 @@ func runCollectionQuery(ctx context.Context, msg abstract.Message, name string, 
 
 	var q *query.Query
 	if raw := doc.GetOr("payload", nil); raw != nil {
-		body, err := json.Marshal(raw)
-		if err == nil && len(body) > 0 {
-			parsed, err := query.FromBytes(body)
-			if err != nil {
-				return nil, fmt.Errorf("parse query: %w", err)
-			}
-			q = parsed
+		parsed, err := parseCollectionQuery(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse query: %w", err)
 		}
+		q = parsed
 	}
 	if q == nil {
 		built := query.NewQueryBuilder().Build()
@@ -198,14 +222,11 @@ func NewReadCollectionHandler(persist persistence.Persistence) abstract.MessageH
 
 		var q *query.Query
 		if raw := doc.GetOr("query", nil); raw != nil {
-			body, _ := json.Marshal(raw)
-			if len(body) > 0 {
-				parsed, err := query.FromBytes(body)
-				if err != nil {
-					return nil, fmt.Errorf("parse query: %w", err)
-				}
-				q = parsed
+			parsed, err := parseCollectionQuery(raw)
+			if err != nil {
+				return nil, fmt.Errorf("parse query: %w", err)
 			}
+			q = parsed
 		}
 		if q == nil {
 			built := query.NewQueryBuilder().Build()

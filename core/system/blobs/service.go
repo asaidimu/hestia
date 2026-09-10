@@ -97,6 +97,7 @@ func (s *BlobsService) ListBlobs(ctx context.Context, msg abstract.Message, inpu
 //   intent="query",
 //   rule="administrator",
 //   resource_id="key",
+//   catchall="key",
 //   description="Get blob metadata",
 //   output="model.BlobMetaOutput",
 // )
@@ -111,6 +112,7 @@ func (s *BlobsService) HeadBlob(ctx context.Context, msg abstract.Message, input
 //   intent="create",
 //   rule="administrator",
 //   resource_id="key",
+//   catchall="key",
 //   description="Upload a blob",
 //   output="model.BlobMetaOutput",
 // )
@@ -125,6 +127,7 @@ func (s *BlobsService) UploadBlob(ctx context.Context, msg abstract.Message, inp
 //   intent="read",
 //   rule="administrator",
 //   resource_id="key",
+//   catchall="key",
 //   description="Download a blob",
 // )
 func (s *BlobsService) DownloadBlob(ctx context.Context, msg abstract.Message, input *model.BlobKeyInput) (*abstract.Result, error) {
@@ -138,6 +141,7 @@ func (s *BlobsService) DownloadBlob(ctx context.Context, msg abstract.Message, i
 //   intent="delete",
 //   rule="administrator",
 //   resource_id="key",
+//   catchall="key",
 //   description="Delete a blob",
 // )
 func (s *BlobsService) DeleteBlob(ctx context.Context, msg abstract.Message, input *model.BlobKeyInput) (*abstract.Result, error) {
@@ -151,6 +155,7 @@ func (s *BlobsService) DeleteBlob(ctx context.Context, msg abstract.Message, inp
 //   intent="update",
 //   rule="administrator",
 //   resource_id="key",
+//   catchall="key",
 //   description="Update blob metadata",
 //   output="model.BlobMetaOutput",
 // )
@@ -230,6 +235,7 @@ func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, in
 //	intent="update",
 //	rule="administrator",
 //	resource_id="key",
+//	catchall="key",
 //	description="Rename a blob key",
 //
 // )

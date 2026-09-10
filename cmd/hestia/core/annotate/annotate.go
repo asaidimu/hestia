@@ -85,6 +85,10 @@ type Annotation struct {
 	// ResourceIDField is the resource identity for route registration,
 	// declared via resource_id="...". Empty when absent.
 	ResourceIDField string
+	// CatchAll names the trailing path argument that greedily consumes all
+	// remaining path segments (e.g. a blob key containing slashes),
+	// declared via catchall="key". Empty when absent.
+	CatchAll string
 	// BootstrapSafe marks the registration boot-safe (no DB required), declared
 	// via bootstrap_safe="true". False when absent.
 	BootstrapSafe bool
@@ -302,6 +306,7 @@ func buildAnnotation(fset *token.FileSet, fd *ast.FuncDecl, service string, attr
 		Rule:            attrs["rule"],
 		Description:     attrs["description"],
 		ResourceIDField: attrs["resource_id"],
+		CatchAll:        attrs["catchall"],
 		MethodName:      fd.Name.Name,
 		Service:         service,
 	}

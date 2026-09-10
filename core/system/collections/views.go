@@ -2,7 +2,6 @@ package collections
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
@@ -25,13 +24,12 @@ func parseViewQuery(payload map[string]any) (*query.Query, error) {
 	if !ok || raw == nil {
 		return nil, common.NewSystemError("VIEW_QUERY_REQUIRED", "request body must contain a 'query' object with the stored view definition")
 	}
-	body, err := json.Marshal(raw)
-	if err != nil || len(body) == 0 {
-		return nil, common.NewSystemError("VIEW_QUERY_INVALID", "request body 'query' must be a valid JSON query definition")
-	}
-	q, err := query.FromBytes(body)
+	q, err := parseCollectionQuery(raw)
 	if err != nil {
 		return nil, common.NewSystemError("VIEW_QUERY_INVALID", fmt.Sprintf("invalid view query definition: %s", err.Error())).WithCause(err)
+	}
+	if q == nil {
+		return nil, common.NewSystemError("VIEW_QUERY_INVALID", "request body 'query' must be a valid JSON query definition")
 	}
 	return q, nil
 }

@@ -96,9 +96,12 @@ export class HttpTransport<R extends string = RouteName> implements Transport<R>
   }
 
   private substituteArgs(route: string, args: Record<string, string>): string {
-    return route.replace(/\{(\w+)\}/g, (_, key) => {
-      if (args[key]) return encodeURIComponent(args[key]);
-      return `{${key}}`;
+    return route.replace(/\{(\w+)(\*)?\}/g, (_, key, greedy) => {
+      if (!args[key]) return `{${key}}`;
+      // Greedy params ({key*}) span segments: encode per segment so the
+      // embedded slashes survive, matching server-side greedy matching.
+      if (greedy) return args[key].split("/").map(encodeURIComponent).join("/");
+      return encodeURIComponent(args[key]);
     });
   }
 

@@ -31,6 +31,10 @@ type trieNode struct {
         children   []*trieNode
         paramChild *trieNode
         paramName  string
+        // greedy, when set on a paramChild, consumes all remaining path
+        // segments (joined with "/") instead of exactly one. Only valid on
+        // a terminal param (registered as {name*}); enforced at insert.
+        greedy     bool
         handlers   map[string]routeEntry
 }
 
@@ -52,7 +56,10 @@ func newPathTrie() *pathTrie {
 func (t *pathTrie) insert(method, path string, entry routeEntry) {
         segments := splitPath(path)
         node := t.root
-        for _, seg := range segments {
+        for i, seg := range segments {
+                if isGreedyParam(seg) && i != len(segments)-1 {
+                        panic(fmt.Sprintf("greedy param must be terminal: %s", path))
+                }
                 node = node.findOrCreate(seg)
         }
         if node.handlers == nil {
@@ -69,7 +76,7 @@ func (t *pathTrie) lookup(method, path string) (routeEntry, map[string]string, b
         node := t.root
         params := make(map[string]string)
 
-        for _, seg := range segments {
+        for i, seg := range segments {
                 found := false
                 for _, child := range node.children {
                         if child.segment == seg {
@@ -83,6 +90,11 @@ func (t *pathTrie) lookup(method, path string) (routeEntry, map[string]string, b
                 }
                 if node.paramChild != nil {
                         node = node.paramChild
+                        if node.greedy {
+                                // Consume this and all remaining segments.
+                                params[node.paramName] = strings.Join(segments[i:], "/")
+                                break
+                        }
                         params[node.paramName] = seg
                         continue
                 }
@@ -98,9 +110,11 @@ func (t *pathTrie) lookup(method, path string) (routeEntry, map[string]string, b
 
 func (n *trieNode) findOrCreate(segment string) *trieNode {
         if isParam(segment) {
+                name, greedy := parseParam(segment)
                 if n.paramChild == nil {
                         n.paramChild = &trieNode{
-                                paramName: strings.TrimSuffix(strings.TrimPrefix(segment, "{"), "}"),
+                                paramName: name,
+                                greedy:    greedy,
                         }
                 }
                 return n.paramChild
@@ -125,4 +139,18 @@ func splitPath(path string) []string {
 
 func isParam(seg string) bool {
         return len(seg) > 2 && seg[0] == '{' && seg[len(seg)-1] == '}'
+}
+
+func isGreedyParam(seg string) bool {
+        return len(seg) > 3 && seg[0] == '{' && seg[len(seg)-2] == '*' && seg[len(seg)-1] == '}'
+}
+
+// parseParam splits "{name}" into ("name", false) and "{name*}" into
+// ("name", true).
+func parseParam(seg string) (string, bool) {
+        inner := strings.TrimSuffix(strings.TrimPrefix(seg, "{"), "}")
+        if strings.HasSuffix(inner, "*") {
+                return strings.TrimSuffix(inner, "*"), true
+        }
+        return inner, false
 }

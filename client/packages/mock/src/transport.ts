@@ -181,12 +181,18 @@ export class IndexedDbTransport implements Transport<string> {
     for (const [route, entry] of Object.entries(MOCK_ROUTE_TABLE)) {
       if (entry.method !== method) continue;
       const template = entry.route.split("/").filter(Boolean);
-      if (template.length !== segments.length) continue;
+      const last = template[template.length - 1] ?? "";
+      const greedy = last.startsWith("{") && last.endsWith("*}");
+      if (greedy ? segments.length < template.length : template.length !== segments.length) continue;
 
       const args: Record<string, string> = {};
       let matched = true;
       for (let i = 0; i < template.length; i++) {
         const tpl = template[i]!;
+        if (greedy && i === template.length - 1) {
+          args[tpl.slice(1, -2)] = segments.slice(i).map(decodeURIComponent).join("/");
+          break;
+        }
         const actual = segments[i]!;
         if (tpl.startsWith("{") && tpl.endsWith("}")) {
           args[tpl.slice(1, -1)] = decodeURIComponent(actual);
@@ -201,9 +207,11 @@ export class IndexedDbTransport implements Transport<string> {
   }
 
   private substituteArgs(route: string, args: Record<string, string>): string {
-    return route.replace(/\{(\w+)\}/g, (_, key) =>
-      args[key] !== undefined ? encodeURIComponent(args[key]) : `{${key}}`,
-    );
+    return route.replace(/\{(\w+)(\*)?\}/g, (_, key, greedy) => {
+      if (args[key] === undefined) return `{${key}}`;
+      if (greedy) return args[key].split("/").map(encodeURIComponent).join("/");
+      return encodeURIComponent(args[key]);
+    });
   }
 
   // ── Streams (SSE emulation) ───────────────────────────────────────────────

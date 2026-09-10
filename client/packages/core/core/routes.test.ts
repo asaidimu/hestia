@@ -24,12 +24,19 @@ function okResponse(data: unknown): ApiResponse<unknown> {
 
 function fillArgs(spec: { route: string; arguments: readonly string[] }): Record<string, string> {
   const args: Record<string, string> = {}
-  for (const a of spec.arguments) args[a] = `arg:${a}`
+  for (const a of spec.arguments) {
+    // Greedy params ({a*}) span segments — give them a slashed value so the
+    // test exercises multi-segment substitution.
+    args[a] = spec.route.includes(`{${a}*}`) ? `arg:${a}/sub` : `arg:${a}`
+  }
   return args
 }
 
 function expectedPath(spec: { route: string; arguments: readonly string[] }): string {
-  const substituted = spec.route.replace(/\{(\w+)\}/g, (_, key: string) => encodeURIComponent(`arg:${key}`))
+  const substituted = spec.route.replace(/\{(\w+)(\*)?\}/g, (_: string, key: string, greedy: string) => {
+    const value = greedy ? `arg:${key}/sub` : `arg:${key}`
+    return greedy ? value.split("/").map(encodeURIComponent).join("/") : encodeURIComponent(value)
+  })
   return `api${substituted}`
 }
 

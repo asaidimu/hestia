@@ -22,10 +22,13 @@ type UserRegisterInput struct {
 	UserRegister
 }
 
+// UserQueryInput is the input for system:collections:user:query. The
+// payload is an opaque QDSL document passed through to the collection query
+// handler verbatim (same shape as the audit LogQueryInput). Typed filter
+// fields must NOT be declared here: the input pool strips unknown fields,
+// so anything but a free-form map silently drops filters/pagination.
 type UserQueryInput struct {
-	Username string `input:"payload.username,omitempty"`
-	Limit    int    `input:"payload.limit,omitempty"`
-	Cursor   string `input:"payload.cursor,omitempty"`
+	Payload map[string]any `input:"payload"`
 }
 
 type UserOutput struct {
