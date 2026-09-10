@@ -11,7 +11,7 @@ sqlite_fts5`) when they opt into the default sqlite backend.
 `example/fts/main.go`, `example/views/main.go`). Canonical feature layout:
 `core/system/users` (see `todo/migrate_features.md` if present).
 
-- [ ] Phase A — bump go-anansi to v8.9.1 and verify new APIs
+- [*] Phase A — bump go-anansi to v8.9.1 and verify new APIs
   - **Context:** hestia pins v8.6.4; helpers/views/FTS landed in v8.8.0–v8.9.0.
   - **Details:** `go get github.com/asaidimu/go-anansi/v8@v8.9.1 && go mod tidy`;
     confirm `sqlite.Config/Handle/NewInteractor/NewMemoryInteractor`,
@@ -19,7 +19,7 @@ sqlite_fts5`) when they opt into the default sqlite backend.
     `query.TextSearch().Contains/Exact/Phrase`, `definition.IndexTypeFullText`
     resolve. Record any breaking changes from the bump.
   - **Files:** `go.mod`, `go.sum`.
-- [-] Phase B — decouple sqlite from core (breaking change)
+- [*] Phase B — decouple sqlite from core (breaking change)
   - **Context:** `core/internal/boot/database.go` hand-rolls sqlite DSN/wiring;
     `persistence.go` falls back to it when `PersistenceFactory == nil`;
     `core/hestia.go` + `core/runtime/config.go` type the factory via the
@@ -48,13 +48,13 @@ sqlite_fts5`) when they opt into the default sqlite backend.
     `core/persistence/sqlite/*` (new), callers above.
   - **Acceptance:** `go list -deps ./core/... | grep -E 'mattn|anansi.*/sqlite'`
     is empty; a binary importing only `hestia/core` builds without sqlite.
-- [ ] Phase C — sqlite helpers adoption (inside the plugin)
+- [*] Phase C — sqlite helpers adoption (inside the plugin)
   - **Context:** Plugin replaces the hand-rolled DSN (`database.go`) with
     `sqlite.Config` + `NewInteractor`/`NewMemoryInteractor`, inheriting
     WAL / `_fk=1` / 5s busy-timeout / 4-4 pool defaults; `Handle.Cleanup` is
     the closer. Overrides via plugin options.
   - **Files:** `core/persistence/sqlite/*`.
-- [ ] Phase D — FTS5 text-search adoption
+- [*] Phase D — FTS5 text-search adoption
   - **Context:** `IndexTypeFullText` indexes → FTS5 `_fts` tables + triggers;
     `TextSearch(field).Contains/Exact/Phrase`; bm25 ranking; requires
     `-tags sqlite_fts5` else `no such module: fts5`.

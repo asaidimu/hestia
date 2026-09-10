@@ -9,6 +9,6 @@ export default defineConfig([
     clean: true,
     platform: "neutral",
     // Keep the SDK and shared utils external — they are real dependencies.
-    external: [/^@asaidimu\//],
+    deps: { neverBundle: [/^@asaidimu\//] },
   },
 ]);
