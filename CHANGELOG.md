@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/asaidimu/hestia/compare/v1.13.0...v1.14.0) (2026-09-10)
+
+
+### Features
+
+* **persistence:** Decouple sqlite backend from core and add view/FTS support ([ddd8057](https://github.com/asaidimu/hestia/commit/ddd8057cd50c28107daee9275bb81e87e41f8e23))
+
 # [1.13.0](https://github.com/asaidimu/hestia/compare/v1.12.1...v1.13.0) (2026-09-01)
 
 

@@ -7,7 +7,7 @@
 - **Files:**
   - `core/system/blobs/inputs.go`
   - `core/system/blobs/model/inputs.go`
-- **Plan:**
-  1. Decide canonical location (likely `model/inputs.go` since that follows the anansi convention).
-  2. Update `handler.go` and any other consumers to import from `model`.
-  3. Delete the duplicate `blobs/inputs.go`.
+- [ ] Decide canonical location (likely `model/inputs.go` since that follows the anansi convention).
+  - **Context:** per AGENTS.md, model DTOs live in `model/`; package-level copies are the anomaly.
+- [ ] Update `handler.go` and any other consumers to import from `model`.
+- [ ] Delete the duplicate `blobs/inputs.go`.

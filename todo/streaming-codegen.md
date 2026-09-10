@@ -200,3 +200,13 @@ discoverability and collection — both are codegen-owned now:
   TestSanitizationCollector (discovery, sorting, skip of sanitize-free
   services, byte stability), plus TestGenerateCollectorCompiles and
   TestScaffoldService extended to build the seed + collector in temp modules.
+
+## K. Remaining work
+
+- [ ] B14: client SDK streaming ergonomics
+  - **Context:** server-side streaming (NDJSON + `HandleInputStream`) landed;
+    the TypeScript client (`client/packages/core`) has no streaming-aware
+    store helpers — no `stream()` affordance on `HestiaCollection`/
+    `HestiaDataView` (both throw "not supported"), no NDJSON decoding, no
+    typed stream items. See B14 row in the blocker table (§B) and §G.
+  - **Files:** `client/packages/core/core/*.ts`, `client/packages/mock/`.

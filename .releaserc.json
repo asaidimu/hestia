@@ -10,17 +10,10 @@
       }
     ],
     [
-      "@semantic-release/npm",
-      {
-        "pkgRoot": "client/dist",
-        "npmPublishArgs": ["--provenance"]
-      }
-    ],
-    [
       "@semantic-release/git",
       {
-        "assets": ["CHANGELOG.md", "client/dist.package.json"],
-        "message": "chore(release): Release v${nextRelease.version}\n\n${nextRelease.notes}"
+        "assets": ["CHANGELOG.md"],
+        "message": "chore(release): Release v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
     "@semantic-release/github"
