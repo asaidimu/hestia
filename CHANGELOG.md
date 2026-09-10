@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/asaidimu/hestia/compare/v1.14.0...v1.14.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **core:** implement greedy path parameter matching ([118f620](https://github.com/asaidimu/hestia/commit/118f620cc754079310f69a65cad2e9e7ed6a1640))
+
 # [1.14.0](https://github.com/asaidimu/hestia/compare/v1.13.0...v1.14.0) (2026-09-10)
 
 
