@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 	apikeysmodel "github.com/asaidimu/hestia/core/system/apikeys/model"
@@ -46,6 +47,9 @@ func newFirstRunConfig(t *testing.T) *runtime.Config {
 	cfg.DBPath = filepath.Join(dir, "test.db")
 	cfg.LogPath = filepath.Join(dir, "server.log")
 	cfg.BlobsDir = filepath.Join(dir, "blobs")
+	// Core ships no database driver; tests opt into the default backend
+	// explicitly ("" defers to cfg.DBPath above).
+	cfg.PersistenceFactory = hestiasqlite.Default("")
 	// There is no default session secret anymore; provision one like boot does.
 	if err := runtime.EnsureSessionSecret(cfg); err != nil {
 		t.Fatalf("ensure session secret: %v", err)

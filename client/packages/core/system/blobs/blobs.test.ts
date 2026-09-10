@@ -285,12 +285,12 @@ describe("BlobNamespace — E2E", () => {
 
   describe("update", () => {
     it("updates blob metadata", async () => {
-      const result = await ns.update({ data: { content_type: "application/octet-stream" }, options: { key: blobKey } })
+      const result = await ns.update({ id: blobKey, data: { content_type: "application/octet-stream" } })
       expect(result?.key).toBe(blobKey)
     })
 
     it("throws when options.key is missing", async () => {
-      await expect(ns.update({ data: { content_type: "text/plain" } })).rejects.toThrow("options.key is required")
+      await expect(ns.update({ id: "", data: { content_type: "text/plain" } })).rejects.toThrow("id is required")
     })
   })
 

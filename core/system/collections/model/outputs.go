@@ -48,3 +48,16 @@ type CollectionDocumentView struct {
 	ID   string         `anansi:"id"`
 	Data map[string]any `anansi:"data"`
 }
+
+// CollectionViewView is the wire shape of a view descriptor response.
+type CollectionViewView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Name                   string `anansi:"name"`
+	Materialized           bool   `anansi:"materialized"`
+	Target                 string `anansi:"target"`
+}
+
+// CollectionViewOutput declares the envelope of a view descriptor response.
+type CollectionViewOutput struct {
+	Document CollectionViewView `anansi:"document"`
+}

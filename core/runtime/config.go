@@ -32,12 +32,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asaidimu/go-anansi/v8"
-	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
-	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/updater"
 	"github.com/joho/godotenv"
-	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
 )
@@ -72,7 +68,8 @@ const (
 	sessionSecretFileName = "session.key"
 )
 
-type InteractorFactory func(logger *zap.Logger) (query.DatabaseInteractor, func(), error)
+type PersistenceDeps = abstract.PersistenceDeps
+type PersistenceFactory = abstract.PersistenceFactory
 
 type Config struct {
 	Port          int
@@ -96,8 +93,7 @@ type Config struct {
 	Version    string
 	SelfUpdate *SelfUpdateConfig
 
-	InteractorFactory  InteractorFactory
-	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
+	PersistenceFactory PersistenceFactory
 
 	AdminEmail        string
 	AdminPassword     string

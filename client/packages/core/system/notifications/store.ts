@@ -1,4 +1,5 @@
 import type { Document } from "../../core/types"
+import { strippedData } from "../../core/document"
 import { type Transport, type StreamHandlers, type StreamOptions } from "../../core/client"
 import type {
   Notification,
@@ -17,7 +18,7 @@ export class HestiaNotificationStore {
   async create(input: CreateNotificationInput): Promise<Document<Notification>> {
     const res = await this.client.dispatch<{
       data: Document<Notification>
-    }>("system:notifications:notification:create", { payload: input })
+    }>("system:notifications:notification:create", { payload: strippedData(input) })
     return res.data!.data
   }
 

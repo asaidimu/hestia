@@ -41,3 +41,14 @@ type CollectionDocumentView struct {
 	ID   string         `anansi:"id"`
 	Data map[string]any `anansi:"data"`
 }
+
+type CollectionViewView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	Name                   string `anansi:"name"`
+	Materialized           bool   `anansi:"materialized"`
+	Target                 string `anansi:"target"`
+}
+
+type CollectionViewOutput struct {
+	Document CollectionViewView `anansi:"document"`
+}

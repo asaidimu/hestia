@@ -6,6 +6,8 @@ TypeScript client SDK for the [Hestia](https://github.com/asaidimu/hestia) platf
 
 - **Auth** — login, register, refresh, logout, session management with auto-refresh on 401
 - **Collections** — generic CRUD over any named collection via `HestiaCollection<T>`
+- **Data Views** — read-only handles over stored server queries via `HestiaDataView<T>` (create with `{ name, query, materialized }`, query, refresh materialized snapshots)
+- **Documents** — every returned document carries `id()` and `metadata()` envelope accessors (payload fields are untouched; serialisation is unaffected)
 - **API Keys** — create, list, get, update, rotate, delete API keys
 - **Policies** — manage policy operations, rules, validation, and reload
 - **Audit Logs** — query and filter audit entries

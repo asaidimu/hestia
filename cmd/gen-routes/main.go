@@ -12,6 +12,7 @@ import (
 	"github.com/asaidimu/updater"
 
 	hestia "github.com/asaidimu/hestia/core"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/route"
 )
@@ -24,13 +25,14 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	cfg := hestia.SetupConfig{
-		DataDir:           tmpDir,
-		DBPath:            ":memory:",
-		SessionSecret:     "gen-routes-secret",
-		ForceBootstrapped: true,
-		AdminEmail:        "gen@routes.local",
-		AdminPassword:     "password123",
-		Version:           "0.0.0-gen",
+		DataDir:            tmpDir,
+		DBPath:             ":memory:",
+		PersistenceFactory: hestiasqlite.Default(":memory:"),
+		SessionSecret:      "gen-routes-secret",
+		ForceBootstrapped:  true,
+		AdminEmail:         "gen@routes.local",
+		AdminPassword:      "password123",
+		Version:            "0.0.0-gen",
 	}
 
 	// When UPDATE_ENABLED=true is set, pass SelfUpdate so the updates routes
@@ -42,10 +44,10 @@ func main() {
 			panic(err)
 		}
 		provider, err := updater.NewServerProvider(updater.ServerConfig{
-			ServerURL:      "http://localhost:8080",
-			AppName:        "hestia",
-			ClientToken:    "gen-routes-token",
-			ClientID:       "gen-routes-client",
+			ServerURL:       "http://localhost:8080",
+			AppName:         "hestia",
+			ClientToken:     "gen-routes-token",
+			ClientID:        "gen-routes-client",
 			ServerPublicKey: &key.PublicKey,
 		})
 		if err != nil {
@@ -129,7 +131,7 @@ export type RouteName = keyof typeof ROUTE_TABLE;
 		os.Exit(1)
 	}
 
-	clientDir := filepath.Join(root, "client", "core")
+	clientDir := filepath.Join(root, "client", "packages", "core", "core")
 	os.MkdirAll(clientDir, 0755)
 	outPath := filepath.Join(clientDir, "routes.gen.ts")
 	if err := os.WriteFile(outPath, []byte(out), 0644); err != nil {

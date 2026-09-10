@@ -4,6 +4,7 @@ import (
 	"log"
 
 	hestia "github.com/asaidimu/hestia/core"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/utils/wails"
 
 	wailsruntime "github.com/wailsapp/wails/v2"
@@ -13,10 +14,11 @@ import (
 
 func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
-		ProjectName:       "wails-demo-app",
-		ForceBootstrapped: true,
-		AdminEmail:        "admin@test.local",
-		AdminPassword:     "password123",
+		ProjectName:        "wails-demo-app",
+		PersistenceFactory: hestiasqlite.Default(""),
+		ForceBootstrapped:  true,
+		AdminEmail:         "admin@test.local",
+		AdminPassword:      "password123",
 	})
 	if err != nil {
 		log.Fatal(err)

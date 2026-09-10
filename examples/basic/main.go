@@ -5,14 +5,16 @@ import (
 	"os"
 
 	hestia "github.com/asaidimu/hestia/core"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 )
 
 var version = "dev"
 
 func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
-		Version:       version,
-		SessionSecret: "my-test-secret",
+		Version:            version,
+		SessionSecret:      "my-test-secret",
+		PersistenceFactory: hestiasqlite.Default(""),
 		// SelfUpdate: &runtime.SelfUpdateConfig{
 		// 	Provider: &updater.Github{
 		// 		Owner:       "your-org",

@@ -1,7 +1,7 @@
 import type { QueryFilter, SortConfiguration } from "@asaidimu/query";
 
 // Internal metadata managed by Anansi
-interface DocumentMetadata {
+export interface DocumentMetadata {
   checksum: string; // Integrity hash of the document
   created: string; // Timestamp (often as a numeric string / nanoseconds)
   updated: string; // Timestamp (often as a numeric string / nanoseconds)
@@ -176,12 +176,15 @@ export interface DocumentStore<
   delete: (options: TDeleteOptions) => Promise<void>;
 
   /**
-   * Updates an existing record.
-   * @param props An object containing the ID of the record to update, the partial data, and optional update options.
+   * Updates existing records.
+   * @param props An object containing the partial data plus exactly one
+   * target: an `id` or a `filter`. Optional update options ride in `options`.
    * @returns A promise that resolves to the updated record or undefined if not found.
    */
   update: (props: {
     data: Partial<T>;
+    id?: string;
+    filter?: QueryFilter<T>;
     options?: TUpdateOptions;
   }) => Promise<Document<T> | undefined>;
 

@@ -9,3 +9,9 @@ export interface CollectionMeta {
 }
 
 export type CollectionDocument = Document<{ schema: SchemaDefinition }>
+
+export interface DataViewMeta {
+  name: string
+  materialized: boolean
+  target: string
+}

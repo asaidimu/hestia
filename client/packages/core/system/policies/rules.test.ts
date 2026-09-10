@@ -40,8 +40,8 @@ describe("HestiaRules — E2E", () => {
 
   it("updates a rule", async () => {
     const updated = await container.rules.update({
+      id: ruleName,
       data: { expression: "false" },
-      options: ruleName,
     })
     expect(updated).toBeDefined()
     expect(updated!.expression).toBe("false")

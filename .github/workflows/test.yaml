@@ -26,13 +26,13 @@ jobs:
           cache: true
 
       - name: Vet
-        run: go vet ./...
+        run: go vet -tags sqlite_fts5 ./...
 
       - name: Codegen drift check
         run: |
-          go run ./cmd/gen-routes
-          if ! git diff --exit-code -- client/core/routes.gen.ts; then
-            echo "::error::client/core/routes.gen.ts is stale. Run 'go run ./cmd/gen-routes' and commit."
+          go run -tags sqlite_fts5 ./cmd/gen-routes
+          if ! git diff --exit-code -- client/packages/core/core/routes.gen.ts; then
+            echo "::error::client/packages/core/core/routes.gen.ts is stale. Run 'go run ./cmd/gen-routes' and commit."
             exit 1
           fi
 
@@ -48,7 +48,7 @@ jobs:
           cache: true
 
       - name: Test
-        run: go test -v -count=1 ./...
+        run: go test -tags sqlite_fts5 -v -count=1 ./...
 
   test-race:
     name: Race Detector
@@ -62,7 +62,7 @@ jobs:
           cache: true
 
       - name: Test (race)
-        run: go test -race -count=1 ./core/...
+        run: go test -tags sqlite_fts5 -race -count=1 ./core/...
 
   security:
     name: Vulnerability Scan

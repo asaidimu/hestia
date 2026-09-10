@@ -1,4 +1,6 @@
+import type { QueryFilter } from "@asaidimu/query"
 import { type Transport } from "../../core/client"
+import { strippedData } from "../../core/document"
 import type { Document, Page, PaginationInfo, StoreEvent } from "../../core/types"
 import type { DocumentStore } from "../../core/types"
 import type {
@@ -58,7 +60,7 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
     if (!name) throw new Error("Rule name is required for create")
     const res = await this.client.dispatch<{ data: PolicyRule }>(
       "system:policies:rule:create",
-      { arguments: { name }, payload: props.data },
+      { arguments: { name }, payload: strippedData(props.data) },
     )
     if (!res.data?.data) return undefined
     const r = res.data.data
@@ -69,12 +71,13 @@ export class HestiaRules implements DocumentStore<PolicyRule, Record<string, unk
     }
   }
 
-  async update(props: { data: UpdateRuleRequest; options?: string }): Promise<Document<PolicyRule> | undefined> {
-    const name = props.options!
+  async update(props: { id?: string; data: UpdateRuleRequest; filter?: QueryFilter<PolicyRule> }): Promise<Document<PolicyRule> | undefined> {
+    if (props.filter) throw new Error("filter-based update not supported for policy rules")
+    const name = props.id
     if (!name) throw new Error("Rule name is required for update")
     const res = await this.client.dispatch<{ data: PolicyRule }>(
       "system:policies:rule:update",
-      { arguments: { name }, payload: props.data },
+      { arguments: { name }, payload: strippedData(props.data) },
     )
     if (!res.data?.data) return undefined
     const r = res.data.data

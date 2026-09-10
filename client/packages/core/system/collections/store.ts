@@ -1,5 +1,6 @@
 import { type Transport } from "../../core/client"
 import { HestiaCollection } from "../../core/collection"
+import { HestiaDataView } from "../../core/data-view"
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types"
 import type { DocumentStore } from "../../core/types"
 import type { CollectionMeta } from "./types"
@@ -43,7 +44,7 @@ export class HestiaCollections implements DocumentStore<CollectionMeta, Record<s
     return res.data!.data as any as Document<CollectionMeta>
   }
 
-  async update(_props: { data: Partial<CollectionMeta>; options?: string }): Promise<Document<CollectionMeta> | undefined> {
+  async update(_props: { data: Partial<CollectionMeta>; id?: string }): Promise<Document<CollectionMeta> | undefined> {
     throw new Error("Collection update not implemented")
   }
 
@@ -83,5 +84,9 @@ export class HestiaCollections implements DocumentStore<CollectionMeta, Record<s
 
   documents<T extends Record<string, any>>(collectionName: string): HestiaCollection<T> {
     return new HestiaCollection<T>(this.client, collectionName)
+  }
+
+  view<T extends Record<string, any>>(viewName: string): HestiaDataView<T> {
+    return new HestiaDataView<T>(this.client, viewName)
   }
 }

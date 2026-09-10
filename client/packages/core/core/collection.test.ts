@@ -25,6 +25,13 @@ describe("HestiaCollection (document CRUD) — E2E", () => {
     docId = doc!._id_
   })
 
+  it("strips server-managed envelope keys from creates", async () => {
+    const doc = await docs.create({ data: { title: "forged", _id_: "forged-id", _metadata_: {} } as any })
+    expect(doc).toBeDefined()
+    expect(doc!.id()).not.toBe("forged-id")
+    expect(doc!.title).toBe("forged")
+  })
+
   it("queries documents", async () => {
     const page = await docs.find()
     expect(page.data.length).toBeGreaterThanOrEqual(1)
@@ -45,9 +52,26 @@ describe("HestiaCollection (document CRUD) — E2E", () => {
   })
 
   it("updates a document", async () => {
-    const updated = await docs.update({ data: { title: "bye" }, options: docId })
+    const updated = await docs.update({ id: docId, data: { title: "bye" } })
     expect(updated!._id_).toBe(docId)
     expect(updated!.title).toBe("bye")
+  })
+
+  it("updates documents by filter", async () => {
+    await docs.create({ data: { title: "batch-a" } })
+    await docs.create({ data: { title: "batch-b" } })
+    const updated = await docs.update({
+      data: { title: "batched" },
+      filter: { condition: { field: "title", operator: "eq", value: "batch-a" } } as any,
+    })
+    expect(updated).toBeDefined()
+    expect(updated!.title).toBe("batched")
+    const page = await docs.find()
+    expect(page.data.some((d) => d.title === "batch-b")).toBe(true)
+  })
+
+  it("rejects update with neither id nor filter", async () => {
+    await expect(docs.update({ data: { title: "x" } })).rejects.toThrow(/exactly one of id or filter/)
   })
 
   it("deletes a document", async () => {

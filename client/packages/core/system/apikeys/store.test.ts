@@ -33,7 +33,7 @@ describe("HestiaKeyStore — E2E", () => {
   })
 
   it("updates an api key", async () => {
-    const updated = await container.keys.update({ data: { name: `${keyName}-renamed` }, options: keyId })
+    const updated = await container.keys.update({ id: keyId, data: { name: `${keyName}-renamed` } })
     expect(updated!._id_).toBe(keyId)
     expect(updated!.name).toBe(`${keyName}-renamed`)
   })

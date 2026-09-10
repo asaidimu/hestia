@@ -67,7 +67,7 @@ export class HestiaAuditLogs implements DocumentStore<AuditEntry, QueryDSL<Audit
     throw new Error("Audit logs are write-only; entries are created by the system")
   }
 
-  async update(_props: { data: Partial<AuditEntry>; options?: string }): Promise<Document<AuditEntry> | undefined> {
+  async update(_props: { data: Partial<AuditEntry>; id?: string }): Promise<Document<AuditEntry> | undefined> {
     throw new Error("Audit logs are append-only; updates are not allowed")
   }
 

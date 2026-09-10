@@ -29,7 +29,7 @@ export class HestiaCore implements DocumentStore<any, Record<string, unknown>, s
     throw new Error("Capabilities are read-only")
   }
 
-  async update(_props: { data: Partial<any>; options?: string }): Promise<Document<any> | undefined> {
+  async update(_props: { data: Partial<any>; id?: string }): Promise<Document<any> | undefined> {
     throw new Error("Capabilities are read-only")
   }
 

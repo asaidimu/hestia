@@ -125,6 +125,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.Handle[model.CollectionDocDeleteInput](s.DeleteDocument),
 		},
 		{
+			Name:        "system:collections:document:update_many",
+			Description: "Update documents by filter",
+			Intent:      abstract.Update,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.CollectionDocUpdateManyInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.CollectionDocumentOutput](),
+			Handler: dispatch.Handle[model.CollectionDocUpdateManyInput](s.UpdateManyDocuments),
+		},
+		{
 			Name:        "system:collections:_user:read",
 			Description: "Query users collection",
 			Intent:      abstract.Read,
@@ -206,6 +217,29 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			},
 			Output:  dispatch.SchemaFromType[auditmodel.LogQueryOutput](),
 			Handler: dispatch.Handle[auditmodel.LogQueryInput](s.ExportAuditLogs),
+		},
+		{
+			Name:        "system:collections:view:create",
+			Description: "Create view backed by a stored query",
+			Intent:      abstract.Create,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.CollectionViewCreateInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.CollectionViewOutput](),
+			Handler: dispatch.Handle[model.CollectionViewCreateInput](s.CreateView),
+		},
+		{
+			Name:        "system:collections:view:refresh",
+			Description: "Refresh materialized view snapshot",
+			Intent:      abstract.Update,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema:          dispatch.SchemaFromTypeWithTag[model.CollectionViewRefreshInput]("input"),
+				ResourceIDField: "name",
+			},
+			Output:  dispatch.SchemaFromType[model.CollectionViewOutput](),
+			Handler: dispatch.Handle[model.CollectionViewRefreshInput](s.RefreshView),
 		},
 	}, nil
 }

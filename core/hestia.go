@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/asaidimu/go-anansi/v8"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
 	"go.uber.org/zap"
@@ -182,7 +181,7 @@ type SetupConfig struct {
 	OnRestartRequired func(error)
 	Migrate           func(ctx context.Context, p base.Persistence) error
 
-	PersistenceFactory func(cfg *anansi.SetupConfig) (base.Persistence, error)
+	PersistenceFactory runtime.PersistenceFactory
 
 	Bootstrap *bool
 	Logger    *zap.Logger

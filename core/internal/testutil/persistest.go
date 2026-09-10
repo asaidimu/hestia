@@ -2,25 +2,19 @@ package testutil
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
-	pevents "github.com/asaidimu/go-anansi/v8/core/persistence/events"
-	"github.com/asaidimu/go-anansi/v8/core/persistence/persistence"
-	"github.com/asaidimu/go-anansi/v8/core/query/native"
 	"github.com/asaidimu/go-anansi/v8/core/schema/definition"
-	sqliteExecutor "github.com/asaidimu/go-anansi/v8/sqlite/executor"
-	sqliteQuery "github.com/asaidimu/go-anansi/v8/sqlite/query"
 	"github.com/asaidimu/go-anansi/v8/tests/testutils"
-	"github.com/asaidimu/go-anansi/v8/utils"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+
+	"github.com/asaidimu/hestia/core/abstract"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 )
 
 func init() {
@@ -47,37 +41,20 @@ func NewPersistence(t *testing.T) base.Persistence {
 
 // NewPersistenceTB is NewPersistence for any testing context (tests and
 // benchmarks). It builds a unique in-memory SQLite database named after the
-// test, creates the schema-locked collections, and registers cleanup.
+// test via the default sqlite backend, creates the schema-locked
+// collections, and registers cleanup.
 func NewPersistenceTB(t testing.TB) base.Persistence {
 	t.Helper()
 	ctx := context.Background()
-	logger := zap.NewNop()
 
 	testutils.ConfigureDocumentFactory()
 
-	// Unique in-memory SQLite database per test (mirrors
-	// testutils.SetupTestDB but accepts testing.TB).
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
-	db, err := sql.Open("sqlite3", dsn)
+	p, cleanup, err := hestiasqlite.Memory(t.Name())(abstract.PersistenceDeps{
+		Logger:  zap.NewNop(),
+		DataDir: t.TempDir(),
+	})
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Close() })
-
-	var version string
-	require.NoError(t, db.QueryRow("SELECT sqlite_version()").Scan(&version))
-
-	devLogger, _ := zap.NewDevelopment()
-	executor, err := sqliteExecutor.NewSQLiteExecutor(db, devLogger)
-	require.NoError(t, err)
-	queryFactory := sqliteQuery.NewSQLiteFactory(nil)
-	interactor, err := native.NewNativeInteractor(executor, queryFactory, devLogger)
-	require.NoError(t, err)
-
-	bus, err := utils.NewInMemoryGoEventsBus("test")
-	require.NoError(t, err)
-
-	pbus := pevents.NewGoEventsBusAdapter[base.PersistenceEvent](bus)
-	p, err := persistence.NewPersistence(interactor, pbus, logger, nil)
-	require.NoError(t, err)
+	t.Cleanup(cleanup)
 
 	root := projectRoot()
 	if root == "" {

@@ -12,6 +12,7 @@ import (
 	"github.com/asaidimu/updater"
 
 	hestia "github.com/asaidimu/hestia/core"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/core/runtime"
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
@@ -36,12 +37,13 @@ func TestProgrammaticSelfUpdatePersistsPending(t *testing.T) {
 	ctx := context.Background()
 	p := &probeProvider{info: &updater.UpdateInfo{Version: "1.2.0", Changelog: "probe"}}
 	app, err := hestia.Setup(hestia.SetupConfig{
-		SessionSecret:     "probe-secret",
-		DataDir:           t.TempDir(),
-		DBPath:            ":memory:",
-		Version:           "1.0.0",
-		ForceBootstrapped: true,
-		SelfUpdate:        &runtime.SelfUpdateConfig{Provider: p},
+		SessionSecret:      "probe-secret",
+		DataDir:            t.TempDir(),
+		DBPath:             ":memory:",
+		PersistenceFactory: hestiasqlite.Default(":memory:"),
+		Version:            "1.0.0",
+		ForceBootstrapped:  true,
+		SelfUpdate:         &runtime.SelfUpdateConfig{Provider: p},
 		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
 			// No CLI interface: it flag-parses os.Args and os.Exit(1)s on
 			// unknown args (e.g. go test's own -test.* flags).

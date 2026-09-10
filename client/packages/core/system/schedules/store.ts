@@ -1,4 +1,5 @@
 import type { Document } from "../../core/types"
+import { strippedData } from "../../core/document"
 import { type Transport } from "../../core/client"
 import type { Schedule, CreateSchedulePayload, UpdateSchedulePayload } from "./types"
 
@@ -10,7 +11,7 @@ export class HestiaScheduleStore {
   async create(payload: CreateSchedulePayload): Promise<string> {
     const res = await this.client.dispatch<{ data: { id: string } }>(
       "system:schedules:schedule:create",
-      { payload },
+      { payload: strippedData(payload) },
     )
     return res.data?.data?.id ?? ""
   }
@@ -44,7 +45,7 @@ export class HestiaScheduleStore {
   async update(id: string, payload: UpdateSchedulePayload): Promise<void> {
     await this.client.dispatch("system:schedules:schedule:update", {
       arguments: { id },
-      payload,
+      payload: strippedData(payload),
     })
   }
 

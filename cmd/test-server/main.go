@@ -12,6 +12,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/core/runtime"
 	auditdomain "github.com/asaidimu/hestia/core/runtime/audit"
 	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
@@ -42,13 +43,14 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	app, err := hestia.Setup(hestia.SetupConfig{
-		Version:           version,
-		DataDir:           tmpDir,
-		DBPath:            ":memory:",
-		SessionSecret:     "test-secret-do-not-use-in-production",
-		ForceBootstrapped: true,
-		AdminEmail:        "admin@test.local",
-		AdminPassword:     "password123",
+		Version:            version,
+		DataDir:            tmpDir,
+		DBPath:             ":memory:",
+		PersistenceFactory: hestiasqlite.Default(":memory:"),
+		SessionSecret:      "test-secret-do-not-use-in-production",
+		ForceBootstrapped:  true,
+		AdminEmail:         "admin@test.local",
+		AdminPassword:      "password123",
 		DispatcherChainFunc: func(chain abstract.ChainEditor) {
 			chain.Remove("ratelimit")
 			chain.Remove("throttle")

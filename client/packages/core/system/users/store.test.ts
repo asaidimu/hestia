@@ -38,7 +38,7 @@ describe("HestiaUsers — E2E", () => {
   })
 
   it("updates a user", async () => {
-    const updated = await container.users.update({ data: { name: "Renamed User" }, options: userId })
+    const updated = await container.users.update({ id: userId, data: { name: "Renamed User" } })
     expect(updated!._id_).toBe(userId)
     expect(updated!.name).toBe("Renamed User")
   })

@@ -1,4 +1,4 @@
-import type { QueryDSL } from "@asaidimu/query";
+import type { QueryDSL, QueryFilter } from "@asaidimu/query";
 import { type Transport } from "../../core/client";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { createPagedController } from "../../core/pager";
@@ -125,10 +125,12 @@ export class HestiaPolicies implements DocumentStore<
   }
 
   async update(props: {
+    id?: string;
     data: UpdatePolicyRequest;
-    options?: string;
+    filter?: QueryFilter<Policy>;
   }): Promise<Document<Policy> | undefined> {
-    const name = props.options!;
+    if (props.filter) throw new Error("filter-based update not supported for policies")
+    const name = props.id;
     if (!name) throw new Error("Operation name is required for update");
     const payload: Record<string, unknown> = {};
     if (props.data.rule !== undefined) payload.rule = props.data.rule;

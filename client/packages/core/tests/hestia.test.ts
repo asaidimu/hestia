@@ -77,7 +77,7 @@ describe("users collection (_user_)", () => {
   })
 
   it.skip("updates a user", async () => {
-    const updated = await container.users.update({ data: { name: "Updated Name" }, options: registeredId })
+    const updated = await container.users.update({ id: registeredId, data: { name: "Updated Name" } })
     expect(updated!.name).toBe("Updated Name")
   })
 
@@ -115,7 +115,7 @@ describe("api keys (_api_key_)", () => {
   })
 
   it("updates an api key", async () => {
-    const updated = await container.keys.update({ data: { name: "Renamed Key" }, options: keyId })
+    const updated = await container.keys.update({ id: keyId, data: { name: "Renamed Key" } })
     expect(updated!.name).toBe("Renamed Key")
   })
 

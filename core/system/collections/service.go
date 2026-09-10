@@ -155,6 +155,21 @@ func (s *CollectionsService) DeleteDocument(ctx context.Context, msg abstract.Me
 	return NewDocumentDeleteHandler(s.persist)(ctx, msg)
 }
 
+// UpdateManyDocuments updates every document matching a filter. The payload
+// is a { set, filter } envelope; unlike document:update this message takes
+// no doc_id, so its route carries no /{doc_id} segment.
+//
+// @hestia.register(
+//   name="system:collections:document:update_many",
+//   intent="update",
+//   rule="administrator",
+//   description="Update documents by filter",
+//   output="model.CollectionDocumentOutput",
+// )
+func (s *CollectionsService) UpdateManyDocuments(ctx context.Context, msg abstract.Message, input *model.CollectionDocUpdateManyInput) (*abstract.Result, error) {
+	return NewDocumentUpdateManyHandler(s.persist)(ctx, msg)
+}
+
 // ReadCollection runs a QDSL query against an internal collection. The
 // collection is resolved from the message's name document (dispatcher-side),
 // so a single method serves every internal _*_ read.
@@ -239,4 +254,35 @@ func (s *CollectionsService) QueryAuditLogs(ctx context.Context, msg abstract.Me
 // )
 func (s *CollectionsService) ExportAuditLogs(ctx context.Context, msg abstract.Message, input *auditmodel.LogQueryInput) (*abstract.Result, error) {
 	return NewNamedCollectionQueryHandler("_audit_log_", s.persist)(ctx, msg)
+}
+
+// CreateView registers a read-only view collection backed by a stored query.
+// The payload carries the stored query definition ("query") and the view
+// kind ("materialized"). Virtual views re-run the stored query on every
+// read; materialized views snapshot into a physical table.
+//
+// @hestia.register(
+//   name="system:collections:view:create",
+//   intent="create",
+//   rule="administrator",
+//   description="Create view backed by a stored query",
+//   output="model.CollectionViewOutput",
+// )
+func (s *CollectionsService) CreateView(ctx context.Context, msg abstract.Message, input *model.CollectionViewCreateInput) (*abstract.Result, error) {
+	return NewViewCreateHandler(s.persist)(ctx, msg)
+}
+
+// RefreshView re-populates a materialized view's snapshot from its stored
+// query. Virtual views fail with ERR_PERSISTENCE_NOT_MATERIALIZED.
+//
+// @hestia.register(
+//   name="system:collections:view:refresh",
+//   intent="update",
+//   rule="administrator",
+//   resource_id="name",
+//   description="Refresh materialized view snapshot",
+//   output="model.CollectionViewOutput",
+// )
+func (s *CollectionsService) RefreshView(ctx context.Context, msg abstract.Message, input *model.CollectionViewRefreshInput) (*abstract.Result, error) {
+	return NewViewRefreshHandler(s.persist)(ctx, msg)
 }

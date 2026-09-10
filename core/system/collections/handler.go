@@ -235,6 +235,9 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) abstract.MessageH
 		}
 
 		documentID, _ := doc.GetOr("arguments.doc_id", "").(string)
+		if documentID == "" {
+			return nil, common.NewSystemError("UPDATE_TARGET_REQUIRED", "arguments.doc_id is required; use document:update_many with a { set, filter } envelope to update by filter")
+		}
 		bodyRaw := doc.GetOr("payload", nil)
 
 		var body map[string]any
@@ -245,32 +248,87 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) abstract.MessageH
 			return nil, common.NewSystemError("DOCUMENT_REQUIRED", "request body must be a valid JSON document")
 		}
 
-		col, err := persist.Collection(ctx, name)
-		if err != nil {
-			return nil, fmt.Errorf("access collection %q: %w", name, err)
-		}
-
-		filter := query.NewQueryBuilder().Where(data.DocumentIDField).Eq(documentID).Build().Filters
-		setDoc := data.Patch(body).Document(ctx)
-		result, err := col.Update(ctx, &persistence.CollectionUpdate{
-			Set:            setDoc,
-			Filter:         filter,
-			ReturnDocument: utils.PrimitivePtr(true),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("update document %q in %q: %w", documentID, name, err)
-		}
-
-		if len(result.Data) == 0 {
-			return nil, common.NewSystemError("DOCUMENT_NOT_FOUND", fmt.Sprintf("document %q not found in %q", documentID, name))
-		}
-
-		r, ok := result.Data[0].(*document.Document)
-		if !ok {
-			return nil, fmt.Errorf("persistence returned %T, want *document.Document", result.Data[0])
-		}
-		return &abstract.Result{Document: r}, nil
+		return applyDocumentUpdate(ctx, persist, name, documentID, body)
 	}
+}
+
+// NewDocumentUpdateManyHandler updates every document matching a filter. The
+// payload is a { set, filter } envelope and no doc_id is accepted — this is
+// what makes the message routable (document:update embeds /{doc_id}).
+func NewDocumentUpdateManyHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		doc := msg.Input()
+		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if isIAMProtectedCollection(name) {
+			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
+		}
+
+		bodyRaw := doc.GetOr("payload", nil)
+		var body map[string]any
+		if bodyRaw != nil {
+			body, _ = bodyRaw.(map[string]any)
+		}
+		if len(body) == 0 {
+			return nil, common.NewSystemError("DOCUMENT_REQUIRED", "request body must be a { set, filter } envelope")
+		}
+
+		return applyDocumentUpdate(ctx, persist, name, "", body)
+	}
+}
+
+// applyDocumentUpdate runs a document update against name. With a non-empty
+// documentID the body is a raw partial (legacy by-id path); with an empty
+// documentID the body must be a { set, filter } envelope (exactly one
+// targeting mode — never both, never neither).
+func applyDocumentUpdate(ctx context.Context, persist persistence.Persistence, name, documentID string, body map[string]any) (*abstract.Result, error) {
+	col, err := persist.Collection(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("access collection %q: %w", name, err)
+	}
+
+	var filter *query.QueryFilter
+	setBody := body
+	if documentID == "" {
+		// Filter-targeted update: the payload is a { set, filter } envelope.
+		setFrag, _ := body["set"].(map[string]any)
+		filterFrag := body["filter"]
+		if len(setFrag) == 0 || filterFrag == nil {
+			return nil, common.NewSystemError("UPDATE_TARGET_REQUIRED", "update requires exactly one of arguments.doc_id or a payload { set, filter } envelope")
+		}
+		filterBytes, err := json.Marshal(filterFrag)
+		if err != nil || len(filterBytes) == 0 {
+			return nil, common.NewSystemError("UPDATE_FILTER_INVALID", "update filter must be a valid JSON query filter")
+		}
+		var qf query.QueryFilter
+		if err := json.Unmarshal(filterBytes, &qf); err != nil {
+			return nil, common.NewSystemError("UPDATE_FILTER_INVALID", fmt.Sprintf("invalid update filter: %s", err.Error())).WithCause(err)
+		}
+		filter = &qf
+		setBody = setFrag
+	} else {
+		filter = query.NewQueryBuilder().Where(data.DocumentIDField).Eq(documentID).Build().Filters
+	}
+
+	setDoc := data.Patch(setBody).Document(ctx)
+	result, err := col.Update(ctx, &persistence.CollectionUpdate{
+		Set:            setDoc,
+		Filter:         filter,
+		ReturnDocument: utils.PrimitivePtr(true),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update documents in %q: %w", name, err)
+	}
+
+	if len(result.Data) == 0 {
+		return nil, common.NewSystemError("DOCUMENT_NOT_FOUND", fmt.Sprintf("no documents matched the update target in %q", name))
+	}
+
+	r, ok := result.Data[0].(*document.Document)
+	if !ok {
+		return nil, fmt.Errorf("persistence returned %T, want *document.Document", result.Data[0])
+	}
+	return &abstract.Result{Document: r}, nil
 }
 
 func RegisterDocumentHandlers(r abstract.Registry, persist persistence.Persistence, name string) error {

@@ -38,6 +38,7 @@ import (
 	"os"
 
 	hestia "github.com/asaidimu/hestia/core"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	%q
 )
 
@@ -47,6 +48,10 @@ func main() {
 	app, err := hestia.Setup(hestia.SetupConfig{
 		Version:      version,
 		ProjectName:  %q,
+		// Default embedded SQLite backend. Swap for a custom
+		// runtime.PersistenceFactory to use another database —
+		// core links no driver unless you import one here.
+		PersistenceFactory: hestiasqlite.Default(""),
 		Modules: autogen.%s(),
 	})
 

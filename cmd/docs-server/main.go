@@ -12,6 +12,7 @@ import (
 	"github.com/asaidimu/hestia/core"
 	"github.com/asaidimu/hestia/core/interface/cli"
 	httpapi "github.com/asaidimu/hestia/core/interface/http"
+	hestiasqlite "github.com/asaidimu/hestia/core/persistence/sqlite"
 	"github.com/asaidimu/hestia/core/runtime"
 )
 
@@ -33,12 +34,13 @@ func main() {
 	defer os.RemoveAll(tmpDir)
 
 	app, err := hestia.Setup(hestia.SetupConfig{
-		DataDir:           tmpDir,
-		DBPath:            ":memory:",
-		SessionSecret:     "docs-secret-do-not-use-in-production",
-		ForceBootstrapped: true,
-		AdminEmail:        "admin@test.local",
-		AdminPassword:     "password123",
+		DataDir:            tmpDir,
+		DBPath:             ":memory:",
+		PersistenceFactory: hestiasqlite.Default(":memory:"),
+		SessionSecret:      "docs-secret-do-not-use-in-production",
+		ForceBootstrapped:  true,
+		AdminEmail:         "admin@test.local",
+		AdminPassword:      "password123",
 		BuildInterfaces: func(app *hestia.Application, cfg ...*runtime.Config) []runtime.Interface {
 			return []runtime.Interface{
 				app.NewHTTPInterface(httpapi.Config{

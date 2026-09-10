@@ -1,8 +1,9 @@
-import type { QueryDSL } from "@asaidimu/query";
+import type { QueryDSL, QueryFilter } from "@asaidimu/query";
 import type { SimplePersistence } from "@asaidimu/utils-persistence";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { type Transport } from "../../core/client";
 import { createPagedController } from "../../core/pager";
+import { strippedData } from "../../core/document";
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types";
 import type { DocumentStore } from "../../core/types";
 import type {
@@ -1026,12 +1027,13 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     throw new Error("Use upload() to create blobs");
   }
 
-  async update(props: { data: Partial<BlobMeta>; options?: Record<string, any> }): Promise<Document<BlobMeta> | undefined> {
-    const key = props.options?.key as string;
-    if (!key) throw new Error("options.key is required for blob update");
+  async update(props: { id?: string; data: Partial<BlobMeta>; filter?: QueryFilter<BlobMeta> }): Promise<Document<BlobMeta> | undefined> {
+    if (props.filter) throw new Error("filter-based update not supported for blobs");
+    const key = props.id;
+    if (!key) throw new Error("id is required for blob update");
     const res = await this.client.dispatch<{ data: BlobMeta }>(
       "system:blobs:blob:update",
-      { arguments: { ns: this.ns, key }, payload: { custom: props.data } },
+      { arguments: { ns: this.ns, key }, payload: { custom: strippedData(props.data) } },
     );
     return asDoc(res.data!.data);
   }

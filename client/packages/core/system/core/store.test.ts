@@ -17,7 +17,7 @@ describe("HestiaCore — E2E", () => {
 
   it("rejects mutation operations (read-only)", async () => {
     await expect(container.core.create({ data: {} })).rejects.toThrow()
-    await expect(container.core.update({ data: {}, options: "x" })).rejects.toThrow()
+    await expect(container.core.update({ id: "x", data: {} })).rejects.toThrow()
     await expect(container.core.delete("x")).rejects.toThrow()
     await expect(container.core.read("x")).rejects.toThrow()
   })

@@ -1,7 +1,8 @@
-import type { QueryDSL } from "@asaidimu/query";
+import type { QueryDSL, QueryFilter } from "@asaidimu/query";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { type Transport } from "../../core/client";
 import { createPagedController } from "../../core/pager";
+import { strippedData } from "../../core/document";
 import type {
   Document,
   DocumentStore,
@@ -73,13 +74,15 @@ export class HestiaUsers implements DocumentStore<
   }
 
   async update(props: {
+    id?: string;
     data: Partial<UserData>;
-    options?: string;
+    filter?: QueryFilter<UserData>;
   }): Promise<Document<UserData> | undefined> {
-    const id = props.options!;
+    if (props.filter) throw new Error("filter-based update not supported for users")
+    if (!props.id) throw new Error("user id is required for update")
     const res = await this.client.dispatch<{ data: Document<UserData> }>(
       "system:users:user:update",
-      { arguments: { user_id: id }, payload: props.data as any },
+      { arguments: { user_id: props.id }, payload: strippedData(props.data) as any },
     );
     return res.data!.data;
   }
@@ -100,7 +103,7 @@ export class HestiaUsers implements DocumentStore<
     }
     const res = await this.client.dispatch<{
       data: Document<UserData>;
-    }>("system:users:user:create", { payload });
+    }>("system:users:user:create", { payload: strippedData(payload) });
     return res.data.data;
   }
 

@@ -29,7 +29,7 @@ describe("HestiaAuditLogs — E2E", () => {
 
   it("rejects mutation operations (append-only)", async () => {
     await expect(container.auditLogs.create({ data: {} as any })).rejects.toThrow()
-    await expect(container.auditLogs.update({ data: {}, options: "x" })).rejects.toThrow()
+    await expect(container.auditLogs.update({ id: "x", data: {} })).rejects.toThrow()
     await expect(container.auditLogs.delete("x")).rejects.toThrow()
     await expect(container.auditLogs.read("x")).rejects.toThrow()
   })

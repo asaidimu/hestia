@@ -1,7 +1,8 @@
-import type { QueryDSL } from "@asaidimu/query"
+import type { QueryDSL, QueryFilter } from "@asaidimu/query"
 import { type Transport } from "../../core/client"
 import { ReactiveDataStore } from "@asaidimu/utils-store"
 import { createPagedController } from "../../core/pager"
+import { strippedData } from "../../core/document"
 import type { Document, Page, PagedData, StoreEvent } from "../../core/types"
 import type { DocumentStore } from "../../core/types"
 import type { APIKey, APIKeyWithSecret, CreateKeyRequest, UpdateKeyRequest } from "./types"
@@ -56,16 +57,17 @@ export class HestiaKeyStore implements DocumentStore<APIKey, QueryDSL<APIKey>, s
   async create(props: { data: Partial<APIKey> }): Promise<Document<APIKey> | undefined> {
     const res = await this.client.dispatch<{ data: Document<APIKeyWithSecret> }>(
       "system:apikeys:key:create",
-      { payload: props.data as CreateKeyRequest },
+      { payload: strippedData(props.data) as CreateKeyRequest },
     )
     return res.data!.data
   }
 
-  async update(props: { data: Partial<APIKey>; options?: string }): Promise<Document<APIKey> | undefined> {
-    const id = props.options!
+  async update(props: { id?: string; data: Partial<APIKey>; filter?: QueryFilter<APIKey> }): Promise<Document<APIKey> | undefined> {
+    if (props.filter) throw new Error("filter-based update not supported for API keys")
+    if (!props.id) throw new Error("key id is required for update")
     const res = await this.client.dispatch<{ data: Document<APIKey> }>(
       "system:apikeys:key:update",
-      { arguments: { key_id: id }, payload: props.data as UpdateKeyRequest },
+      { arguments: { key_id: props.id }, payload: strippedData(props.data) as UpdateKeyRequest },
     )
     return res.data!.data
   }

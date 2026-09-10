@@ -2,21 +2,24 @@ package boot
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/asaidimu/go-anansi/v8"
+	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
-	pevents "github.com/asaidimu/go-anansi/v8/core/persistence/events"
-	"github.com/asaidimu/go-anansi/v8/core/query"
 	"github.com/asaidimu/go-anansi/v8/core/sanitize"
 	"github.com/asaidimu/go-anansi/v8/utils"
-	events "github.com/asaidimu/go-events/v2"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/internal/migrations"
 	"github.com/asaidimu/hestia/core/runtime"
 )
+
+var ErrPersistenceFactoryMissing = common.NewSystemError(
+	"ERR_PERSISTENCE_FACTORY_MISSING",
+	"no PersistenceFactory configured: hestia core ships no database driver; "+
+		"pass an explicit backend to Setup, e.g. PersistenceFactory: "+
+		"sqlite.Default(dbPath) from github.com/asaidimu/hestia/core/persistence/sqlite, "+
+		"or provide a custom runtime.PersistenceFactory")
 
 type PersistenceManager struct {
 	Anansi base.Persistence
@@ -51,68 +54,37 @@ func sanitizeConfig() sanitize.Config {
 
 func NewPersistenceManager(cfg *runtime.Config, logger *zap.Logger) (*PersistenceManager, error) {
 	if err := sanitize.Configure(sanitizeConfig(), logger); err != nil {
-		return nil, fmt.Errorf("configure sanitization: %w", err)
+		return nil, common.SystemErrorFrom(err, "ERR_SANITIZE_CONFIGURE").
+			WithOperation("NewPersistenceManager")
 	}
 
-	var p base.Persistence
-	var icloser func()
+	if err := data.ConfigureDocumentFactory(docFactoryConfig(), logger); err != nil {
+		return nil, common.SystemErrorFrom(err, "ERR_DOCUMENT_FACTORY_CONFIGURE").
+			WithOperation("NewPersistenceManager")
+	}
 
-	if cfg.PersistenceFactory != nil {
-		var err error
-		p, err = cfg.PersistenceFactory(&anansi.SetupConfig{
-			Logger:                logger,
-			DocumentFactoryConfig: docFactoryConfig(),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("persistence factory: %w", err)
-		}
-		icloser = func() {}
-	} else {
-		var interactor query.DatabaseInteractor
+	if cfg.PersistenceFactory == nil {
+		return nil, ErrPersistenceFactoryMissing.WithOperation("NewPersistenceManager")
+	}
 
-		if cfg.InteractorFactory != nil {
-			var err error
-			interactor, icloser, err = cfg.InteractorFactory(logger)
-			if err != nil {
-				return nil, fmt.Errorf("interactor factory: %w", err)
-			}
-		} else {
-			db, err := NewDatabase(cfg, logger)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create database: %w", err)
-			}
-			interactor = db.Interactor
-			icloser = func() { _ = db.Close() }
-		}
-
-		eventBus, err := events.NewEventBus(events.DefaultConfig(cfg.DataDir, "persistence-events"))
-		if err != nil {
-			icloser()
-			return nil, fmt.Errorf("failed to create event bus: %w", err)
-		}
-
-		bus := pevents.NewGoEventsBusAdapter[base.PersistenceEvent](eventBus)
-
-		p, err = anansi.Setup(anansi.SetupConfig{
-			Interactor:            interactor,
-			Logger:                logger,
-			EventBus:              bus,
-			DocumentFactoryConfig: docFactoryConfig(),
-			Schemas:               nil,
-		})
-
-		if err != nil {
-			icloser()
-			return nil, fmt.Errorf("failed to setup Anansi: %w", err)
-		}
-
-		logger.Info("Persistence layer initialized — waiting for module schemas.")
+	p, closer, err := cfg.PersistenceFactory(runtime.PersistenceDeps{
+		Logger:  logger,
+		DataDir: cfg.DataDir,
+		DBPath:  cfg.DBPath,
+	})
+	if err != nil {
+		return nil, common.SystemErrorFrom(err, "ERR_PERSISTENCE_FACTORY").
+			WithOperation("NewPersistenceManager")
+	}
+	if closer == nil {
+		closer = func() {}
 	}
 
 	sanitizationPolicyStore, err := utils.NewSanitizationPolicyStore(p, logger)
 	if err != nil {
-		icloser()
-		return nil, fmt.Errorf("failed to setup sanitization: %w", err)
+		closer()
+		return nil, common.SystemErrorFrom(err, "ERR_SANITIZATION_STORE").
+			WithOperation("NewPersistenceManager")
 	}
 
 	reg := sanitize.Registry()
@@ -124,7 +96,7 @@ func NewPersistenceManager(cfg *runtime.Config, logger *zap.Logger) (*Persistenc
 
 	return &PersistenceManager{
 		Anansi: p,
-		closer: icloser,
+		closer: closer,
 	}, nil
 }
 

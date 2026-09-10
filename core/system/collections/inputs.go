@@ -37,3 +37,17 @@ type CollectionDocDeleteInput struct {
 	Name  string `input:"arguments.name"`
 	DocID string `input:"arguments.doc_id"`
 }
+
+type CollectionDocUpdateManyInput struct {
+	Name    string         `input:"arguments.name"`
+	Payload map[string]any `input:"payload"`
+}
+
+type CollectionViewCreateInput struct {
+	Name    string         `input:"arguments.name"`
+	Payload map[string]any `input:"payload"`
+}
+
+type CollectionViewRefreshInput struct {
+	Name string `input:"arguments.name"`
+}

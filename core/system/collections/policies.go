@@ -16,6 +16,7 @@ func Policies() []policies.Binding {
 		{Name: "system:collections:document:get", RuleKey: "administrator", Description: "Get document from collection"},
 		{Name: "system:collections:document:update", RuleKey: "administrator", Description: "Update document in collection"},
 		{Name: "system:collections:document:delete", RuleKey: "administrator", Description: "Delete document from collection"},
+		{Name: "system:collections:document:update_many", RuleKey: "administrator", Description: "Update documents by filter"},
 		{Name: "system:collections:_user:read", RuleKey: "administrator", Description: "Query users collection"},
 		{Name: "system:collections:_api_key:read", RuleKey: "administrator", Description: "Query API keys collection"},
 		{Name: "system:collections:_operation_policy:read", RuleKey: "administrator", Description: "Query policy operations"},
@@ -24,5 +25,7 @@ func Policies() []policies.Binding {
 		{Name: "system:collections:user:query", RuleKey: "administrator", Description: "Query users collection"},
 		{Name: "system:collections:audit_log:query", RuleKey: "administrator", Description: "Query audit logs"},
 		{Name: "system:audit:log:export", RuleKey: "administrator", Description: "Export audit logs"},
+		{Name: "system:collections:view:create", RuleKey: "administrator", Description: "Create view backed by a stored query"},
+		{Name: "system:collections:view:refresh", RuleKey: "administrator", Description: "Refresh materialized view snapshot"},
 	}
 }

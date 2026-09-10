@@ -164,6 +164,10 @@ export class HestiaClient {
     return this.collections.documents<T>(name);
   }
 
+  view<T extends Record<string, any>>(name: string) {
+    return this.collections.view<T>(name);
+  }
+
   ready(){
       return this.client.ready()
   }
