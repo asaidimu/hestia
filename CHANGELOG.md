@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/asaidimu/hestia/compare/v1.14.2...v1.15.0) (2026-09-11)
+
+
+### Features
+
+* **auth:** rename administrator role to root ([ac3f994](https://github.com/asaidimu/hestia/commit/ac3f9944729f03421c3bc8d3436956f6748292b1))
+
 ## [1.14.2](https://github.com/asaidimu/hestia/compare/v1.14.1...v1.14.2) (2026-09-11)
 
 
