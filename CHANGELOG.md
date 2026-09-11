@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/asaidimu/hestia/compare/v1.15.0...v1.15.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **auth:** correct sanitization scope in session creation ([bc4d8dc](https://github.com/asaidimu/hestia/commit/bc4d8dc243d378240ee02edc8045f92967ba3dc2))
+
 # [1.15.0](https://github.com/asaidimu/hestia/compare/v1.14.2...v1.15.0) (2026-09-11)
 
 
