@@ -56,6 +56,7 @@ export const MOCK_ROUTE_TABLE: Record<string, MockRouteDoc> = {
   "system:collections:document:update": { method: "PATCH", route: "/system/collections/document/update/{name}/{doc_id}" },
   "system:collections:document:update_many": { method: "PATCH", route: "/system/collections/document/update_many/{name}" },
   "system:collections:user:query": { method: "POST", route: "/system/collections/user/query" },
+  "system:collections:operation_policy:query": { method: "POST", route: "/system/collections/operation_policy/query" },
   "system:collections:view:create": { method: "POST", route: "/system/collections/view/create/{name}" },
   "system:collections:view:refresh": { method: "PATCH", route: "/system/collections/view/refresh/{name}" },
   "system:core:capability:list": { method: "GET", route: "/system/core/capability/list" },

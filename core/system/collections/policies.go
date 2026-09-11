@@ -25,6 +25,7 @@ func Policies() []policies.Binding {
 		{Name: "system:collections:user:query", RuleKey: "administrator", Description: "Query users collection"},
 		{Name: "system:collections:audit_log:query", RuleKey: "administrator", Description: "Query audit logs"},
 		{Name: "system:audit:log:export", RuleKey: "administrator", Description: "Export audit logs"},
+		{Name: "system:collections:operation_policy:query", RuleKey: "administrator", Description: "Query operation policies"},
 		{Name: "system:collections:view:create", RuleKey: "administrator", Description: "Create view backed by a stored query"},
 		{Name: "system:collections:view:refresh", RuleKey: "administrator", Description: "Refresh materialized view snapshot"},
 	}

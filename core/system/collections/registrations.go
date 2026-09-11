@@ -219,6 +219,17 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.Handle[auditmodel.LogQueryInput](s.ExportAuditLogs),
 		},
 		{
+			Name:        "system:collections:operation_policy:query",
+			Description: "Query operation policies",
+			Intent:      abstract.Query,
+			Enabled:     true,
+			Input: abstract.Input{
+				Schema: dispatch.SchemaFromTypeWithTag[model.CollectionPolicyQueryInput]("input"),
+			},
+			Output:  dispatch.SchemaFromType[model.CollectionQueryOutput](),
+			Handler: dispatch.Handle[model.CollectionPolicyQueryInput](s.QueryOperationPolicies),
+		},
+		{
 			Name:        "system:collections:view:create",
 			Description: "Create view backed by a stored query",
 			Intent:      abstract.Create,

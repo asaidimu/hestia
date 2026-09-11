@@ -38,6 +38,13 @@ type CollectionDocDeleteInput struct {
 	DocID string `input:"arguments.doc_id"`
 }
 
+// CollectionPolicyQueryInput is the input for
+// system:collections:operation_policy:query. The payload is an opaque QDSL
+// document passed through to the collection query handler verbatim.
+type CollectionPolicyQueryInput struct {
+	Payload map[string]any `input:"payload"`
+}
+
 // CollectionDocUpdateManyInput binds a filter-targeted update. The payload
 // is a { set, filter } envelope; no doc_id is accepted (which is what keeps
 // the derived route free of a /{doc_id} segment).

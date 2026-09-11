@@ -14,6 +14,8 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/schema"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
+	"go.uber.org/zap"
 )
 
 func IsSystemCollection(name string) bool {
@@ -146,25 +148,12 @@ func NewNamedCollectionQueryHandler(collectionName string, persist persistence.P
 	}
 }
 
-func NewCollectionQueryHandler(persist persistence.Persistence) abstract.MessageHandler {
-	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
-		doc := msg.Input()
-		name, _ := doc.GetOr("arguments.name", "").(string)
-		return runCollectionQuery(ctx, msg, name, persist)
-	}
-}
-
-func runCollectionQuery(ctx context.Context, msg abstract.Message, name string, persist persistence.Persistence) (*abstract.Result, error) {
-	doc := msg.Input()
-
-	var q *query.Query
-	if raw := doc.GetOr("payload", nil); raw != nil {
-		parsed, err := parseCollectionQuery(raw)
-		if err != nil {
-			return nil, fmt.Errorf("parse query: %w", err)
-		}
-		q = parsed
-	}
+// ensureQueryPagination applies the shared read defaults every collection
+// query runs under: default offset pagination (limit 100, totals included),
+// IncludeTotal forced on, and the S-17 server-side limit clamp. Single
+// source of truth for both the generic query path and projection paths
+// like user:query.
+func ensureQueryPagination(q *query.Query) *query.Query {
 	if q == nil {
 		built := query.NewQueryBuilder().Build()
 		q = &built
@@ -187,6 +176,88 @@ func runCollectionQuery(ctx context.Context, msg abstract.Message, name string, 
 	if q.Pagination.Limit > maxQueryLimit {
 		q.Pagination.Limit = maxQueryLimit
 	}
+	return q
+}
+
+// NewUsersQueryHandler runs a QDSL query against the _user_ collection and
+// returns rows projected through the UserPublic shape, so bcrypt password
+// hashes never leave the server on a query path. Row materialization is
+// delegated to the generated users model (ReadAs) — this handler owns only
+// routing and the page envelope, never binding. It costs one raw read for
+// the pagination envelope plus the model read for rows; acceptable on this
+// administrator-gated endpoint. Internal readers use the separate internal
+// _user_:read message instead.
+func NewUsersQueryHandler(persist persistence.Persistence, logger *zap.Logger) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		users, err := usersmodel.InitSystemUsersModel(persist, logger)
+		if err != nil {
+			return nil, wrapErr(err, "USER_MODEL_INIT", "failed to initialize users model")
+		}
+
+		var q *query.Query
+		if raw := msg.Input().GetOr("payload", nil); raw != nil {
+			parsed, err := parseCollectionQuery(raw)
+			if err != nil {
+				return nil, fmt.Errorf("parse query: %w", err)
+			}
+			q = parsed
+		}
+		q = ensureQueryPagination(q)
+
+		rows, err := users.ReadAs[*usersmodel.UserPublic](ctx, q)
+		if err != nil {
+			return nil, wrapErr(err, "USER_QUERY", "failed to query users")
+		}
+		col, err := persist.Collection(ctx, usersmodel.SystemUsersCollectionName)
+		if err != nil {
+			return nil, wrapErr(err, "USER_QUERY", "failed to access users collection")
+		}
+		rctx := common.ContextWithCollectionName(ctx, usersmodel.SystemUsersCollectionName)
+		result, err := col.Read(rctx, q)
+		if err != nil {
+			return nil, wrapErr(err, "USER_QUERY", "failed to query users")
+		}
+
+		docs := make([]*document.Document, 0, len(rows))
+		for _, r := range rows {
+			d, err := r.Document()
+			if err != nil {
+				return nil, wrapErr(err, "USER_QUERY", "failed to materialize user document")
+			}
+			docs = append(docs, d)
+		}
+		return &abstract.Result{
+			Page: &abstract.Page{
+				Documents:  docs,
+				Pagination: result.PaginationInfo,
+			},
+		}, nil
+	}
+}
+
+func NewCollectionQueryHandler(persist persistence.Persistence) abstract.MessageHandler {
+	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+		doc := msg.Input()
+		name, _ := doc.GetOr("arguments.name", "").(string)
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use; query it through its dedicated messages", name))
+		}
+		return runCollectionQuery(ctx, msg, name, persist)
+	}
+}
+
+func runCollectionQuery(ctx context.Context, msg abstract.Message, name string, persist persistence.Persistence) (*abstract.Result, error) {
+	doc := msg.Input()
+
+	var q *query.Query
+	if raw := doc.GetOr("payload", nil); raw != nil {
+		parsed, err := parseCollectionQuery(raw)
+		if err != nil {
+			return nil, fmt.Errorf("parse query: %w", err)
+		}
+		q = parsed
+	}
+	q = ensureQueryPagination(q)
 
 	col, err := persist.Collection(ctx, name)
 	if err != nil {
@@ -274,6 +345,10 @@ func NewDocumentGetHandler(persist persistence.Persistence) abstract.MessageHand
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 		documentID, _ := doc.GetOr("arguments.doc_id", "").(string)
+
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use; query it through its dedicated messages", name))
+		}
 
 		col, err := persist.Collection(ctx, name)
 		if err != nil {

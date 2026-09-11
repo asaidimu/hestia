@@ -163,6 +163,10 @@ func NewDocumentCreateHandler(persist persistence.Persistence) abstract.MessageH
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use", name))
+		}
+
 		if isIAMProtectedCollection(name) {
 			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
 		}
@@ -201,6 +205,10 @@ func NewDocumentDeleteHandler(persist persistence.Persistence) abstract.MessageH
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
 
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use", name))
+		}
+
 		if isIAMProtectedCollection(name) {
 			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
 		}
@@ -229,6 +237,10 @@ func NewDocumentUpdateHandler(persist persistence.Persistence) abstract.MessageH
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use", name))
+		}
 
 		if isIAMProtectedCollection(name) {
 			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))
@@ -259,6 +271,10 @@ func NewDocumentUpdateManyHandler(persist persistence.Persistence) abstract.Mess
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		doc := msg.Input()
 		name, _ := doc.GetOr("arguments.name", "").(string)
+
+		if IsSystemCollection(name) {
+			return nil, common.NewSystemError("SYSTEM_COLLECTION", fmt.Sprintf("collection %q is reserved for system use", name))
+		}
 
 		if isIAMProtectedCollection(name) {
 			return nil, common.NewSystemError("PROTECTED_COLLECTION", fmt.Sprintf("direct writes to %q are not allowed; use the dedicated policy API", name))

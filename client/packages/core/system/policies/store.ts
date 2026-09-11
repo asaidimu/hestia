@@ -17,8 +17,6 @@ import type {
   UpdatePolicyRequest,
 } from "./types";
 
-const POLICY_COLLECTION = "_operation_policy_";
-
 export class HestiaPolicies implements DocumentStore<
   Policy,
   QueryDSL<Policy>,
@@ -48,8 +46,7 @@ export class HestiaPolicies implements DocumentStore<
     const res = await this.client.dispatch<{
       data: any[];
       metadata?: { page?: PaginationInfo };
-    }>("system:collections:document:query", {
-      arguments: { name: POLICY_COLLECTION },
+    }>("system:collections:operation_policy:query", {
       payload: qdsl,
     });
     const items = res.data?.data ?? [];

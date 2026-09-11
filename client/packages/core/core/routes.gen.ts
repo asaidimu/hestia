@@ -50,6 +50,7 @@ export const ROUTE_TABLE = {
   "system:collections:document:query": { method: "POST", route: "/system/collections/document/query/{name}", arguments: ["name"] },
   "system:collections:document:update": { method: "PATCH", route: "/system/collections/document/update/{name}/{doc_id}", arguments: ["name", "doc_id"] },
   "system:collections:document:update_many": { method: "PATCH", route: "/system/collections/document/update_many/{name}", arguments: ["name"] },
+  "system:collections:operation_policy:query": { method: "POST", route: "/system/collections/operation_policy/query", arguments: [] },
   "system:collections:user:query": { method: "POST", route: "/system/collections/user/query", arguments: [] },
   "system:collections:view:create": { method: "POST", route: "/system/collections/view/create/{name}", arguments: ["name"] },
   "system:collections:view:refresh": { method: "PATCH", route: "/system/collections/view/refresh/{name}", arguments: ["name"] },

@@ -38,6 +38,10 @@ type CollectionDocDeleteInput struct {
 	DocID string `input:"arguments.doc_id"`
 }
 
+type CollectionPolicyQueryInput struct {
+	Payload map[string]any `input:"payload"`
+}
+
 type CollectionDocUpdateManyInput struct {
 	Name    string         `input:"arguments.name"`
 	Payload map[string]any `input:"payload"`

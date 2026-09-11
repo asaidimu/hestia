@@ -31,7 +31,27 @@ every user unfiltered. Two compounding causes found 2026-09-10.
 - [ ] Follow-ups (not done)
   - Upstream: `query.FromBytes` should reject unknown top-level keys
     instead of silently dropping them (go-anansi `core/query`).
-  - Note: `user:query` returns raw user documents incl. bcrypt hashes —
-    same exposure as generic `document:query` on `_user_`, administrator-
-    gated; consider projecting through `UserPublic` if that changes.
   - The :8090 dev server still runs pre-fix code — restart it to pick this up.
+- [*] Block system collections on generic document routes + project user:query
+  - **Context:** follow-up report — `user:query` returned raw docs incl.
+    bcrypt password hashes. Per direction, system collections are no longer
+    addressable through the generic `document:*` messages at all.
+  - **Details:** `SYSTEM_COLLECTION` guard in `NewCollectionQueryHandler`
+    and `NewDocument{Get,Create,Update,Delete,UpdateMany}` handlers
+    (internal `_x_:read` messages and direct persistence access untouched —
+    the server itself still needs raw reads, e.g. auth validation).
+    `system:collections:user:query` now serves via `NewUsersQueryHandler`,
+    delegating row materialization to the generated users model
+    (`ReadAs[*UserPublic]`, envelope from one raw read) — no hand-rolled
+    binding anywhere; pagination defaults extracted into shared
+    `ensureQueryPagination`. Follow-on find: the client `HestiaPolicies`
+    store queried `_operation_policy_` through the blocked generic route,
+    so added dedicated `system:collections:operation_policy:query`
+    (mirrors `audit_log:query`) and pointed the client + mock table at it.
+  - **Files:** `core/system/collections/{query,handler,service}.go`,
+    `model/inputs.go`, `inputs.go`, regenerated registrations/policies/
+    routes, `client/.../policies/store.ts`, mock routes, `filter_test.go`
+    (rejection matrix + no-password assertion), TS users/policies tests.
+  - **Verified:** live — `user:query` returns exact match with no `password`
+    key; generic query/get on `_user_` → `SYSTEM_COLLECTION`; Go core tree
+    + full client suite (293 passed) green.

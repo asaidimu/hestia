@@ -225,7 +225,7 @@ func (s *CollectionsService) ReadCollection(ctx context.Context, msg abstract.Me
 //   output="usersmodel.UserQueryOutput",
 // )
 func (s *CollectionsService) QueryUsers(ctx context.Context, msg abstract.Message, input *usersmodel.UserQueryInput) (*abstract.Result, error) {
-	return NewNamedCollectionQueryHandler("_user_", s.persist)(ctx, msg)
+	return NewUsersQueryHandler(s.persist, s.logger)(ctx, msg)
 }
 
 // QueryAuditLogs runs a QDSL query against the _audit_log_ collection, pinned
@@ -254,6 +254,22 @@ func (s *CollectionsService) QueryAuditLogs(ctx context.Context, msg abstract.Me
 // )
 func (s *CollectionsService) ExportAuditLogs(ctx context.Context, msg abstract.Message, input *auditmodel.LogQueryInput) (*abstract.Result, error) {
 	return NewNamedCollectionQueryHandler("_audit_log_", s.persist)(ctx, msg)
+}
+
+// QueryOperationPolicies runs a QDSL query against the _operation_policy_
+// collection, pinned by the named-collection query helper. System
+// collections are not addressable through the generic document:query
+// message, so this dedicated message is the query path for policies.
+//
+// @hestia.register(
+//   name="system:collections:operation_policy:query",
+//   intent="query",
+//   rule="administrator",
+//   description="Query operation policies",
+//   output="model.CollectionQueryOutput",
+// )
+func (s *CollectionsService) QueryOperationPolicies(ctx context.Context, msg abstract.Message, input *model.CollectionPolicyQueryInput) (*abstract.Result, error) {
+	return NewNamedCollectionQueryHandler("_operation_policy_", s.persist)(ctx, msg)
 }
 
 // CreateView registers a read-only view collection backed by a stored query.

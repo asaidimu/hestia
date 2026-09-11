@@ -26,6 +26,7 @@ describe("HestiaUsers — E2E", () => {
     } as never)
     expect(page.data.length).toBe(1)
     expect(page.data[0]!.email).toBe(email)
+    expect("password" in page.data[0]!).toBe(false)
   })
 
   it("finds a user by canonical filters key", async () => {
