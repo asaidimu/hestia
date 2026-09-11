@@ -113,7 +113,7 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 		return nil, err
 	}
 
-	sctx := common.ContextWithCollectionName(ctx, "_user_")
+	sctx := common.ContextWithSanitizationScope(ctx, "users")
 	sane, err := user.MustDocument().Sanitize(sctx)
 	if err != nil {
 		return nil, err
