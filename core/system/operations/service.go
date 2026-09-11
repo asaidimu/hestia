@@ -97,7 +97,7 @@ func (s *OperationsService) HealthCheck(ctx context.Context, msg abstract.Messag
 // @hestia.register(
 //   name="system:core:capability:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all registered commands and queries with descriptions and enabled status",
 // )
 func (s *OperationsService) ListCapabilities(ctx context.Context, msg abstract.Message) (*runtime.CapabilitiesDocument, error) {
@@ -120,7 +120,7 @@ func (s *OperationsService) ListCapabilities(ctx context.Context, msg abstract.M
 // @hestia.register(
 //   name="system:core:capability:set",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   description="Enable or disable a registered command or query",
 //   resource_id="name",
 // )
@@ -217,7 +217,7 @@ func (s *OperationsService) MarkBootstrapped(ctx context.Context, msg abstract.M
 // @hestia.register(
 //   name="system:core:reset",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Reset system to initial state",
 // )
 func (s *OperationsService) Reset(ctx context.Context, msg abstract.Message) error {
@@ -232,7 +232,7 @@ func (s *OperationsService) Reset(ctx context.Context, msg abstract.Message) err
 // @hestia.register(
 //   name="system:scheduler:job:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all registered scheduler jobs",
 // )
 func (s *OperationsService) SchedulerJobs(ctx context.Context, msg abstract.Message) ([]*document.Document, error) {

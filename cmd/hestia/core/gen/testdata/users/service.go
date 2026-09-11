@@ -36,7 +36,7 @@ func NewUsersService(rt abstract.Container) (*UsersService, error) {
 // @hestia.register(
 //   name="system:users:user:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create a new user",
 // )
 func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, input *CreateUserInput) (*User, error) {
@@ -53,7 +53,7 @@ type DeleteUserInput struct {
 // @hestia.register(
 //   name="system:users:user:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="user_id",
 // )
 func (s *UsersService) DeleteUser(ctx context.Context, msg abstract.Message, input *DeleteUserInput) error {
@@ -121,7 +121,7 @@ type ImportUserInput struct {
 // @hestia.register(
 //   name="system:users:user:import",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Bulk-import users from an NDJSON stream",
 // )
 func (s *UsersService) ImportUsers(ctx context.Context, msg abstract.Message, items <-chan dispatch.Item[ImportUserInput]) (*abstract.Result, error) {

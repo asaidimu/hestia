@@ -26,7 +26,7 @@ func TestParseUsers(t *testing.T) {
 		if !ok {
 			t.Fatal("missing create")
 		}
-		if a.Verb != VerbCreate || a.Rule != "administrator" {
+		if a.Verb != VerbCreate || a.Rule != "root" {
 			t.Errorf("verb/rule: %s / %s", a.Verb, a.Rule)
 		}
 		if a.MethodName != "CreateUser" || a.Service != "UsersService" {

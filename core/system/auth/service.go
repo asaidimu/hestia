@@ -306,7 +306,7 @@ func (s *AuthService) ValidateAPIKey(ctx context.Context, msg abstract.Message) 
 //
 //	name="system:auth:bootstrap:password:set",
 //	intent="update",
-//	rule="administrator",
+//	rule="root",
 //	bootstrap_safe="true",
 //	description="Set bootstrap admin password",
 //	output="model.MessageOutput",

@@ -97,7 +97,7 @@ type (
 // UpdatesService drives the self-update lifecycle on top of updater.Updater:
 // read-only status/changelog, check-and-stage, and the maintenance-window
 // apply, plus the scheduled check. Every method runs with the caller's
-// identity; the dispatcher gates them on the administrator rule.
+// identity; the dispatcher gates them on the root rule.
 type UpdatesService struct {
 	updater   *updater.Updater
 	store     *Store
@@ -181,7 +181,7 @@ func NewServiceFromDeps(u *updater.Updater, store *Store, notifier abstract.Noti
 //
 //	name="system:updates:status:get",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Get self-update status (current and staged version)",
 //	output="StatusView",
 //
@@ -210,7 +210,7 @@ func (s *UpdatesService) Status(ctx context.Context, _ abstract.Message, _ *NoIn
 //
 //	name="system:updates:changelog:get",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Get the staged update changelog",
 //	output="ChangelogView",
 //
@@ -277,7 +277,7 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 //
 //	name="system:updates:check:create",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Check for and stage an update (legacy check-then-stage)",
 //	output="CheckView",
 //
@@ -325,7 +325,7 @@ func (s *UpdatesService) Check(ctx context.Context, _ abstract.Message, _ *NoInp
 //
 //	name="system:updates:check:get",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Check whether a newer version is available",
 //	output="AvailabilityView",
 //
@@ -354,7 +354,7 @@ func (s *UpdatesService) CheckAvailability(ctx context.Context, _ abstract.Messa
 //
 //	name="system:updates:stage:create",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Download and stage the latest update",
 //	output="StageView",
 //
@@ -388,7 +388,7 @@ func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInp
 //
 //	name="system:updates:update:apply",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Apply the staged update",
 //	output="ApplyView",
 //
@@ -396,7 +396,7 @@ func (s *UpdatesService) Stage(ctx context.Context, _ abstract.Message, _ *NoInp
 func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInput) (*ApplyView, error) {
 	// @note #74bt56 issueopend  : Lack of recovery strategy
 	// @assignee opencode
-	// Added Discard method (system:updates:update:discard) that cleans up failed staged updates by calling updater.Cleanup() to remove the staged binary and clear the pending record. Includes registration, policy binding (administrator rule), and two tests (cleanup success + no-op when nothing staged). All 22 update tests pass.
+	// Added Discard method (system:updates:update:discard) that cleans up failed staged updates by calling updater.Cleanup() to remove the staged binary and clear the pending record. Includes registration, policy binding (root rule), and two tests (cleanup success + no-op when nothing staged). All 22 update tests pass.
 	//
 	// We have no strategy to recover from a failed update
 	// such as cleaning up the staged binary so that it can be
@@ -426,7 +426,7 @@ func (s *UpdatesService) Apply(ctx context.Context, _ abstract.Message, _ *NoInp
 //
 //	name="system:updates:update:discard",
 //	intent="delete",
-//	rule="administrator",
+//	rule="root",
 //	description="Discard a staged update and clean up",
 //	output="DiscardView",
 //
@@ -745,7 +745,7 @@ func (s *UpdatesService) recordLastCheck(ctx context.Context) error {
 }
 
 // notifyAdmins sends an update_available notification (in-app, plus email when
-// a mailer is configured) to every enabled user holding the administrator
+// a mailer is configured) to every enabled user holding the root
 // permission. TenantID is set from the admin user's record so that
 // tenant-scoped notification queries (list, unread count) can find it.
 func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateInfo) error {
@@ -789,7 +789,7 @@ func (s *UpdatesService) notifyAdmins(ctx context.Context, info *updater.UpdateI
 
 func (s *UpdatesService) adminUsers(ctx context.Context) ([]*usersmodel.SystemUser, error) {
 	q := query.NewQueryBuilder().
-		Where("permissions").Contains("administrator").
+		Where("permissions").Contains("root").
 		Where("disabled").Eq(-1).
 		Build()
 	return s.users.Read(ctx, &q)

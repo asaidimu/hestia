@@ -14,10 +14,10 @@ import (
 
 func benchSecureDispatcher() *SecureDispatcher {
 	permMgr := NewMapPermissionManager()
-	permMgr.RegisterScope("bench:svc:op:run", "administrator", "")
+	permMgr.RegisterScope("bench:svc:op:run", "root", "")
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{}, slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
-		"administrator": compileRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 	return NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
 }

@@ -148,10 +148,10 @@ func TestInsertBeforeSecureRunsBeforeAuthz(t *testing.T) {
 	}
 
 	permMgr := NewMapPermissionManager()
-	permMgr.RegisterScope("admin:only", "administrator", "")
+	permMgr.RegisterScope("admin:only", "root", "")
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{}, slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
-		"administrator": compileRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 
 	secure := NewSecureDispatcher(base, permMgr, ac)

@@ -7,6 +7,6 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the audit service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:audit:log:stream", RuleKey: "administrator", Description: "Stream audit log entries in real-time"},
+		{Name: "system:audit:log:stream", RuleKey: "root", Description: "Stream audit log entries in real-time"},
 	}
 }

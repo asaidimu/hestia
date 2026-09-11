@@ -59,10 +59,10 @@ func compileErpRule(ac iam.AccessController, expr string) iam.FunctionRule {
 
 func erpAdminCtx(tenant string) context.Context {
 	ctx := iam.WithIdentity(context.Background(), iam.Identity{
-		Permissions: []string{"administrator"},
+		Permissions: []string{"root"},
 		Properties: map[string]any{
 			"user_id":     "u1",
-			"permissions": []string{"administrator"},
+			"permissions": []string{"root"},
 			"token_type":  "access",
 		},
 	})
@@ -111,11 +111,11 @@ func erpChain(b *testing.B) (abstract.Dispatcher, *benchPersister) {
 		if err := base.RegisterHandler(r.name, r.h, abstract.HandlerInfo{Name: r.name, Enabled: true}); err != nil {
 			b.Fatalf("RegisterHandler %s: %v", r.name, err)
 		}
-		permMgr.RegisterScope(r.name, "administrator", "")
+		permMgr.RegisterScope(r.name, "root", "")
 	}
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{}, slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
-		"administrator": compileErpRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileErpRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 
 	persister := &benchPersister{}

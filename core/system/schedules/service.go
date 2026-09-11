@@ -155,12 +155,12 @@ func (s *SchedulesService) List(ctx context.Context, msg abstract.Message, input
 	return docs, nil
 }
 
-// All lists all schedules across all users. Restricted to administrators.
+// All lists all schedules across all users. Restricted to root users.
 //
 // @hestia.register(
 //   name="system:schedules:schedule:all",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all schedules (admin)",
 // )
 func (s *SchedulesService) All(ctx context.Context, msg abstract.Message, input *model.ScheduleListInput) ([]*document.Document, error) {

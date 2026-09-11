@@ -7,12 +7,12 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the updates service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:updates:status:get", RuleKey: "administrator", Description: "Get self-update status (current and staged version)"},
-		{Name: "system:updates:changelog:get", RuleKey: "administrator", Description: "Get the staged update changelog"},
-		{Name: "system:updates:check:create", RuleKey: "administrator", Description: "Check for and stage an update (legacy check-then-stage)"},
-		{Name: "system:updates:check:get", RuleKey: "administrator", Description: "Check whether a newer version is available"},
-		{Name: "system:updates:stage:create", RuleKey: "administrator", Description: "Download and stage the latest update"},
-		{Name: "system:updates:update:apply", RuleKey: "administrator", Description: "Apply the staged update"},
-		{Name: "system:updates:update:discard", RuleKey: "administrator", Description: "Discard a staged update and clean up"},
+		{Name: "system:updates:status:get", RuleKey: "root", Description: "Get self-update status (current and staged version)"},
+		{Name: "system:updates:changelog:get", RuleKey: "root", Description: "Get the staged update changelog"},
+		{Name: "system:updates:check:create", RuleKey: "root", Description: "Check for and stage an update (legacy check-then-stage)"},
+		{Name: "system:updates:check:get", RuleKey: "root", Description: "Check whether a newer version is available"},
+		{Name: "system:updates:stage:create", RuleKey: "root", Description: "Download and stage the latest update"},
+		{Name: "system:updates:update:apply", RuleKey: "root", Description: "Apply the staged update"},
+		{Name: "system:updates:update:discard", RuleKey: "root", Description: "Discard a staged update and clean up"},
 	}
 }

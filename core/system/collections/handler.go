@@ -84,9 +84,9 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp abstra
 			{"write", "authenticated"},
 			{"delete", "authenticated"},
 			{"document:read", "authenticated"},
-			{"document:create", "administrator"},
-			{"document:update", "administrator"},
-			{"document:delete", "administrator"},
+			{"document:create", "root"},
+			{"document:update", "root"},
+			{"document:delete", "root"},
 		}
 		for _, op := range ops {
 			opName := "system:collections:" + name + ":" + op.suffix

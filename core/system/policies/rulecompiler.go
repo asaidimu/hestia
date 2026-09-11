@@ -5,7 +5,7 @@ import (
 )
 
 // GoDefaultRules returns the built-in rules as Go functions (no CEL).
-// This avoids the bug where CEL 'administrator' in identity.permissions
+// This avoids the bug where CEL 'root' in identity.permissions
 // incorrectly returns true for anonymous identity.
 func GoDefaultRules() iam.FunctionRuleSet {
 	rules := make(iam.FunctionRuleSet)
@@ -26,18 +26,18 @@ func GoDefaultRules() iam.FunctionRuleSet {
 		return tt == "password_reset"
 	}
 
-	rules["administrator"] = func(req iam.AccessRequest) bool {
+	rules["root"] = func(req iam.AccessRequest) bool {
 		ident, _ := req.Identity.(map[string]any)
 		switch perms := ident["permissions"].(type) {
 		case []string:
 			for _, p := range perms {
-				if p == "administrator" {
+				if p == "root" {
 					return true
 				}
 			}
 		case []any:
 			for _, p := range perms {
-				if s, ok := p.(string); ok && s == "administrator" {
+				if s, ok := p.(string); ok && s == "root" {
 					return true
 				}
 			}

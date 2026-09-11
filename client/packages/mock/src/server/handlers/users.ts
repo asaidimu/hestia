@@ -182,7 +182,7 @@ export function userHandlers(deps: ServerDeps): Record<string, RouteSpec> {
         const current = await requireDoc(tables, USER_COLLECTION, ctx.args["user_id"]);
         const payload = requirePayload(ctx);
 
-        // Only administrators may modify another user's record.
+        // Only root users may modify another user's record.
         if (!ctx.identity!.is_admin && current._id_ !== ctx.identity!.user._id_) {
           throw err.denied("updating another user");
         }

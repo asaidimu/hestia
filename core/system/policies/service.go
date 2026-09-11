@@ -42,7 +42,7 @@ func NewPoliciesService(rt abstract.Container) (*PoliciesService, error) {
 //
 //	name="system:policies:binding:get",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Get binding info",
 //	resource_id="name",
 //
@@ -61,7 +61,7 @@ func (s *PoliciesService) GetBinding(ctx context.Context, msg abstract.Message, 
 //
 //	name="system:policies:binding:list",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="List all bindings",
 //
 // )
@@ -83,7 +83,7 @@ func (s *PoliciesService) ListBindings(ctx context.Context, msg abstract.Message
 //
 //	name="system:policies:rule:validate",
 //	intent="check",
-//	rule="administrator",
+//	rule="root",
 //	description="Validate a CEL rule expression",
 //
 // )
@@ -210,7 +210,7 @@ func combineRules(op string, fns []iam.FunctionRule) iam.FunctionRule {
 //
 //	name="system:policies:rule:list",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="List all rules",
 //
 // )
@@ -232,7 +232,7 @@ func (s *PoliciesService) ListRules(ctx context.Context, msg abstract.Message, i
 //
 //	name="system:policies:rule:get",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Get a policy rule",
 //	resource_id="name",
 //
@@ -252,7 +252,7 @@ func (s *PoliciesService) GetRule(ctx context.Context, msg abstract.Message, inp
 //
 //	name="system:policies:rule:create",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Create a policy rule",
 //	resource_id="name",
 //
@@ -297,7 +297,7 @@ func (s *PoliciesService) CreateRule(ctx context.Context, msg abstract.Message, 
 //
 //	name="system:policies:rule:update",
 //	intent="update",
-//	rule="administrator",
+//	rule="root",
 //	description="Update a policy rule",
 //	resource_id="name",
 //
@@ -341,7 +341,7 @@ func (s *PoliciesService) UpdateRule(ctx context.Context, msg abstract.Message, 
 //
 //	name="system:policies:rule:delete",
 //	intent="delete",
-//	rule="administrator",
+//	rule="root",
 //	description="Delete a policy rule",
 //	resource_id="name",
 //
@@ -359,7 +359,7 @@ func (s *PoliciesService) DeleteRule(ctx context.Context, msg abstract.Message, 
 //
 //	name="system:policies:reload",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="Reload policies from database",
 //
 // )
@@ -412,7 +412,7 @@ func (s *PoliciesService) Reload(ctx context.Context, msg abstract.Message, inpu
 //
 //	name="system:policies:policy:create",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Create a policy binding",
 //	resource_id="name",
 //
@@ -443,7 +443,7 @@ func (s *PoliciesService) CreatePolicy(ctx context.Context, msg abstract.Message
 //
 //	name="system:policies:policy:update",
 //	intent="update",
-//	rule="administrator",
+//	rule="root",
 //	description="Update a policy — set rule, enabled, or both",
 //	resource_id="name",
 //
@@ -501,7 +501,7 @@ func (s *PoliciesService) UpdatePolicy(ctx context.Context, msg abstract.Message
 //
 //	name="system:policies:policy:list",
 //	intent="read",
-//	rule="administrator",
+//	rule="root",
 //	description="List all policy bindings",
 //
 // )

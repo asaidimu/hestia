@@ -37,7 +37,7 @@ func newBenchLiveManager(b *testing.B) *policies.LivePermissionManager {
 
 	live.Set(":bench:svc:op:run", &policies.Policy{
 		Operation: "bench:svc:op:run",
-		Rule:      "administrator",
+		Rule:      "root",
 		Key:           ":bench:svc:op:run",
 		Enabled:       true,
 	})

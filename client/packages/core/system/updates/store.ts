@@ -38,7 +38,7 @@ export class HestiaUpdates {
 
   /**
    * Download and stage the newest release without applying it. Notifies
-   * administrators when a release was newly staged.
+   * root users when a release was newly staged.
    */
   async stage(): Promise<UpdateStageResult> {
     const res = await this.client.dispatch<{ data: UpdateStageResult }>(

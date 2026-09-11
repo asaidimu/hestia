@@ -64,7 +64,7 @@ func main() {
 							claims := &abstract.Claims{
 								UserID:    "auth_disabled",
 								Email:     "admin@test.local",
-								Scopes:    []string{"administrator"},
+								Scopes:    []string{"root"},
 								TokenType: "system",
 							}
 							ctx = runtimecontext.ContextWithClaims(ctx, claims)

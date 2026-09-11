@@ -15,15 +15,15 @@ import (
 
 func TestMapPermissionManager(t *testing.T) {
 	pm := NewMapPermissionManager()
-	pm.RegisterScope("test:cmd", "administrator", "test command")
+	pm.RegisterScope("test:cmd", "root", "test command")
 
 	msg := testMessage{name: "test:cmd", ctx: context.Background()}
 	scope, enabled, err := pm.Resolve(msg)
 	if err != nil {
 		t.Fatalf("Resolve failed for registered scope: %v", err)
 	}
-	if scope != "administrator" {
-		t.Fatalf("expected scope 'administrator', got %q", scope)
+	if scope != "root" {
+		t.Fatalf("expected scope 'root', got %q", scope)
 	}
 	if !enabled {
 		t.Fatal("expected enabled=true for registered scope")
@@ -41,8 +41,8 @@ func TestMapPermissionManager(t *testing.T) {
 	if caps[0].Name != "test:cmd" {
 		t.Fatalf("expected name 'test:cmd', got %q", caps[0].Name)
 	}
-	if caps[0].Scope != "administrator" {
-		t.Fatalf("expected scope 'administrator', got %q", caps[0].Scope)
+	if caps[0].Scope != "root" {
+		t.Fatalf("expected scope 'root', got %q", caps[0].Scope)
 	}
 }
 
@@ -346,12 +346,12 @@ func TestNamespacedDispatcherHydratorError(t *testing.T) {
 
 func TestSecureDispatcherWithPermissionManager(t *testing.T) {
 	permMgr := NewMapPermissionManager()
-	permMgr.RegisterScope("admin:cmd", "administrator", "")
+	permMgr.RegisterScope("admin:cmd", "root", "")
 
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{},
 		slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
-		"administrator": compileRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)

@@ -213,7 +213,7 @@ func TestLiveCollectionRuleStore_GoDefaultsCoexist(t *testing.T) {
 		ident, _ := req.Identity.(map[string]any)
 		perms, _ := ident["permissions"].([]string)
 		for _, p := range perms {
-			if p == "administrator" {
+			if p == "root" {
 				return true
 			}
 		}
@@ -224,7 +224,7 @@ func TestLiveCollectionRuleStore_GoDefaultsCoexist(t *testing.T) {
 		"name":       "cel_allow",
 		"ruleType":   "simple",
 		"syntax":     "cel",
-		"expression": "'administrator' in identity.permissions",
+		"expression": "'root' in identity.permissions",
 	}, ctx)
 	_, err := live.CreateOne(ctx, doc)
 	if err != nil {

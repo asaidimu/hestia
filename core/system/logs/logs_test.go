@@ -229,8 +229,8 @@ func TestPolicies(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"system:logs:list":   "administrator",
-		"system:logs:stream": "administrator",
+		"system:logs:list":   "root",
+		"system:logs:stream": "root",
 	}
 
 	for _, b := range bindings {

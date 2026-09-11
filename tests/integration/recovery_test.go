@@ -48,11 +48,11 @@ func adminContext() context.Context {
 	props := map[string]any{
 		"user_id":     "u1",
 		"email":       "admin@test.local",
-		"permissions": []string{"administrator"},
+		"permissions": []string{"root"},
 		"token_type":  "access",
 	}
 	return iam.WithIdentity(context.Background(), iam.Identity{
-		Permissions: []string{"administrator"},
+		Permissions: []string{"root"},
 		Properties:  props,
 	})
 }
@@ -77,15 +77,15 @@ func TestPanickingHandlerIsRecovered(t *testing.T) {
 	}
 
 	permMgr := runtime.NewMapPermissionManager()
-	permMgr.RegisterScope("test:panic", "administrator", "")
+	permMgr.RegisterScope("test:panic", "root", "")
 
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
-	rule, err := ac.CompileCELRule("identity != null && 'administrator' in identity.permissions")
+	rule, err := ac.CompileCELRule("identity != null && 'root' in identity.permissions")
 	if err != nil {
 		t.Fatalf("CompileCELRule failed: %v", err)
 	}
-	ac.LoadRules(iam.FunctionRuleSet{"administrator": rule})
+	ac.LoadRules(iam.FunctionRuleSet{"root": rule})
 
 	secure := runtime.NewSecureDispatcher(local, permMgr, ac)
 

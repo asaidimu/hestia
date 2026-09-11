@@ -34,7 +34,7 @@ func NewUsersService(rt abstract.Container) (*UsersService, error) {
 // @hestia.register(
 //   name="system:users:user:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create a new user",
 // )
 func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, input *model.UserRegisterInput) (*model.UserPublic, error) {
@@ -54,7 +54,7 @@ func (s *UsersService) CreateUser(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:users:user:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get user by ID",
 //   resource_id="user_id",
 // )
@@ -71,7 +71,7 @@ func (s *UsersService) GetUser(ctx context.Context, msg abstract.Message, input 
 // @hestia.register(
 //   name="system:users:user:update",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   description="Update user profile",
 //   resource_id="user_id",
 // )
@@ -88,7 +88,7 @@ func (s *UsersService) UpdateUser(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:users:password:change",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   description="Change account password",
 //   resource_id="user_id",
 // )
@@ -101,7 +101,7 @@ func (s *UsersService) ChangePassword(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:users:user:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Delete user account",
 //   resource_id="user_id",
 // )

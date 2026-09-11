@@ -10,14 +10,14 @@ import (
 
 func TestDebugRefCase(t *testing.T) {
 	payload := map[string]any{
-		"rule": map[string]any{"type": "ref", "name": "administrator"},
+		"rule": map[string]any{"type": "ref", "name": "root"},
 		"context": map[string]any{
-			"identity":    map[string]any{"permissions": []string{"administrator"}},
+			"identity":    map[string]any{"permissions": []string{"root"}},
 			"resource":    map[string]any{},
 			"environment": map[string]any{},
 		},
 	}
-	doc := testutil.InputDoc(t, model.PolicyValidateInputSchema(), `{"payload":{"rule":{"type":"ref","name":"administrator"},"context":{"identity":{"permissions":["administrator"]},"resource":{},"environment":{}}}}`)
+	doc := testutil.InputDoc(t, model.PolicyValidateInputSchema(), `{"payload":{"rule":{"type":"ref","name":"root"},"context":{"identity":{"permissions":["root"]},"resource":{},"environment":{}}}}`)
 	p := doc.GetOr("payload", nil)
 	fmt.Printf("payload type=%T\n", p)
 	if m, ok := p.(map[string]any); ok {

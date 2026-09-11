@@ -8,12 +8,12 @@ import (
 
 // TestDefaultPolicyBindings_EmptyRuleKeyDefaultsToAdministrator pins the
 // codegen contract: an operation binding that declares no explicit RuleKey is
-// protected by the "administrator" rule. This is the secure default — nothing
+// protected by the "root" rule. This is the secure default — nothing
 // is silently public.
 func TestDefaultPolicyBindings_EmptyRuleKeyDefaultsToAdministrator(t *testing.T) {
 	for _, p := range allDefaultPolicyBindings {
 		if p.Rule == "" {
-			t.Errorf("operation %q has an empty rule after defaulting (must be 'administrator')", p.Operation)
+			t.Errorf("operation %q has an empty rule after defaulting (must be 'root')", p.Operation)
 		}
 		if p.Operation == "" {
 			t.Errorf("default policy binding has an empty operation name")

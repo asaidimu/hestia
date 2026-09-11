@@ -7,9 +7,9 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the settings service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:settings:list", RuleKey: "administrator", Description: "List all settings"},
-		{Name: "system:settings:get", RuleKey: "administrator", Description: "Get a setting by key"},
-		{Name: "system:settings:set", RuleKey: "administrator", Description: "Create or update a setting"},
-		{Name: "system:settings:delete", RuleKey: "administrator", Description: "Delete a setting"},
+		{Name: "system:settings:list", RuleKey: "root", Description: "List all settings"},
+		{Name: "system:settings:get", RuleKey: "root", Description: "Get a setting by key"},
+		{Name: "system:settings:set", RuleKey: "root", Description: "Create or update a setting"},
+		{Name: "system:settings:delete", RuleKey: "root", Description: "Delete a setting"},
 	}
 }

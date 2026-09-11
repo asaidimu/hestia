@@ -7,11 +7,11 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the users service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:users:user:create", RuleKey: "administrator", Description: "Create a new user"},
-		{Name: "system:users:user:delete", RuleKey: "administrator", Description: ""},
+		{Name: "system:users:user:create", RuleKey: "root", Description: "Create a new user"},
+		{Name: "system:users:user:delete", RuleKey: "root", Description: ""},
 		{Name: "system:users:user:check", RuleKey: "authenticated", Description: ""},
 		{Name: "system:collections:user:query", RuleKey: "authenticated", Description: ""},
 		{Name: "system:users:callback:ack", RuleKey: "authenticated", Description: "Acknowledge a callback without waiting"},
-		{Name: "system:users:user:import", RuleKey: "administrator", Description: "Bulk-import users from an NDJSON stream"},
+		{Name: "system:users:user:import", RuleKey: "root", Description: "Bulk-import users from an NDJSON stream"},
 	}
 }

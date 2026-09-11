@@ -42,7 +42,7 @@ func NewBlobsService(rt abstract.Container) (*BlobsService, error) {
 // @hestia.register(
 //   name="system:blobs:namespace:list",
 //   intent="query",
-//   rule="administrator",
+//   rule="root",
 //   description="List blob namespaces",
 //   output="model.NamespaceListOutput",
 // )
@@ -56,7 +56,7 @@ func (s *BlobsService) ListNamespaces(ctx context.Context, msg abstract.Message)
 // @hestia.register(
 //   name="system:blobs:namespace:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create a blob namespace",
 //   output="model.NamespaceOutput",
 // )
@@ -69,7 +69,7 @@ func (s *BlobsService) CreateNamespace(ctx context.Context, msg abstract.Message
 // @hestia.register(
 //   name="system:blobs:namespace:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="ns",
 //   description="Delete a blob namespace",
 // )
@@ -82,7 +82,7 @@ func (s *BlobsService) DeleteNamespace(ctx context.Context, msg abstract.Message
 // @hestia.register(
 //   name="system:blobs:blob:list",
 //   intent="query",
-//   rule="administrator",
+//   rule="root",
 //   description="List blobs in a namespace",
 //   output="model.BlobListOutput",
 // )
@@ -95,7 +95,7 @@ func (s *BlobsService) ListBlobs(ctx context.Context, msg abstract.Message, inpu
 // @hestia.register(
 //   name="system:blobs:blob:head",
 //   intent="query",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="key",
 //   catchall="key",
 //   description="Get blob metadata",
@@ -110,7 +110,7 @@ func (s *BlobsService) HeadBlob(ctx context.Context, msg abstract.Message, input
 // @hestia.register(
 //   name="system:blobs:blob:upload",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="key",
 //   catchall="key",
 //   description="Upload a blob",
@@ -125,7 +125,7 @@ func (s *BlobsService) UploadBlob(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:blobs:blob:download",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="key",
 //   catchall="key",
 //   description="Download a blob",
@@ -139,7 +139,7 @@ func (s *BlobsService) DownloadBlob(ctx context.Context, msg abstract.Message, i
 // @hestia.register(
 //   name="system:blobs:blob:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="key",
 //   catchall="key",
 //   description="Delete a blob",
@@ -153,7 +153,7 @@ func (s *BlobsService) DeleteBlob(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:blobs:blob:update",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="key",
 //   catchall="key",
 //   description="Update blob metadata",
@@ -168,7 +168,7 @@ func (s *BlobsService) UpdateBlob(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:blobs:blob:begin",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Begin a resumable blob upload",
 //   output="model.UploadBeginOutput",
 // )
@@ -181,7 +181,7 @@ func (s *BlobsService) BeginUpload(ctx context.Context, msg abstract.Message, in
 // @hestia.register(
 //   name="system:blobs:blob:chunk",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Upload a chunk of a resumable blob upload",
 //   output="model.UploadChunkOutput",
 // )
@@ -194,7 +194,7 @@ func (s *BlobsService) UploadChunk(ctx context.Context, msg abstract.Message, in
 // @hestia.register(
 //   name="system:blobs:blob:complete",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Complete a resumable blob upload",
 //   output="model.BlobMetaOutput",
 // )
@@ -207,7 +207,7 @@ func (s *BlobsService) CompleteUpload(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:blobs:blob:progress",
 //   intent="query",
-//   rule="administrator",
+//   rule="root",
 //   description="Report progress of a resumable blob upload",
 //   output="model.UploadProgressOutput",
 // )
@@ -220,7 +220,7 @@ func (s *BlobsService) ProgressUpload(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:blobs:blob:abort",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Abort a resumable blob upload",
 // )
 func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, input *model.BlobAbortInput) (*abstract.Result, error) {
@@ -233,7 +233,7 @@ func (s *BlobsService) AbortUpload(ctx context.Context, msg abstract.Message, in
 //
 //	name="system:blobs:blob:rename",
 //	intent="update",
-//	rule="administrator",
+//	rule="root",
 //	resource_id="key",
 //	catchall="key",
 //	description="Rename a blob key",
@@ -249,7 +249,7 @@ func (s *BlobsService) RenameBlob(ctx context.Context, msg abstract.Message, inp
 //
 //	name="system:blobs:namespace:stats",
 //	intent="query",
-//	rule="administrator",
+//	rule="root",
 //	description="Get namespace stats",
 //	output="model.NamespaceStatsOutput",
 //
@@ -264,7 +264,7 @@ func (s *BlobsService) NamespaceStats(ctx context.Context, msg abstract.Message,
 //
 //	name="system:blobs:namespace:verify",
 //	intent="query",
-//	rule="administrator",
+//	rule="root",
 //	description="Verify namespace integrity",
 //
 // )
@@ -278,7 +278,7 @@ func (s *BlobsService) VerifyNamespace(ctx context.Context, msg abstract.Message
 //
 //	name="system:blobs:namespace:compact",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Compact a namespace to reclaim space",
 //	output="model.CompactResultOutput",
 //

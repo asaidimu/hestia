@@ -7,7 +7,7 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the logs service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:logs:list", RuleKey: "administrator", Description: "Query application logs"},
-		{Name: "system:logs:stream", RuleKey: "administrator", Description: "Stream live log entries"},
+		{Name: "system:logs:list", RuleKey: "root", Description: "Query application logs"},
+		{Name: "system:logs:stream", RuleKey: "root", Description: "Stream live log entries"},
 	}
 }

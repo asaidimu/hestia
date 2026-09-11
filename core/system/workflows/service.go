@@ -51,7 +51,7 @@ func NewWorkflowsServiceForTest(defs *model.SystemWorkflowDefinitions, rt *herme
 // @hestia.register(
 //   name="system:workflows:definition:compile",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Compile a workflow graph into a pipeline definition",
 // )
 func (s *WorkflowsService) Compile(ctx context.Context, msg abstract.Message, input *WorkflowCompileInput) (*WorkflowCompiledView, error) {
@@ -82,7 +82,7 @@ func (s *WorkflowsService) Compile(ctx context.Context, msg abstract.Message, in
 // @hestia.register(
 //   name="system:workflows:definition:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Store and register a workflow definition",
 // )
 func (s *WorkflowsService) Register(ctx context.Context, msg abstract.Message, input *WorkflowRegisterInput) (*WorkflowRegisteredView, error) {
@@ -129,7 +129,7 @@ func (s *WorkflowsService) Register(ctx context.Context, msg abstract.Message, i
 // @hestia.register(
 //   name="system:workflows:definition:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Deregister a workflow definition",
 //   resource_id="id",
 // )
@@ -160,7 +160,7 @@ func (s *WorkflowsService) Deregister(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:workflows:definition:update",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   description="Update a workflow definition",
 //   resource_id="id",
 // )
@@ -229,7 +229,7 @@ func (s *WorkflowsService) Update(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:workflows:definition:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all workflow definitions",
 // )
 func (s *WorkflowsService) ListDefinitions(ctx context.Context, msg abstract.Message, input *WorkflowDefinitionListInput) ([]*document.Document, error) {
@@ -245,7 +245,7 @@ func (s *WorkflowsService) ListDefinitions(ctx context.Context, msg abstract.Mes
 // @hestia.register(
 //   name="system:workflows:definition:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get a workflow definition by ID",
 //   resource_id="id",
 // )
@@ -275,7 +275,7 @@ func (s *WorkflowsService) GetDefinition(ctx context.Context, msg abstract.Messa
 // @hestia.register(
 //   name="system:workflows:runtime:run",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Compile and run a workflow graph",
 // )
 func (s *WorkflowsService) Run(ctx context.Context, msg abstract.Message, input *WorkflowRunInput) (*WorkflowRunStartedView, error) {
@@ -303,7 +303,7 @@ func (s *WorkflowsService) Run(ctx context.Context, msg abstract.Message, input 
 // @hestia.register(
 //   name="system:workflows:runtime:events",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Emit a trigger event to the workflow runtime",
 // )
 func (s *WorkflowsService) EmitEvent(ctx context.Context, msg abstract.Message, input *WorkflowEventInput) (*WorkflowEventEmittedView, error) {
@@ -323,7 +323,7 @@ func (s *WorkflowsService) EmitEvent(ctx context.Context, msg abstract.Message, 
 // @hestia.register(
 //   name="system:workflows:runtime:abort",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Abort a running workflow",
 //   resource_id="run_id",
 // )
@@ -342,7 +342,7 @@ func (s *WorkflowsService) Abort(ctx context.Context, msg abstract.Message, inpu
 // @hestia.register(
 //   name="system:workflows:run:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all workflow runs",
 // )
 func (s *WorkflowsService) ListRuns(ctx context.Context, msg abstract.Message, input *WorkflowRunListInput) ([]*document.Document, error) {
@@ -372,7 +372,7 @@ func (s *WorkflowsService) ListRuns(ctx context.Context, msg abstract.Message, i
 // @hestia.register(
 //   name="system:workflows:run:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get workflow run metadata",
 //   resource_id="run_id",
 // )
@@ -402,7 +402,7 @@ func (s *WorkflowsService) GetRun(ctx context.Context, msg abstract.Message, inp
 // @hestia.register(
 //   name="system:workflows:run:outcome",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get workflow run outcome",
 //   resource_id="run_id",
 // )
@@ -435,7 +435,7 @@ func (s *WorkflowsService) GetOutcome(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:workflows:run:events",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get timeline events for a workflow run",
 //   resource_id="run_id",
 // )
@@ -470,7 +470,7 @@ func (s *WorkflowsService) GetRunEvents(ctx context.Context, msg abstract.Messag
 // @hestia.register(
 //   name="system:workflows:run:store",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get the live state of a workflow run",
 //   resource_id="run_id",
 // )
@@ -510,7 +510,7 @@ func (s *WorkflowsService) GetRunStore(ctx context.Context, msg abstract.Message
 // @hestia.register(
 //   name="system:workflows:run:stream",
 //   intent="stream",
-//   rule="administrator",
+//   rule="root",
 //   description="Stream workflow run events in real-time via SSE",
 //   resource_id="run_id",
 // )
@@ -625,7 +625,7 @@ func timelineEventToMap(e timeline.TimelineEvent) map[string]any {
 // @hestia.register(
 //   name="system:workflows:registry:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all registered workflow node kind definitions",
 // )
 func (s *WorkflowsService) ListRegisteredNodeKinds(_ context.Context, _ abstract.Message, _ *WorkflowRegistryListInput) (*NodeRegistryListView, error) {
@@ -642,7 +642,7 @@ func (s *WorkflowsService) ListRegisteredNodeKinds(_ context.Context, _ abstract
 // @hestia.register(
 //   name="system:workflows:registry:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get a single workflow node kind definition",
 //   resource_id="kind",
 // )
@@ -664,7 +664,7 @@ func (s *WorkflowsService) GetRegisteredNodeKind(_ context.Context, _ abstract.M
 // @hestia.register(
 //   name="system:workflows:registry:handles",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get the raw JS handle computation functions for all node kinds",
 // )
 func (s *WorkflowsService) NodeHandlesJS(_ context.Context, _ abstract.Message, _ *WorkflowRegistryHandlesInput) (*WorkflowRegistryHandlesView, error) {
@@ -697,7 +697,7 @@ func (s *WorkflowsService) NodeHandlesJS(_ context.Context, _ abstract.Message, 
 // @hestia.register(
 //   name="system:workflows:runtime:has",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Check if a workflow is registered in the runtime",
 //   resource_id="id",
 // )
@@ -713,7 +713,7 @@ func (s *WorkflowsService) RuntimeHas(_ context.Context, _ abstract.Message, inp
 // @hestia.register(
 //   name="system:workflows:runtime:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List IDs of all registered (active) workflows",
 // )
 func (s *WorkflowsService) RuntimeListWorkflows(_ context.Context, _ abstract.Message, _ *WorkflowRuntimeListInput) (*WorkflowRuntimeListView, error) {
@@ -725,7 +725,7 @@ func (s *WorkflowsService) RuntimeListWorkflows(_ context.Context, _ abstract.Me
 // @hestia.register(
 //   name="system:workflows:runtime:invoke",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Invoke a registered workflow's trigger directly",
 // )
 func (s *WorkflowsService) RuntimeInvoke(_ context.Context, _ abstract.Message, input *WorkflowRuntimeInvokeInput) (*WorkflowRuntimeInvokeView, error) {
@@ -754,7 +754,7 @@ func (s *WorkflowsService) RuntimeInvoke(_ context.Context, _ abstract.Message, 
 // @hestia.register(
 //   name="system:workflows:runtime:resume",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Resume a paused workflow run",
 // )
 func (s *WorkflowsService) RuntimeResume(_ context.Context, _ abstract.Message, input *WorkflowRuntimeResumeInput) (*WorkflowRuntimeResumeView, error) {

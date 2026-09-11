@@ -80,7 +80,7 @@ type Annotation struct {
 	// Declared attributes from the doc-comment block.
 	MessageName string // e.g. "system:users:user:create"
 	Verb        Verb
-	Rule        string // policy rule key, e.g. "administrator"
+	Rule        string // policy rule key, e.g. "root"
 	Description string
 	// ResourceIDField is the resource identity for route registration,
 	// declared via resource_id="...". Empty when absent.

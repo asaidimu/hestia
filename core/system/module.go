@@ -408,6 +408,9 @@ func (m *SystemModule) initPolicyInfra(ctx context.Context) error {
 	ps.OpModel = &policiesmodel.SystemOperationPolicys{ModelCollection: opModelColl}
 	ps.RuleModel = &policiesmodel.SystemIamRules{ModelCollection: ruleModelColl}
 	ps.Policies = policies.NewPolicyModel(ps.OpModel, ps.RuleModel, nil)
+	if err := policies.SeedPolicies(ctx, m.providers.Policies, m.allDefaultPolicies()); err != nil {
+		return fmt.Errorf("seed policies: %w", err)
+	}
 
 	ps.AccessCtrl = iam.CreateAccessController(iam.AccessControllerOptions{
 		Rules:    liveRules,

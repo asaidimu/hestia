@@ -32,7 +32,7 @@ func NewAuditService(rt abstract.Container) (*AuditService, error) {
 //
 //	name="system:audit:log:stream",
 //	intent="stream",
-//	rule="administrator",
+//	rule="root",
 //	description="Stream audit log entries in real-time",
 //	input="model.LogStreamInput",
 //	output="model.LogStreamOutput",

@@ -7,11 +7,11 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the apikeys service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:apikeys:key:list", RuleKey: "administrator", Description: "List own API keys"},
-		{Name: "system:apikeys:key:get", RuleKey: "administrator", Description: "Get own API key details"},
-		{Name: "system:apikeys:key:create", RuleKey: "administrator", Description: "Create a new API key"},
-		{Name: "system:apikeys:key:update", RuleKey: "administrator", Description: "Update API key metadata"},
-		{Name: "system:apikeys:key:delete", RuleKey: "administrator", Description: "Delete an API key"},
-		{Name: "system:apikeys:key:rotate", RuleKey: "administrator", Description: "Rotate API key material"},
+		{Name: "system:apikeys:key:list", RuleKey: "root", Description: "List own API keys"},
+		{Name: "system:apikeys:key:get", RuleKey: "root", Description: "Get own API key details"},
+		{Name: "system:apikeys:key:create", RuleKey: "root", Description: "Create a new API key"},
+		{Name: "system:apikeys:key:update", RuleKey: "root", Description: "Update API key metadata"},
+		{Name: "system:apikeys:key:delete", RuleKey: "root", Description: "Delete an API key"},
+		{Name: "system:apikeys:key:rotate", RuleKey: "root", Description: "Rotate API key material"},
 	}
 }

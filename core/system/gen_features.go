@@ -24,7 +24,7 @@ var allDefaultPolicyBindings = func() []policies.Policy {
 	for _, op := range allPolicyBindings {
 		ruleName := op.RuleKey
 		if ruleName == "" {
-			ruleName = "administrator"
+			ruleName = "root"
 		}
 		p := policies.Policy{
 			Operation: op.Name,

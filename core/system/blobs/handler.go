@@ -417,21 +417,21 @@ type BlobOp struct {
 }
 
 var blobOps = []BlobOp{
-	{"list", "administrator", "List blobs"},
-	{"head", "administrator", "Get blob metadata"},
-	{"upload", "administrator", "Upload a blob"},
-	{"download", "administrator", "Download a blob"},
-	{"delete", "administrator", "Delete a blob"},
-	{"update", "administrator", "Update blob metadata"},
-	{"rename", "administrator", "Rename a blob"},
-	{"stats", "administrator", "Get namespace stats"},
-	{"verify", "administrator", "Verify namespace integrity"},
-	{"begin", "administrator", "Begin a resumable blob upload"},
-	{"chunk", "administrator", "Upload a chunk of a resumable blob upload"},
-	{"complete", "administrator", "Complete a resumable blob upload"},
-	{"progress", "administrator", "Report progress of a resumable blob upload"},
-	{"abort", "administrator", "Abort a resumable blob upload"},
-	{"admin", "administrator", "Administer blob namespace"},
+	{"list", "root", "List blobs"},
+	{"head", "root", "Get blob metadata"},
+	{"upload", "root", "Upload a blob"},
+	{"download", "root", "Download a blob"},
+	{"delete", "root", "Delete a blob"},
+	{"update", "root", "Update blob metadata"},
+	{"rename", "root", "Rename a blob"},
+	{"stats", "root", "Get namespace stats"},
+	{"verify", "root", "Verify namespace integrity"},
+	{"begin", "root", "Begin a resumable blob upload"},
+	{"chunk", "root", "Upload a chunk of a resumable blob upload"},
+	{"complete", "root", "Complete a resumable blob upload"},
+	{"progress", "root", "Report progress of a resumable blob upload"},
+	{"abort", "root", "Abort a resumable blob upload"},
+	{"admin", "root", "Administer blob namespace"},
 }
 
 func BlobOps() []BlobOp { return blobOps }

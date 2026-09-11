@@ -17,7 +17,7 @@ showstopper for your use case, that's your decision. Then dive into sections.
 | 11 | Two apps in one process? | **No.** `boot.ProjectName` is a package-level var (`core/internal/boot/config.go`), and generated models are package singletons (`InitSystemUsersModel`). One hestia app per process. |
 | 13 | Defense-in-depth or single gate? | **Single gate.** Authz is one `SecureDispatcher` chain link. Inserting a link *before* it (via `DispatcherChainFunc` + `InsertBefore("secure", ...)`) bypasses authorization for that path. |
 | 15 | Can a module shadow built-ins? | **No.** `LocalDispatcher.RegisterHandler` errors on duplicate names (`core/runtime/local-dispatcher.go`). |
-| 19 | Authorization granularity? | **Operation-level by default.** `RuleKey` → CEL rule evaluates identity (e.g. `administrator`). Resource context exists (`ResourceContextExtractor`, `ResourceIDField`) and collections pass collection name, but ownership-scoping is done manually in domain methods, not in the policy. |
+| 19 | Authorization granularity? | **Operation-level by default.** `RuleKey` → CEL rule evaluates identity (e.g. `root`). Resource context exists (`ResourceContextExtractor`, `ResourceIDField`) and collections pass collection name, but ownership-scoping is done manually in domain methods, not in the policy. |
 | 29 | Consistency model? | SQLite WAL, single writer, ACID. `DatabaseInteractor` + `PersistenceFactory` can swap backends (only SQLite ships). |
 | 38 | Scale ceiling? | Single-process, embedded SQLite + in-process dispatcher + bbolt blob index. No sharding, no multi-node routing. Fine for a single server; not horizontally scalable as shipped. |
 | 41 | Custom decorators? | **Yes** — dispatcher chain links are the decorator mechanism (`DispatcherChainFunc`, `InsertBefore/InsertAfter/Remove`). No per-handler middleware, but chain links can rewrite messages (`NamespacedDispatcher` pattern). |
@@ -78,7 +78,7 @@ showstopper for your use case, that's your decision. Then dive into sections.
   (`core/runtime/secure-dispatcher.go`). Rules are **not cached**
   (`CacheTTL: 0`, `core/system/module.go`) and live in a LiveRepository that
   auto-syncs on DB writes — policy changes apply immediately.
-- **Default rule if a binding has no RuleKey:** `administrator`
+- **Default rule if a binding has no RuleKey:** `root`
   (`core/system/gen_features.go`). So an unbound new message defaults to
   admin-only — secure-by-default.
 - **System identity bypass:** any identity whose permissions include a

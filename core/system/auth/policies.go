@@ -13,7 +13,7 @@ func Policies() []policies.Binding {
 		{Name: "system:auth:password:confirm", RuleKey: "public", Description: "Confirm password reset with token"},
 		{Name: "system:auth:session:validate", RuleKey: "public", Description: "Validate a session token"},
 		{Name: "system:auth:apikey:validate", RuleKey: "public", Description: "Validate an API key"},
-		{Name: "system:auth:bootstrap:password:set", RuleKey: "administrator", Description: "Set bootstrap admin password"},
+		{Name: "system:auth:bootstrap:password:set", RuleKey: "root", Description: "Set bootstrap admin password"},
 		{Name: "system:auth:token:elevate", RuleKey: "public", Description: "Issue an ephemeral API key for privilege elevation"},
 		{Name: "system:auth:token:blocklist:prune", RuleKey: "public", Description: "Prune expired token blocklist entries"},
 	}

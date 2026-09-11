@@ -62,7 +62,7 @@ func keyDocWithSecret(ctx context.Context, k *model.SystemAPIKey, rawKey string)
 // @hestia.register(
 //   name="system:apikeys:key:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List own API keys",
 // )
 func (s *APIKeysService) ListAPIKeys(ctx context.Context, msg abstract.Message, input *model.APIKeyListInput) ([]*document.Document, error) {
@@ -89,7 +89,7 @@ func (s *APIKeysService) ListAPIKeys(ctx context.Context, msg abstract.Message, 
 // @hestia.register(
 //   name="system:apikeys:key:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get own API key details",
 //   resource_id="key_id",
 // )
@@ -103,7 +103,7 @@ func (s *APIKeysService) GetAPIKey(ctx context.Context, msg abstract.Message, in
 // @hestia.register(
 //   name="system:apikeys:key:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create a new API key",
 // )
 func (s *APIKeysService) CreateAPIKey(ctx context.Context, msg abstract.Message, input *model.APIKeyCreate) (*model.APIKeyCreatedOutput, error) {
@@ -130,7 +130,7 @@ func (s *APIKeysService) CreateAPIKey(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:apikeys:key:update",
 //   intent="update",
-//   rule="administrator",
+//   rule="root",
 //   description="Update API key metadata",
 //   resource_id="key_id",
 // )
@@ -143,7 +143,7 @@ func (s *APIKeysService) UpdateAPIKey(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:apikeys:key:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Delete an API key",
 //   resource_id="key_id",
 // )
@@ -157,7 +157,7 @@ func (s *APIKeysService) DeleteAPIKey(ctx context.Context, msg abstract.Message,
 // @hestia.register(
 //   name="system:apikeys:key:rotate",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Rotate API key material",
 //   resource_id="key_id",
 // )

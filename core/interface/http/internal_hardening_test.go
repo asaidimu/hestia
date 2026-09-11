@@ -246,7 +246,7 @@ func TestAuthMiddleware_ExpiredSessionRejected(t *testing.T) {
 
 func TestAuthMiddleware_ValidSessionProceeds(t *testing.T) {
 	resolver := &fakeUserResolver{users: map[string]fakeUserIdentity{
-		"u1": {id: "u1", email: "a@b.com", perms: []string{"administrator"}, tokenVer: 0},
+		"u1": {id: "u1", email: "a@b.com", perms: []string{"root"}, tokenVer: 0},
 	}}
 	o, credProv := middlewareInterface(t, resolver)
 

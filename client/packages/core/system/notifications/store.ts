@@ -12,7 +12,7 @@ export class HestiaNotificationStore {
   constructor(private client: Transport<string>) {}
 
   /**
-   * Create an in-app notification for a user (administrator-gated). Content
+   * Create an in-app notification for a user (root-gated). Content
    * is taken verbatim — no template rendering.
    */
   async create(input: CreateNotificationInput): Promise<Document<Notification>> {

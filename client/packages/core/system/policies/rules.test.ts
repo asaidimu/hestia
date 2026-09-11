@@ -12,14 +12,14 @@ describe("HestiaRules — E2E", () => {
   it("lists policy rules", async () => {
     const page = await container.rules.list()
     expect(page.data.length).toBeGreaterThan(0)
-    expect(page.data.some((r) => r.name === "administrator")).toBe(true)
+    expect(page.data.some((r) => r.name === "root")).toBe(true)
   })
 
   it("gets a built-in rule by name", async () => {
-    const rule = await container.rules.read("administrator")
+    const rule = await container.rules.read("root")
     expect(rule).toBeDefined()
     expect(rule!._id_).toBeTruthy()
-    expect(rule!.name).toBe("administrator")
+    expect(rule!.name).toBe("root")
   })
 
   it("creates a rule", async () => {

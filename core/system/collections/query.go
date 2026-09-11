@@ -185,7 +185,7 @@ func ensureQueryPagination(q *query.Query) *query.Query {
 // delegated to the generated users model (ReadAs) — this handler owns only
 // routing and the page envelope, never binding. It costs one raw read for
 // the pagination envelope plus the model read for rows; acceptable on this
-// administrator-gated endpoint. Internal readers use the separate internal
+// root-gated endpoint. Internal readers use the separate internal
 // _user_:read message instead.
 func NewUsersQueryHandler(persist persistence.Persistence, logger *zap.Logger) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {

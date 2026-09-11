@@ -329,7 +329,7 @@ export class MockHestiaServer {
         if (flag?.v != null) return flag.v;
         const users = await this.tables.documents.getAllByIndex("by_collection", "_user_");
         return users.some((u) =>
-          Array.isArray(u["permissions"]) && (u["permissions"] as string[]).includes("administrator"),
+          Array.isArray(u["permissions"]) && (u["permissions"] as string[]).includes("root"),
         );
       },
     };

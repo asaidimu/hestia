@@ -80,7 +80,7 @@ type disabledScopeManager struct {
 
 func (m disabledScopeManager) Resolve(msg abstract.Message) (string, bool, error) {
 	if msg.Name() == m.name {
-		return "administrator", false, nil
+		return "root", false, nil
 	}
 	return "", false, ErrPermissionNotRegistered
 }

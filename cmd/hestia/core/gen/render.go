@@ -232,7 +232,7 @@ func renderPolicies(pkg string, regs []annotate.Annotation) (string, error) {
         for _, a := range regs {
                 rule := a.Rule
                 if rule == "" {
-                        rule = "authenticated"
+                        rule = "root"
                 }
                 fmt.Fprintf(&b, "\t\t{Name: %q, RuleKey: %q, Description: %q},\n", a.MessageName, rule, a.Description)
         }

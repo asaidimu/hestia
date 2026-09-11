@@ -24,7 +24,7 @@ const PUBLIC_ROUTES = new Set<string>([
   "system:users:user:create", // register
 ]);
 
-/** Route names restricted to administrators. */
+/** Route names restricted to root users. */
 const ADMIN_ROUTES = new Set<string>([
   "system:users:user:delete",
   "system:notifications:notification:create",
@@ -82,7 +82,7 @@ async function resolveApiKeyIdentity(
 
 export function isAdmin(user: StoredDocument): boolean {
   const permissions = user["permissions"];
-  return Array.isArray(permissions) && permissions.includes("administrator");
+  return Array.isArray(permissions) && permissions.includes("root");
 }
 
 /**
@@ -129,7 +129,7 @@ export function checkAccess(access: AccessLevel, identity: ResolvedIdentity | nu
   if (access === "public") return;
   if (!identity) throw err.unauthenticated();
   if (access === "admin" && !identity.is_admin) {
-    throw err.denied("this administrator-only operation");
+    throw err.denied("this root-only operation");
   }
 }
 

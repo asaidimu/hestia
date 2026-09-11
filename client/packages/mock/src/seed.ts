@@ -1,5 +1,5 @@
 /**
- * First-run seeding: administrator account, IAM rules, operation policies,
+ * First-run seeding: root account, IAM rules, operation policies,
  * capabilities, settings, and core docs — mirroring what the real server
  * provisions on first boot.
  */
@@ -12,7 +12,7 @@ export interface SeedConfig {
   email: string;
   password: string;
   name?: string;
-  /** Grant the seeded user the `administrator` permission (default true). */
+  /** Grant the seeded user the `root` permission (default true). */
   admin?: boolean;
   permissions?: string[];
   tenantId?: string;
@@ -23,12 +23,12 @@ export const DEFAULT_SEED: SeedConfig = {
   password: "password123",
   name: "Administrator",
   admin: true,
-  permissions: ["administrator", "authenticated"],
+  permissions: ["root", "authenticated"],
   tenantId: "root",
 };
 
 const IAM_RULES = [
-  { id: "administrator", name: "administrator", description: "Full administrative access", expression: "true" },
+  { id: "root", name: "root", description: "Full root access", expression: "true" },
   { id: "authenticated", name: "authenticated", description: "Any authenticated session", expression: "true" },
   { id: "owner", name: "owner", description: "Owner of the resource", expression: "identity.user._id_ == resource.user_id" },
   { id: "anonymous", name: "anonymous", description: "Unauthenticated access", expression: "false" },
@@ -42,7 +42,7 @@ const OPERATION_POLICIES: { name: string; rule: string }[] = [
   { name: "system:users:user:create", rule: "anonymous" },
   { name: "system:users:user:get", rule: "authenticated" },
   { name: "system:users:user:update", rule: "authenticated" },
-  { name: "system:users:user:delete", rule: "administrator" },
+  { name: "system:users:user:delete", rule: "root" },
   { name: "system:users:password:change", rule: "authenticated" },
   { name: "system:collections:collection:list", rule: "authenticated" },
   { name: "system:collections:document:create", rule: "authenticated" },
@@ -50,17 +50,17 @@ const OPERATION_POLICIES: { name: string; rule: string }[] = [
   { name: "system:apikeys:key:create", rule: "authenticated" },
   { name: "system:apikeys:key:list", rule: "authenticated" },
   { name: "system:apikeys:key:rotate", rule: "authenticated" },
-  { name: "system:notifications:notification:create", rule: "administrator" },
+  { name: "system:notifications:notification:create", rule: "root" },
   { name: "system:notifications:notification:list", rule: "authenticated" },
   { name: "system:schedules:schedule:create", rule: "authenticated" },
-  { name: "system:schedules:schedule:all", rule: "administrator" },
-  { name: "system:audit:log:export", rule: "administrator" },
-  { name: "system:audit:log:stream", rule: "administrator" },
-  { name: "system:logs:list", rule: "administrator" },
-  { name: "system:updates:status:get", rule: "administrator" },
+  { name: "system:schedules:schedule:all", rule: "root" },
+  { name: "system:audit:log:export", rule: "root" },
+  { name: "system:audit:log:stream", rule: "root" },
+  { name: "system:logs:list", rule: "root" },
+  { name: "system:updates:status:get", rule: "root" },
   { name: "system:core:health:check", rule: "anonymous" },
   { name: "system:core:heartbeat", rule: "authenticated" },
-  { name: "system:core:reset", rule: "administrator" },
+  { name: "system:core:reset", rule: "root" },
 ];
 
 const CAPABILITIES = [
@@ -120,7 +120,7 @@ export async function seedDatabase(tables: MockTables, config: SeedConfig): Prom
     name: config.name ?? "Administrator",
     password: await hashPassword(config.password),
     verified: true,
-    permissions: config.permissions ?? (config.admin !== false ? ["administrator"] : ["authenticated"]),
+    permissions: config.permissions ?? (config.admin !== false ? ["root"] : ["authenticated"]),
     tenant_id: config.tenantId ?? "root",
     deleted: null,
   });
@@ -131,7 +131,7 @@ export async function seedDatabase(tables: MockTables, config: SeedConfig): Prom
       ...rule,
       ruleType: "expression",
       syntax: "anansi-rule",
-      protected: rule.id === "administrator" || rule.id === "authenticated",
+      protected: rule.id === "root" || rule.id === "authenticated",
       created_at: nowIso(),
       updated_at: nowIso(),
     });

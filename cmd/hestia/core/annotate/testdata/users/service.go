@@ -23,7 +23,7 @@ type User struct {
 // @hestia.register(
 //   name="system:users:user:create",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create a new user",
 //   resource_id="id",
 // )
@@ -41,7 +41,7 @@ type DeleteUserInput struct {
 // @hestia.register(
 //   name="system:users:user:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   resource_id="user_id",
 // )
 func (s *UsersService) DeleteUser(ctx context.Context, msg abstract.Message, input *DeleteUserInput) error {

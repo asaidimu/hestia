@@ -49,11 +49,11 @@ func adminContext() context.Context {
 	props := map[string]any{
 		"user_id":     "u1",
 		"email":       "admin@test.local",
-		"permissions": []string{"administrator"},
+		"permissions": []string{"root"},
 		"token_type":  "access",
 	}
 	return iam.WithIdentity(context.Background(), iam.Identity{
-		Permissions: []string{"administrator"},
+		Permissions: []string{"root"},
 		Properties:  props,
 	})
 }
@@ -78,14 +78,14 @@ func compileRule(ac iam.AccessController, expr string) iam.FunctionRule {
 
 func TestSecureDispatcher_AnonymousDeniedForAdminScope(t *testing.T) {
 	permMgr := NewMapPermissionManager()
-	permMgr.RegisterScope("collections:_user:read", "administrator", "")
+	permMgr.RegisterScope("collections:_user:read", "root", "")
 
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{},
 		slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
 		"public":        compileRule(ac, "true"),
 		"authenticated": compileRule(ac, "identity != null"),
-		"administrator": compileRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)
@@ -101,14 +101,14 @@ func TestSecureDispatcher_AnonymousDeniedForAdminScope(t *testing.T) {
 
 func TestSecureDispatcher_AdminAllowedForAdminScope(t *testing.T) {
 	permMgr := NewMapPermissionManager()
-	permMgr.RegisterScope("collections:_user:read", "administrator", "")
+	permMgr.RegisterScope("collections:_user:read", "root", "")
 
 	ac := iam.CreateAccessController(iam.AccessControllerOptions{},
 		slog.New(slog.NewTextHandler(discarder{}, nil)))
 	ac.LoadRules(iam.FunctionRuleSet{
 		"public":        compileRule(ac, "true"),
 		"authenticated": compileRule(ac, "identity != null"),
-		"administrator": compileRule(ac, "identity != null && 'administrator' in identity.permissions"),
+		"root": compileRule(ac, "identity != null && 'root' in identity.permissions"),
 	})
 
 	disp := NewSecureDispatcher(noopDispatcher{}, permMgr, ac)

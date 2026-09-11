@@ -7,10 +7,10 @@ import "github.com/asaidimu/hestia/core/system/policies"
 // Policies returns the policy bindings for the users service.
 func Policies() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:users:user:create", RuleKey: "administrator", Description: "Create a new user"},
-		{Name: "system:users:user:get", RuleKey: "administrator", Description: "Get user by ID"},
-		{Name: "system:users:user:update", RuleKey: "administrator", Description: "Update user profile"},
-		{Name: "system:users:password:change", RuleKey: "administrator", Description: "Change account password"},
-		{Name: "system:users:user:delete", RuleKey: "administrator", Description: "Delete user account"},
+		{Name: "system:users:user:create", RuleKey: "root", Description: "Create a new user"},
+		{Name: "system:users:user:get", RuleKey: "root", Description: "Get user by ID"},
+		{Name: "system:users:user:update", RuleKey: "root", Description: "Update user profile"},
+		{Name: "system:users:password:change", RuleKey: "root", Description: "Change account password"},
+		{Name: "system:users:user:delete", RuleKey: "root", Description: "Delete user account"},
 	}
 }

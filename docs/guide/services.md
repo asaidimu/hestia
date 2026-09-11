@@ -58,7 +58,7 @@ From annotation attributes (doc-comment):
 Field	Source	Parse location
 MessageName	name="system:auth:session:create"	attrs["name"] (line 300)
 Intent (maps to abstract.Verb)	intent="create"	attrs["intent"] (line 301), validated against the Verb enum (lines 314-317)
-Rule (policy rule key)	rule="administrator"	attrs["rule"] (line 302), defaults to "authenticated" in render (render.go line 231)
+Rule (policy rule key)	rule="root"	attrs["rule"] (line 302), defaults to "root" in render (render.go line 231)
 Description	description="..."	attrs["description"] (line 303)
 ResourceIDField	resource_id="user_id"	attrs["resource_id"] (line 304)
 Internal	internal="true"	attrs["internal"] (line 309), parsed via parseBool
@@ -122,7 +122,7 @@ Full attribute reference:
 // @hestia.register(
 //   name="system:module:resource:verb",     // REQUIRED - 4-segment message name
 //   intent="create|read|update|delete|query|stream|check",  // REQUIRED
-//   rule="administrator|authenticated|public",  // policy rule key (default: "authenticated")
+//   rule="root|authenticated|public",  // policy rule key (default: "root")
 //   description="Human-readable description",
 //   resource_id="field_name",               // route identity field from input struct
 //   bootstrap_safe="true",                  // handler works before DB is populated
@@ -165,7 +165,7 @@ Streaming input (from test fixture):
 // @hestia.register(
 //   name="system:users:user:import",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Bulk-import users from an NDJSON stream",
 // )
 func (s *UsersService) ImportUsers(ctx context.Context, msg abstract.Message, items <-chan dispatch.Item[ImportUserInput]) (*abstract.Result, error) {

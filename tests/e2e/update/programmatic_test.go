@@ -59,11 +59,11 @@ func TestProgrammaticSelfUpdatePersistsPending(t *testing.T) {
 	}
 
 	adminCtx := iam.WithIdentity(ctx, iam.Identity{
-		Permissions: []string{"administrator"},
+		Permissions: []string{"root"},
 		Properties: map[string]any{
 			"user_id":     "u1",
 			"email":       "admin@test.local",
-			"permissions": []string{"administrator"},
+			"permissions": []string{"root"},
 			"token_type":  "access",
 		},
 	})

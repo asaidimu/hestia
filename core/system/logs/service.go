@@ -40,7 +40,7 @@ func NewLogsService(rt abstract.Container) (*LogsService, error) {
 //
 //	name="system:logs:list",
 //	intent="query",
-//	rule="administrator",
+//	rule="root",
 //	description="Query application logs",
 //	output="model.LogListOutput",
 //
@@ -95,7 +95,7 @@ func (s *LogsService) Query(ctx context.Context, msg abstract.Message, input *mo
 //
 //	name="system:logs:stream",
 //	intent="stream",
-//	rule="administrator",
+//	rule="root",
 //	description="Stream live log entries",
 //	input="model.LogStreamInput",
 //	output="model.LogStreamOutput",

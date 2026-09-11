@@ -345,7 +345,7 @@ as a substitute for the template).
    // @hestia.register(
    //   name="system:widgets:widget:create",
    //   intent="create",
-   //   rule="administrator",
+   //   rule="root",
    //   description="Create a widget",
    // )
    func (s *WidgetsService) CreateWidget(ctx context.Context, msg abstract.Message, input *model.WidgetCreate) (*model.Widget, error) {
@@ -381,8 +381,8 @@ import "github.com/asaidimu/hestia/core/system/policies"
 
 func PolicyBindings() []policies.Binding {
 	return []policies.Binding{
-		{Name: "system:apikeys:key:create", RuleKey: "administrator", Description: "Create a new API key"},
-		{Name: "system:apikeys:key:update", RuleKey: "administrator", Description: "Update API key metadata"},
+		{Name: "system:apikeys:key:create", RuleKey: "root", Description: "Create a new API key"},
+		{Name: "system:apikeys:key:update", RuleKey: "root", Description: "Update API key metadata"},
 	}
 }
 ```
@@ -555,7 +555,7 @@ the actual code. The short version:
 - **No upgrade contract.** Alpha, forward-only migrations, no rollback.
 
 **The good news:**
-- Unbound messages default to `administrator` (secure-by-default).
+- Unbound messages default to `root` (secure-by-default).
 - Policy changes apply instantly (`CacheTTL: 0`, LiveRepository).
 - Custom decorators = chain links; custom interfaces = `runtime.Interface`;
   backend swap = `PersistenceFactory`.

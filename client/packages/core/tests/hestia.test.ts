@@ -30,7 +30,7 @@ describe("auth", () => {
   it("logs in as admin", async () => {
     const result = await container.auth.login("admin@test.local", "password123")
     expect(result.user.email).toBe("admin@test.local")
-    expect(result.user.permissions).toContain("administrator")
+    expect(result.user.permissions).toContain("root")
   })
 
   it("is authenticated after login", async () => {

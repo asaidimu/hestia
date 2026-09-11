@@ -55,7 +55,7 @@ func TestPolicyModelCreateAndListPolicies(t *testing.T) {
 
 	pol := policies.Policy{
 		Operation: "test:operation",
-		Rule:      "administrator",
+		Rule:      "root",
 		Enabled:       true,
 	}
 	created, err := model.CreatePolicy(ctx, pol)
@@ -77,8 +77,8 @@ func TestPolicyModelCreateAndListPolicies(t *testing.T) {
 	for _, pol := range policies {
 		if pol.Operation == "test:operation" {
 			found = true
-			if pol.Rule != "administrator" {
-				t.Errorf("expected Rule %q, got %q", "administrator", pol.Rule)
+			if pol.Rule != "root" {
+				t.Errorf("expected Rule %q, got %q", "root", pol.Rule)
 			}
 			break
 		}
@@ -164,7 +164,7 @@ func TestSetPolicyEnabledPreservesRule(t *testing.T) {
 
 	pol := policies.Policy{
 		Operation: "test:operation",
-		Rule:      "administrator",
+		Rule:      "root",
 		Enabled:       true,
 	}
 	created, err := model.CreatePolicy(ctx, pol)
@@ -180,8 +180,8 @@ func TestSetPolicyEnabledPreservesRule(t *testing.T) {
 	if updated.Enabled != false {
 		t.Errorf("expected Enabled=false, got %v", updated.Enabled)
 	}
-	if updated.Rule != "administrator" {
-		t.Errorf("expected Rule=%q after disable, got %q", "administrator", updated.Rule)
+	if updated.Rule != "root" {
+		t.Errorf("expected Rule=%q after disable, got %q", "root", updated.Rule)
 	}
 	if updated.ID != created.ID {
 		t.Errorf("expected same ID %q, got %q", created.ID, updated.ID)
@@ -195,8 +195,8 @@ func TestSetPolicyEnabledPreservesRule(t *testing.T) {
 	if updated.Enabled != true {
 		t.Errorf("expected Enabled=true, got %v", updated.Enabled)
 	}
-	if updated.Rule != "administrator" {
-		t.Errorf("expected Rule=%q after re-enable, got %q", "administrator", updated.Rule)
+	if updated.Rule != "root" {
+		t.Errorf("expected Rule=%q after re-enable, got %q", "root", updated.Rule)
 	}
 
 	// Read fresh from DB — verify persistence
@@ -207,8 +207,8 @@ func TestSetPolicyEnabledPreservesRule(t *testing.T) {
 	if read.Enabled != true {
 		t.Errorf("expected Enabled=true from DB, got %v", read.Enabled)
 	}
-	if read.Rule != "administrator" {
-		t.Errorf("expected Rule=%q from DB, got %q", "administrator", read.Rule)
+	if read.Rule != "root" {
+		t.Errorf("expected Rule=%q from DB, got %q", "root", read.Rule)
 	}
 }
 
@@ -278,9 +278,9 @@ func TestValidateRule(t *testing.T) {
 
 	t.Run("simple CEL passes", func(t *testing.T) {
 		res, err := svc.ValidateRule(ctx, nil, &model.PolicyValidateInput{Payload: map[string]any{
-			"rule": "'administrator' in identity.permissions",
+			"rule": "'root' in identity.permissions",
 			"context": map[string]any{
-				"identity":    map[string]any{"permissions": []string{"administrator"}},
+				"identity":    map[string]any{"permissions": []string{"root"}},
 				"resource":    map[string]any{},
 				"environment": map[string]any{},
 			},
@@ -298,7 +298,7 @@ func TestValidateRule(t *testing.T) {
 
 	t.Run("simple CEL fails for non-admin", func(t *testing.T) {
 		res, err := svc.ValidateRule(ctx, nil, &model.PolicyValidateInput{Payload: map[string]any{
-			"rule": "'administrator' in identity.permissions",
+			"rule": "'root' in identity.permissions",
 			"context": map[string]any{
 				"identity":    map[string]any{"permissions": []string{"user"}},
 				"resource":    map[string]any{},
@@ -337,12 +337,12 @@ func TestValidateRule(t *testing.T) {
 			"rule": map[string]any{
 				"operator": "and",
 				"conditions": []any{
-					map[string]any{"type": "cel", "expression": "'administrator' in identity.permissions"},
+					map[string]any{"type": "cel", "expression": "'root' in identity.permissions"},
 					map[string]any{"type": "cel", "expression": "identity.user_id != ''"},
 				},
 			},
 			"context": map[string]any{
-				"identity":    map[string]any{"permissions": []string{"administrator"}, "user_id": "abc"},
+				"identity":    map[string]any{"permissions": []string{"root"}, "user_id": "abc"},
 				"resource":    map[string]any{},
 				"environment": map[string]any{},
 			},
@@ -362,10 +362,10 @@ func TestValidateRule(t *testing.T) {
 		res, err := svc.ValidateRule(ctx, nil, &model.PolicyValidateInput{Payload: map[string]any{
 			"rule": map[string]any{
 				"type": "ref",
-				"name": "administrator",
+				"name": "root",
 			},
 			"context": map[string]any{
-				"identity":    map[string]any{"permissions": []string{"administrator"}},
+				"identity":    map[string]any{"permissions": []string{"root"}},
 				"resource":    map[string]any{},
 				"environment": map[string]any{},
 			},

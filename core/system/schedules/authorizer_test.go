@@ -72,15 +72,15 @@ func callerCtx(userID string, scopes []string) context.Context {
 
 // TestAuthorizeTargetDeniesPrivilegedTarget: an authenticated caller cannot
 // schedule an operation bound to a rule they do not satisfy (here
-// "administrator").
+// "root").
 func TestAuthorizeTargetDeniesPrivilegedTarget(t *testing.T) {
 	auth := schedules.NewScheduleAuthorizer(
-		&fakePermMgr{rules: map[string]string{"system:users:user:create": "administrator"}},
+		&fakePermMgr{rules: map[string]string{"system:users:user:create": "root"}},
 		testAccessCtrl(),
 		nil,
 	)
 	if err := auth.AuthorizeTarget(callerCtx("user-1", nil), "system:users:user:create"); err == nil {
-		t.Fatal("expected denial scheduling an administrator-only operation as a regular user")
+		t.Fatal("expected denial scheduling an root-only operation as a regular user")
 	}
 }
 
@@ -90,7 +90,7 @@ func TestAuthorizeTargetAllowsMatchingRule(t *testing.T) {
 	auth := schedules.NewScheduleAuthorizer(
 		&fakePermMgr{rules: map[string]string{
 			"system:notifications:notification:create": "authenticated",
-			"system:settings:set":                      "administrator",
+			"system:settings:set":                      "root",
 		}},
 		testAccessCtrl(),
 		nil,
@@ -98,11 +98,11 @@ func TestAuthorizeTargetAllowsMatchingRule(t *testing.T) {
 	if err := auth.AuthorizeTarget(callerCtx("user-1", nil), "system:notifications:notification:create"); err != nil {
 		t.Fatalf("expected authenticated-rule target to be schedulable: %v", err)
 	}
-	if err := auth.AuthorizeTarget(callerCtx("admin-1", []string{"administrator"}), "system:settings:set"); err != nil {
-		t.Fatalf("expected administrator to be able to schedule administrator-rule target: %v", err)
+	if err := auth.AuthorizeTarget(callerCtx("admin-1", []string{"root"}), "system:settings:set"); err != nil {
+		t.Fatalf("expected root to be able to schedule root-rule target: %v", err)
 	}
 	if err := auth.AuthorizeTarget(callerCtx("user-1", nil), "system:settings:set"); err == nil {
-		t.Fatal("expected non-administrator to be denied scheduling an administrator-rule target")
+		t.Fatal("expected non-root to be denied scheduling an root-rule target")
 	}
 }
 
@@ -118,7 +118,7 @@ func TestAuthorizeTargetFailsClosed(t *testing.T) {
 // CURRENT permissions and tenant from the claims cache.
 func TestFireClaimsUsesCurrentScopes(t *testing.T) {
 	cache := &fakeLiveUsers{users: map[string]*users.UserClaims{
-		"user-1": {UserID: "user-1", Email: "u1@example.com", TenantID: "tenant-9", Permissions: []string{"administrator"}},
+		"user-1": {UserID: "user-1", Email: "u1@example.com", TenantID: "tenant-9", Permissions: []string{"root"}},
 	}}
 	auth := schedules.NewScheduleAuthorizer(nil, nil, func() collection.LiveCollection[*users.UserClaims] { return cache })
 
@@ -129,8 +129,8 @@ func TestFireClaimsUsesCurrentScopes(t *testing.T) {
 	if claims.UserID != "user-1" || claims.Email != "u1@example.com" || claims.TenantID != "tenant-9" {
 		t.Errorf("claims = %+v, want user-1/u1@example.com/tenant-9", claims)
 	}
-	if len(claims.Scopes) != 1 || claims.Scopes[0] != "administrator" {
-		t.Errorf("scopes = %v, want [administrator]", claims.Scopes)
+	if len(claims.Scopes) != 1 || claims.Scopes[0] != "root" {
+		t.Errorf("scopes = %v, want [root]", claims.Scopes)
 	}
 }
 

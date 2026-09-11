@@ -34,7 +34,7 @@ func NewSettingsService(rt abstract.Container) (*SettingsService, error) {
 // @hestia.register(
 //   name="system:settings:list",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="List all settings",
 // )
 func (s *SettingsService) ListSettings(ctx context.Context, msg abstract.Message, input *model.SettingListInput) ([]*document.Document, error) {
@@ -59,7 +59,7 @@ func (s *SettingsService) ListSettings(ctx context.Context, msg abstract.Message
 // @hestia.register(
 //   name="system:settings:get",
 //   intent="read",
-//   rule="administrator",
+//   rule="root",
 //   description="Get a setting by key",
 //   resource_id="key",
 // )
@@ -80,7 +80,7 @@ func (s *SettingsService) GetSetting(ctx context.Context, msg abstract.Message, 
 // @hestia.register(
 //   name="system:settings:set",
 //   intent="create",
-//   rule="administrator",
+//   rule="root",
 //   description="Create or update a setting",
 //   resource_id="key",
 // )
@@ -107,7 +107,7 @@ func (s *SettingsService) SetSetting(ctx context.Context, msg abstract.Message, 
 // @hestia.register(
 //   name="system:settings:delete",
 //   intent="delete",
-//   rule="administrator",
+//   rule="root",
 //   description="Delete a setting",
 //   resource_id="key",
 // )

@@ -51,7 +51,7 @@ func userIDFrom(ctx context.Context, msg abstract.Message) (string, error) {
 // @hestia.register(
 //	name="system:notifications:notification:create",
 //	intent="create",
-//	rule="administrator",
+//	rule="root",
 //	description="Create an in-app notification for a user",
 // )
 func (s *NotificationsService) CreateNotification(ctx context.Context, msg abstract.Message, input *model.NotificationCreate) (*model.SystemNotifications, error) {
