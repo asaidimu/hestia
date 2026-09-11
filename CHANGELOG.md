@@ -1,3 +1,10 @@
+## [1.14.2](https://github.com/asaidimu/hestia/compare/v1.14.1...v1.14.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **collections:** restrict system collection access and project user data ([49b8786](https://github.com/asaidimu/hestia/commit/49b8786cacb811774bbfaef7617196b1e3d32146))
+
 ## [1.14.1](https://github.com/asaidimu/hestia/compare/v1.14.0...v1.14.1) (2026-09-10)
 
 
