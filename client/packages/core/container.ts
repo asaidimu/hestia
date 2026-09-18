@@ -28,6 +28,7 @@ import { HestiaOperations } from "./system/operations/store";
 export interface HestiaConfig {
   baseUrl: string;
   apiPrefix?: string;
+  apiKey?: string;
   persistence?: SimplePersistence<AuthState>;
   uploadPersistence?: UploadPersistence;
   transport?: Transport;
@@ -57,6 +58,7 @@ export class HestiaClient {
   readonly workflows: HestiaWorkflowStore;
   readonly operations: HestiaOperations
   private tokenProvider: IdentityProvider;
+  private readonly apiKeyMode: boolean;
 
   private onAuthStateChanged?: () => void;
 
@@ -75,6 +77,9 @@ export class HestiaClient {
     };
 
     const apiPrefix = config.apiPrefix ?? "/api";
+    const apiKeyHeaders = config.apiKey
+      ? { "X-Api-Key": config.apiKey }
+      : undefined;
 
     const onUnauthorized = () => {
       tokenProvider.clear();
@@ -82,6 +87,7 @@ export class HestiaClient {
     };
 
     this.tokenProvider = tokenProvider;
+    this.apiKeyMode = !!config.apiKey;
     if (config.transport instanceof WailsTransport) {
       config.transport.configure(config.baseUrl, apiPrefix, tokenProvider);
       config.transport.setOnUnauthorized(onUnauthorized);
@@ -91,6 +97,7 @@ export class HestiaClient {
         config.baseUrl,
         apiPrefix,
         onUnauthorized,
+        apiKeyHeaders,
       );
     }
 
@@ -121,6 +128,7 @@ export class HestiaClient {
   }
 
   async authenticated(): Promise<boolean> {
+    if (this.apiKeyMode) return true;
     if (this.tokenProvider.identity() === null) return false;
     try {
       await this.client.dispatch("system:core:heartbeat", { notifyAuthStateChange: false });

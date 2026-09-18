@@ -87,11 +87,13 @@ export class HttpTransport<R extends string = RouteName> implements Transport<R>
     private baseUrl: string,
     private apiPrefix: string,
     private onAuthStateChanged?: () => void,
+    private defaultHeaders?: Record<string, string>,
   ) {
     this.raw = createNetworkClient({
       baseUrl,
       defaultResponseType: "json",
       defaultBodyType: "json",
+      ...(this.defaultHeaders ? { defaultHeaders: this.defaultHeaders } : {}),
     });
   }
 
