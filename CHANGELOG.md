@@ -1,3 +1,10 @@
+## [1.15.2](https://github.com/asaidimu/hestia/compare/v1.15.1...v1.15.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* **client:** add support for API key authentication in TypeScript client ([f4d7959](https://github.com/asaidimu/hestia/commit/f4d7959c811bbc6dd1c6cb6a1c6bae9f05edd160))
+
 ## [1.15.1](https://github.com/asaidimu/hestia/compare/v1.15.0...v1.15.1) (2026-09-11)
 
 
