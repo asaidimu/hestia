@@ -14,6 +14,6 @@ export default defineConfig({
   clean: true,
   sourcemap: false,
   dts: true,
-  platform: "neutral",
+  platform: "node",
   fixedExtension: true,
 });

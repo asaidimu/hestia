@@ -1,0 +1,50 @@
+{
+  "name": "@asaidimu/hestia",
+  "version": "1.0.1",
+  "description": "TypeScript client SDK for the Hestia platform — auth, collections, API keys, policies, audit logs, blobs, and capabilities",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.mjs",
+  "types": "./index.d.mts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./index.d.mts",
+        "require": "./index.d.cts"
+      },
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  },
+  "files": [
+    "./*"
+  ],
+  "keywords": [
+    "typescript"
+  ],
+  "author": "Saidimu <47994458+asaidimu@users.noreply.github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asaidimu/hestia.git"
+  },
+  "bugs": {
+    "url": "git+https://github.com/asaidimu/hestia/issues"
+  },
+  "homepage": "https://github.com/asaidimu/hestia#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest",
+    "access": "public"
+  },
+  "dependencies": {
+    "@asaidimu/network-client": "^2.0.0",
+    "@asaidimu/query": "^1.0.0",
+    "@asaidimu/utils-artifacts": "^8.2.25",
+    "@asaidimu/utils-error": "^1.1.10",
+    "@asaidimu/utils-schema": "^1.0.10",
+    "@asaidimu/utils-store": "^10.2.18",
+    "@asaidimu/utils-sync": "^2.3.10",
+    "uuid": "^14.0.1"
+  }
+}

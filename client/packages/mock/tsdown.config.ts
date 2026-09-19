@@ -7,7 +7,7 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    platform: "neutral",
+    platform: "node",
     // Keep the SDK and shared utils external — they are real dependencies.
     deps: { neverBundle: [/^@asaidimu\//] },
   },
