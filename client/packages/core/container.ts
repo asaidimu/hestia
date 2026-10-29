@@ -3,9 +3,9 @@ import { ReactiveDataStore } from "@asaidimu/utils-store";
 import { HestiaAuth } from "./system/auth/store";
 import { HestiaCollections } from "./system/collections/store";
 import {
-    HttpTransport,
-    type Transport,
-    type IdentityProvider,
+  HttpTransport,
+  type Transport,
+  type IdentityProvider,
 } from "./core/client";
 import { WailsTransport } from "./core/wails-transport";
 import { HestiaKeyStore } from "./system/apikeys/store";
@@ -38,6 +38,13 @@ interface AuthState {
   identity: UserIdentity | null;
 }
 
+/*
+ * @note #worb9o issue : Weak Authentication State persistence
+ *
+ * Opening two tabs on the same browser client causes the user to be
+ * deauthenticated
+ */
+
 export class HestiaClient {
   readonly store: ReactiveDataStore<AuthState>;
   readonly client: Transport;
@@ -50,17 +57,17 @@ export class HestiaClient {
   readonly appLogs: HestiaAppLogs;
   readonly collections: HestiaCollections;
   readonly blobs: HestiaBlobClient;
-  readonly core: HestiaCore
+  readonly core: HestiaCore;
   readonly notifications: HestiaNotificationStore;
   readonly schedules: HestiaScheduleStore;
   readonly settings: HestiaSettingStore;
   readonly updates: HestiaUpdates;
   readonly workflows: HestiaWorkflowStore;
-  readonly operations: HestiaOperations
+  readonly operations: HestiaOperations;
   private tokenProvider: IdentityProvider;
   private readonly apiKeyMode: boolean;
 
-  private onAuthStateChanged?: () => void;
+  private onAuthStateChanged = new Set<() => void>();
 
   constructor(config: HestiaConfig) {
     this.store = new ReactiveDataStore<AuthState>(
@@ -72,8 +79,7 @@ export class HestiaClient {
       identity: () => this.store.get().identity,
       setIdentity: async (identity) =>
         void (await this.store.set({ identity })),
-      clear: async () =>
-        void (await this.store.set({ identity: null })),
+      clear: async () => void (await this.store.set({ identity: null })),
     };
 
     const apiPrefix = config.apiPrefix ?? "/api";
@@ -83,7 +89,7 @@ export class HestiaClient {
 
     const onUnauthorized = () => {
       tokenProvider.clear();
-      this.onAuthStateChanged?.();
+      this.onAuthStateChanged.forEach(i => i())
     };
 
     this.tokenProvider = tokenProvider;
@@ -93,17 +99,19 @@ export class HestiaClient {
       config.transport.setOnUnauthorized(onUnauthorized);
       this.client = config.transport;
     } else {
-      this.client = config.transport ?? new HttpTransport(
-        config.baseUrl,
-        apiPrefix,
-        onUnauthorized,
-        apiKeyHeaders,
-      );
+      this.client =
+        config.transport ??
+        new HttpTransport(
+          config.baseUrl,
+          apiPrefix,
+          onUnauthorized,
+          apiKeyHeaders,
+        );
     }
 
     this.auth = new HestiaAuth(this.client, tokenProvider);
     this.users = new HestiaUsers(this.client);
-    this.keys = new HestiaKeyStore(this.client,);
+    this.keys = new HestiaKeyStore(this.client);
     this.policies = new HestiaPolicies(this.client);
     this.rules = new HestiaRules(this.client);
     this.auditLogs = new HestiaAuditLogs(
@@ -113,25 +121,31 @@ export class HestiaClient {
     );
     this.appLogs = new HestiaAppLogs(this.client, config.baseUrl, apiPrefix);
     this.collections = new HestiaCollections(this.client);
-    this.blobs = new HestiaBlobClient(this.client, apiPrefix, config.uploadPersistence);
-    this.core = new HestiaCore(this.client)
-    this.notifications = new HestiaNotificationStore(this.client)
-    this.schedules = new HestiaScheduleStore(this.client)
-    this.settings = new HestiaSettingStore(this.client)
-    this.updates = new HestiaUpdates(this.client)
-    this.workflows = new HestiaWorkflowStore(this.client)
-    this.operations = new HestiaOperations(this.client)
+    this.blobs = new HestiaBlobClient(
+      this.client,
+      apiPrefix,
+      config.uploadPersistence,
+    );
+    this.core = new HestiaCore(this.client);
+    this.notifications = new HestiaNotificationStore(this.client);
+    this.schedules = new HestiaScheduleStore(this.client);
+    this.settings = new HestiaSettingStore(this.client);
+    this.updates = new HestiaUpdates(this.client);
+    this.workflows = new HestiaWorkflowStore(this.client);
+    this.operations = new HestiaOperations(this.client);
   }
 
   onAuthStateChange(callback: () => void) {
-    this.onAuthStateChanged = callback;
+    this.onAuthStateChanged.add(callback)
   }
 
   async authenticated(): Promise<boolean> {
     if (this.apiKeyMode) return true;
     if (this.tokenProvider.identity() === null) return false;
     try {
-      await this.client.dispatch("system:core:heartbeat", { notifyAuthStateChange: false });
+      await this.client.dispatch("system:core:heartbeat", {
+        notifyAuthStateChange: false,
+      });
       return true;
     } catch {
       return false;
@@ -176,7 +190,7 @@ export class HestiaClient {
     return this.collections.view<T>(name);
   }
 
-  ready(){
-      return this.client.ready()
+  ready() {
+    return this.client.ready();
   }
 }

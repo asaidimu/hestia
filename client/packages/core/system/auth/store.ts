@@ -12,6 +12,14 @@ export class HestiaAuth {
     return res.data.data;
   }
 
+  // @note #z3g2cp todo : Implement this feature
+
+  async resume():Promise<LoginResult>{
+      // Useful for syncing state when a user opens a
+      // second tab
+      throw new Error("Method not implemented!")
+  }
+
   async login(email: string, password: string): Promise<LoginResult> {
     const res = await this.client.dispatch<{ data: LoginResult }>(
       "system:auth:session:create",
