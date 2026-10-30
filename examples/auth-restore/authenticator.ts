@@ -28,9 +28,11 @@ import { ReactiveDataStore } from "@asaidimu/utils-store";
 // Written against the API specified by the notes above, which does not exist
 // yet: client.auth.session() resolving { user, expires_at? } or null on 401
 // and THROWING on network/5xx (unknown, so the user must not be logged out),
-// and expires_at (unix seconds) on login results. This file is not part of any
-// package build; it type-checked against @asaidimu/iam 8.2.0 declarations with
-// a stub for the missing client methods.
+// and expires_at (unix seconds) on login results. HestiaAuth.resume() is the
+// current placeholder and throws "Method not implemented"; treat it as the
+// interim name for session(). This file is not part of any package build; it
+// type-checked against @asaidimu/iam 8.2.0 declarations with a stub for the
+// missing client methods.
 
 type AuthRequest =
   | { kind: "login"; email: string; password: string }

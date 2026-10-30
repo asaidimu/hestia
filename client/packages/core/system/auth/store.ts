@@ -7,14 +7,16 @@ import type { LoginResult, ServerHealth } from "./types";
 // @see #auth-20261029-002
 // @see #auth-20261029-006
 //
-// Proposal: session(): Promise<LoginResult | null>.
+// A resume() stub now exists below, but it throws "Method not implemented", so
+// the capability is still missing. Proposal: session(): Promise<LoginResult | null>.
 //   - dispatches system:auth:session:get with notifyAuthStateChange:false so a
 //     "not logged in" answer does not run the global 401 handler;
 //   - 200: setIdentity(user) and return { user, expires_at };
 //   - 401: clear the local identity and return null;
 //   - anything else (network error, 5xx): THROW. Callers must be able to tell
 //     "not logged in" from "could not check", or an offline blip logs users out.
-// LoginResult gains expires_at?: number (see #auth-20261029-002).
+// LoginResult gains expires_at?: number (see #auth-20261029-002). Either
+// implement resume() on top of session() or replace it outright.
 
 // @note #auth-20261029-004 todo P1 #client,#iam,#integration : @asaidimu/iam 8.2.0 cannot adopt an existing server session
 // @author claude

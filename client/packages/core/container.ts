@@ -135,14 +135,14 @@ export class HestiaClient {
     this.operations = new HestiaOperations(this.client);
   }
 
-  // @note #auth-20261029-007 todo P2 #client,#ergonomics : onAuthStateChange is a single callback slot that fires only on 401
+  // @note #auth-20261029-007 todo P2 #client,#ergonomics : onAuthStateChange has no unsubscribe and fires only on 401
   // @author claude
   //
-  // It assigns rather than subscribes: a second call silently replaces the
-  // first and nothing is returned to unsubscribe. It fires only when a request
-  // gets 401, not on login, logout or restore, despite the name, so consumers
-  // (the IAM wrapper) have to call back into their own provider to find out
-  // what happened and the client store and IAM store can drift.
+  // It now keeps a Set of callbacks, so several subscribers coexist, but it
+  // returns nothing to unsubscribe and it fires only when a request gets 401,
+  // not on login, logout or restore, despite the name. Consumers (the IAM
+  // wrapper) therefore have to call back into their own provider to find out
+  // what happened, and the client store and IAM store can drift.
   // Proposal: onAuthStateChange(cb: (identity: UserIdentity | null) => void):
   // () => void, backed by store.watch("identity"); keep 401 -> clear.
 
