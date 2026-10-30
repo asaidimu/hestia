@@ -17,6 +17,13 @@ import (
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
+// @note #blob-20261029-015 todo P3 #blobs,#config,#ergonomics : Server limits are hard-coded and not discoverable by clients
+// @author claude
+// @see #blob-20261029-018
+//
+// maxDirectUploadBytes (16 MiB), the default and maximum block sizes, and the idle-session reaper window (store/service.go: StartReaper(5 min, 6 h)) are constants. The TS client hard-codes DEFAULT_DIRECT_THRESHOLD = 16 MiB and an 8 MiB block size to match, and a threshold set above the server limit fails with VALIDATION_ERROR. After a session is reaped, progress() answers NOT_FOUND and ResumableUpload.run() ends in "error" with no attempt to begin a fresh session.
+// Proposal: make the limits configuration, return them from begin (or a small capabilities route), and let the client restart on a NOT_FOUND session while the File is still available. See #blob-20261029-018 for the client's direct-path handling.
+
 const (
 	// defaultUploadBlockSize is used when the client does not request a specific
 	// block size in the begin request. It balances per-chunk HTTP overhead
@@ -124,6 +131,21 @@ func NewUploadChunkHandler(mgr *staging.Manager) abstract.MessageHandler {
 		return dispatch.NewDocumentResultFrom(&UploadChunkDocument{Total: total})
 	}
 }
+
+// @note #blob-20261029-001 issue P1 #blobs,#security,#authz : Upload sessions are not bound to the authorised namespace or to the principal that began them
+// @author claude
+// @see #blob-20261029-002
+//
+// Policy is resolved from arguments.ns (the NamespacedDispatcher rewrites system:blobs:blob:* to system:blobs:<ns>:*), but chunk, progress, abort and complete act on the session id alone. complete finalises into cu.NamespaceID/cu.Key, the others never compare the session's namespace with input.NS, and nothing records which principal ran begin. A caller allowed to complete (or abort, or write chunks) in namespace A can name a session id begun in namespace B, so the session id is the only capability. Not exercised by a test; verify before fixing.
+// Fix: store namespace (and principal) on the session at begin and reject any mismatch with NOT_FOUND, so a wrong id leaks nothing. See #blob-20261029-002 for the other complete-time hazard.
+
+// @note #blob-20261029-002 issue P1 #blobs,#data-loss : complete without overwrite aborts the finished session and discards every uploaded byte
+// @author claude
+// @see #blob-20261029-001
+// @see #blob-20261029-016
+//
+// overwrite is a per-call modifier at begin AND at complete, and the session does not remember it. If begin ran with overwrite=true and complete omits it (or the key appeared in the meantime), ensureKeyWritable fails and this handler calls mgr.Abort(sessionID), deleting a possibly multi-GiB upload because of a flag mismatch.
+// Fix: persist overwrite on the session at begin and ignore the complete-time value; on ALREADY_EXISTS at complete leave the session intact so the caller can retry or rename. The client side of the same hazard is #blob-20261029-016.
 
 // NewCompleteUploadHandler finalizes a staged upload and streams it straight
 // into the blob store's chunking pipeline in a single pass.

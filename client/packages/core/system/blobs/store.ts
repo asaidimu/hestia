@@ -477,6 +477,13 @@ export class ResumableUpload {
     }
   }
 
+  // @note #blob-20261029-020 todo P2 #blobs,#client,#ergonomics : done resolves undefined on cancel, and failures can surface as unhandled rejections
+  // @author claude
+  // @see #blob-20261029-019
+  //
+  // finishCancelled() resolves done with undefined, so Promise<Document | undefined> mixes "cancelled" with success, and callers must test for undefined with nothing telling them it means cancellation (an aborted AbortSignal would normally reject with AbortError). Conversely run() calls rejectDone on failure while UploadQueue.enqueue() never attaches a handler, so when nobody reads done a failed upload raises an unhandledrejection; after retry() the earlier rejected promise is replaced and stays unhandled.
+  // Fix: reject with AbortError on cancel, and attach a no-op catch inside the class (callers that await done still see the rejection). Related signature issue: #blob-20261029-019.
+
   private finishCancelled(): void {
     this.setStatus("cancelled");
     this.report();
@@ -811,6 +818,13 @@ export class UploadQueue {
     }
   }
 
+  // @note #blob-20261029-017 issue P2 #blobs,#client,#ergonomics : UploadQueue.restore() is a stub that always returns an empty array
+  // @author claude
+  // @see #blob-20261029-016
+  //
+  // restore() reads the persistence, discards the result and returns []. Only restoreAsync() works, and the name and doc comment suggest otherwise. Restored jobs are added to jobs but not to queue and get no onStatusChange hook, so they bypass the maxConcurrent accounting that enqueue() sets up, and snapshots with no File and no fileProvider result are skipped silently and stay in persistence forever.
+  // Fix: delete restore() (or make it throw), route restored jobs through the same wiring as enqueue(), and report or clean unrestorable snapshots. Lost options are in #blob-20261029-016.
+
   /** Reconstruct uploads from persisted snapshots, paused and ready to resume. */
   restore(fileProvider?: (snapshot: UploadJobSnapshot) => File | undefined): ResumableUpload[] {
     const snapshots = this.persistence ? this.persistence.load() : Promise.resolve([]);
@@ -819,6 +833,14 @@ export class UploadQueue {
     // Restore is async-friendly: callers use restoreAsync for Promise adapters.
     return [];
   }
+
+  // @note #blob-20261029-016 issue P1 #blobs,#client,#data-loss : Restored uploads lose overwrite and other options, and can be discarded at completion
+  // @author claude
+  // @see #blob-20261029-002
+  // @see #blob-20261029-017
+  //
+  // restoreAsync rebuilds each job with options { key, contentType: snap.type, overwrite: false }. UploadJobSnapshot persists neither overwrite, nor a caller's contentType override, nor anything else from UploadOptions. An upload started with overwrite: true and then resumed completes with overwrite: false; if the key exists the server answers ALREADY_EXISTS and aborts the session, discarding everything uploaded (#blob-20261029-002).
+  // Fix: persist the serialisable options (not onProgress/signal) in the snapshot and restore them, and let restoreAsync take per-job option overrides. The sibling stub is #blob-20261029-017.
 
   async restoreAsync(
     fileProvider?: (snapshot: UploadJobSnapshot) => File | undefined,
@@ -962,6 +984,12 @@ function pageMeta<T extends Record<string, any>>(items: T[]): Page<T>["page"] {
   };
 }
 
+// @note #blob-20261029-024 todo P3 #blobs,#client,#ergonomics : BlobNamespace implements DocumentStore but several members throw
+// @author claude
+//
+// create, subscribe, notify and stream throw "not supported" at runtime, and update rejects filter. Generic UI code typed against DocumentStore compiles and then fails on first call, and the capability gap is not visible in the types. asDoc() also invents document metadata: _id_ is the bare key (not namespace-qualified), _metadata_.checksum is "" and version is always 1.
+// Fix: narrow to a capability interface that blobs satisfy honestly, or implement subscribe through polling or server events; drop the fabricated metadata or mark it as synthetic.
+
 export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>, string, QueryDSL<BlobMeta>, Record<string, unknown>, string, Record<string, any>, Record<string, unknown>, { key: string; contentType?: string }, Record<string, unknown>> {
   private pagerOptions = {};
   private pager: PagedData<BlobMeta>;
@@ -988,6 +1016,14 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
   setPrefix(prefix: string) {
     this.prefixFilter = prefix;
   }
+
+  // @note #blob-20261029-021 todo P2 #blobs,#client,#ergonomics : find()/list() fabricate paging metadata and mostly ignore the query
+  // @author claude
+  // @see #blob-20261029-007
+  // @see #blob-20261029-023
+  //
+  // pageMeta() reports number 1, pages 1 and total = items.length for any result, so with a limit set the pager cannot tell that more exist. QueryDSL<BlobMeta> filters and sorts are ignored: only (query as any).prefix and limit are read, so list({ prefix }) does not type-check without a cast and a filter silently returns everything. setPrefix() is mutable instance state that overrides a prefix passed in the call, and because HestiaBlobClient.namespace() returns a new BlobNamespace each time (#blob-20261029-023) that state is easily lost.
+  // Fix: accept ListBlobsRequest ({ prefix, limit, cursor }) in list(), fill paging from the server's cursor (#blob-20261029-007), and build the pager lazily.
 
   async find(query?: QueryDSL<BlobMeta>): Promise<Page<BlobMeta>> {
     const prefix = this.prefixFilter || (query as any)?.prefix || "";
@@ -1027,6 +1063,13 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     throw new Error("Use upload() to create blobs");
   }
 
+  // @note #blob-20261029-022 issue P2 #blobs,#client : update() cannot do what its type says
+  // @author claude
+  // @see #blob-20261029-026
+  //
+  // update takes Partial<BlobMeta> but sends { custom: strippedData(data) }, and strippedData removes only _id_ and _metadata_. So update({ data: { content_type: "text/plain" } }) sends {"custom":{"content_type":"text/plain"}}, writing a custom key named content_type instead of changing the type, and a correctly typed update({ data: { custom: { owner: "a" } } }) sends {"custom":{"custom":{"owner":"a"}}}, which the server (Custom map[string]string; UpdateMetadata persists only custom) rejects or mangles. Payload shapes were reproduced in a script; not run against a server. The existing test (blobs.test.ts) asserts the first shape as if it worked.
+  // Fix: update({ id, custom }) with string-only values; the type drift behind this is in #blob-20261029-026.
+
   async update(props: { id?: string; data: Partial<BlobMeta>; filter?: QueryFilter<BlobMeta> }): Promise<Document<BlobMeta> | undefined> {
     if (props.filter) throw new Error("filter-based update not supported for blobs");
     const key = props.id;
@@ -1037,6 +1080,14 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     );
     return asDoc(res.data!.data);
   }
+
+  // @note #blob-20261029-025 todo P3 #blobs,#client,#ergonomics : delete, rename, verify and namespace calls return nothing useful
+  // @author claude
+  // @see #blob-20261029-012
+  // @see #blob-20261029-009
+  //
+  // delete() is Head + Delete on the server, so deleting an absent key fails with NOT_FOUND (not idempotent) and costs two lookups. rename() returns void although the server knows the new key, has no overwrite control, and answers {message} (#blob-20261029-012). verify() returns void. createNamespace() cannot send public (#blob-20261029-009) and deleteNamespace() has no force flag.
+  // Fix: idempotent delete (or an ignoreMissing option), rename returning the BlobDocument, verify returning a report.
 
   async delete(key: string): Promise<void> {
     await this.client.dispatch("system:blobs:blob:delete", {
@@ -1077,6 +1128,12 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     return this.find(options ?? {});
   }
 
+  // @note #blob-20261029-019 todo P2 #blobs,#client,#ergonomics : upload() requires options.key at runtime but types it as optional
+  // @author claude
+  // @see #blob-20261029-020
+  //
+  // upload({ file, options }) throws "options.key is required" although UploadOptions.key is optional; the value is cast with `as string` in upload(), createUpload() and UploadQueue.enqueue(). Proposal: upload(key, file, options), or default the key to file.name, and make the type say so. The return type Promise<Document | undefined> is explained in #blob-20261029-020.
+
   async upload(props: { file: File; options?: UploadOptions }): Promise<Document<BlobMeta> | undefined> {
     const key = props.options?.key as string;
     if (!key) throw new Error("options.key is required for blob upload");
@@ -1103,6 +1160,14 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     }
     return this._queue;
   }
+
+  // @note #blob-20261029-018 issue P2 #blobs,#client,#ergonomics : onProgress, signal and retries are silently ignored for files at or below the direct threshold
+  // @author claude
+  // @see #blob-20261029-005
+  // @see #blob-20261029-015
+  //
+  // upload() sends files up to the threshold (default 16 MiB) through uploadDirect, which honours only contentType and overwrite. onProgress is never called (not even once at 100%), signal cannot abort the request, and retries, concurrency and blockSize are ignored. Most uploads are small, so most callers get neither progress nor cancel.
+  // Fix: pass signal to dispatch, report progress (or at least a final 100%), retry transient failures, and expose which path was used. Server-side constraints on this path: #blob-20261029-005 and #blob-20261029-015.
 
   private async uploadDirect(file: File, key: string, options?: UploadOptions): Promise<Document<BlobMeta> | undefined> {
     const headers: Record<string, string> = {};
@@ -1220,6 +1285,13 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     return { data: blob, contentType: blob.type };
   }
 }
+
+// @note #blob-20261029-023 todo P3 #blobs,#client,#ergonomics : Instance and naming semantics of HestiaBlobClient
+// @author claude
+// @see #blob-20261029-021
+//
+// blob(ns, key) returns a URL string, not a blob or handle (url() would say so). apiPrefix is accepted and stored but never used. namespace() returns a new BlobNamespace on every call, so queue() called twice yields two independent queues and maxConcurrent is not global, and queue(options) silently ignores options after the first call on an instance; each BlobNamespace also builds a ReactiveDataStore and pager in its constructor even if page() is never used.
+// Fix: cache namespaces by name (or document that they are cheap handles), reject conflicting queue options, and build the pager lazily. Effect on prefix state: #blob-20261029-021.
 
 export class HestiaBlobClient {
   private apiPrefix: string;

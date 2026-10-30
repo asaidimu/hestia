@@ -1,5 +1,13 @@
 import type { Document } from "../../core/types"
 
+// @note #blob-20261029-026 todo P3 #blobs,#client,#types : Naming and typing drift between client and server
+// @author claude
+// @see #blob-20261029-009
+// @see #blob-20261029-022
+//
+// One concept, three spellings: ns (CreateNamespaceRequest, route arguments), id (NamespaceInfo), namespace_id (BlobMeta, NamespaceStats). NamespaceInfo.custom is Record<string, string> but BlobMeta.custom is Record<string, any>, while the server uses map[string]string for both (#blob-20261029-022 shows the consequence). NamespaceInfo and CreateNamespaceRequest lack the server's public field (#blob-20261029-009). BlobMeta timestamps are strings while Document metadata uses created/updated, and UploadJobSnapshot.name/type duplicate the File.
+// Fix: one spelling per concept, and generate these types from the server schemas, which are already derived with SchemaFromType.
+
 export interface NamespaceInfo {
   id: string
   display_name: string

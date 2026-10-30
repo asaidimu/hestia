@@ -454,6 +454,14 @@ func serializeStreamResult(ctx context.Context, result *abstract.Result) (Respon
         })
 }
 
+// @note #blob-20261029-003 issue P1 #blobs,#security,#http : Blob downloads are served with only Content-Type, and that type is whatever the uploader declared
+// @author claude
+// @see #blob-20261029-004
+//
+// blobResponse sets Content-Type and nothing else: no X-Content-Type-Options: nosniff, no Content-Disposition, no CSP sandbox. The stored type is client-supplied (BlobUploadInput.ContentType / begin content_type) and is never sniffed or allow-listed, and the client's blob(ns, key) hands out same-origin URLs. An uploader with write access can store text/html or image/svg+xml and get script running on the API origin inside a viewer's session (SameSite=Strict limits cross-site use, not same-site navigation). Not exercised; verify.
+// Also missing, for ergonomics: ETag/Last-Modified/Cache-Control and conditional requests, and Accept-Ranges/Range (no seeking in audio/video, no resumable downloads).
+// Fix: always send nosniff; default to Content-Disposition: attachment unless the type is on an inline allow-list (or a per-namespace setting); derive an ETag from the stored blob. Streaming is covered by #blob-20261029-004.
+
 func blobResponse(blob abstract.Blob) Response {
         return Response{
                 Status:  statusOK,

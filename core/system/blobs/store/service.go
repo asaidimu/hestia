@@ -67,6 +67,15 @@ func (svc *Service) Close() error {
 	return svc.s.Close()
 }
 
+// @note #blob-20261029-009 issue P2 #blobs,#api : Namespace public flag lives in-band in custom, can be overridden by callers, and nothing enforces it
+// @author claude
+// @see #feat-ns-metadata
+// @see #blob-20261029-026
+//
+// CreateNamespace writes custom["public"] = "true" and then copies the caller's custom map over it, so custom: {public: "false"} silently wins, and GetNamespace/ListNamespaces strip the key on read so a caller's own "public" key disappears. The flag is read back only for display: no code in core/ consults NamespaceView.Public to allow unauthenticated reads (grep found no other consumer), so "public" has no effect on access. The TS client does not expose it at all (#blob-20261029-026).
+// Also missing: system:blobs:namespace:get and :update routes. GetNamespace exists but is used only by the dispatcher hydrator, so clients list every namespace to read one and cannot change display_name, custom or public after creation (#feat-ns-metadata).
+// Fix: remove the flag, or give it a real field plus enforcement, and reject custom keys that collide with reserved ones.
+
 func (svc *Service) CreateNamespace(ctx context.Context, nsID, displayName string, opts ...NamespaceOption) error {
 	var cfg NamespaceOptions
 	for _, o := range opts {

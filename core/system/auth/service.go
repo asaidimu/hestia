@@ -82,6 +82,16 @@ func NewAuthService(rt abstract.Container) (*AuthService, error) {
 	}, nil
 }
 
+// @note #auth-20261029-002 todo P2 #auth,#api : Login response carries no session expiry
+// @author claude
+// @see #auth-20261029-001
+//
+// LoginOutput holds only the user. The absolute expiry (now + sessionTTL,
+// DefaultSessionTTL = 8h) lives only inside the cookie, so clients guess it
+// (IAM consumers hard-code 8h) and drift from the server. Return expires_at
+// (unix seconds) from CreateSession, and from session:get (#auth-20261029-001).
+// The client maps it onto IAM's per-login session.ttl override.
+
 // CreateSession authenticates a user and returns a session token document.
 //
 // @hestia.register(
@@ -240,6 +250,27 @@ func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message,
 	}
 	return nil
 }
+
+// @note #auth-20261029-001 todo P1 #auth,#api,#ergonomics : No route returns the current session's claims (blocks multi-tab restore)
+// @author claude
+// @see #auth-20261029-002
+// @see #auth-20261029-003
+//
+// The session cookie is HttpOnly, so page JS cannot read it and a fresh tab
+// has no way to learn that a valid session already exists. Today:
+//   - system:auth:session:validate is Internal and wants a raw token in the
+//     request body, which a browser does not have;
+//   - it returns only ids and timestamps, no email or permissions;
+//   - system:core:heartbeat returns nothing;
+//   - system:users:user:get needs a user id the new tab does not have.
+//
+// Proposal: add system:auth:session:get (intent=read, rule=authenticated, not
+// internal) returning the same sanitized user document CreateSession builds,
+// plus expires_at (absolute session expiry, unix seconds). authMiddleware
+// already puts expires_at and token_id into the resolved identity properties,
+// so the handler is: read claims from ctx, load the user, sanitize with the
+// "users" scope, return. Do NOT list it in NoRefreshCommands: like every other
+// authenticated request it should slide the cookie.
 
 // ValidateSession validates a session token.
 //

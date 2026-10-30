@@ -135,9 +135,43 @@ export class HestiaClient {
     this.operations = new HestiaOperations(this.client);
   }
 
+  // @note #auth-20261029-007 todo P2 #client,#ergonomics : onAuthStateChange is a single callback slot that fires only on 401
+  // @author claude
+  //
+  // It assigns rather than subscribes: a second call silently replaces the
+  // first and nothing is returned to unsubscribe. It fires only when a request
+  // gets 401, not on login, logout or restore, despite the name, so consumers
+  // (the IAM wrapper) have to call back into their own provider to find out
+  // what happened and the client store and IAM store can drift.
+  // Proposal: onAuthStateChange(cb: (identity: UserIdentity | null) => void):
+  // () => void, backed by store.watch("identity"); keep 401 -> clear.
+
+  // @note #auth-20261029-009 todo P3 #client,#auth,#ergonomics : No cross-tab auth signalling
+  // @author claude
+  // @see #auth-20261029-007
+  //
+  // Logout in tab A revokes the session id (blocklist) but tab B only learns at
+  // its next heartbeat (up to 5 min) or 401. Login in tab A is never seen by
+  // tab B. Proposal: post "changed" on a BroadcastChannel (name scoped to
+  // baseUrl) after login/logout and, on receipt, re-run auth.session(). The
+  // server stays the source of truth: never broadcast claims. Do not post from
+  // the handler of a received message (ping-pong).
+
   onAuthStateChange(callback: () => void) {
     this.onAuthStateChanged.add(callback)
   }
+
+  // @note #auth-20261029-006 issue P1 #client,#auth,#ergonomics : authenticated() returns false without asking the server when local identity is null
+  // @author claude
+  // @see #auth-20261029-003
+  //
+  // This is the direct cause of "every tab asks me to log in": a new tab has an
+  // empty client store, so authenticated() answers false without a request even
+  // though the HttpOnly cookie is valid. The name promises a server-confirmed
+  // state but it only confirms when a local identity already exists.
+  // Fix: once auth.session() exists (#auth-20261029-003) call it here
+  // (null -> false, throw -> propagate), keeping the apiKeyMode shortcut. The
+  // heartbeat is a poor probe because it carries no claims.
 
   async authenticated(): Promise<boolean> {
     if (this.apiKeyMode) return true;
@@ -154,6 +188,23 @@ export class HestiaClient {
 
   private heartbeatTimer?: ReturnType<typeof setTimeout>;
   private defaultHeartbeatInterval = 5 * 60 * 1000;
+
+  // @note #auth-20261029-008 todo P2 #client,#auth,#ergonomics : Heartbeat lifecycle is hand-managed by every consumer, and it is what keeps the session alive
+  // @author claude
+  // @see #auth-20261029-001
+  //
+  // Server session = 8h absolute (DefaultSessionTTL) with a 30min idle limit
+  // (DefaultIdleTTL); any authenticated request after 15min (DefaultRefreshTTL)
+  // re-issues the cookie, and NoRefreshCommands is never populated, so this
+  // 5min heartbeat is what makes access uninterrupted while a tab is open.
+  // Consumers must start/stop it by hand (the IAM wrapper does so only inside
+  // onAuthenticate/onDeauthenticate), so a restored session, an expiry-driven
+  // logout or a cross-tab logout never starts/stops it.
+  // Proposal: HestiaClient owns it, starting when store.identity becomes
+  // non-null and stopping on null; keep start/stopHeartbeat as an opt-out.
+  // Every tab runs its own timer (N tabs, N heartbeats): harmless, but could be
+  // leader-elected. A suspended machine can exceed the idle limit; a re-login
+  // there is expected behaviour, not a bug.
 
   startHeartbeat(intervalMs?: number): void {
     this.stopHeartbeat();

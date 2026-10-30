@@ -54,6 +54,14 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
+// @note #blob-20261029-010 todo P2 #blobs,#robustness : Namespace creation is not atomic and its id is barely validated
+// @author claude
+// @see #blob-20261029-011
+//
+// The steps are svc.CreateNamespace, SeedNamespaceBindings, RegisterBlobHandlers, with no rollback. A failure after the first leaves a namespace that exists but has no bindings or handlers, and retrying create then fails because it already exists, so it needs manual cleanup.
+// The id falls back to display_name when ns is empty and the only check is non-empty: spaces, ':' and '/' are accepted, and the ids "blob" or "namespace" produce per-namespace operation names (system:blobs:blob:*, system:blobs:namespace:list|stats|verify|delete) that collide with the static generic routes. Whether the blobs library itself rejects such ids was not verified.
+// Fix: validate ids (lowercase slug plus reserved words), drop the display_name fallback, and compensate (delete the namespace) on later failure. Deletion has the mirror problem: #blob-20261029-011.
+
 func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		var input NsCreateInput
@@ -94,6 +102,13 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, pol
 	}
 }
 
+// @note #blob-20261029-011 todo P2 #blobs,#robustness : Namespace deletion destroys blobs without confirmation and can half-complete
+// @author claude
+// @see #blob-20261029-010
+//
+// Order is UnregisterBlobHandlers, delete each binding (returning on the first failure), ReloadPolicies, then svc.DeleteNamespace. A failure after the first step leaves a namespace that still holds data but has no handlers or bindings, and a namespace containing blobs is deleted outright: no emptiness check, no force or confirm flag, no soft delete.
+// Proposal: make each step idempotent so a retry converges, and require force=true for a non-empty namespace. Creation has the mirror problem: #blob-20261029-010.
+
 func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.BindingPolicyStore, registry abstract.Registry) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		var input NsInput
@@ -127,6 +142,13 @@ func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.Binding
 		return &abstract.Result{}, nil
 	}
 }
+
+// @note #blob-20261029-007 todo P2 #blobs,#api,#ergonomics : List has no cursor, delimiter or truncation signal, and limit 0 returns everything
+// @author claude
+// @see #blob-20261029-021
+//
+// BlobListInput is {prefix, limit}; the store's List takes the same two values and the response is {blobs: [...]}. A namespace with many blobs comes back in one body, ordering is not specified here, and a caller who sets limit cannot tell whether more exist or fetch the next page. There is no delimiter either, so folder-style listings (keys containing '/') must download every key.
+// Proposal: opaque cursor in the request, next_cursor/has_more in BlobListDocument, an optional delimiter returning common_prefixes, and a server-side maximum limit. Client side of the same gap: #blob-20261029-021.
 
 func NewListBlobsHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
@@ -172,6 +194,13 @@ func NewHeadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
+// @note #blob-20261029-005 issue P2 #blobs,#ergonomics : Empty (zero-byte) blobs cannot be stored
+// @author claude
+// @see #blob-20261029-018
+//
+// NewUploadBlobHandler rejects len(payload) == 0 ("request body is required") and NewBeginUploadHandler rejects size <= 0, so neither path accepts an empty file (placeholders, .gitkeep, empty exports). The TS client sends every file at or below its 16 MiB threshold, including 0 bytes, down the direct path, so the caller just receives VALIDATION_ERROR.
+// Fix: accept empty bodies on the direct path (a missing body and an empty one are different things), or document the limit and fail early in the client. Related client behaviour: #blob-20261029-018.
+
 func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
 		var input BlobUploadInput
@@ -202,6 +231,14 @@ func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 		return dispatch.NewDocumentResultFrom(&view)
 	}
 }
+
+// @note #blob-20261029-004 todo P2 #blobs,#performance,#ergonomics : Download buffers the whole blob; upload and chunk handlers copy their payloads
+// @author claude
+// @see #blob-20261029-003
+//
+// NewDownloadBlobHandler does Head then Get and io.ReadAll into abstract.Blob.Data, so memory per request equals the blob size, with no Range and no streaming. Resumable uploads can create blobs far beyond maxDirectUploadBytes (16 MiB), so a file that uploads fine can be impractical to read back. Head+Get is also two lookups, so the content type can describe a replaced body.
+// Related copies: NewUploadBlobHandler and NewUploadChunkHandler do append([]byte(nil), input.Payload...) before Release(), and a chunk may be up to 256 MiB (maxUploadChunkBytes), times the client's chunk concurrency (up to 6). Every system:blobs:* route also gets the large body limit (register.go, S-8), including JSON-only ones (list, update, begin, rename, namespace:create) that only need the small default.
+// serializeResponse answers a BlobChannel result with an empty 200, so a streaming blob result exists in the model but is not wired through HTTP. Proposal: stream downloads, honour Range, and apply the large limit only to upload and chunk. Header gaps are in #blob-20261029-003.
 
 func NewDownloadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	return func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
@@ -358,6 +395,13 @@ func NewCompactNamespaceHandler(svc blobutil.BlobStore) abstract.MessageHandler 
 	}
 }
 
+// @note #blob-20261029-006 issue P2 #blobs,#correctness : overwrite=false is check-then-put, so concurrent uploads to one key silently overwrite each other
+// @author claude
+// @see #blob-20261029-002
+//
+// ensureKeyWritable does Head, and the caller then does Put/PutCustom. Two requests that both see NOT_FOUND both succeed, the later one wins and neither receives ALREADY_EXISTS. The same applies at begin and again at complete (the repeated check narrows nothing). The contract "overwrite=false never replaces an existing blob" is therefore advisory under concurrency. Not exercised.
+// Fix: an atomic put-if-absent (or a per-key lock) in the store / blobs library. Complete-time behaviour is in #blob-20261029-002.
+
 // ensureKeyWritable enforces overwrite protection: unless overwrite is true,
 // an existing key rejects the write with runtime.ErrAlreadyExists.
 func ensureKeyWritable(ctx context.Context, svc blobutil.BlobStore, nsID, key string, overwrite bool) error {
@@ -396,6 +440,14 @@ func blobMetaView(m *blobutil.BlobMeta) BlobMetaView {
 	return view
 }
 
+// @note #blob-20261029-012 todo P2 #blobs,#errors,#ergonomics : Inconsistent error model across blob operations
+// @author claude
+// @see #blob-20261029-025
+//
+// mapBlobError covers head, upload, download, update, delete, rename, stats, verify and compact, but list, namespace create/delete and begin wrap with fmt.Errorf (untyped, surfaced as an internal error), and the NamespacedDispatcher hydrator does the same for an unknown namespace. A mistyped namespace is therefore not NOT_FOUND, and the client's read(), which returns undefined only on code NOT_FOUND, throws instead.
+// Similar failures use different codes: VALIDATION_ERROR for bad parameters, INVALID_REQUEST for staging size/checksum/alignment problems. Some responses are ad hoc: rename answers {message: "renamed"} and verify {message: "ok"} with no declared output schema, so clients discard them, and verify offers no per-blob report (a CORRUPTION error is the only detail).
+// Fix: one mapper for blobs, staging and the hydrator, a short code table in docs/guide/blobs.md, and structured outputs (rename returns the BlobMeta, verify returns a report). Client side: #blob-20261029-025.
+
 func mapBlobError(err error) error {
 	var notFound *bserrors.NotFoundError
 	if errors.As(err, &notFound) {
@@ -411,6 +463,12 @@ func mapBlobError(err error) error {
 	}
 	return fmt.Errorf("blob: %w", err)
 }
+
+// @note #blob-20261029-013 issue P3 #blobs,#cruft : blobOps, the static registrations and the dispatcher rewrite disagree
+// @author claude
+//
+// blobOps seeds a binding for "admin" but RegisterBlobHandlers registers no admin handler, so that binding is dead. "compact" has no per-namespace op at all. The NamespacedDispatcher rewrites only the system:blobs:blob: prefix, so system:blobs:namespace:stats|verify|compact (static, rule=root) appear never to consult the per-namespace stats/verify bindings that SeedNamespaceBindings creates; a non-root user granted <ns>:stats could not use the client's stats() (from reading, not exercised). compact is also registered with intent=create although it is a maintenance operation, and every binding is seeded as "root", so each grant is a manual policy edit.
+// Fix: make one op table the source of truth for registrations, bindings and rewrites.
 
 type BlobOp struct {
 	Suffix, RuleKey, Desc string

@@ -36,6 +36,13 @@ type BlobUploadInput struct {
 	Payload     []byte `input:"payload"`
 }
 
+// @note #blob-20261029-008 todo P2 #blobs,#api,#ergonomics : No custom metadata can be attached at upload time
+// @author claude
+// @see #feat-ns-metadata
+//
+// store.PutCustom and the completed staging upload both carry a Custom map (complete passes cu.Custom), but nothing populates it: BlobBeginInput and BlobUploadInput have no custom field, begin only hands the staging manager a content type, size and block size, and the client's UploadOptions has no custom either. Callers must upload and then call update() as a second, non-atomic step, and a failure in between leaves a blob without its metadata.
+// Proposal: accept payload.custom on begin and a custom form (query or header) on direct upload. The same gap exists for namespaces: #feat-ns-metadata.
+
 type BlobBeginInput struct {
 	NS          string `input:"arguments.ns"`
 	Overwrite   string `input:"modifiers.overwrite"`

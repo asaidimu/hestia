@@ -288,6 +288,13 @@ func (s *BlobsService) CompactNamespace(ctx context.Context, msg abstract.Messag
 }
 
 
+// @note #blob-20261029-014 issue P3 #blobs,#cruft : Resolved note claims delete triggers compaction, but no such call exists, and the note's body is lost
+// @author claude
+// @see #storage-leak-blobs-never-compact-ad27adbb
+//
+// The note #storage-leak-blobs-never-compact-ad27adbb is marked resolved and says NewDeleteBlobHandler "now triggers async compaction after successful deletion". In this tree that handler only does Head and Delete, and the only caller of Compact is the root-only namespace:compact handler (grep over core/). Either compaction happens inside the blobs library or the fix was lost; stats().dead_bytes will show which.
+// Separately, that note has a directive line immediately followed by body text with no blank comment line, so under the devnotes grammar its entire body is silently discarded. Suggest re-verifying (and re-opening if needed) and adding the separator.
+
 // @note #storage-leak-blobs-never-compact-ad27adbb issue resolved P1 #storage-leak,#blobs : Storage leak: blobs never compacted after deletion
 // @assignee opencode
 // Added Compact to BlobNamespace interface and nsHandle implementation. NewDeleteBlobHandler now triggers async compaction after successful deletion. Namespace deletion already closes the engine (automatic cleanup).
