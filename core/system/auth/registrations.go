@@ -34,6 +34,24 @@ func Registrations(rt abstract.Container) ([]abstract.MessageRegistration, error
 			Handler: dispatch.Handle[model.LoginInput](s.CreateSession),
 		},
 		{
+			Name:        "system:auth:session:get",
+			Description: "Get the current session's user and expiry",
+			Intent:      abstract.Read,
+			Enabled:     true,
+			Output:      dispatch.SchemaFromType[model.SessionOutput](),
+			Handler: func(ctx context.Context, msg abstract.Message) (*abstract.Result, error) {
+				model, err := s.GetSession(ctx, msg)
+				if err != nil {
+					return nil, err
+				}
+				doc, err := model.Document()
+				if err != nil {
+					return nil, err
+				}
+				return dispatch.NewDocumentResult(doc), nil
+			},
+		},
+		{
 			Name:          "system:auth:session:delete",
 			Description:   "Logout",
 			Intent:        abstract.Delete,

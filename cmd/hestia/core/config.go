@@ -7,6 +7,14 @@ import (
 	"path/filepath"
 )
 
+// @note #tool-20261029-006 todo P3 #tooling,#config : Two config files describe overlapping layout and nothing checks they agree
+// @author claude
+// @see #tool-20261029-001
+// @see #tool-20261029-005
+//
+// hestia.json (module, core_dir, modules_dir, autogen, commands) and anansi.json (schema.glob, lockfile, migrations_dir, tsgen.out, gogen, metadata) both encode where things live, for example whether the schema glob covers core_dir and modules_dir, and where migrations go (#tool-20261029-005).
+// Options: keep both files but derive anansi defaults from hestia.json when keys are absent and report disagreement; or accept an "anansi" section in hestia.json while still honouring anansi.json for standalone use (precedence: explicit anansi.json, then the hestia.json section, then derived defaults). Avoid a third file or flag-only configuration. Depends on the embedding in #tool-20261029-001.
+
 // Config is the project configuration read from hestia.json. Fields:
 //
 //   - module:      the Go module import path (e.g. github.com/user/app).

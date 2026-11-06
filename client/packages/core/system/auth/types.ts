@@ -2,6 +2,8 @@ import type { UserIdentity } from "../users/types"
 
 export interface LoginResult {
   user: UserIdentity
+  /** Absolute session expiry, unix seconds (omitted by older servers). */
+  expires_at?: number
 }
 
 export interface ServerHealth {

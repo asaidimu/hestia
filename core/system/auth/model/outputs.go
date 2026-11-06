@@ -12,16 +12,32 @@ import (
 )
 
 // LoginDocumentView is the wire shape of a login response document. The token
-// itself is carried in the session cookie, so only the user is emitted here.
+// itself is carried in the session cookie, so only the user and the absolute
+// session expiry are emitted here.
 type LoginDocumentView struct {
 	document.DocumentModel `json:"-" anansi:"-"`
 	Token                  string         `anansi:"token"`
 	User                   map[string]any `anansi:"user,omitempty"`
+	ExpiresAt              int64          `anansi:"expires_at,omitempty"`
 }
 
 // LoginOutput declares the login response schema.
 type LoginOutput struct {
 	Document LoginDocumentView `anansi:"document"`
+}
+
+// SessionDocumentView is the wire shape of the current-session response. It
+// mirrors the login response minus the token, which never leaves the HttpOnly
+// cookie, so a fresh tab can restore the UI from an existing session.
+type SessionDocumentView struct {
+	document.DocumentModel `json:"-" anansi:"-"`
+	User                   map[string]any `anansi:"user,omitempty"`
+	ExpiresAt              int64          `anansi:"expires_at,omitempty"`
+}
+
+// SessionOutput declares the current-session response schema.
+type SessionOutput struct {
+	Document SessionDocumentView `anansi:"document"`
 }
 
 // MessageOutput declares a simple status message response.

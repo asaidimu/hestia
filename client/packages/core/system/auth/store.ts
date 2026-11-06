@@ -6,7 +6,9 @@ import type { LoginResult, ServerHealth } from "./types";
 // @see #auth-20261029-001
 // @see #auth-20261029-002
 // @see #auth-20261029-006
+// @status resolved
 //
+// Resolved: HestiaAuth.session() dispatches system:auth:session:get with notifyAuthStateChange:false; 401 clears identity and returns null, other errors throw. resume() was removed.
 // A resume() stub now exists below, but it throws "Method not implemented", so
 // the capability is still missing. Proposal: session(): Promise<LoginResult | null>.
 //   - dispatches system:auth:session:get with notifyAuthStateChange:false so a
@@ -21,7 +23,9 @@ import type { LoginResult, ServerHealth } from "./types";
 // @note #auth-20261029-004 todo P1 #client,#iam,#integration : @asaidimu/iam 8.2.0 cannot adopt an existing server session
 // @author claude
 // @see #auth-20261029-003
+// @status resolved
 //
+// Resolved: the reference integration now targets @asaidimu/iam 9.x and uses onRestore to adopt the cookie-backed session.
 // To be filed in asaidimu/iam (all verified by reading 8.2.0):
 //   1. No startup hook can supply an identity. onVerify only runs when an
 //      identity is already persisted; onLoad is undocumented, ignores its
@@ -50,11 +54,33 @@ export class HestiaAuth {
   }
 
   // @note #z3g2cp todo : Implement this feature
+  // @status resolved
+  //
+  // Resolved: the resume() stub was replaced by HestiaAuth.session().
 
-  async resume():Promise<LoginResult>{
-      // Useful for syncing state when a user opens a
-      // second tab
-      throw new Error("Method not implemented!")
+  /**
+   * Adopt the server's current session, if any. Used on tab boot and when a
+   * cross-tab signal says auth changed.
+   *
+   * Returns `null` when the server says there is no session (401). Throws for
+   * anything else (network error, 5xx): callers must be able to tell "not
+   * logged in" from "could not check", or an offline blip logs the user out.
+   */
+  async session(): Promise<LoginResult | null> {
+    try {
+      const res = await this.client.dispatch<{ data: LoginResult }>(
+        "system:auth:session:get",
+        { notifyAuthStateChange: false },
+      );
+      await this.provider.setIdentity(res.data.data.user);
+      return res.data.data;
+    } catch (err: any) {
+      if (isUnauthorized(err)) {
+        await this.provider.clear();
+        return null;
+      }
+      throw err;
+    }
   }
 
   async login(email: string, password: string): Promise<LoginResult> {
@@ -80,7 +106,9 @@ export class HestiaAuth {
 
   // @note #auth-20261029-005 issue P2 #client,#auth : logout() can leave client and IAM identity diverged; error-code check is dead
   // @author claude
+  // @status resolved
   //
+  // Resolved: logout() clears local identity in finally and treats an absent/expired session (NO_ACTIVE_SESSION/401) as success, so client and IAM cannot diverge on failure.
   // Any error other than "no active session" is rethrown BEFORE provider.clear(),
   // so a network blip leaves HestiaClient.store.identity set while IAM (which
   // clears first in deauthenticate) is already logged out, and callers that
@@ -97,13 +125,13 @@ export class HestiaAuth {
     try {
       await this.client.dispatch("system:auth:session:delete");
     } catch (err: any) {
-      if (err?.code === "NO_ACTIVE_SESSION" || err?.message?.includes("no active session")) {
-        // logout is idempotent — no session to revoke is fine
-      } else {
-        throw err;
-      }
+      if (!isNoActiveSession(err)) throw err;
+    } finally {
+      // Local state must never stay "logged in" because revocation failed: the
+      // server session also dies on idle/absolute expiry, and a stale client
+      // identity is the worse failure mode.
+      await this.provider.clear();
     }
-    await this.provider.clear();
   }
 
   async requestPasswordReset(email: string): Promise<void> {
@@ -125,4 +153,27 @@ export class HestiaAuth {
       headers: { "X-API-Key": key },
     });
   }
+}
+
+/**
+ * A 401 from either the real server or the mock transport. The HTTP transport
+ * does not preserve the status on SystemError, so match the stable codes too.
+ */
+function isUnauthorized(err: any): boolean {
+  return (
+    err?.httpStatus === 401 ||
+    err?.code === "UNAUTHORIZED" ||
+    err?.code === "UNAUTHENTICATED" ||
+    err?.code === "AUTH_REQUIRED" ||
+    err?.code === "AUTH-002-UNAUTH"
+  );
+}
+
+/** Logout is idempotent: an absent/expired session is not a failure. */
+function isNoActiveSession(err: any): boolean {
+  return (
+    err?.code === "NO_ACTIVE_SESSION" ||
+    isUnauthorized(err) ||
+    err?.message?.includes("no active session")
+  );
 }

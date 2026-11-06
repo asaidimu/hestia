@@ -2,9 +2,11 @@ package boot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/common"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
@@ -38,6 +40,15 @@ type Application struct {
 	Modules            []abstract.Module
 	systemMod          *system.SystemModule
 	rt                 *runtime.Runtime
+
+	// lifecycleMu guards the started/stopped/closed flags so that Shutdown
+	// and Close are safe to call from more than one goroutine and are
+	// idempotent (Close after an explicit Shutdown must not stop modules
+	// twice).
+	lifecycleMu sync.Mutex
+	started     bool
+	stopped     bool
+	closed      bool
 }
 
 func (a *Application) SystemModule() *system.SystemModule { return a.systemMod }
@@ -242,9 +253,10 @@ func topoSort(modules []abstract.Module) ([]abstract.Module, error) {
 
 	for _, m := range modules {
 		for _, dep := range m.Dependencies() {
-			if _, ok := byName[dep]; ok {
-				inDegree[m.Name()]++
+			if _, ok := byName[dep]; !ok {
+				return nil, fmt.Errorf("module %q depends on unknown module %q", m.Name(), dep)
 			}
+			inDegree[m.Name()]++
 		}
 	}
 
@@ -294,11 +306,13 @@ func (a *Application) AddInterface(o runtime.Interface) {
 	a.Interfaces = append(a.Interfaces, o)
 }
 
-func (a *Application) Start() {
+func (a *Application) Start() error {
 	ctx := context.Background()
+	var startErrs []error
 	for _, m := range a.Modules {
 		if err := m.Start(ctx); err != nil {
 			a.Loggers.File.Error("module start failed", zap.String("module", m.Name()), zap.Error(err))
+			startErrs = append(startErrs, fmt.Errorf("module %s start: %w", m.Name(), err))
 		}
 	}
 
@@ -309,6 +323,14 @@ func (a *Application) Start() {
 	for _, i := range a.Interfaces {
 		i.Start(bootstrapped)
 	}
+
+	a.lifecycleMu.Lock()
+	a.started = true
+	a.lifecycleMu.Unlock()
+
+	// Interfaces still start so a partially available process can be probed,
+	// but callers must be able to see which modules failed.
+	return errors.Join(startErrs...)
 }
 
 func (a *Application) RestartAll(bootstrapped bool) {
@@ -317,26 +339,54 @@ func (a *Application) RestartAll(bootstrapped bool) {
 	}
 }
 
+// Shutdown stops modules in reverse dependency order and shuts down the
+// interfaces. It is idempotent and a no-op when Start was never called, so
+// callers can safely follow it with Close.
 func (a *Application) Shutdown(ctx context.Context) error {
-	var lastErr error
+	a.lifecycleMu.Lock()
+	if a.stopped || !a.started {
+		a.stopped = true
+		a.lifecycleMu.Unlock()
+		return nil
+	}
+	a.stopped = true
+	a.lifecycleMu.Unlock()
+
+	var errs []error
 
 	// Stop modules in reverse dependency order
 	for i := len(a.Modules) - 1; i >= 0; i-- {
 		if err := a.Modules[i].Stop(ctx); err != nil {
 			a.Loggers.File.Error("module stop failed", zap.String("module", a.Modules[i].Name()), zap.Error(err))
-			lastErr = err
+			errs = append(errs, fmt.Errorf("module %s stop: %w", a.Modules[i].Name(), err))
 		}
 	}
 
 	for _, o := range a.Interfaces {
 		if err := o.Shutdown(ctx); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 		}
 	}
-	return lastErr
+	return errors.Join(errs...)
 }
 
+// Close performs the graceful shutdown sequence and then releases persistence
+// and logging. It is safe to call after an explicit Shutdown (the shutdown
+// step is idempotent) and safe to call more than once.
 func (a *Application) Close() {
+	a.lifecycleMu.Lock()
+	if a.closed {
+		a.lifecycleMu.Unlock()
+		return
+	}
+	a.closed = true
+	a.lifecycleMu.Unlock()
+
+	// The documented lifecycle is `defer app.Close()` after Start(), so Close
+	// must stop modules and interfaces before tearing down the resources they
+	// depend on.
+	_ = a.Shutdown(context.Background())
+
 	_ = a.Loggers.File.Sync()
 	if a.PersistenceManager != nil {
 		_ = a.PersistenceManager.Close()
@@ -345,6 +395,13 @@ func (a *Application) Close() {
 }
 
 func (a *Application) Reset(cfg *runtime.Config, version string) {
+	// Reset tears the process down and brings it back up in place, so the
+	// lifecycle flags must allow a later Close to shut the new instances down.
+	a.lifecycleMu.Lock()
+	a.stopped = false
+	a.closed = false
+	a.lifecycleMu.Unlock()
+
 	_ = a.Loggers.File.Sync()
 	if a.PersistenceManager != nil {
 		_ = a.PersistenceManager.Close()

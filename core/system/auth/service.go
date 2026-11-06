@@ -85,7 +85,9 @@ func NewAuthService(rt abstract.Container) (*AuthService, error) {
 // @note #auth-20261029-002 todo P2 #auth,#api : Login response carries no session expiry
 // @author claude
 // @see #auth-20261029-001
+// @status resolved
 //
+// Resolved: CreateSession now captures SessionInfo.ExpiresAt and emits expires_at on the login document; LoginResult.expires_at exposes it to clients.
 // LoginOutput holds only the user. The absolute expiry (now + sessionTTL,
 // DefaultSessionTTL = 8h) lives only inside the cookie, so clients guess it
 // (IAM consumers hard-code 8h) and drift from the server. Return expires_at
@@ -118,7 +120,7 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 		return nil, common.NewSystemError("INVALID_CREDENTIALS", "invalid email or password")
 	}
 
-	token, _, err := s.credProv.CreateSession(user.ID, s.sessionTTL)
+	token, info, err := s.credProv.CreateSession(user.ID, s.sessionTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +135,63 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 	if sane != nil {
 		view.User = sane.ToMap()
 	}
+	if info != nil {
+		view.ExpiresAt = info.ExpiresAt
+	}
 
 	resultDoc, err := document.New(view).Document()
 	if err != nil {
 		return nil, err
 	}
 	return &abstract.Result{Document: resultDoc, SessionToken: token}, nil
+}
+
+// GetSession returns the current session's user and absolute expiry. The
+// session cookie is HttpOnly, so this is the only way a fresh tab can learn
+// that a valid session already exists and restore its UI state.
+//
+// @hestia.register(
+//
+//	name="system:auth:session:get",
+//	intent="read",
+//	rule="authenticated",
+//	description="Get the current session's user and expiry",
+//	output="model.SessionOutput",
+//
+// )
+func (s *AuthService) GetSession(ctx context.Context, msg abstract.Message) (*model.SessionDocumentView, error) {
+	userID := runtime.GetUserID(ctx)
+	if userID == "" {
+		return nil, runtime.ErrUnauthorized.WithMessage("no active session")
+	}
+
+	user, err := s.users.GetByID(ctx, userID)
+	if err != nil {
+		// The middleware has already validated the session and token version,
+		// so a user that cannot be loaded means the session is no longer valid.
+		return nil, runtime.ErrUnauthorized.WithMessage("no active session").WithCause(err)
+	}
+
+	sctx := common.ContextWithSanitizationScope(ctx, "users")
+	sane, err := user.MustDocument().Sanitize(sctx)
+	if err != nil {
+		return nil, err
+	}
+
+	view := &model.SessionDocumentView{}
+	if sane != nil {
+		view.User = sane.ToMap()
+	}
+
+	// The middleware carries the live expiry from the validated cookie; fall
+	// back to a fresh TTL only when the claims are absent (should not happen
+	// on an authenticated route).
+	view.ExpiresAt = time.Now().Add(s.sessionTTL).Unix()
+	if claims, ok := runtimecontext.ClaimsFromContext(ctx); ok && claims.ExpiresAt > 0 {
+		view.ExpiresAt = claims.ExpiresAt
+	}
+
+	return view, nil
 }
 
 // DeleteSession logs out.
@@ -160,7 +213,7 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 func (s *AuthService) DeleteSession(ctx context.Context, msg abstract.Message, input *model.DeleteSessionInput) error {
 	sid := runtime.GetTokenID(ctx)
 	if sid == "" {
-		return common.NewSystemError("UNAUTHENTICATED", "no active session to revoke")
+		return runtime.ErrUnauthorized.WithMessage("no active session to revoke")
 	}
 
 	// Expiry fallback: if claims are missing (should not happen on an
@@ -255,7 +308,9 @@ func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message,
 // @author claude
 // @see #auth-20261029-002
 // @see #auth-20261029-003
+// @status resolved
 //
+// Resolved: added system:auth:session:get (GetSession) returning the sanitized user and absolute expires_at, gated by the authenticated rule.
 // The session cookie is HttpOnly, so page JS cannot read it and a fresh tab
 // has no way to learn that a valid session already exists. Today:
 //   - system:auth:session:validate is Internal and wants a raw token in the

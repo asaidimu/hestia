@@ -17,6 +17,7 @@ import (
 	"github.com/asaidimu/go-anansi/v8/core/data"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"github.com/asaidimu/go-anansi/v8/core/persistence/collection"
+	"github.com/asaidimu/go-anansi/v8/core/sanitize"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -29,6 +30,7 @@ import (
 	usersmodel "github.com/asaidimu/hestia/core/system/users/model"
 	"github.com/asaidimu/hestia/core/internal/testutil"
 	"github.com/asaidimu/hestia/core/runtime"
+	runtimecontext "github.com/asaidimu/hestia/core/runtime/context"
 	"github.com/asaidimu/hestia/core/runtime/notification"
 )
 
@@ -544,4 +546,81 @@ func (r *testNotifResolver) Render(_ context.Context, ch abstract.ChannelType, n
 		return "Password Reset", body, nil
 	}
 	return name, "", nil
+}
+
+func TestCreateSessionIncludesExpiresAt(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	svc := newTestAuthService(t, p)
+
+	before := time.Now().Add(7 * 24 * time.Hour).Unix()
+	result, err := svc.CreateSession(context.Background(), testMessage{name: "create-session"}, &authmodel.LoginInput{
+		Email:    "test@example.com",
+		Password: "secret123",
+	})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	after := time.Now().Add(7 * 24 * time.Hour).Unix()
+
+	expires, ok := result.Document.GetOr("expires_at", int64(0)).(int64)
+	if !ok || expires == 0 {
+		t.Fatalf("login document has no expires_at: %v", result.Document.ToMap())
+	}
+	if expires < before-2 || expires > after+2 {
+		t.Fatalf("expires_at = %d, want within [%d, %d]", expires, before-2, after+2)
+	}
+}
+
+func TestGetSessionHandler(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	svc := newTestAuthService(t, p)
+
+	if err := sanitize.Registry().Register("users", users.SanitizationRules()); err != nil {
+		t.Fatalf("register users sanitization: %v", err)
+	}
+
+	login, err := svc.CreateSession(context.Background(), testMessage{name: "create-session"}, &authmodel.LoginInput{
+		Email:    "test@example.com",
+		Password: "secret123",
+	})
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	loginMap := login.Document.ToMap()
+	user, _ := loginMap["user"].(map[string]any)
+	userID, _ := user["_id_"].(string)
+	if userID == "" {
+		t.Fatalf("login document has no user id: %v", loginMap)
+	}
+	expires, _ := loginMap["expires_at"].(int64)
+
+	ctx := runtimecontext.ContextWithClaims(context.Background(), &abstract.Claims{
+		UserID:    userID,
+		TokenType: "session",
+		ExpiresAt: expires,
+	})
+
+	view, err := svc.GetSession(ctx, testMessage{name: "get-session", ctx: ctx})
+	if err != nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	if view.ExpiresAt != expires {
+		t.Errorf("expires_at = %d, want %d", view.ExpiresAt, expires)
+	}
+	if got, _ := view.User["email"].(string); got != "test@example.com" {
+		t.Errorf("email = %q, want test@example.com", got)
+	}
+	if pw, ok := view.User["password"]; ok && pw != "***" {
+		t.Errorf("sanitized session user leaked the password: %v", pw)
+	}
+}
+
+func TestGetSessionRequiresAuth(t *testing.T) {
+	p := testutil.NewPersistence(t)
+	svc := newTestAuthService(t, p)
+
+	if _, err := svc.GetSession(context.Background(), testMessage{name: "get-session"}); err == nil {
+		t.Fatal("GetSession without claims should fail")
+	}
 }

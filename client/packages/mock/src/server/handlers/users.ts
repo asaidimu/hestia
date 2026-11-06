@@ -2,7 +2,8 @@
  * Auth + user management handlers.
  *
  * Response shapes mirror the Go `AuthService`:
- *  - session:create → `{data: {user: <sanitized user doc>}}` + new session
+ *  - session:create → `{data: {user: <sanitized user doc>, expires_at}}` + new session
+ *  - session:get → `{data: {user, expires_at}}` for the current cookie session
  *  - users:user:create → `{data: <user doc>}` (public registration)
  *  - reads never include the password hash
  */
@@ -55,7 +56,28 @@ export function userHandlers(deps: ServerDeps): Record<string, RouteSpec> {
           is_admin: isAdmin(user),
         };
 
-        return ok({ user: sanitizeUser(clone(user)) });
+        return ok({
+          user: sanitizeUser(clone(user)),
+          // Wire format is unix seconds, matching the Go SessionInfo.ExpiresAt.
+          expires_at: Math.floor(session.expires_at / 1000),
+        });
+      },
+    },
+
+    "system:auth:session:get": {
+      access: "authenticated",
+      handler: async (ctx) => {
+        const identity = ctx.identity!;
+        let expiresAt: number | null = null;
+        if (identity.session_id) {
+          const session = await tables.sessions.get(identity.session_id);
+          // Wire format is unix seconds (the table stores milliseconds).
+          expiresAt = session ? Math.floor(session.expires_at / 1000) : null;
+        }
+        return ok({
+          user: sanitizeUser(clone(identity.user)),
+          expires_at: expiresAt,
+        });
       },
     },
 

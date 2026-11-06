@@ -54,6 +54,13 @@ by every command.`,
 		}
 
 		os.MkdirAll(featureDir, 0755)
+		// @note #tool-20261029-005 issue P2 #tooling,#migrations : Per-module model/migrations directories are scaffolded but nothing populates them
+		// @author claude
+		// @see #tool-20261029-006
+		//
+		// This (and `service new --model` in service.go) creates <module>/model/migrations, but anansi's config has a single schema.migrations_dir and lockfile, and hestia's own repo keeps all 16 migrations in core/internal/migrations (there are no per-service model/migrations directories). The scaffolded directories stay empty and imply a per-module layout the tooling cannot produce, since one run emits into one directory.
+		// Decide: (a) a project-level migrations directory and drop this scaffolding, or (b) teach anansi per-schema output (for example a schema-relative migrations_dir) so each module owns its migrations and lockfile entries. (b) matters if modules are meant to ship independently. Related config question: #tool-20261029-006.
+
 		os.MkdirAll(filepath.Join(featureDir, "model", "migrations"), 0755)
 
 		if err := writeFile(filepath.Join(modDir, "module.go"), scaffoldModule(modName)); err != nil {

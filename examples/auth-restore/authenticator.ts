@@ -1,9 +1,9 @@
-import { HestiaClient, UserIdentity } from "@asaidimu/hestia";
+import { HestiaClient, type UserIdentity } from "@asaidimu/hestia";
 import { createAuthenticator, type Identity } from "@asaidimu/iam";
 import { ArtifactContainer } from "@asaidimu/utils-artifacts";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 
-// @note #auth-20261029-010 context #auth,#client,#integration,#example : Reference integration of HestiaClient with @asaidimu/iam 8.2.0
+// @note #auth-20261029-010 context #auth,#client,#integration,#example : Reference integration of HestiaClient with @asaidimu/iam 9.x
 // @author claude
 // @see #auth-20261029-001
 // @see #auth-20261029-002
@@ -13,37 +13,31 @@ import { ReactiveDataStore } from "@asaidimu/utils-store";
 // @see #auth-20261029-007
 // @see #auth-20261029-008
 // @see #auth-20261029-009
+// @status resolved
 //
+// Resolved: reference integration updated to @asaidimu/iam 9.x (async factory, onRestore, refreshResult, onAuthChange mirroring HestiaClient).
 // Principle: the server's HttpOnly session cookie is the single source of
 // truth. IAM holds a copy of the claims for the UI, and every path that could
 // make that copy stale re-asks the server instead of trusting memory:
-//   - tab boot                 -> restore() adopts an existing session
+//   - tab boot                 -> onRestore adopts an existing session
 //   - tab regains focus        -> refresh() re-validates and re-fetches claims
-//   - another tab logs in/out  -> BroadcastChannel ping -> re-ask the server
-//   - any request gets a 401   -> client.onAuthStateChange -> refresh()
-//   - identity set or cleared  -> heartbeat starts or stops (the heartbeat
-//     keeps the sliding server session alive: 30 min idle limit, renewed by
-//     any authenticated request)
+//   - another tab logs in/out  -> HestiaClient BroadcastChannel -> auth.session()
+//   - any request gets a 401   -> HestiaClient clears identity -> IAM mirrors it
+//   - identity set or cleared  -> HestiaClient starts/stops the heartbeat
 //
-// Written against the API specified by the notes above, which does not exist
-// yet: client.auth.session() resolving { user, expires_at? } or null on 401
-// and THROWING on network/5xx (unknown, so the user must not be logged out),
-// and expires_at (unix seconds) on login results. HestiaAuth.resume() is the
-// current placeholder and throws "Method not implemented"; treat it as the
-// interim name for session(). This file is not part of any package build; it
-// type-checked against @asaidimu/iam 8.2.0 declarations with a stub for the
-// missing client methods.
+// Requires @asaidimu/iam >= 9 (onRestore, async createAuthenticator,
+// refreshResult, refreshLeadTime) and HestiaAuth.session() on the client.
+// This file is not part of any package build.
 
-type AuthRequest =
-  | { kind: "login"; email: string; password: string }
-  | { kind: "restore" };
+type Credentials = { email: string; password: string };
 
 type Claims = { user: UserIdentity; expires_at?: number };
 
-const CHANNEL_NAME = "hestia:auth";
-
 // Used only when the server does not send expires_at (older servers).
-const FALLBACK_SESSION = { ttl: 8 * 60 * 60 * 1000, refreshInterval: 2 * 60 * 1000 };
+const FALLBACK_SESSION = {
+  ttl: 8 * 60 * 60 * 1000,
+  refreshLeadTime: 2 * 60 * 1000,
+};
 
 /** Plain IAM identity: what the UI reads and what is shared across tabs. */
 function identityOf({ user }: Claims): Identity<UserIdentity, any> {
@@ -72,34 +66,20 @@ export async function Authenticator({
   container: ArtifactContainer;
   store: ReactiveDataStore<any>;
 }) {
-  // @note #auth-20261029-013 todo P3 #auth,#client,#integration : Move cross-tab signalling and the 401 bridge into HestiaClient
-  // @author claude
-  // @see #auth-20261029-007
-  // @see #auth-20261029-009
-  //
-  // The BroadcastChannel ping, the visibilitychange refresh and the
-  // client.onAuthStateChange(() => refresh()) bridge below exist only because
-  // HestiaClient neither broadcasts auth changes nor offers a real
-  // subscription. Never broadcast claims, only "changed"; never post from the
-  // handler of a received message (ping-pong).
-  const channel =
-    typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(CHANNEL_NAME) : null;
   const cleanups: Array<() => void> = [];
 
-  const auth = await createAuthenticator<UserIdentity, AuthRequest, any>({
-    onAuthenticate: async (request) => {
-      // @note #auth-20261029-011 todo P2 #auth,#iam,#integration : Remove the restore request kind once iam gains onRestore
-      // @author claude
-      // @see #auth-20261029-004
-      //
-      // iam 8.2.0 has no startup hook that can supply an identity, so restore
-      // is modelled as a variant of authenticate(). Replace this branch with
-      // onRestore: () => client.auth.session() and drop AuthRequest.
-      if (request.kind === "restore") {
-        // null (no session) makes authenticate() resolve false, no error.
-        return resultOf(await client.auth.session());
-      }
-      return resultOf(await client.auth.login(request.email, request.password));
+  const auth = await createAuthenticator<UserIdentity, Credentials, any>({
+    // Adopt a cookie-backed session that already exists on the server. This is
+    // what makes a fresh tab stay logged in; `null` means "no session".
+    onRestore: async () => {
+      const claims = await client.auth.session();
+      return claims ? identityOf(claims) : null;
+    },
+
+    onAuthenticate: async (credentials) => {
+      return resultOf(
+        await client.auth.login(credentials.email, credentials.password),
+      );
     },
 
     onDeauthenticate: async () => {
@@ -114,33 +94,37 @@ export async function Authenticator({
     },
 
     // Re-fetch claims instead of echoing the old ones, so permission changes
-    // and revocations reach the UI. null (401) logs out; a thrown error means
-    // "could not check", so keep the user in: the server still enforces.
-    onRefresh: async (current) => {
-      try {
-        return resultOf(await client.auth.session());
-      } catch {
-        return current;
-      }
+    // and revocations reach the UI. `null` (401) logs out. A thrown error is
+    // reported as `unavailable` and keeps the last known identity, so do not
+    // catch it here: the server still enforces authority.
+    onRefresh: async () => {
+      return resultOf(await client.auth.session());
     },
 
-    // Cross-tab: another tab logged in or out. Re-ask the server rather than
-    // trusting any payload, then hand IAM the outcome.
+    // Runs once after startup, with the final restored identity (or null).
+    onLoad: async (identity) => {
+      console.info(
+        "[auth] startup complete",
+        identity ? "authenticated" : "anonymous",
+      );
+    },
+
+    // HestiaClient is the authority for cross-tab changes: it broadcasts only
+    // "changed" and re-asks the server. Mirror its store into IAM instead of
+    // running a second BroadcastChannel here.
     onAuthChange: (notify) => {
-      if (!channel) return () => {};
-      const onMessage = async () => {
-        try {
-          const claims = await client.auth.session();
-          notify(claims && resultOf(claims) ? identityOf(claims) : null);
-        } catch {
-          // Offline or server error: keep the current state.
-        }
-      };
-      channel.addEventListener("message", onMessage);
-      return () => channel.removeEventListener("message", onMessage);
+      return client.onAuthStateChange((identity) => {
+        notify(
+          identity
+            ? { permissions: (identity as any).permissions ?? [], properties: identity }
+            : null,
+        );
+      });
     },
 
-    // Fallback only; the server's expires_at overrides it per login/refresh.
+    // Fallback only; expires_at from login/refresh overrides it per session.
+    // IAM's onRestore cannot carry a per-restore TTL yet, so a restored
+    // session uses this value until the first refresh.
     session: FALLBACK_SESSION,
 
     scope: {
@@ -149,24 +133,7 @@ export async function Authenticator({
     },
   });
 
-  // @note #auth-20261029-012 todo P2 #auth,#client,#integration : Delete this heartbeat bridge once HestiaClient owns the heartbeat lifecycle
-  // @author claude
-  // @see #auth-20261029-008
-  //
-  // The heartbeat follows the identity, whatever changed it (login, restore,
-  // refresh, expiry, cross-tab), and it is what slides the server session.
-  // HestiaClient should start and stop it itself when its identity changes.
-  cleanups.push(
-    auth.onChange((identity) => {
-      if (identity) client.startHeartbeat();
-      else client.stopHeartbeat();
-    }),
-  );
-
-  // Any 401 from any request: let IAM re-validate and clear if needed.
-  client.onAuthStateChange(() => {
-    void auth.refresh();
-  });
+  // HestiaClient owns the heartbeat now; no bridge is needed here.
 
   // Back in the foreground (tab switch, laptop wake): re-validate now rather
   // than showing stale state until the next timer tick.
@@ -175,40 +142,36 @@ export async function Authenticator({
       if (document.visibilityState === "visible") void auth.refresh();
     };
     document.addEventListener("visibilitychange", onVisible);
-    cleanups.push(() => document.removeEventListener("visibilitychange", onVisible));
+    cleanups.push(() =>
+      document.removeEventListener("visibilitychange", onVisible),
+    );
   }
-
-  const announce = () => channel?.postMessage("changed");
 
   /** Adopt a session that already exists on the server. Never throws. */
   const restore = async (): Promise<boolean> => {
     try {
-      return await auth.authenticate({ kind: "restore" });
+      return (await auth.restore()) !== null;
     } catch (e) {
       console.warn("[auth] could not check for an existing session", e);
       return false;
     }
   };
 
-  /** Throws on bad credentials; tells other tabs on success. */
+  /** Throws on bad credentials. Other tabs are told by HestiaClient. */
   const login = async (email: string, password: string): Promise<boolean> => {
-    const ok = await auth.authenticate({ kind: "login", email, password });
-    if (ok) announce();
-    return ok;
+    return auth.authenticate({ email, password });
   };
 
-  /** Prefer this over auth.deauthenticate(): it also tells other tabs. */
+  /** Prefer this over auth.deauthenticate(): it clears the server session. */
   const logout = async (): Promise<boolean> => {
-    const ok = await auth.deauthenticate();
-    announce();
-    return ok;
+    return auth.deauthenticate();
   };
 
   const destroy = auth.destroy.bind(auth);
 
-  // Resolve the initial state before the app renders, so a user who already
-  // has a session in another tab never sees a login screen.
-  await restore();
+  // createAuthenticator already ran onRestore before returning, so the initial
+  // state is resolved before the app renders. The exported `restore` remains
+  // available for an explicit re-check.
 
   return Object.assign(auth, {
     login,
@@ -216,7 +179,6 @@ export async function Authenticator({
     restore,
     destroy: async () => {
       cleanups.forEach((dispose) => dispose());
-      channel?.close();
       await destroy();
     },
   });

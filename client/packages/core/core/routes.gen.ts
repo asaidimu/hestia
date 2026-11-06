@@ -20,6 +20,7 @@ export const ROUTE_TABLE = {
   "system:auth:password:reset": { method: "POST", route: "/system/auth/password/reset", arguments: [] },
   "system:auth:session:create": { method: "POST", route: "/system/auth/session/create", arguments: [] },
   "system:auth:session:delete": { method: "DELETE", route: "/system/auth/session/delete", arguments: [] },
+  "system:auth:session:get": { method: "GET", route: "/system/auth/session/get", arguments: [] },
   "system:auth:token:elevate": { method: "POST", route: "/system/auth/token/elevate", arguments: [] },
   "system:blobs:blob:abort": { method: "POST", route: "/system/blobs/blob/abort/{ns}", arguments: ["ns"] },
   "system:blobs:blob:begin": { method: "POST", route: "/system/blobs/blob/begin/{ns}", arguments: ["ns"] },

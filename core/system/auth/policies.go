@@ -8,6 +8,7 @@ import "github.com/asaidimu/hestia/core/system/policies"
 func Policies() []policies.Binding {
 	return []policies.Binding{
 		{Name: "system:auth:session:create", RuleKey: "public", Description: "Authenticate and receive a session token"},
+		{Name: "system:auth:session:get", RuleKey: "authenticated", Description: "Get the current session's user and expiry"},
 		{Name: "system:auth:session:delete", RuleKey: "authenticated", Description: "Logout"},
 		{Name: "system:auth:password:reset", RuleKey: "authenticated", Description: "Request password reset email"},
 		{Name: "system:auth:password:confirm", RuleKey: "public", Description: "Confirm password reset with token"},

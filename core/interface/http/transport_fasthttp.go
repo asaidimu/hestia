@@ -201,6 +201,18 @@ func (t *HTTPTransport) serveHTTP(ctx *fasthttp.RequestCtx) {
                                         zap.String("request_id", string(ctx.Request.Header.Peek("X-Request-ID"))),
                                 )
                         }
+                        // @note #err-20261103-5 issue : Panic response body omits the request ID
+                        // @status open
+                        // @priority low
+                        // @tags #errors #observability
+                        // @created 2026-11-03
+                        // @author ai-code-reviewer
+                        // @see #err-20261103-7
+                        //
+                        // This canned body has no metadata.request, so panic responses
+                        // break the request-ID correlation every other error path
+                        // maintains (the X-Request-ID response header from
+                        // correlationID is still set).
                         ctx.SetStatusCode(fasthttp.StatusInternalServerError)
                         ctx.Response.Header.Set("Content-Type", "application/json")
                         _, _ = ctx.Write([]byte(`{"error":{"code":"INTERNAL_ERROR","message":"internal server error"}}`))
@@ -430,6 +442,43 @@ func buildResponseMeta(resp abstract.Response, ctx *fasthttp.RequestCtx) map[str
         return meta
 }
 
+// @note #err-20261103-7 context : Error-reporting topology for a failed API call
+// @status open
+// @tags #errors #observability
+// @created 2026-11-03
+// @author ai-code-reviewer
+// @see #err-20261103-1
+// @see #err-20261103-2
+// @see #err-20261103-3
+// @see #err-20261103-4
+// @see #err-20261103-5
+//
+// A failed call is classified in writeError. A *common.SystemError maps to a
+// status via codeToStatusFn and keeps issue.Cause as `details` for 4xx; any
+// other error becomes an opaque 500 whose cause is logged server-side only.
+// Every path is correlated by X-Request-ID (generated in correlationID,
+// echoed in the response header and metadata.request); the same ID lands in
+// the zap log lines and audit entries. Handler errors that reach the audit
+// link store the full error string in the audit collection (status=error,
+// indexed by request_id); denials and limiter rejections never reach it.
+
+// @note #err-20261103-1 issue : Non-SystemError handler failures surface as an opaque 500
+// @status open
+// @priority high
+// @tags #errors #observability #http
+// @created 2026-11-03
+// @author ai-code-reviewer
+// @see #err-20261103-7
+//
+// The default branch replaces any error that is not a *common.SystemError
+// with INTERNAL_ERROR / "internal server error" (S-16: raw strings must not
+// reach clients). Most feature handlers return plain wrapped errors (e.g.
+// fmt.Errorf("create document in %q: %w", ...)), so the common failure path
+// gives clients nothing to act on and pushes all diagnosis onto the log
+// file. Fix direction: make handlers return SystemErrors with causes
+// (WithCause) so 4xx details reach clients and 5xx causes are classifiable,
+// rather than widening what leaks across the wire.
+
 func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abstract.Response) {
         ctx.SetContentType("application/json")
 
@@ -491,6 +540,20 @@ func (t *HTTPTransport) writeError(ctx *fasthttp.RequestCtx, err error, resp abs
                 "metadata": meta,
         })
 
+        // @note #err-20261103-2 issue : A 5xx SystemError's cause may be logged nowhere
+        // @status open
+        // @priority medium
+        // @tags #errors #observability
+        // @created 2026-11-03
+        // @author ai-code-reviewer
+        // @see #err-20261103-1
+        //
+        // The errors.As branch strips details for status >= 500 (S-16, correct),
+        // but this Warn records only issue.Message - the Error-level "internal
+        // error" log fires only in the default branch. A SystemError carrying a
+        // WithCause chain whose code maps to 5xx therefore has its root cause in
+        // neither the response nor the transport log; only the audit record may
+        // still hold the full error string.
         if t.logger != nil {
                 t.logger.Warn("request error",
                         zap.String("code", issue.Code),

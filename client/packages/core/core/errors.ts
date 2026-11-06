@@ -18,6 +18,20 @@ export async function parseErrorBody(raw: Response): Promise<ServerErrorBody | n
   }
 }
 
+// @note #err-20261103-4 issue : SDK drops server-sent error details
+// @status open
+// @priority medium
+// @tags #sdk #errors
+// @created 2026-11-03
+// @author ai-code-reviewer
+// @see #err-20261103-7
+//
+// The server serializes failures as { error: { code, message, details } }
+// with details carrying issue.Cause for 4xx (transport_fasthttp.go
+// writeError), but this parser only reads body.details?.issues - so
+// validation causes and policy-denial details sent by the server never reach
+// SDK callers. Align this shape with the wire format, or make the server
+// emit details.issues.
 export function toSystemError(response: ApiResponse<unknown>, body: ServerErrorBody | null): SystemError {
   if (body) {
     return new SystemError({

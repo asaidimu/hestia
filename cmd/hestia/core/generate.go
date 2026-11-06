@@ -24,6 +24,14 @@ type depField struct {
 
 var forceMode bool
 
+// @note #tool-20261029-002 todo P1 #tooling,#ergonomics : No single command runs the whole schema-to-service pipeline
+// @author claude
+// @see #tool-20261029-001
+// @see #tool-20261029-003
+//
+// After a schema change the documented sequence (README, skills/SKILL.md) is: anansi migrate generate --dry-run, anansi migrate generate, anansi codegen golang, then hestia generate modules and hestia service generate <module> <name> for each affected service. Order matters (models before service registrations) and each step is a different tool with its own config.
+// Proposal: `hestia sync` = migrate generate, then codegen golang (and typescript when configured), then service generate for every service, then generate modules. Flags: --dry-run, and --check that exits non-zero when anything would change (anansi already has --check for migrations) so CI can gate on it, plus one summary of changed files. The individual verbs stay available once embedded (#tool-20261029-001). Option drift between generators is #tool-20261029-003.
+
 var GenerateCmd = &cobra.Command{
 	Use:     "generate",
 	Aliases: []string{"gen"},

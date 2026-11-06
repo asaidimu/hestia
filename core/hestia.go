@@ -131,8 +131,7 @@ func (a *Application) Start() error {
 	if err := a.SeedPolicies(); err != nil {
 		return err
 	}
-	a.inner.Start()
-	return nil
+	return a.inner.Start()
 }
 func (a *Application) Shutdown(ctx context.Context) error { return a.inner.Shutdown(ctx) }
 func (a *Application) Close()                             { a.inner.Close() }

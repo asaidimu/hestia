@@ -2,12 +2,14 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	bserrors "github.com/asaidimu/blobs/errors"
 	bbolt "github.com/asaidimu/blobs/index/backend"
 	"github.com/asaidimu/blobs/object"
 	"github.com/asaidimu/blobs/staging"
@@ -23,6 +25,9 @@ type Service struct {
 }
 
 func NewService(dataDir string, logger *zap.Logger) (*Service, error) {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("blobs: create data dir: %w", err)
 	}
@@ -40,6 +45,27 @@ func NewService(dataDir string, logger *zap.Logger) (*Service, error) {
 	if err != nil {
 		_ = idx.Close()
 		return nil, fmt.Errorf("blobs: open store: %w", err)
+	}
+
+	// The v1.3.5 index upgrade is in place and one-way. Report it so an
+	// operator knows the store was migrated and whether any chunks could not
+	// be recovered.
+	if report := s.MigrationReport(); report.Ran {
+		logger.Info("blobs: upgraded index to the namespace-UID format",
+			zap.Int("namespaces", report.Namespaces),
+			zap.Int("blobs", report.Blobs),
+			zap.Int("chunks", report.Chunks),
+			zap.Int("chunks_rebuilt", report.ChunksRebuilt),
+			zap.Int("unrecoverable", len(report.Unrecoverable)),
+		)
+		for _, u := range report.Unrecoverable {
+			logger.Warn("blobs: chunk could not be recovered during index upgrade",
+				zap.String("namespace", u.Namespace),
+				zap.String("key", u.Key),
+				zap.String("chunk_id", string(u.ChunkID)),
+				zap.String("reason", u.Reason),
+			)
+		}
 	}
 
 	stagingDir := filepath.Join(dataDir, "staging")
@@ -118,7 +144,26 @@ func (svc *Service) GetNamespace(ctx context.Context, nsID string) (*BlobNamespa
 }
 
 func (svc *Service) DeleteNamespace(ctx context.Context, nsID string) error {
-	return svc.s.DeleteNamespace(ctx, nsID)
+	err := svc.s.DeleteNamespace(ctx, nsID)
+	if err == nil {
+		return nil
+	}
+
+	// v1.3.5 unlinks the name first and erases the data afterwards. If the
+	// erase is deferred (cancelled context or backend failure) the namespace
+	// is already gone and unreachable; only its files remain. The next Open
+	// (or CleanupDeletedNamespaces) finishes the job, so this is not a delete
+	// failure.
+	var pending *bserrors.CleanupPendingError
+	if errors.As(err, &pending) {
+		svc.logger.Warn("blobs: namespace deleted, data erase pending",
+			zap.String("namespace", nsID),
+			zap.String("uid", pending.UID),
+			zap.Error(pending.Err),
+		)
+		return nil
+	}
+	return err
 }
 
 func (svc *Service) ListNamespaces(ctx context.Context) ([]BlobNamespaceInfo, error) {

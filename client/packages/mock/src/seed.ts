@@ -37,6 +37,7 @@ const IAM_RULES = [
 const OPERATION_POLICIES: { name: string; rule: string }[] = [
   { name: "system:auth:session:create", rule: "anonymous" },
   { name: "system:auth:session:delete", rule: "authenticated" },
+  { name: "system:auth:session:get", rule: "authenticated" },
   { name: "system:auth:password:reset", rule: "anonymous" },
   { name: "system:auth:password:confirm", rule: "anonymous" },
   { name: "system:users:user:create", rule: "anonymous" },

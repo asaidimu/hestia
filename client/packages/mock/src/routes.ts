@@ -25,6 +25,7 @@ export const MOCK_ROUTE_TABLE: Record<string, MockRouteDoc> = {
   "system:auth:password:reset": { method: "POST", route: "/system/auth/password/reset" },
   "system:auth:session:create": { method: "POST", route: "/system/auth/session/create" },
   "system:auth:session:delete": { method: "DELETE", route: "/system/auth/session/delete" },
+  "system:auth:session:get": { method: "GET", route: "/system/auth/session/get" },
   "system:auth:token:elevate": { method: "POST", route: "/system/auth/token/elevate" },
   "system:blobs:blob:abort": { method: "POST", route: "/system/blobs/blob/abort/{ns}" },
   "system:blobs:blob:begin": { method: "POST", route: "/system/blobs/blob/begin/{ns}" },

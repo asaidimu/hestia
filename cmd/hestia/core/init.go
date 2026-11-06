@@ -10,6 +10,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// @note #tool-20261029-004 todo P2 #tooling,#scaffold : init does not make the project anansi-ready
+// @author claude
+// @see #tool-20261029-001
+// @see #tool-20261029-006
+//
+// init writes main.go, the Makefile, .env, .gitignore and hestia.json, but no anansi.json, schemas directory or lockfile. A fresh project cannot run migrate or codegen until the user runs `anansi scaffold --existing` separately, and anansi's default glob would not match hestia's core_dir/modules_dir layout.
+// Fix: once scaffold is importable (#tool-20261029-001), have init create anansi.json non-destructively, with the glob derived from core_dir and modules_dir, and add sync/check targets to the generated Makefile. Config overlap is #tool-20261029-006.
+
 var InitCmd = &cobra.Command{
 	Use:   "init [module-path] [root]",
 	Short: "Initialise a new hestia project",

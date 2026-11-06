@@ -39,6 +39,19 @@ func NewCollectionCreateHandler(persist persistence.Persistence, policyOp abstra
 			schemaBytes, _ = json.Marshal(bodyRaw)
 		}
 
+		// @note #err-20261103-6 issue : Collections are not "schema-less", docs say otherwise
+		// @status open
+		// @priority low
+		// @tags #docs #collections
+		// @created 2026-11-03
+		// @author ai-code-reviewer
+		//
+		// Collection creation requires a valid Anansi schema (checked here and
+		// with ValidateSchema below), so runtime collections are
+		// runtime-declared schemas, not schema-less. README.md ("schema-less
+		// document CRUD, like Firestore") and skills/SKILL.md use the
+		// misleading term; "dynamic schema" / "schema-flexible" is accurate
+		// and avoids inviting users who expect zero validation.
 		if len(schemaBytes) == 0 {
 			return nil, common.NewSystemError("SCHEMA_REQUIRED", "request body must be a valid Anansi schema definition")
 		}

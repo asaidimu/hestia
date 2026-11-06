@@ -208,6 +208,14 @@ func writeStubSchema(path, entity string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
+// @note #tool-20261029-003 issue P2 #tooling,#codegen : service new and anansi codegen write the same *.model.go with different options
+// @author claude
+// @see #tool-20261029-001
+// @see #tool-20261029-006
+//
+// generateModel (used by `service new --model`) builds golang.GeneratorConfig from fixed values: PackageName "model", NameRules ^_(.+)_$ -> System (hestia's own convention for _user_-style system schemas), DefaultTagConfig, no Mode and no ScopedPackages. `anansi codegen golang` (RunGoGen) reads tags, scoped, name_rules and mode from anansi.json, derives the package name from the directory, and writes the same <schema>.model.go next to the schema.
+// With a non-default anansi.json the next codegen run rewrites what service new produced (churn, possibly different type names), and user projects inherit the System rule meant for hestia's own schemas. Fix: one entry point (the embedded codegen, #tool-20261029-001) driven by the project's config (#tool-20261029-006); service new should call it for just that schema.
+
 func generateModel(modelDir, name, schemaPath string) error {
 	raw, err := os.ReadFile(schemaPath)
 	if err != nil {

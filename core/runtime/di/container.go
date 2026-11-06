@@ -223,33 +223,45 @@ func (c *Container) resolve(t reflect.Type) (any, error) {
 		return val, nil
 	}
 
-	if c.resolving[t] {
-		trail := append(slices.Clone(c.stack), t)
-		c.mu.Unlock()
-		return nil, fmt.Errorf("di: Build: dependency cycle detected: %s", formatTrail(trail))
-	}
+	// Cycle tracking is only needed while Build() validates the graph, and
+	// Build() is single-threaded. Once the container is built, the shared
+	// resolving map and stack must not be touched: concurrent transient
+	// resolutions would otherwise see each other's in-flight types and report
+	// a false dependency cycle. The graph (including transients) was already
+	// validated during Build, so runtime resolution can be stateless.
+	tracking := c.building
+	if tracking {
+		if c.resolving[t] {
+			trail := append(slices.Clone(c.stack), t)
+			c.mu.Unlock()
+			return nil, fmt.Errorf("di: Build: dependency cycle detected: %s", formatTrail(trail))
+		}
 
-	c.resolving[t] = true
-	c.stack = append(c.stack, t)
+		c.resolving[t] = true
+		c.stack = append(c.stack, t)
+	}
 	c.mu.Unlock()
 
 	// Execute constructor without lock so nested c.Get calls don't deadlock
 	val, err := p.ctor(c)
 
-	c.mu.Lock()
-	delete(c.resolving, t)
-	c.stack = c.stack[:len(c.stack)-1]
+	if tracking {
+		c.mu.Lock()
+		delete(c.resolving, t)
+		c.stack = c.stack[:len(c.stack)-1]
+		c.mu.Unlock()
+	}
 
 	if err != nil {
-		c.mu.Unlock()
 		return nil, fmt.Errorf("di: constructing %s: %w", t, err)
 	}
 
 	if p.lifetime == Singleton {
+		c.mu.Lock()
 		p.instance = val
 		p.built = true
+		c.mu.Unlock()
 	}
-	c.mu.Unlock()
 
 	return val, nil
 }

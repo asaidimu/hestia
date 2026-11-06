@@ -539,6 +539,20 @@ func (m *SystemModule) DispatcherChain(next abstract.Dispatcher) abstract.Dispat
 	// GuardedChainEditor and the final chain is validated — an invalid
 	// chain is discarded and the canonical order is built instead
 	// (fail closed), with the violation logged.
+	// @note #err-20261103-3 issue : Authorization and limiter denials never reach the audit collection
+	// @status open
+	// @priority high
+	// @tags #audit #security #observability
+	// @created 2026-11-03
+	// @author ai-code-reviewer
+	// @see #err-20261103-7
+	//
+	// The audit link sits innermost, so secure/ratelimit/throttle rejections
+	// short-circuit before it and are recorded only as Warn lines in the zap
+	// log, not in the queryable audit store. SecureDispatcher has no logger of
+	// its own either. Moving audit above secure, or adding a dedicated denial
+	// audit path, would close the compliance gap the platform guide already
+	// flags (skills/references/platform-guide.md).
 	canonicalEntries := []runtime.LinkEntry{
 		{Name: "sanitization", Link: runtime.NewSanitizationDispatcher(nil)},
 		{Name: "bootstrap", Link: runtime.NewBootstrapDispatcher(nil, m.disp, func() bool { return m.bootstrapped })},

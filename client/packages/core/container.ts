@@ -32,6 +32,12 @@ export interface HestiaConfig {
   persistence?: SimplePersistence<AuthState>;
   uploadPersistence?: UploadPersistence;
   transport?: Transport;
+  /**
+   * Start/stop the 5-minute session heartbeat automatically as the local
+   * identity appears and disappears. Defaults to true; set false to manage it
+   * with startHeartbeat()/stopHeartbeat().
+   */
+  autoHeartbeat?: boolean;
 }
 
 interface AuthState {
@@ -66,8 +72,9 @@ export class HestiaClient {
   readonly operations: HestiaOperations;
   private tokenProvider: IdentityProvider;
   private readonly apiKeyMode: boolean;
-
-  private onAuthStateChanged = new Set<() => void>();
+  private readonly autoHeartbeat: boolean;
+  private authChannel?: BroadcastChannel;
+  private applyingRemoteAuth = false;
 
   constructor(config: HestiaConfig) {
     this.store = new ReactiveDataStore<AuthState>(
@@ -88,12 +95,12 @@ export class HestiaClient {
       : undefined;
 
     const onUnauthorized = () => {
-      tokenProvider.clear();
-      this.onAuthStateChanged.forEach(i => i())
+      void tokenProvider.clear();
     };
 
     this.tokenProvider = tokenProvider;
     this.apiKeyMode = !!config.apiKey;
+    this.autoHeartbeat = config.autoHeartbeat !== false;
     if (config.transport instanceof WailsTransport) {
       config.transport.configure(config.baseUrl, apiPrefix, tokenProvider);
       config.transport.setOnUnauthorized(onUnauthorized);
@@ -133,11 +140,57 @@ export class HestiaClient {
     this.updates = new HestiaUpdates(this.client);
     this.workflows = new HestiaWorkflowStore(this.client);
     this.operations = new HestiaOperations(this.client);
+
+    // The identity is the single source of truth for the heartbeat and for
+    // cross-tab signalling. Watching it (rather than the 401 handler) means a
+    // login, logout, restore, refresh or expiry all behave the same way.
+    this.store.watch("identity", (state) => {
+      if (state.identity) {
+        if (this.autoHeartbeat) this.startHeartbeat();
+      } else {
+        this.stopHeartbeat();
+      }
+      if (!this.applyingRemoteAuth) {
+        this.authChannel?.postMessage("changed");
+      }
+    });
+    this.setupAuthChannel(config.baseUrl);
+  }
+
+  private setupAuthChannel(baseUrl: string): void {
+    if (typeof BroadcastChannel === "undefined") return;
+    const name = `hestia:auth:${baseUrl.replace(/\/+$/, "")}`;
+    try {
+      this.authChannel = new BroadcastChannel(name);
+      // Node's BroadcastChannel keeps the event loop alive; it must not stop a
+      // short-lived process (tests, scripts) from exiting.
+      (this.authChannel as any).unref?.();
+    } catch {
+      return;
+    }
+    this.authChannel.addEventListener("message", () => {
+      void this.applyRemoteAuthChange();
+    });
+  }
+
+  private async applyRemoteAuthChange(): Promise<void> {
+    if (this.applyingRemoteAuth) return;
+    this.applyingRemoteAuth = true;
+    try {
+      await this.auth.session();
+    } catch {
+      // Offline or server error: keep the last known state. The server still
+      // enforces authority on the next request.
+    } finally {
+      this.applyingRemoteAuth = false;
+    }
   }
 
   // @note #auth-20261029-007 todo P2 #client,#ergonomics : onAuthStateChange has no unsubscribe and fires only on 401
   // @author claude
+  // @status resolved
   //
+  // Resolved: onAuthStateChange(cb) now returns an unsubscribe and is backed by store.watch("identity"), firing on login, logout, restore, refresh and 401 clears.
   // It now keeps a Set of callbacks, so several subscribers coexist, but it
   // returns nothing to unsubscribe and it fires only when a request gets 401,
   // not on login, logout or restore, despite the name. Consumers (the IAM
@@ -149,7 +202,9 @@ export class HestiaClient {
   // @note #auth-20261029-009 todo P3 #client,#auth,#ergonomics : No cross-tab auth signalling
   // @author claude
   // @see #auth-20261029-007
+  // @status resolved
   //
+  // Resolved: HestiaClient broadcasts only "changed" on hestia:auth:<baseUrl>; receivers re-run auth.session(). applyingRemoteAuth prevents ping-pong and claims are never broadcast.
   // Logout in tab A revokes the session id (blocklist) but tab B only learns at
   // its next heartbeat (up to 5 min) or 401. Login in tab A is never seen by
   // tab B. Proposal: post "changed" on a BroadcastChannel (name scoped to
@@ -157,14 +212,20 @@ export class HestiaClient {
   // server stays the source of truth: never broadcast claims. Do not post from
   // the handler of a received message (ping-pong).
 
-  onAuthStateChange(callback: () => void) {
-    this.onAuthStateChanged.add(callback)
+  onAuthStateChange(
+    callback: (identity: UserIdentity | null) => void,
+  ): () => void {
+    return this.store.watch("identity", (state) => {
+      callback(state.identity ?? null);
+    });
   }
 
   // @note #auth-20261029-006 issue P1 #client,#auth,#ergonomics : authenticated() returns false without asking the server when local identity is null
   // @author claude
   // @see #auth-20261029-003
+  // @status resolved
   //
+  // Resolved: authenticated() asks the server via auth.session() when the local identity is null, keeping the apiKeyMode shortcut.
   // This is the direct cause of "every tab asks me to log in": a new tab has an
   // empty client store, so authenticated() answers false without a request even
   // though the HttpOnly cookie is valid. The name promises a server-confirmed
@@ -175,7 +236,11 @@ export class HestiaClient {
 
   async authenticated(): Promise<boolean> {
     if (this.apiKeyMode) return true;
-    if (this.tokenProvider.identity() === null) return false;
+    // A fresh tab has no local identity even though the HttpOnly cookie may be
+    // valid, so ask the server instead of answering false from memory.
+    if (this.tokenProvider.identity() === null) {
+      return (await this.auth.session()) !== null;
+    }
     try {
       await this.client.dispatch("system:core:heartbeat", {
         notifyAuthStateChange: false,
@@ -192,7 +257,9 @@ export class HestiaClient {
   // @note #auth-20261029-008 todo P2 #client,#auth,#ergonomics : Heartbeat lifecycle is hand-managed by every consumer, and it is what keeps the session alive
   // @author claude
   // @see #auth-20261029-001
+  // @status resolved
   //
+  // Resolved: HestiaClient watches store.identity and starts/stops the heartbeat automatically; autoHeartbeat:false plus start/stopHeartbeat remain as the opt-out.
   // Server session = 8h absolute (DefaultSessionTTL) with a 30min idle limit
   // (DefaultIdleTTL); any authenticated request after 15min (DefaultRefreshTTL)
   // re-issues the cookie, and NoRefreshCommands is never populated, so this
@@ -207,6 +274,9 @@ export class HestiaClient {
   // there is expected behaviour, not a bug.
 
   startHeartbeat(intervalMs?: number): void {
+    // Already running with the default cadence: keep the existing timer so a
+    // refresh/restore that re-sets the identity does not reset the interval.
+    if (this.heartbeatTimer !== undefined && intervalMs === undefined) return;
     this.stopHeartbeat();
     const ms = intervalMs ?? this.defaultHeartbeatInterval;
     const tick = () => {

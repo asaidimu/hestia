@@ -57,7 +57,9 @@ func main() {
 	}
 	defer app.Close()
 
-	app.Start()
+	if err := app.Start(); err != nil {
+		panic(err)
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
