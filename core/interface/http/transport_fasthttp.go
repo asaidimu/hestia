@@ -97,6 +97,7 @@ type HTTPTransport struct {
         corsList         *CORSAllowlist
         trustedProxyHops int
         bodyLimits       map[string]int64
+        writeTimeout     time.Duration
 }
 
 func NewTransport(opts TransportOptions) *HTTPTransport {
@@ -164,6 +165,7 @@ const (
 )
 
 func (t *HTTPTransport) Start() error {
+        t.writeTimeout = serverWriteTimeout
         t.server = &fasthttp.Server{
                 Handler: t.serveHTTP,
                 // S-8: bound memory and connection lifetime. StreamRequestBody keeps
@@ -172,12 +174,30 @@ func (t *HTTPTransport) Start() error {
                 MaxRequestBodySize: maxRequestBodySize,
                 StreamRequestBody:  true,
                 ReadTimeout:        serverReadTimeout,
-                WriteTimeout:       serverWriteTimeout,
-                IdleTimeout:        serverIdleTimeout,
-                MaxConnsPerIP:      serverMaxConnsPerIP,
-                Concurrency:        serverConcurrency,
+                // WriteTimeout is applied per request by headerReceived instead of
+                // globally: SSE responses must not inherit the normal-response
+                // deadline, because fasthttp sets it once before the body stream
+                // starts and never extends it (see headerReceived).
+                WriteTimeout:   0,
+                IdleTimeout:    serverIdleTimeout,
+                MaxConnsPerIP:  serverMaxConnsPerIP,
+                Concurrency:    serverConcurrency,
+                HeaderReceived: t.headerReceived,
         }
         return t.server.ListenAndServe(t.addr)
+}
+
+// headerReceived selects the per-request write timeout. fasthttp applies
+// Server.WriteTimeout as one absolute deadline before the response body is
+// written, so a long-lived SSE response would be cut off at the normal
+// response timeout. Streams are therefore exempt; everything else keeps the
+// slow-client bound. The Accept header is what every SSE client (fetch-based
+// and native EventSource) already sends.
+func (t *HTTPTransport) headerReceived(h *fasthttp.RequestHeader) fasthttp.RequestConfig {
+        if strings.Contains(strings.ToLower(string(h.Peek("Accept"))), "text/event-stream") {
+                return fasthttp.RequestConfig{}
+        }
+        return fasthttp.RequestConfig{WriteTimeout: serverWriteTimeout}
 }
 
 func (t *HTTPTransport) Shutdown(ctx context.Context) error {
@@ -319,9 +339,11 @@ func (t *HTTPTransport) cors(ctx *fasthttp.RequestCtx) {
         ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
         ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, x-api-key")
         ctx.Response.Header.Set("Vary", "Origin")
-        if sameOrigin {
-                ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
-        }
+        // Credentialed cross-origin requests are permitted only for origins on
+        // the explicit allowlist (same-origin is always trusted). Without this,
+        // cookie-authenticated SSE clients fail CORS preflight from a dashboard
+        // on an allowlisted origin.
+        ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
 }
 
 func correlationID(ctx *fasthttp.RequestCtx) {
@@ -377,17 +399,26 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
         }
 
         if ms, ok := resp.Body.(*managedStream); ok {
-                // S-19: the writer owns the done channel — close it when this writer
-                // stops consuming (flush error on client disconnect, or the stream
-                // drained) so the producer and its upstream subscription are
-                // released. fasthttp's RequestCtx.Done() only fires on server
-                // shutdown and can never release the producer on its own.
-                defer ms.Close()
-                t.writeEventStream(ctx, resp, ms.ch)
+                // S-19: the writer owns the done channel — close it when the body
+                // stream writer stops consuming (flush error on client disconnect,
+                // or the stream drained) so the producer and its upstream
+                // subscription are released. fasthttp's RequestCtx.Done() only
+                // fires on server shutdown and can never release the producer on
+                // its own.
+                //
+                // The close MUST happen inside the SetBodyStreamWriter callback,
+                // not in a defer here: SetBodyStreamWriter only registers the
+                // callback (fasthttp starts it asynchronously), so a defer would
+                // run when this handler returns — before the writer ever reads a
+                // single event. The producer would then observe the closed done
+                // channel, exit, close streamCh, and the writer would range an
+                // already-drained channel, ending every SSE response immediately
+                // (the notification/audit/log/workflow outage).
+                t.writeEventStream(ctx, resp, ms.ch, ms.Close)
                 return
         }
         if stream, ok := resp.Body.(abstract.StreamBody); ok {
-                t.writeEventStream(ctx, resp, stream)
+                t.writeEventStream(ctx, resp, stream, nil)
                 return
         }
 
@@ -405,24 +436,73 @@ func (t *HTTPTransport) writeSuccess(ctx *fasthttp.RequestCtx, resp abstract.Res
         })
 }
 
-// writeEventStream renders a stream body as an SSE response.
-func (t *HTTPTransport) writeEventStream(ctx *fasthttp.RequestCtx, resp abstract.Response, stream abstract.StreamBody) {
+// sseHeartbeat derives the keepalive interval from the normal response write
+// timeout. SSE responses are exempt from that deadline (see headerReceived),
+// but the heartbeat still keeps idle streams alive through proxies and
+// surfaces a dead client as a flush error, which is what ends the producer.
+func (t *HTTPTransport) sseHeartbeat() time.Duration {
+        timeout := t.writeTimeout
+        if timeout <= 0 {
+                timeout = serverWriteTimeout
+        }
+        heartbeat := timeout / 2
+        if heartbeat <= 0 || heartbeat > 15*time.Second {
+                heartbeat = 15 * time.Second
+        }
+        return heartbeat
+}
+
+// writeEventStream renders a stream body as an SSE response. onDone, when
+// non-nil, runs when the body stream writer exits (client disconnect/flush
+// error or the stream drained) and releases the producer behind a
+// managedStream.
+func (t *HTTPTransport) writeEventStream(ctx *fasthttp.RequestCtx, resp abstract.Response, stream abstract.StreamBody, onDone func()) {
         if resp.Status == 0 {
                 resp.Status = fasthttp.StatusOK
         }
         ctx.Response.Header.SetContentType("text/event-stream")
         ctx.Response.Header.Set("Cache-Control", "no-cache")
         ctx.Response.Header.Set("Connection", "keep-alive")
+        // SSE is a long-lived response: flush the status line and headers
+        // immediately instead of letting them sit in fasthttp's bufio.Writer
+        // until the first event arrives. Without this an idle stream is
+        // indistinguishable from a hung request and EventSource clients never
+        // observe the connection as open.
+        ctx.Response.ImmediateHeaderFlush = true
         ctx.SetStatusCode(resp.Status)
+
+        heartbeat := t.sseHeartbeat()
         ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
-                for data := range stream {
-                        jsonBytes, err := json.Marshal(map[string]any{"data": data})
-                        if err != nil {
-                                continue
-                        }
-                        fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
-                        if err := w.Flush(); err != nil {
-                                return
+                if onDone != nil {
+                        defer onDone()
+                }
+
+                ticker := time.NewTicker(heartbeat)
+                defer ticker.Stop()
+                for {
+                        select {
+                        case data, ok := <-stream:
+                                if !ok {
+                                        return
+                                }
+                                jsonBytes, err := json.Marshal(map[string]any{"data": data})
+                                if err != nil {
+                                        continue
+                                }
+                                fmt.Fprintf(w, "data: %s\n\n", jsonBytes)
+                                if err := w.Flush(); err != nil {
+                                        return
+                                }
+                        case <-ticker.C:
+                                // SSE comment: ignored by clients, but it keeps
+                                // proxies from timing the connection out and
+                                // surfaces a dead client as a flush error.
+                                if _, err := w.WriteString(": keepalive\n\n"); err != nil {
+                                        return
+                                }
+                                if err := w.Flush(); err != nil {
+                                        return
+                                }
                         }
                 }
         })

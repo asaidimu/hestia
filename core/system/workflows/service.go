@@ -14,6 +14,7 @@ import (
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/streamsink"
 	"github.com/asaidimu/hestia/core/system/workflows/model"
 
 	"github.com/asaidimu/hermes/pkg/compiler"
@@ -525,76 +526,70 @@ func (s *WorkflowsService) Stream(ctx context.Context, msg abstract.Message, inp
 		return nil, common.NewSystemError("WORKFLOW_RUN_NOT_FOUND", fmt.Sprintf("run %q not found", input.RunID))
 	}
 
-	eventCh := make(chan *document.Document, 64)
+	sink := streamsink.New[*document.Document](64)
 
 	go func() {
-		defer close(eventCh)
+		defer sink.Close()
+
+		// Subscribe before replaying so events emitted between the replay
+		// snapshot and the live subscription are not lost. They are buffered
+		// here and de-duplicated against the replay by timestamp below.
+		live := make(chan events.PipelineEvent, 256)
+		cbCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		unsub := s.runtime.Bus().Subscribe("*", func(_ context.Context, evt events.PipelineEvent) error {
+			if evt.RunID != input.RunID {
+				return nil
+			}
+			select {
+			case live <- evt:
+			case <-cbCtx.Done():
+			}
+			return nil
+		})
+		defer unsub()
+
+		seen := make(map[int64]bool)
 
 		// Phase 1: Replay existing events
 		existingEvents, err := s.runtime.GetEvents(ctx, input.RunID, 0, 0)
 		if err == nil {
 			for _, e := range existingEvents {
+				seen[e.Timestamp] = true
 				doc := document.NewRecordView(timelineEventToMap(e), ctx)
-				select {
-				case eventCh <- doc:
-				case <-ctx.Done():
+				if !sink.Send(ctx, doc) {
 					return
 				}
 			}
 		}
 
-		// If run is already terminal, no need to subscribe to live events
+		// If run is already terminal, no need to stream live events.
 		if meta.Status != "recording" {
 			return
 		}
 
-		// Phase 2: Subscribe to live bus events
-		done := make(chan struct{})
-		unsub := s.runtime.Bus().Subscribe("*", func(_ context.Context, evt events.PipelineEvent) error {
-			if evt.RunID != input.RunID {
-				return nil
-			}
-			m := map[string]any{
-				"runId":      evt.RunID,
-				"type":       evt.Type,
-				"timestamp":  evt.Timestamp,
-				"pipelineId": evt.PipelineID,
-				"path":       evt.Path,
-			}
-			if evt.Payload != nil {
-				m["payload"] = evt.Payload
-			}
-			if evt.Duration > 0 {
-				m["duration"] = evt.Duration
-			}
-			doc := document.NewRecordView(m, ctx)
+		// Phase 2: Drain live bus events. Events buffered during replay are
+		// de-duplicated against the replay snapshot by timestamp.
+		for {
 			select {
-			case eventCh <- doc:
-			case <-ctx.Done():
-				return nil
-			}
-
-			// Close on terminal events
-			if evt.Type == "pipeline:success" || evt.Type == "pipeline:failure" || evt.Type == "pipeline:pause" {
-				select {
-				case <-done:
-				default:
-					close(done)
+			case evt := <-live:
+				if seen[evt.Timestamp] {
+					continue
 				}
+				seen[evt.Timestamp] = true
+				if !sink.Send(ctx, document.NewRecordView(pipelineEventToMap(evt), ctx)) {
+					return
+				}
+				if isTerminal(evt.Type) {
+					return
+				}
+			case <-ctx.Done():
+				return
 			}
-			return nil
-		})
-
-		// Wait for terminal event, client disconnect, or both
-		select {
-		case <-done:
-		case <-ctx.Done():
 		}
-
-		unsub()
 	}()
 
-	return &abstract.Result{DocumentChannel: eventCh}, nil
+	return &abstract.Result{DocumentChannel: sink.Channel()}, nil
 }
 
 // timelineEventToMap converts a timeline.TimelineEvent to a JSON-serializable map.
@@ -614,6 +609,29 @@ func timelineEventToMap(e timeline.TimelineEvent) map[string]any {
 		m["delta"] = e.Delta
 	}
 	return m
+}
+
+// pipelineEventToMap converts a live hermes bus event to a JSON-serializable map.
+func pipelineEventToMap(evt events.PipelineEvent) map[string]any {
+	m := map[string]any{
+		"runId":      evt.RunID,
+		"type":       evt.Type,
+		"timestamp":  evt.Timestamp,
+		"pipelineId": evt.PipelineID,
+		"path":       evt.Path,
+	}
+	if evt.Payload != nil {
+		m["payload"] = evt.Payload
+	}
+	if evt.Duration > 0 {
+		m["duration"] = evt.Duration
+	}
+	return m
+}
+
+// isTerminal reports whether a pipeline event ends the run.
+func isTerminal(eventType string) bool {
+	return eventType == "pipeline:success" || eventType == "pipeline:failure" || eventType == "pipeline:pause"
 }
 
 // ---------------------------------------------------------------------------

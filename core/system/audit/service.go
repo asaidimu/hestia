@@ -2,13 +2,13 @@ package audit
 
 import (
 	"context"
-	"sync"
 
 	"github.com/asaidimu/go-anansi/v8/core/document"
 	persistence "github.com/asaidimu/go-anansi/v8/core/persistence/base"
 	"go.uber.org/zap"
 
 	"github.com/asaidimu/hestia/core/abstract"
+	"github.com/asaidimu/hestia/core/runtime/streamsink"
 	"github.com/asaidimu/hestia/core/system/audit/model"
 )
 
@@ -39,63 +39,54 @@ func NewAuditService(rt abstract.Container) (*AuditService, error) {
 //
 // )
 func (s *AuditService) Stream(ctx context.Context, msg abstract.Message, input *model.LogStreamInput) (*abstract.Result, error) {
-	docCh := make(chan *document.Document, 64)
+	sink := streamsink.New[*document.Document](64)
 
 	col, err := s.persist.Collection(ctx, auditCollectionName)
 	if err != nil {
 		return nil, err
 	}
 
+	// Subscribe before returning so creates that land between the handler
+	// returning and the readiness barrier firing are not lost. The barrier is
+	// still observed so a stream that never goes live is torn down promptly.
+	subID := col.Subscribe(ctx, persistence.SubscriptionOptions{
+		Event: persistence.DocumentCreateSuccess,
+		Callback: func(_ context.Context, event persistence.PersistenceEvent) error {
+			outMap, ok := event.Output.(map[string]any)
+			if !ok {
+				return nil
+			}
+			dataRaw, ok := outMap["data"]
+			if !ok {
+				return nil
+			}
+			dataMap, ok := dataRaw.(map[string]any)
+			if !ok || dataMap == nil {
+				return nil
+			}
+			doc := document.NewRecordView(dataMap, context.Background())
+			sink.TrySend(doc)
+			return nil
+		},
+	})
+
 	go func() {
-		// close/unsubscribe must run at most once (a second close would panic
-		// in an unrecovered goroutine). Mirrors the notifications Stream fix.
-		var once sync.Once
-		var subID string
 		cleanup := func() {
-			once.Do(func() {
-				close(docCh)
-				if subID != "" {
-					col.Unsubscribe(ctx, subID)
-				}
-			})
+			col.Unsubscribe(ctx, subID)
+			sink.Close()
 		}
 
 		select {
 		case <-msg.InputChannel():
 		case <-ctx.Done():
 			cleanup()
-			// Client disconnected before the stream went live — do not fall
-			// through to phase 2 (would double-close and leak a subscription).
+			// Client disconnected before the stream went live.
 			return
 		}
-
-		subID = col.Subscribe(ctx, persistence.SubscriptionOptions{
-			Event: persistence.DocumentCreateSuccess,
-			Callback: func(_ context.Context, event persistence.PersistenceEvent) error {
-				outMap, ok := event.Output.(map[string]any)
-				if !ok {
-					return nil
-				}
-				dataRaw, ok := outMap["data"]
-				if !ok {
-					return nil
-				}
-				dataMap, ok := dataRaw.(map[string]any)
-				if !ok || dataMap == nil {
-					return nil
-				}
-				doc := document.NewRecordView(dataMap, context.Background())
-				select {
-				case docCh <- doc:
-				default:
-				}
-				return nil
-			},
-		})
 
 		<-ctx.Done()
 		cleanup()
 	}()
 
-	return &abstract.Result{DocumentChannel: docCh}, nil
+	return &abstract.Result{DocumentChannel: sink.Channel()}, nil
 }

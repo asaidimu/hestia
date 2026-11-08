@@ -1,5 +1,6 @@
 import type { QueryDSL } from "@asaidimu/query"
 import { ReactiveDataStore } from "@asaidimu/utils-store"
+import { createAsyncStream } from "../../core/async-stream"
 import { type Transport } from "../../core/client"
 import { createPagedController, type PageOptions } from "../../core/pager"
 import type { Document, Page, PagedData, PaginationInfo, StoreEvent } from "../../core/types"
@@ -92,73 +93,47 @@ export class HestiaAuditLogs implements DocumentStore<AuditEntry, QueryDSL<Audit
     cancel: () => void;
     status: () => "active" | "cancelled" | "completed";
   } {
-    const url = this.getStreamUrl()
-    let eventSource: EventSource | null = null
-    let currentStatus: "active" | "cancelled" | "completed" = "active"
-    let pendingResolve: (() => void) | null = null
+    const source = createAsyncStream<Document<AuditEntry>>()
+    const controller = new AbortController()
+    let started = false
 
-    const asyncStream = async function* () {
-      const pending: Document<AuditEntry>[] = []
+    const start = () => {
+      if (started) return
+      started = true
+      if (source.status() !== "active") return
 
-      eventSource = new (EventSource as any)(url, { withCredentials: true })
-
-      eventSource!.onmessage = (event) => {
-        for (const line of event.data.split("\n")) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          try {
-            const parsed = JSON.parse(trimmed) as StreamDoc
-            if (parsed?.data) pending.push(parsed.data)
-          } catch {
-            // skip non-JSON lines
-          }
-        }
-        if (pending.length > 0 && pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-      }
-
-      eventSource!.onerror = () => {
-        if (currentStatus === "active") currentStatus = "completed"
-        if (pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-      }
-
-      try {
-        while (currentStatus === "active") {
-          if (pending.length > 0) {
-            yield pending.shift()!
-          } else {
-            await new Promise<void>((resolve) => {
-              pendingResolve = resolve
-              if (pending.length > 0) {
-                resolve()
-                pendingResolve = null
+      this.client
+        .openStream(
+          "/system/audit/log/stream",
+          {
+            onMessage(data) {
+              try {
+                const parsed = JSON.parse(data) as StreamDoc
+                if (parsed?.data) source.push(parsed.data)
+              } catch {
+                // skip non-JSON lines
               }
-            })
-          }
-        }
-      } finally {
-        eventSource?.close()
-        if (pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-        if (currentStatus === "active") currentStatus = "completed"
-      }
+            },
+            onError: () => source.end(),
+            onClose: () => source.end(),
+          },
+          { signal: controller.signal },
+        )
+        .catch(() => source.end())
+    }
+
+    const iterate = async function* () {
+      start()
+      yield* source.stream()
     }
 
     return {
-      stream: () => asyncStream(),
+      stream: () => iterate(),
       cancel: () => {
-        if (currentStatus !== "active") return
-        currentStatus = "cancelled"
-        eventSource?.close()
+        controller.abort()
+        source.cancel()
       },
-      status: () => currentStatus,
+      status: source.status,
     }
   }
 

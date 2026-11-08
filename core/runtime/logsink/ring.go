@@ -67,15 +67,18 @@ func (e *LogEntry) UnmarshalJSON(data []byte) error {
 type RingBuffer struct {
 	mu      sync.RWMutex
 	entries []LogEntry
+	seqs    []uint64 // parallel to entries: monotonic sequence per slot
 	head    int
 	size    int
 	cap     int
+	nextSeq uint64
 }
 
 // NewRingBuffer creates a ring buffer with the given capacity.
 func NewRingBuffer(cap int) *RingBuffer {
 	return &RingBuffer{
 		entries: make([]LogEntry, cap),
+		seqs:    make([]uint64, cap),
 		cap:     cap,
 	}
 }
@@ -84,7 +87,9 @@ func NewRingBuffer(cap int) *RingBuffer {
 func (r *RingBuffer) Add(entry LogEntry) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.nextSeq++
 	r.entries[r.head] = entry
+	r.seqs[r.head] = r.nextSeq
 	r.head = (r.head + 1) % r.cap
 	if r.size < r.cap {
 		r.size++
@@ -107,6 +112,43 @@ func (r *RingBuffer) Recent(n int) []LogEntry {
 		result[i] = r.entries[(start+i)%r.cap]
 	}
 	return result
+}
+
+// Snapshot returns the last n entries in chronological order together with the
+// cursor to pass to Since. Snapshot and the cursor are captured under one lock,
+// so an entry is never both replayed and returned by the next Since call.
+func (r *RingBuffer) Snapshot(n int) ([]LogEntry, uint64) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if n <= 0 || n > r.size {
+		n = r.size
+	}
+
+	result := make([]LogEntry, n)
+	start := (r.head - n + r.cap) % r.cap
+	for i := 0; i < n; i++ {
+		result[i] = r.entries[(start+i)%r.cap]
+	}
+	return result, r.nextSeq
+}
+
+// Since returns entries newer than cursor in chronological order, plus the new
+// cursor. Entries that were overwritten before they could be read are skipped;
+// the returned cursor still advances so the stream does not stall.
+func (r *RingBuffer) Since(cursor uint64) ([]LogEntry, uint64) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]LogEntry, 0, r.size)
+	start := (r.head - r.size + r.cap) % r.cap
+	for i := 0; i < r.size; i++ {
+		idx := (start + i) % r.cap
+		if r.seqs[idx] > cursor {
+			result = append(result, r.entries[idx])
+		}
+	}
+	return result, r.nextSeq
 }
 
 // Len returns the number of entries currently in the buffer.

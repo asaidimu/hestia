@@ -83,7 +83,7 @@ func TestCORSAllowlist(t *testing.T) {
 		return abstract.Response{Status: 200, Body: "ok"}, nil
 	})
 
-	t.Run("allowed cross-origin without credentials", func(t *testing.T) {
+	t.Run("allowed cross-origin with credentials", func(t *testing.T) {
 		ctx := newCtx("GET", "/test")
 		ctx.Request.Header.Set("Origin", "https://trusted.example.com")
 		ctx.Request.Header.Set("Host", "api.hestia.local")
@@ -93,8 +93,8 @@ func TestCORSAllowlist(t *testing.T) {
 		if origin != "https://trusted.example.com" {
 			t.Errorf("origin = %q, want https://trusted.example.com", origin)
 		}
-		if string(ctx.Response.Header.Peek("Access-Control-Allow-Credentials")) == "true" {
-			t.Error("should not set credentials for cross-origin even when allowed")
+		if string(ctx.Response.Header.Peek("Access-Control-Allow-Credentials")) != "true" {
+			t.Error("allowlisted origins must receive Allow-Credentials so cookie-authenticated SSE works")
 		}
 	})
 

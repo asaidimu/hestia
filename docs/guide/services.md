@@ -169,6 +169,7 @@ Streaming input (from test fixture):
 //   description="Bulk-import users from an NDJSON stream",
 // )
 func (s *UsersService) ImportUsers(ctx context.Context, msg abstract.Message, items <-chan dispatch.Item[ImportUserInput]) (*abstract.Result, error) {
+See [streaming.md](streaming.md) for the runtime contract behind these declarations: output streams (`intent="stream"` + `DocumentChannel`), the readiness barrier, `streamsink`, NDJSON input, and go-anansi persistence events.
 6. Post-Generation: Collector Regeneration
 After generating per-service files, refreshCollector() (service.go lines 379-401) regenerates two module-level collectors:
 1. services.go (gen.GenerateCollector) -- discovers all subdirectories of the module that contain registrations.go, then emits RegisterServices(rt) (DI registration) and CollectServiceRegistrations(rt) (message collection).

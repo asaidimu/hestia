@@ -10,6 +10,7 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 	"github.com/asaidimu/hestia/core/runtime"
 	"github.com/asaidimu/hestia/core/runtime/dispatch"
+	"github.com/asaidimu/hestia/core/runtime/streamsink"
 	"github.com/asaidimu/hestia/core/system/logs/model"
 )
 
@@ -102,7 +103,7 @@ func (s *LogsService) Query(ctx context.Context, msg abstract.Message, input *mo
 //
 // )
 func (s *LogsService) Stream(ctx context.Context, msg abstract.Message, input *model.LogStreamInput) (*abstract.Result, error) {
-	docCh := make(chan *document.Document, 64)
+	sink := streamsink.New[*document.Document](64)
 
 	sendEntry := func(e LogEntry) {
 		if input.Level != "" && e.Level != input.Level {
@@ -120,43 +121,41 @@ func (s *LogsService) Stream(ctx context.Context, msg abstract.Message, input *m
 		if err != nil {
 			return
 		}
-		select {
-		case docCh <- result.Document:
-		default:
-		}
+		sink.TrySend(result.Document)
 	}
 
-	// Send recent entries first
-	for _, e := range s.ring.Recent(50) {
+	// Snapshot and cursor are captured atomically so entries that arrive
+	// between the replay and the poll are neither lost nor duplicated.
+	recent, cursor := s.ring.Snapshot(50)
+	for _, e := range recent {
 		sendEntry(e)
 	}
 
-	// Poll ring buffer for new entries
 	go func() {
+		defer func() {
+			sink.Close()
+			if dropped := sink.Dropped(); dropped > 0 && s.logger != nil {
+				s.logger.Warn("log stream dropped entries for a slow consumer",
+					zap.Uint64("dropped", dropped))
+			}
+		}()
+
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
-		lastLen := s.ring.Len()
 
 		for {
 			select {
 			case <-ctx.Done():
-				close(docCh)
 				return
 			case <-ticker.C:
-				all := s.ring.Recent(0)
-				if len(all) > lastLen {
-					diff := len(all) - lastLen
-					if diff > len(all) {
-						diff = len(all)
-					}
-					for _, e := range all[len(all)-diff:] {
-						sendEntry(e)
-					}
-					lastLen = len(all)
+				entries, next := s.ring.Since(cursor)
+				cursor = next
+				for _, e := range entries {
+					sendEntry(e)
 				}
 			}
 		}
 	}()
 
-	return &abstract.Result{DocumentChannel: docCh}, nil
+	return &abstract.Result{DocumentChannel: sink.Channel()}, nil
 }

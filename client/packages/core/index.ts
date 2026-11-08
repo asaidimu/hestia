@@ -1,5 +1,6 @@
 // Core
 export * from "./core/client"
+export * from "./core/async-stream"
 export { WailsTransport } from "./core/wails-transport"
 export { HestiaCollection } from "./core/collection"
 export { HestiaDataView } from "./core/data-view"

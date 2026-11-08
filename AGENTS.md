@@ -85,7 +85,20 @@ opportunistically when already editing a file.
 
 ## Writing TODOs
 
-When starting on a new taks, write the steps to a file under the `todo` folder.
+When starting on a new task, write the steps to a file under the `todo` folder.
+
+### Layout
+
+* `todo/index.md` — entry point: current focus plus a summary table of every
+  active/pending/done document with a link.
+* `todo/active/` — workstreams that are partially landed or currently in
+  progress.
+* `todo/pending/` — planned or captured work that has not been started (or
+  only has open follow-ups).
+* `todo/done/` — completed work kept for reference and history.
+
+Move a file between folders as its state changes, and update
+`todo/index.md` in the same change so it always reflects the tree.
 
 ### Rules & Best Practices
 

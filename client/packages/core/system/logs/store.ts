@@ -1,3 +1,4 @@
+import { createAsyncStream } from "../../core/async-stream"
 import { type Transport } from "../../core/client"
 import type { LogEntry, LogQuery, LogListResult } from "./types"
 
@@ -33,73 +34,51 @@ export class HestiaAppLogs {
     cancel: () => void
     status: () => "active" | "cancelled" | "completed"
   } {
-    const url = this.getStreamUrl(options)
-    let eventSource: EventSource | null = null
-    let currentStatus: "active" | "cancelled" | "completed" = "active"
-    let pendingResolve: (() => void) | null = null
+    const source = createAsyncStream<LogEntry>()
+    const controller = new AbortController()
+    const params = new URLSearchParams()
+    if (options?.level) params.set("level", options.level)
+    const query = params.toString()
+    const path = `/system/logs/stream${query ? "?" + query : ""}`
+    let started = false
 
-    const asyncStream = async function* () {
-      const pending: LogEntry[] = []
+    const start = () => {
+      if (started) return
+      started = true
+      if (source.status() !== "active") return
 
-      eventSource = new (EventSource as any)(url, { withCredentials: true })
-
-      eventSource!.onmessage = (event) => {
-        for (const line of event.data.split("\n")) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-          try {
-            const parsed = JSON.parse(trimmed) as StreamDoc
-            if (parsed?.data) pending.push(parsed.data)
-          } catch {
-            // skip non-JSON lines
-          }
-        }
-        if (pending.length > 0 && pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-      }
-
-      eventSource!.onerror = () => {
-        if (currentStatus === "active") currentStatus = "completed"
-        if (pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-      }
-
-      try {
-        while (currentStatus === "active") {
-          if (pending.length > 0) {
-            yield pending.shift()!
-          } else {
-            await new Promise<void>((resolve) => {
-              pendingResolve = resolve
-              if (pending.length > 0) {
-                resolve()
-                pendingResolve = null
+      this.client
+        .openStream(
+          path,
+          {
+            onMessage(data) {
+              try {
+                const parsed = JSON.parse(data) as StreamDoc
+                if (parsed?.data) source.push(parsed.data)
+              } catch {
+                // skip non-JSON lines
               }
-            })
-          }
-        }
-      } finally {
-        eventSource?.close()
-        if (pendingResolve) {
-          pendingResolve()
-          pendingResolve = null
-        }
-        if (currentStatus === "active") currentStatus = "completed"
-      }
+            },
+            onError: () => source.end(),
+            onClose: () => source.end(),
+          },
+          { signal: controller.signal },
+        )
+        .catch(() => source.end())
+    }
+
+    const iterate = async function* () {
+      start()
+      yield* source.stream()
     }
 
     return {
-      stream: () => asyncStream(),
+      stream: () => iterate(),
       cancel: () => {
-        if (currentStatus !== "active") return
-        currentStatus = "cancelled"
-        eventSource?.close()
+        controller.abort()
+        source.cancel()
       },
-      status: () => currentStatus,
+      status: source.status,
     }
   }
 

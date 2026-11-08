@@ -129,7 +129,7 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
                 routeOpts = append(routeOpts, WithStreamingBody())
         }
 
-        o.trans.Handle(pattern, o.wrap(func(ctx context.Context, req Request) (Response, error) {
+        handler := o.wrap(func(ctx context.Context, req Request) (Response, error) {
                 if reg.Input.Streaming {
                         return o.handleStreamingInput(ctx, req, reg, pool, httpPath)
                 }
@@ -204,9 +204,87 @@ func (o *Interface) installRegistration(reg abstract.MessageRegistration) error 
                 resp := serializeResponse(ctx, result, reg.Output, reg.Intent, httpPath)
                 resp = o.attachCookieToResponse(resp, result, reg.Name)
                 return resp, nil
-        }), routeOpts...)
+        })
+
+        // Stream-intent responses are long-lived: the handler (and the services
+        // behind it) must learn when the body writer stops consuming so they
+        // can release subscriptions. fasthttp's RequestCtx.Done only fires on
+        // server shutdown, so give streaming routes a cancellable context and
+        // hand the cancel to the managedStream, whose Close runs on flush error
+        // or natural end.
+        if reg.Intent == abstract.Stream {
+                handler = withStreamLifetime(handler)
+        }
+
+        o.trans.Handle(pattern, handler, routeOpts...)
         return nil
 }
+
+// withStreamLifetime gives a streaming handler a context that is cancelled
+// when the transport stops consuming its response body. Non-stream responses
+// (for example a validation error before the stream starts) are cancelled
+// immediately; a managedStream takes ownership of the cancel and invokes it
+// from Close.
+//
+// The child context is a plain streamContext rather than context.WithCancel:
+// cancelCtx.cancel walks the parent (parentCancelCtx -> Value), and the SSE
+// writer runs after fasthttp has recycled the RequestCtx, which races with
+// RequestCtx.reset. streamContext owns its Done channel and never touches the
+// parent on cancel; the server-shutdown channel is captured while the request
+// is still alive.
+func withStreamLifetime(h Handler) Handler {
+        return func(ctx context.Context, req Request) (Response, error) {
+                streamCtx := newStreamContext(ctx)
+                parentDone := ctx.Done()
+                go func() {
+                        select {
+                        case <-parentDone:
+                                streamCtx.cancel()
+                        case <-streamCtx.Done():
+                        }
+                }()
+                resp, err := h(streamCtx, req)
+                if err != nil {
+                        streamCtx.cancel()
+                        return resp, err
+                }
+                if ms, ok := resp.Body.(*managedStream); ok {
+                        ms.cancel = streamCtx.cancel
+                } else {
+                        streamCtx.cancel()
+                }
+                return resp, nil
+        }
+}
+
+// streamContext is a transport-owned child of the request context. Its Done
+// channel is closed when the SSE writer stops consuming, so services parked on
+// ctx.Done() can release their subscriptions. It deliberately does not derive
+// from fasthttp's RequestCtx through context.WithCancel: cancelCtx walks the
+// parent, and the writer goroutine outlives the handler, so that walk races
+// with fasthttp recycling the RequestCtx.
+type streamContext struct {
+        context.Context
+        done chan struct{}
+        once sync.Once
+}
+
+func newStreamContext(parent context.Context) *streamContext {
+        return &streamContext{Context: parent, done: make(chan struct{})}
+}
+
+func (c *streamContext) Done() <-chan struct{} { return c.done }
+
+func (c *streamContext) Err() error {
+        select {
+        case <-c.done:
+                return context.Canceled
+        default:
+                return nil
+        }
+}
+
+func (c *streamContext) cancel() { c.once.Do(func() { close(c.done) }) }
 
 // handleStreamingInput drives a streamed-input registration: the request body
 // is consumed as NDJSON (one item per line), each item is wrapped in the
@@ -392,15 +470,26 @@ func serializeResponse(ctx context.Context, result *abstract.Result, output *def
 // the producer goroutine and its upstream subscription until server
 // shutdown (S-19).
 type managedStream struct {
-        ch   abstract.StreamBody
-        once sync.Once
-        done chan struct{}
+        ch       abstract.StreamBody
+        once     sync.Once
+        done     chan struct{}
+        cancel   context.CancelFunc
+        finished chan struct{}
 }
 
 // Close releases the producer. Called by the response writer when it stops
-// consuming — flush error on client disconnect, or natural stream end.
+// consuming — flush error on client disconnect, or natural stream end. It also
+// cancels the handler context so services that park on ctx.Done() (the
+// notification/audit/log/workflow streams) run their cleanup and unsubscribe
+// instead of leaving a zombie subscription behind: fasthttp's RequestCtx.Done
+// never fires on client disconnect.
 func (m *managedStream) Close() {
-        m.once.Do(func() { close(m.done) })
+        m.once.Do(func() {
+                close(m.done)
+                if m.cancel != nil {
+                        m.cancel()
+                }
+        })
 }
 
 func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) any) (Response, bool) {
@@ -408,9 +497,10 @@ func streamChannel[T any](ctx context.Context, src <-chan T, transform func(T) a
                 return Response{}, false
         }
         streamCh := make(chan any, 64)
-        ms := &managedStream{ch: streamCh, done: make(chan struct{})}
+        ms := &managedStream{ch: streamCh, done: make(chan struct{}), finished: make(chan struct{})}
         go func() {
                 defer close(streamCh)
+                defer close(ms.finished)
                 for {
                         select {
                         case v, ok := <-src:

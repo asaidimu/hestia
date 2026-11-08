@@ -56,5 +56,6 @@ console.log(`Found ${users.length} users`)
 ## Next Steps
 
 - [Getting Started](/getting-started) — set up a server and make your first API call
+- [Streaming](/guide/streaming) — SSE output streams, NDJSON input streams, and go-anansi persistence events
 - [API Reference](/api/core) — full endpoint documentation
 - [Client SDK](/client/) — TypeScript client reference

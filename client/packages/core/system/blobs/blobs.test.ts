@@ -881,4 +881,54 @@ describe("HttpTransport stream", () => {
 
     mockFetch.mockRestore()
   })
+
+  it("sends transport default headers and same-origin credentials", async () => {
+    const apiClient = new HttpTransport("http://test.local", "/api", undefined, {
+      "X-Api-Key": "secret",
+    })
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close()
+      },
+    })
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(stream, { status: 200 }))
+
+    await apiClient.openStream("/test/stream", { onMessage: vi.fn() })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test.local/api/test/stream",
+      expect.objectContaining({
+        method: "GET",
+        credentials: "same-origin",
+        headers: expect.objectContaining({
+          Accept: "text/event-stream",
+          "X-Api-Key": "secret",
+        }),
+      }),
+    )
+
+    mockFetch.mockRestore()
+  })
+
+  it("honours the credentials override for cross-origin streams", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.close()
+      },
+    })
+    const mockFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(stream, { status: 200 }))
+
+    await client.openStream("/test/stream", { onMessage: vi.fn() }, { credentials: "include" })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test.local/api/test/stream",
+      expect.objectContaining({ credentials: "include" }),
+    )
+
+    mockFetch.mockRestore()
+  })
 })

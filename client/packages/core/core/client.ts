@@ -47,6 +47,13 @@ export interface StreamHandlers {
 export interface StreamOptions {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /**
+   * Fetch credentials mode for the stream request. Defaults to the browser's
+   * `same-origin`, which is enough for cookie sessions served from the same
+   * origin. Set `"include"` for credentialed cross-origin streams (the server
+   * must also allow credentials for that origin).
+   */
+  credentials?: "omit" | "same-origin" | "include";
 }
 
 export interface DispatchInput {
@@ -282,6 +289,9 @@ export class HttpTransport<R extends string = RouteName> implements Transport<R>
   ): Promise<void> {
     const headers: Record<string, string> = {
       Accept: "text/event-stream",
+      // Streams bypass `raw`, so the transport-level headers (notably the
+      // API key) must be applied here explicitly.
+      ...(this.defaultHeaders ?? {}),
       ...(options?.headers ?? {}),
     };
 
@@ -292,6 +302,7 @@ export class HttpTransport<R extends string = RouteName> implements Transport<R>
       response = await fetch(url, {
         method: "GET",
         headers,
+        credentials: options?.credentials ?? "same-origin",
         signal: options?.signal,
       });
     } catch (err) {
