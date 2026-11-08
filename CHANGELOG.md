@@ -1,3 +1,16 @@
+# [1.16.0](https://github.com/asaidimu/hestia/compare/v1.15.2...v1.16.0) (2026-11-08)
+
+
+### Bug Fixes
+
+* **streaming:** keep SSE streams open and clean up on disconnect ([fd7d043](https://github.com/asaidimu/hestia/commit/fd7d043912c0f330631fd3f7fad324f1f5aa4339))
+
+
+### Features
+
+* **deps:** upgrade go-anansi to v8.10.1 and refactor dependency management ([b5f159a](https://github.com/asaidimu/hestia/commit/b5f159a59469bc090a202b13b41ace7ea6c65c04))
+* restore existing sessions across tabs ([da471bd](https://github.com/asaidimu/hestia/commit/da471bd09573d06cde3d42cba121e39e5b55d01b))
+
 ## [1.15.2](https://github.com/asaidimu/hestia/compare/v1.15.1...v1.15.2) (2026-09-18)
 
 
