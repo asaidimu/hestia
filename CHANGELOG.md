@@ -1,3 +1,10 @@
+## [1.16.1](https://github.com/asaidimu/hestia/compare/v1.16.0...v1.16.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* update dependencies ([b39fb64](https://github.com/asaidimu/hestia/commit/b39fb64728a2ab0c434ada3a2eaadb0e5eaadd88))
+
 # [1.16.0](https://github.com/asaidimu/hestia/compare/v1.15.2...v1.16.0) (2026-11-08)
 
 
