@@ -55,6 +55,7 @@ is next.
 | [`done/auth-session-iam-integration.md`](done/auth-session-iam-integration.md) | Server session restore + `@asaidimu/iam` client integration (multi-tab, heartbeat, `session()`). |
 | [`done/blobs-1.3.5-update.md`](done/blobs-1.3.5-update.md) | Blobs `v1.3.5` bump, migration-report logging, `CleanupPendingError` handling, namespace lifecycle test. |
 | [`done/blob_slash_keys.md`](done/blob_slash_keys.md) | Greedy catch-all route segments so blob keys containing `/` route correctly. |
+| [`done/prebootstrap-session-probe.md`](done/prebootstrap-session-probe.md) | Make `system:auth:session:get` bootstrap-safe so a fresh server returns 401 (not 403) and the auth page can render. |
 | [`done/review-fixes-and-notes.md`](done/review-fixes-and-notes.md) | Boot lifecycle fixes (`Close`/`Shutdown`, `Start` errors, `topoSort`, DI) and the 13-note devnotes merge. |
 | [`done/root_rename.md`](done/root_rename.md) | `administrator` → `root` role rename across rules, bindings, seeds, tests, client, and docs. |
 | [`done/sse-stream-lifecycle.md`](done/sse-stream-lifecycle.md) | S-19 follow-up: transport/context-lifetime fix, panic-safe `streamsink`, logs cursor, audit subscribe ordering, workflow replay dedupe, TS `openStream`/async-stream migration, in-repo SSE E2E test, CORS credentials. |

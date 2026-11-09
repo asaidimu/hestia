@@ -155,6 +155,7 @@ func (s *AuthService) CreateSession(ctx context.Context, msg abstract.Message, i
 //	name="system:auth:session:get",
 //	intent="read",
 //	rule="authenticated",
+//	bootstrap_safe="true",
 //	description="Get the current session's user and expiry",
 //	output="model.SessionOutput",
 //
