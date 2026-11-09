@@ -1,3 +1,10 @@
+## [1.16.2](https://github.com/asaidimu/hestia/compare/v1.16.1...v1.16.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **auth:** mark session get route as bootstrap safe ([4a9c8af](https://github.com/asaidimu/hestia/commit/4a9c8af2e5f3af6577124533dc21efb0e75e7e19))
+
 ## [1.16.1](https://github.com/asaidimu/hestia/compare/v1.16.0...v1.16.1) (2026-11-08)
 
 
