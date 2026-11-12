@@ -42,9 +42,9 @@
     },
     "packages/mock": {
       "name": "@asaidimu/hestia-mock",
-      "version": "1.15.0",
+      "version": "1.16.0",
       "dependencies": {
-        "@asaidimu/hestia": "1.15.0",
+        "@asaidimu/hestia": "1.16.0",
         "@asaidimu/query": "^1.0.0",
         "@asaidimu/utils-error": "^1.1.10",
       },
@@ -1006,7 +1006,7 @@
 
     "@asaidimu/anansi/uuid": ["uuid@11.1.1", "", { "bin": { "uuid": "dist/esm/bin/uuid" } }, "sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ=="],
 
-    "@asaidimu/hestia-mock/@asaidimu/hestia": ["@asaidimu/hestia@1.15.0", "", { "dependencies": { "@asaidimu/network-client": "^2.0.0", "@asaidimu/query": "^1.0.0", "@asaidimu/utils-artifacts": "^8.2.25", "@asaidimu/utils-error": "^1.1.10", "@asaidimu/utils-schema": "^1.0.10", "@asaidimu/utils-store": "^10.2.18", "@asaidimu/utils-sync": "^2.3.10", "uuid": "^14.0.1" } }, "sha512-nkgEToS4qKzVCo5OU4esc0ZkvKfwFN3X/rfbQb6du+aZwSDSjAE//eiVNnkbBPeb4lqz3M0OotSq1CNwSAbyVg=="],
+    "@asaidimu/hestia-mock/@asaidimu/hestia": ["@asaidimu/hestia@1.16.0", "", { "dependencies": { "@asaidimu/network-client": "^2.0.0", "@asaidimu/query": "^1.0.0", "@asaidimu/utils-artifacts": "^8.2.25", "@asaidimu/utils-error": "^1.1.10", "@asaidimu/utils-schema": "^1.0.10", "@asaidimu/utils-store": "^10.2.18", "@asaidimu/utils-sync": "^2.3.10", "uuid": "^14.0.1" } }, "sha512-uu4UnThmCnw7GhxAqst6zompIjXg3d15if0dCtJDY7JzIKdByt68k8YGmNGMQIbWo1JqrL5oxs+Ut2NCTuOrUg=="],
 
     "@asaidimu/hestia-mock/@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
