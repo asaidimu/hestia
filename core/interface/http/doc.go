@@ -44,7 +44,10 @@ func requestHeaderValue(headers map[string][]string, name string) (string, bool)
         return "", false
 }
 
-// @note #perf-20260821-004 issue status=open priority=P0 tags=#performance,#correctness : BuildInputDocument uses unnecessary JSON round-trip
+// @note #perf-20260821-004 issue : BuildInputDocument uses unnecessary JSON round-trip
+// @status=open
+// @priority=P0
+// @tags=#performance,#correctness
 //
 // BuildInputDocument manually constructs a JSON string by marshaling each
 // field, concatenating into a JSON object, then parsing it back into a

@@ -1,4 +1,7 @@
-// @note #org-20260821-001 todo status=open priority=P2 tags=#organization,#refactor : Split module.go into focused files
+// @note #org-20260821-001 todo : Split module.go into focused files
+// @status=open
+// @priority=P2
+// @tags=#organization,#refactor
 //
 // module.go currently contains 4 unrelated concerns in 175 lines:
 // - Input, ArgumentDefinition (message input schema)
@@ -35,7 +38,10 @@ type ArgumentDefinition struct {
         CatchAll bool
 }
 
-// @note #review-20260821-020 issue resolved priority=P1 tags=#review,#design : Abstraction leak in Input struct
+// @note #review-20260821-020 issue : Abstraction leak in Input struct
+// @status resolved
+// @priority=P1
+// @tags=#review,#design
 // The Input struct contained a HeaderFields map (an HTTP header → field
 // binding) flagged "THIS IS AN ABSTRACTION LEAK". It has been removed:
 // transport-context fields are now declared in the input schema itself under

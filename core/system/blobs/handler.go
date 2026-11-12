@@ -1,4 +1,7 @@
-// @note #cruft-20260821-020 observation resolved priority=P2 tags=#cruft,#note : Old-style handler functions in blobs/handler.go
+// @note #cruft-20260821-020 observation : Old-style handler functions in blobs/handler.go
+// @status resolved
+// @priority=P2
+// @tags=#cruft,#note
 // @see #8uuufn
 // No action needed — dynamically registered via RegisterBlobHandlers, cannot use static codegen.
 //
@@ -54,7 +57,9 @@ func NewListNamespacesHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
-// @note #blob-20261029-010 todo P2 #blobs,#robustness : Namespace creation is not atomic and its id is barely validated
+// @note #blob-20261029-010 todo : Namespace creation is not atomic and its id is barely validated
+// @priority medium
+// @tags #blobs #robustness
 // @author claude
 // @see #blob-20261029-011
 //
@@ -102,7 +107,9 @@ func NewCreateNamespaceHandler(svc blobutil.BlobStore, mgr *staging.Manager, pol
 	}
 }
 
-// @note #blob-20261029-011 todo P2 #blobs,#robustness : Namespace deletion destroys blobs without confirmation and can half-complete
+// @note #blob-20261029-011 todo : Namespace deletion destroys blobs without confirmation and can half-complete
+// @priority medium
+// @tags #blobs #robustness
 // @author claude
 // @see #blob-20261029-010
 //
@@ -143,7 +150,9 @@ func NewDeleteNamespaceHandler(svc blobutil.BlobStore, policyOp abstract.Binding
 	}
 }
 
-// @note #blob-20261029-007 todo P2 #blobs,#api,#ergonomics : List has no cursor, delimiter or truncation signal, and limit 0 returns everything
+// @note #blob-20261029-007 todo : List has no cursor, delimiter or truncation signal, and limit 0 returns everything
+// @priority medium
+// @tags #blobs #api #ergonomics
 // @author claude
 // @see #blob-20261029-021
 //
@@ -194,7 +203,9 @@ func NewHeadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
-// @note #blob-20261029-005 issue P2 #blobs,#ergonomics : Empty (zero-byte) blobs cannot be stored
+// @note #blob-20261029-005 issue : Empty (zero-byte) blobs cannot be stored
+// @priority medium
+// @tags #blobs #ergonomics
 // @author claude
 // @see #blob-20261029-018
 //
@@ -232,7 +243,9 @@ func NewUploadBlobHandler(svc blobutil.BlobStore) abstract.MessageHandler {
 	}
 }
 
-// @note #blob-20261029-004 todo P2 #blobs,#performance,#ergonomics : Download buffers the whole blob; upload and chunk handlers copy their payloads
+// @note #blob-20261029-004 todo : Download buffers the whole blob; upload and chunk handlers copy their payloads
+// @priority medium
+// @tags #blobs #performance #ergonomics
 // @author claude
 // @see #blob-20261029-003
 //
@@ -395,7 +408,9 @@ func NewCompactNamespaceHandler(svc blobutil.BlobStore) abstract.MessageHandler 
 	}
 }
 
-// @note #blob-20261029-006 issue P2 #blobs,#correctness : overwrite=false is check-then-put, so concurrent uploads to one key silently overwrite each other
+// @note #blob-20261029-006 issue : overwrite=false is check-then-put, so concurrent uploads to one key silently overwrite each other
+// @priority medium
+// @tags #blobs #correctness
 // @author claude
 // @see #blob-20261029-002
 //
@@ -440,7 +455,9 @@ func blobMetaView(m *blobutil.BlobMeta) BlobMetaView {
 	return view
 }
 
-// @note #blob-20261029-012 todo P2 #blobs,#errors,#ergonomics : Inconsistent error model across blob operations
+// @note #blob-20261029-012 todo : Inconsistent error model across blob operations
+// @priority medium
+// @tags #blobs #errors #ergonomics
 // @author claude
 // @see #blob-20261029-025
 //
@@ -464,7 +481,9 @@ func mapBlobError(err error) error {
 	return fmt.Errorf("blob: %w", err)
 }
 
-// @note #blob-20261029-013 issue P3 #blobs,#cruft : blobOps, the static registrations and the dispatcher rewrite disagree
+// @note #blob-20261029-013 issue : blobOps, the static registrations and the dispatcher rewrite disagree
+// @priority low
+// @tags #blobs #cruft
 // @author claude
 //
 // blobOps seeds a binding for "admin" but RegisterBlobHandlers registers no admin handler, so that binding is dead. "compact" has no per-namespace op at all. The NamespacedDispatcher rewrites only the system:blobs:blob: prefix, so system:blobs:namespace:stats|verify|compact (static, rule=root) appear never to consult the per-namespace stats/verify bindings that SeedNamespaceBindings creates; a non-root user granted <ns>:stats could not use the client's stats() (from reading, not exercised). compact is also registered with intent=create although it is a maintenance operation, and every binding is seeded as "root", so each grant is a manual policy edit.

@@ -17,7 +17,9 @@ import (
 	dispatch "github.com/asaidimu/hestia/core/runtime/dispatch"
 )
 
-// @note #blob-20261029-015 todo P3 #blobs,#config,#ergonomics : Server limits are hard-coded and not discoverable by clients
+// @note #blob-20261029-015 todo : Server limits are hard-coded and not discoverable by clients
+// @priority low
+// @tags #blobs #config #ergonomics
 // @author claude
 // @see #blob-20261029-018
 //
@@ -132,14 +134,18 @@ func NewUploadChunkHandler(mgr *staging.Manager) abstract.MessageHandler {
 	}
 }
 
-// @note #blob-20261029-001 issue P1 #blobs,#security,#authz : Upload sessions are not bound to the authorised namespace or to the principal that began them
+// @note #blob-20261029-001 issue : Upload sessions are not bound to the authorised namespace or to the principal that began them
+// @priority high
+// @tags #blobs #security #authz
 // @author claude
 // @see #blob-20261029-002
 //
 // Policy is resolved from arguments.ns (the NamespacedDispatcher rewrites system:blobs:blob:* to system:blobs:<ns>:*), but chunk, progress, abort and complete act on the session id alone. complete finalises into cu.NamespaceID/cu.Key, the others never compare the session's namespace with input.NS, and nothing records which principal ran begin. A caller allowed to complete (or abort, or write chunks) in namespace A can name a session id begun in namespace B, so the session id is the only capability. Not exercised by a test; verify before fixing.
 // Fix: store namespace (and principal) on the session at begin and reject any mismatch with NOT_FOUND, so a wrong id leaks nothing. See #blob-20261029-002 for the other complete-time hazard.
 
-// @note #blob-20261029-002 issue P1 #blobs,#data-loss : complete without overwrite aborts the finished session and discards every uploaded byte
+// @note #blob-20261029-002 issue : complete without overwrite aborts the finished session and discards every uploaded byte
+// @priority high
+// @tags #blobs #data-loss
 // @author claude
 // @see #blob-20261029-001
 // @see #blob-20261029-016

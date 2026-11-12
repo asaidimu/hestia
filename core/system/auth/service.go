@@ -20,7 +20,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// @note #8uuufn todo resolved : Cleaun up old manual code
+// @note #8uuufn todo : Cleaun up old manual code
+// @status resolved
+//
 // The whole codebase seems to be riddled with duplicate
 // uncleaned implementations. We should probably clean them up
 // by first consolidating all hand rolled models with the generated
@@ -82,7 +84,9 @@ func NewAuthService(rt abstract.Container) (*AuthService, error) {
 	}, nil
 }
 
-// @note #auth-20261029-002 todo P2 #auth,#api : Login response carries no session expiry
+// @note #auth-20261029-002 todo : Login response carries no session expiry
+// @priority medium
+// @tags #auth #api
 // @author claude
 // @see #auth-20261029-001
 // @status resolved
@@ -192,7 +196,7 @@ func (s *AuthService) GetSession(ctx context.Context, msg abstract.Message) (*mo
 		view.ExpiresAt = claims.ExpiresAt
 	}
 
-	return view, nil
+	return document.New(view), nil
 }
 
 // DeleteSession logs out.
@@ -305,7 +309,9 @@ func (s *AuthService) PasswordConfirm(ctx context.Context, msg abstract.Message,
 	return nil
 }
 
-// @note #auth-20261029-001 todo P1 #auth,#api,#ergonomics : No route returns the current session's claims (blocks multi-tab restore)
+// @note #auth-20261029-001 todo : No route returns the current session's claims (blocks multi-tab restore)
+// @priority high
+// @tags #auth #api #ergonomics
 // @author claude
 // @see #auth-20261029-002
 // @see #auth-20261029-003

@@ -1,4 +1,7 @@
-// @note #arch-20260821-005 issue resolved priority=P1 tags=#arch,#errors : Inconsistent error handling in dispatchers
+// @note #arch-20260821-005 issue : Inconsistent error handling in dispatchers
+// @status resolved
+// @priority=P1
+// @tags=#arch,#errors
 // @assignee opencode
 // Replaced fmt.Errorf in LocalDispatcher and BootstrapDispatcher with SystemError sentinels (ErrNotFound, ErrAccessDenied, ErrAlreadyExists, ErrValidation). All error paths now produce structured, chainable errors.
 //
@@ -76,7 +79,10 @@ func NewLocalDispatcherWithLogger(logger *zap.Logger) *LocalDispatcher {
 	}
 }
 
-// @note #review-20260821-001 todo resolved priority=P1 tags=#review,#errors : Use SystemError for handler dispatch errors
+// @note #review-20260821-001 todo : Use SystemError for handler dispatch errors
+// @status resolved
+// @priority=P1
+// @tags=#review,#errors
 // LocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,
 // but the review guide recommends using common.SystemError for consistency with
 // the rest of the codebase (see core/runtime/errors.go).
@@ -145,7 +151,10 @@ func completeSafely(logger *zap.Logger, onComplete abstract.CompletionFunc, ctx 
 	abstract.Complete(onComplete, ctx, res, err)
 }
 
-// @note #review-20260821-002 todo resolved priority=P1 tags=#review,#errors : Use SystemError for duplicate handler registration
+// @note #review-20260821-002 todo : Use SystemError for duplicate handler registration
+// @status resolved
+// @priority=P1
+// @tags=#review,#errors
 // The error returned when a handler is already registered should use
 // ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for
 // consistent error handling across the codebase.

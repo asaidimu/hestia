@@ -614,6 +614,21 @@ func TestGetSessionHandler(t *testing.T) {
 	if pw, ok := view.User["password"]; ok && pw != "***" {
 		t.Errorf("sanitized session user leaked the password: %v", pw)
 	}
+
+	// Regression: the generated handler for system:auth:session:get calls
+	// model.Document(). A raw &SessionDocumentView{} panics/errors with
+	// "document: model not initialized — call document.New[T] ...".
+	doc, err := view.Document()
+	if err != nil {
+		t.Fatalf("view.Document() after GetSession: %v (model not initialized?)", err)
+	}
+	if doc == nil {
+		t.Fatal("view.Document() returned nil")
+	}
+	m := doc.ToMap()
+	if _, ok := m["expires_at"]; !ok {
+		t.Fatalf("document missing expires_at: %v", m)
+	}
 }
 
 func TestGetSessionRequiresAuth(t *testing.T) {

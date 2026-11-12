@@ -54,7 +54,9 @@ by every command.`,
 		}
 
 		os.MkdirAll(featureDir, 0755)
-		// @note #tool-20261029-005 issue P2 #tooling,#migrations : Per-module model/migrations directories are scaffolded but nothing populates them
+		// @note #tool-20261029-005 issue : Per-module model/migrations directories are scaffolded but nothing populates them
+		// @priority medium
+		// @tags #tooling #migrations
 		// @author claude
 		// @see #tool-20261029-006
 		//

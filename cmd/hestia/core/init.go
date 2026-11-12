@@ -10,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// @note #tool-20261029-004 todo P2 #tooling,#scaffold : init does not make the project anansi-ready
+// @note #tool-20261029-004 todo : init does not make the project anansi-ready
+// @priority medium
+// @tags #tooling #scaffold
 // @author claude
 // @see #tool-20261029-001
 // @see #tool-20261029-006

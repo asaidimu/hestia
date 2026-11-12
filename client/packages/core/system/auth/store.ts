@@ -1,7 +1,9 @@
 import { type Transport, type IdentityProvider } from "../../core/client";
 import type { LoginResult, ServerHealth } from "./types";
 
-// @note #auth-20261029-003 todo P1 #client,#auth,#ergonomics : HestiaAuth has no session()/restore call
+// @note #auth-20261029-003 todo : HestiaAuth has no session()/restore call
+// @priority high
+// @tags #client #auth #ergonomics
 // @author claude
 // @see #auth-20261029-001
 // @see #auth-20261029-002
@@ -20,7 +22,9 @@ import type { LoginResult, ServerHealth } from "./types";
 // LoginResult gains expires_at?: number (see #auth-20261029-002). Either
 // implement resume() on top of session() or replace it outright.
 
-// @note #auth-20261029-004 todo P1 #client,#iam,#integration : @asaidimu/iam 8.2.0 cannot adopt an existing server session
+// @note #auth-20261029-004 todo : @asaidimu/iam 8.2.0 cannot adopt an existing server session
+// @priority high
+// @tags #client #iam #integration
 // @author claude
 // @see #auth-20261029-003
 // @status resolved
@@ -104,7 +108,9 @@ export class HestiaAuth {
     return res.data.data;
   }
 
-  // @note #auth-20261029-005 issue P2 #client,#auth : logout() can leave client and IAM identity diverged; error-code check is dead
+  // @note #auth-20261029-005 issue : logout() can leave client and IAM identity diverged; error-code check is dead
+  // @priority medium
+  // @tags #client #auth
   // @author claude
   // @status resolved
   //

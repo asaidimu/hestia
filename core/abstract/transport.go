@@ -7,7 +7,10 @@ import (
         "github.com/asaidimu/go-anansi/v8/core/query"
 )
 
-// @note #perf-20260821-001 issue status=open priority=P2 tags=#performance,#struct-packing : Request struct has poor field ordering
+// @note #perf-20260821-001 issue : Request struct has poor field ordering
+// @status=open
+// @priority=P2
+// @tags=#performance,#struct-packing
 //
 // Request struct (line 9) has suboptimal field ordering for memory alignment:
 //
@@ -92,7 +95,10 @@ type Cookie struct {
 
 type StreamBody <-chan any
 
-// @note #perf-20260821-002 issue status=open priority=P2 tags=#performance,#struct-packing : Response struct has mixed pointer/value types
+// @note #perf-20260821-002 issue : Response struct has mixed pointer/value types
+// @status=open
+// @priority=P2
+// @tags=#performance,#struct-packing
 //
 // Response struct (line 42) mixes pointer and value types inefficiently:
 //

@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 )
 
-// @note #tool-20261029-006 todo P3 #tooling,#config : Two config files describe overlapping layout and nothing checks they agree
+// @note #tool-20261029-006 todo : Two config files describe overlapping layout and nothing checks they agree
+// @priority low
+// @tags #tooling #config
 // @author claude
 // @see #tool-20261029-001
 // @see #tool-20261029-005

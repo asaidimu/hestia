@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-06T10:00:18.710923Z",
+  "generatedAt": "2026-11-12T12:40:49.806354269Z",
   "root": ".",
   "notes": {
     "41htq3": {
@@ -27,9 +27,9 @@
       "assignee": "opencode",
       "location": {
         "file": "core/system/updates/service.go",
-        "startLine": 396,
+        "startLine": 399,
         "startCol": 3,
-        "endLine": 402,
+        "endLine": 405,
         "endCol": 3
       },
       "hash": "0cacd5a5585a55b4"
@@ -42,9 +42,9 @@
       "body": "We need to investiagate other auth methods such as a list of trusted domains so that external events such as\nWebhooks can be processed without requiring API Keys\nS-20: fetch as any — the property is stored as []string by\nContextWithClaims and as []any by some producers, and asserting\n[]any directly failed the type check for the former, silently\nskipping the gate (allow-all) for exactly the scoped keys it\nexists to constrain. A present-but-unparseable property now denies\ninstead of allowing.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 76,
+        "startLine": 82,
         "startCol": 3,
-        "endLine": 85,
+        "endLine": 91,
         "endCol": 3
       },
       "hash": "f4fdaa380636ccef"
@@ -59,7 +59,7 @@
         "file": "core/system/auth/service.go",
         "startLine": 22,
         "startCol": 3,
-        "endLine": 27,
+        "endLine": 28,
         "endCol": 3
       },
       "hash": "f75ce36628872543"
@@ -68,21 +68,31 @@
       "id": "arch-20260821-003",
       "category": "issue",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "arch",
+        "duplication"
+      ],
       "title": "Duplicated identity property extraction pattern",
       "body": "\nThe pattern `ident.Properties.(map[string]any)` followed by key extraction\nappears in 8+ places across 5 files:\n\n1. secure-dispatcher.go:66,127\n2. rate-limit.go:132,145\n3. throttle.go:46\n4. access-log-dispatcher.go:89\n5. core/interface/http/middleware.go:144\n\nThis is a mechanical pattern that should be a shared helper. The existing\ndevnotes #review-20260821-006 and #review-20260821-007 call for a helper\nlike `GetIdentityProperty[T](ctx, key)` or a typed `IdentityProperties` struct.\n\nResolution: Create a `runtime/identity` helper package with generic functions\nlike `GetProperty[T](ctx, key) (T, bool)` to eliminate all copies.\n",
       "location": {
         "file": "core/runtime/secure-dispatcher.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 17,
+        "endLine": 20,
         "endCol": 3
       },
-      "hash": "0f902289b2a6656a"
+      "hash": "f46421e44f80d6b4"
     },
     "arch-20260821-004": {
       "id": "arch-20260821-004",
       "category": "issue",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "arch",
+        "duplication"
+      ],
       "title": "Separate rate store instances per dispatcher",
       "body": "\nRateLimitDispatcher creates its own ratestore.New() instance at line 61.\nThrottleDispatcher (throttle.go:78) creates a separate ratestore.New() instance.\n\nEach dispatcher creates an independent InMemoryStore instance with its own\neviction goroutine and shard array. This doubles memory usage and means\nrate limits and throttles are tracked in separate stores even when they\ncould share infrastructure.\n\nResolution: Pass the RateLimitStore via DI or constructor instead of creating\nnew instances internally in each dispatcher. This allows sharing a single\nstore instance across dispatchers.\n",
       "assignee": "opencode",
@@ -93,15 +103,20 @@
         "file": "core/runtime/rate-limit.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 15,
+        "endLine": 18,
         "endCol": 3
       },
-      "hash": "03b83586fc536b33"
+      "hash": "eaf5810f9f6ce6df"
     },
     "arch-20260821-005": {
       "id": "arch-20260821-005",
       "category": "issue",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "arch",
+        "errors"
+      ],
       "title": "Inconsistent error handling in dispatchers",
       "body": "\nLocalDispatcher.Send uses fmt.Errorf for handler-not-found and disabled errors,\nbut the project convention is to use common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nThe same issue exists in bootstrap-dispatcher.go.\n\nMeanwhile, secure-dispatcher.go and rate-limit.go correctly use ErrAccessDenied,\nErrAuthRequired, ErrRateLimited etc.\n\nResolution: Replace all fmt.Errorf handler-dispatch errors in local-dispatcher.go\nand bootstrap-dispatcher.go with appropriate SystemError sentinels (ErrNotFound,\nErrValidation/ErrAccessDenied with WithOperation).\n",
       "assignee": "opencode",
@@ -109,60 +124,80 @@
         "file": "core/runtime/local-dispatcher.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 15,
+        "endLine": 18,
         "endCol": 3
       },
-      "hash": "702848d4a85c0684"
+      "hash": "9aef8b80d0cbfab7"
     },
     "arch-20260821-008": {
       "id": "arch-20260821-008",
       "category": "issue",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "arch",
+        "dependency"
+      ],
       "title": "Subpackage imports parent runtime package",
       "body": "notification/channel_email.go imports its own parent runtime package (for *runtime.Mailer).\nThis violates expected hierarchical dependency direction — subpackages should not import\ntheir parent.\n\nThe Mailer type (or its interface) should live in a shared location like:\n- A new `core/config` package (alongside other config types)\n- The `abstract` package (as an interface)\n- A dedicated `core/mailer` package\n\nResolution: Extract a Mailer interface in abstract or the new config package\nso notification does not need to import runtime.\n",
       "location": {
         "file": "core/runtime/notification/channel_email.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 12,
+        "endLine": 15,
         "endCol": 3
       },
-      "hash": "2cfaccfa1a82534b"
+      "hash": "4834ebd62c164c78"
     },
     "arch-20260821-009": {
       "id": "arch-20260821-009",
       "category": "issue",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "arch",
+        "maintainability"
+      ],
       "title": "Hardcoded HTML template in Go source",
       "body": "The password reset email HTML template is a fmt.Sprintf string literal\n(mailer.go:89-98). This makes it difficult to maintain, test, and internationalize.\n\nThe existing TODO at line 83 acknowledges this issue.\n\nResolution: Move templates to a templates/ directory with .html files,\nuse Go's html/template package for rendering, support i18n for different\nlocales, and make the template configurable per deployment.\n",
       "location": {
         "file": "core/runtime/mailer.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 9,
+        "endLine": 12,
         "endCol": 3
       },
-      "hash": "8ee58294180a2372"
+      "hash": "aa85b77ab469e238"
     },
     "arch-20260821-010": {
       "id": "arch-20260821-010",
       "category": "issue",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "arch",
+        "concurrency"
+      ],
       "title": "Race condition in AuditBuffer circuit breaker",
       "body": "The Write method (line 63) reads b.failed under mutex, then calls wg.Add(1)\noutside the lock. A concurrent Close() could interleave between the check\nand the wg.Add(1).\n\nAdditionally, on re-enqueue failure (line 121-125), wg.Done() is called\nwithout guaranteeing it was incremented for this entry. This could cause\na panic if the entry was never added to the WaitGroup.\n\nThe circuit breaker is only reset on successful persist in flushLoop,\nbut if the buffer is full and the circuit opens, entries are dropped\npermanently until a successful persist occurs. Consider adding a\ntimeout-based circuit breaker reset or a maximum drop count before recovery.\n\nResolution: Hold the mutex across the entire check-and-add sequence,\nor use an atomic flag. Ensure wg.Done() is only called when wg.Add(1)\nwas successfully called for the same entry.",
       "location": {
         "file": "core/runtime/audit_buffer.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 18,
+        "endLine": 21,
         "endCol": 3
       },
-      "hash": "283180ef01c77472"
+      "hash": "b38cb5b434df3b7c"
     },
     "arch-20260821-011": {
       "id": "arch-20260821-011",
       "category": "issue",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "arch",
+        "lifecycle"
+      ],
       "title": "Scheduler jobs have no lifecycle context",
       "body": "\nThe Register method wraps the job function with context.Background() (line 51),\nwhich means scheduled jobs have no access to the application's lifecycle context.\n\nThis could be problematic for:\n1. Graceful shutdown - jobs can't be cancelled\n2. Tracing - jobs can't be linked to the parent trace\n3. Timeout control - jobs run indefinitely\n\nResolution: Store the context passed to Start() and use it for job execution,\nor accept a context factory function at registration time.\n",
       "assignee": "opencode",
@@ -170,53 +205,63 @@
         "file": "core/runtime/scheduler/scheduler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 13,
+        "endLine": 16,
         "endCol": 3
       },
-      "hash": "56589ecb980a3b01"
+      "hash": "00df9d04b170d048"
     },
     "arch-20260821-013": {
       "id": "arch-20260821-013",
       "category": "issue",
       "status": "open",
+      "priority": "medium",
+      "tags": [
+        "arch",
+        "placement"
+      ],
       "title": "Domain types in leaf package",
-      "body": "runtime is a leaf package but contains domain types that other packages depend on:\n\n- Policy types (RateLimitPolicy, ThrottlePolicy, ThrottleActionPolicy) - stored\n  in the _operation_policy_ collection alongside each operation\n- Rate limit types (RateLimitError, RateLimitStore, MatchIdentity, RateLimitLookup)\n- Capability types (CapabilityItem, CapabilitiesDocument)\n- Permission types (PermissionManager, ReloadablePermissionManager, CapabilityMetadata)\n- Metadata types (RateLimitMeta)\n- Audit context keys (AuditActorIDKey, etc.)\n\nThese types are used extensively throughout the codebase (52+ files import runtime).\nThis creates a tight coupling between the runtime package and all other packages.\n\nResolution: Move domain types to proper packages:\n- RateLimitPolicy/ThrottlePolicy -> operations/policy or similar model package\n- PermissionManager -> permissions package\n- RateLimitStore -> ratestore package\n- CapabilityItem/CapabilitiesDocument -> capabilities package\n",
+      "body": "runtime is a leaf package but contains domain types that other packages depend on:\n\n- Policy types (RateLimitPolicy, ThrottlePolicy, ThrottleActionPolicy) - stored\n  in the _operation_policy_ collection alongside each operation\n- Rate limit types (RateLimitError, RateLimitStore, MatchIdentity, RateLimitLookup)\n- Capability types (CapabilityItem, CapabilitiesDocument)\n- Permission types (PermissionManager, ReloadablePermissionManager, CapabilityMetadata)\n- Metadata types (RateLimitMeta)\n- Audit context keys (AuditActorIDKey, etc.)\n\nThese types are used extensively throughout the codebase (52+ files import runtime).\nThis creates a tight coupling between the runtime package and all other packages.\n\nResolution: Move domain types to proper packages:\n- RateLimitPolicy/ThrottlePolicy -\u003e operations/policy or similar model package\n- PermissionManager -\u003e permissions package\n- RateLimitStore -\u003e ratestore package\n- CapabilityItem/CapabilitiesDocument -\u003e capabilities package\n",
       "location": {
         "file": "core/runtime/policytypes.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 19,
+        "endLine": 22,
         "endCol": 3
       },
-      "hash": "1fb30b4f4c88ee5b"
+      "hash": "6ffe609b52e2cb9d"
     },
     "arch-20260821-014": {
       "id": "arch-20260821-014",
       "category": "issue",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "arch",
+        "concurrency"
+      ],
       "title": "Lock ordering inconsistency in ratestore",
       "body": "The evictStale method (line 150) acquires shard.mu and then bucket.mu,\nwhile other methods (CheckAndConsume, Increment) acquire bucket.mu first.\n\nThis lock ordering inconsistency could lead to deadlocks if concurrent\noperations are happening. For example:\n- Thread A: evictStale holds shard.mu, waits for bucket.mu\n- Thread B: CheckAndConsume holds bucket.mu, waits for shard.mu\n\nResolution: Use a consistent lock ordering throughout, or use a different\neviction strategy that doesn't require holding both locks simultaneously.",
       "location": {
         "file": "core/runtime/ratestore/inmemory.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 12,
+        "endLine": 15,
         "endCol": 3
       },
-      "hash": "206a7956e2df5443"
+      "hash": "f97a90c5e41a88d4"
     },
     "auth-20261029-001": {
       "id": "auth-20261029-001",
       "category": "todo",
       "status": "resolved",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "auth",
         "api",
         "ergonomics"
       ],
       "title": "No route returns the current session's claims (blocks multi-tab restore)",
-      "body": "Resolved: added system:auth:session:get (GetSession) returning the sanitized user and absolute expires_at, gated by the authenticated rule.\n\nThe session cookie is HttpOnly, so page JS cannot read it and a fresh tab\nhas no way to learn that a valid session already exists. Today:\n  - system:auth:session:validate is Internal and wants a raw token in the\n    request body, which a browser does not have;\n  - it returns only ids and timestamps, no email or permissions;\n  - system:core:heartbeat returns nothing;\n  - system:users:user:get needs a user id the new tab does not have.\n\nProposal: add system:auth:session:get (intent=read, rule=authenticated, not\ninternal) returning the same sanitized user document CreateSession builds,\nplus expires_at (absolute session expiry, unix seconds). authMiddleware\nalready puts expires_at and token_id into the resolved identity properties,\nso the handler is: read claims from ctx, load the user, sanitize with the\n\"users\" scope, return. Do NOT list it in NoRefreshCommands: like every other\nauthenticated request it should slide the cookie.\n",
+      "body": "Resolved: added system:auth:session:get (GetSession) returning the sanitized user and absolute expires_at, gated by the authenticated rule.\nThe session cookie is HttpOnly, so page JS cannot read it and a fresh tab\nhas no way to learn that a valid session already exists. Today:\n  - system:auth:session:validate is Internal and wants a raw token in the\n    request body, which a browser does not have;\n  - it returns only ids and timestamps, no email or permissions;\n  - system:core:heartbeat returns nothing;\n  - system:users:user:get needs a user id the new tab does not have.\n\nProposal: add system:auth:session:get (intent=read, rule=authenticated, not\ninternal) returning the same sanitized user document CreateSession builds,\nplus expires_at (absolute session expiry, unix seconds). authMiddleware\nalready puts expires_at and token_id into the resolved identity properties,\nso the handler is: read claims from ctx, load the user, sanitize with the\n\"users\" scope, return. Do NOT list it in NoRefreshCommands: like every other\nauthenticated request it should slide the cookie.\n",
       "authors": [
         "claude"
       ],
@@ -226,24 +271,24 @@
       ],
       "location": {
         "file": "core/system/auth/service.go",
-        "startLine": 306,
+        "startLine": 310,
         "startCol": 3,
-        "endLine": 327,
+        "endLine": 333,
         "endCol": 3
       },
-      "hash": "1416a94dadf20d12"
+      "hash": "323ad5a96db059e2"
     },
     "auth-20261029-002": {
       "id": "auth-20261029-002",
       "category": "todo",
       "status": "resolved",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "auth",
         "api"
       ],
       "title": "Login response carries no session expiry",
-      "body": "Resolved: CreateSession now captures SessionInfo.ExpiresAt and emits expires_at on the login document; LoginResult.expires_at exposes it to clients.\n\nLoginOutput holds only the user. The absolute expiry (now + sessionTTL,\nDefaultSessionTTL = 8h) lives only inside the cookie, so clients guess it\n(IAM consumers hard-code 8h) and drift from the server. Return expires_at\n(unix seconds) from CreateSession, and from session:get (#auth-20261029-001).\nThe client maps it onto IAM's per-login session.ttl override.\n",
+      "body": "Resolved: CreateSession now captures SessionInfo.ExpiresAt and emits expires_at on the login document; LoginResult.expires_at exposes it to clients.\nLoginOutput holds only the user. The absolute expiry (now + sessionTTL,\nDefaultSessionTTL = 8h) lives only inside the cookie, so clients guess it\n(IAM consumers hard-code 8h) and drift from the server. Return expires_at\n(unix seconds) from CreateSession, and from session:get (#auth-20261029-001).\nThe client maps it onto IAM's per-login session.ttl override.\n",
       "authors": [
         "claude"
       ],
@@ -252,19 +297,25 @@
       ],
       "location": {
         "file": "core/system/auth/service.go",
-        "startLine": 84,
+        "startLine": 85,
         "startCol": 3,
-        "endLine": 94,
+        "endLine": 97,
         "endCol": 3
       },
-      "hash": "f69480025aad0f7d"
+      "hash": "9fce9bec97b5d383"
     },
     "auth-20261029-003": {
       "id": "auth-20261029-003",
       "category": "todo",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "client",
+        "auth",
+        "ergonomics"
+      ],
       "title": "HestiaAuth has no session()/restore call",
-      "body": "Resolved: HestiaAuth.session() dispatches system:auth:session:get with notifyAuthStateChange:false; 401 clears identity and returns null, other errors throw. resume() was removed.\n\nA resume() stub now exists below, but it throws \"Method not implemented\", so\nthe capability is still missing. Proposal: session(): Promise<LoginResult | null>.\n  - dispatches system:auth:session:get with notifyAuthStateChange:false so a\n    \"not logged in\" answer does not run the global 401 handler;\n  - 200: setIdentity(user) and return { user, expires_at };\n  - 401: clear the local identity and return null;\n  - anything else (network error, 5xx): THROW. Callers must be able to tell\n    \"not logged in\" from \"could not check\", or an offline blip logs users out.\nLoginResult gains expires_at?: number (see #auth-20261029-002). Either\nimplement resume() on top of session() or replace it outright.\n",
+      "body": "Resolved: HestiaAuth.session() dispatches system:auth:session:get with notifyAuthStateChange:false; 401 clears identity and returns null, other errors throw. resume() was removed.\nA resume() stub now exists below, but it throws \"Method not implemented\", so\nthe capability is still missing. Proposal: session(): Promise\u003cLoginResult | null\u003e.\n  - dispatches system:auth:session:get with notifyAuthStateChange:false so a\n    \"not logged in\" answer does not run the global 401 handler;\n  - 200: setIdentity(user) and return { user, expires_at };\n  - 401: clear the local identity and return null;\n  - anything else (network error, 5xx): THROW. Callers must be able to tell\n    \"not logged in\" from \"could not check\", or an offline blip logs users out.\nLoginResult gains expires_at?: number (see #auth-20261029-002). Either\nimplement resume() on top of session() or replace it outright.\n",
       "authors": [
         "claude"
       ],
@@ -277,82 +328,73 @@
         "file": "client/packages/core/system/auth/store.ts",
         "startLine": 3,
         "startCol": 3,
-        "endLine": 20,
+        "endLine": 22,
         "endCol": 3
       },
-      "hash": "4157f5c28443e460",
-      "priority": "P1",
-      "tags": [
-        "client",
-        "auth",
-        "ergonomics"
-      ]
+      "hash": "1b34dbadfc77b9c5"
     },
     "auth-20261029-004": {
       "id": "auth-20261029-004",
       "category": "todo",
       "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "client",
+        "iam",
+        "integration"
+      ],
       "title": "@asaidimu/iam 8.2.0 cannot adopt an existing server session",
-      "body": "Resolved: the reference integration now targets @asaidimu/iam 9.x and uses onRestore to adopt the cookie-backed session.\nTo be filed in asaidimu/iam (all verified by reading 8.2.0):\n  1. No startup hook can supply an identity. onVerify only runs when an\n     identity is already persisted; onLoad is undocumented, ignores its\n     boolean result and cannot provide an identity.\n  2. provider.refresh() returns null when there is no identity, so refresh()\n     cannot restore a session.\n  3. onVerify/onLoad are typed Identity | null but onVerify is only called\n     with non-null; onLoad(null) fires twice on a failed verify.\n  4. config.persistence is ignored when scope is passed.\n  5. session.refreshInterval is the lead time before expiry, not a polling\n     interval; this is easy to misread.\nProposal: onRestore?: () => Promise<(Identity & { session? }) | null>, called\nby the provider whenever the store holds no identity, and by refresh() when\nthere is none. Interim, works on 8.2.0: model restore as a variant of\nauthenticate(), e.g. authenticate({ kind: \"restore\" }).\n",
+      "body": "Resolved: the reference integration now targets @asaidimu/iam 9.x and uses onRestore to adopt the cookie-backed session.\nTo be filed in asaidimu/iam (all verified by reading 8.2.0):\n  1. No startup hook can supply an identity. onVerify only runs when an\n     identity is already persisted; onLoad is undocumented, ignores its\n     boolean result and cannot provide an identity.\n  2. provider.refresh() returns null when there is no identity, so refresh()\n     cannot restore a session.\n  3. onVerify/onLoad are typed Identity | null but onVerify is only called\n     with non-null; onLoad(null) fires twice on a failed verify.\n  4. config.persistence is ignored when scope is passed.\n  5. session.refreshInterval is the lead time before expiry, not a polling\n     interval; this is easy to misread.\nProposal: onRestore?: () =\u003e Promise\u003c(Identity \u0026 { session? }) | null\u003e, called\nby the provider whenever the store holds no identity, and by refresh() when\nthere is none. Interim, works on 8.2.0: model restore as a variant of\nauthenticate(), e.g. authenticate({ kind: \"restore\" }).\n",
       "authors": [
         "claude"
       ],
       "references": [
         "#auth-20261029-003"
       ],
-      "extensions": {
-        "asaidimu": "9.x and uses onRestore to adopt the cookie-backed session."
-      },
       "location": {
         "file": "client/packages/core/system/auth/store.ts",
-        "startLine": 22,
+        "startLine": 24,
         "startCol": 3,
-        "endLine": 42,
+        "endLine": 46,
         "endCol": 3
       },
-      "hash": "89ff817f6df6442e",
-      "priority": "P1",
-      "tags": [
-        "client",
-        "iam",
-        "integration"
-      ]
+      "hash": "015b529947ca2b55"
     },
     "auth-20261029-005": {
       "id": "auth-20261029-005",
       "category": "issue",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "client",
+        "auth"
+      ],
       "title": "logout() can leave client and IAM identity diverged; error-code check is dead",
-      "body": "Resolved: logout() clears local identity in finally and treats an absent/expired session (NO_ACTIVE_SESSION/401) as success, so client and IAM cannot diverge on failure.\n\nAny error other than \"no active session\" is rethrown BEFORE provider.clear(),\nso a network blip leaves HestiaClient.store.identity set while IAM (which\nclears first in deauthenticate) is already logged out, and callers that\nstop the heartbeat after logout() skip that too.\nerr.code === \"NO_ACTIVE_SESSION\" never matches: DeleteSession returns\nUNAUTHENTICATED with the message \"no active session to revoke\"; only the\nsubstring check works. With an expired cookie the route (rule\nauthenticated) answers 401 before the handler runs, so that message is\nnever seen at all.\nFix: revoke best-effort, clear the local identity in a finally block, and\nmatch on code/status rather than message text.\n",
+      "body": "Resolved: logout() clears local identity in finally and treats an absent/expired session (NO_ACTIVE_SESSION/401) as success, so client and IAM cannot diverge on failure.\nAny error other than \"no active session\" is rethrown BEFORE provider.clear(),\nso a network blip leaves HestiaClient.store.identity set while IAM (which\nclears first in deauthenticate) is already logged out, and callers that\nstop the heartbeat after logout() skip that too.\nerr.code === \"NO_ACTIVE_SESSION\" never matches: DeleteSession returns\nUNAUTHENTICATED with the message \"no active session to revoke\"; only the\nsubstring check works. With an expired cookie the route (rule\nauthenticated) answers 401 before the handler runs, so that message is\nnever seen at all.\nFix: revoke best-effort, clear the local identity in a finally block, and\nmatch on code/status rather than message text.\n",
       "authors": [
         "claude"
       ],
       "location": {
         "file": "client/packages/core/system/auth/store.ts",
-        "startLine": 106,
+        "startLine": 110,
         "startCol": 3,
-        "endLine": 121,
+        "endLine": 127,
         "endCol": 3
       },
-      "hash": "1986233b470e7e82",
-      "priority": "P2",
-      "tags": [
-        "client",
-        "auth"
-      ]
+      "hash": "17ac807db6384343"
     },
     "auth-20261029-006": {
       "id": "auth-20261029-006",
       "category": "issue",
       "status": "resolved",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "client",
         "auth",
         "ergonomics"
       ],
       "title": "authenticated() returns false without asking the server when local identity is null",
-      "body": "Resolved: authenticated() asks the server via auth.session() when the local identity is null, keeping the apiKeyMode shortcut.\n\nThis is the direct cause of \"every tab asks me to log in\": a new tab has an\nempty client store, so authenticated() answers false without a request even\nthough the HttpOnly cookie is valid. The name promises a server-confirmed\nstate but it only confirms when a local identity already exists.\nFix: once auth.session() exists (#auth-20261029-003) call it here\n(null -> false, throw -> propagate), keeping the apiKeyMode shortcut. The\nheartbeat is a poor probe because it carries no claims.\n",
+      "body": "Resolved: authenticated() asks the server via auth.session() when the local identity is null, keeping the apiKeyMode shortcut.\nThis is the direct cause of \"every tab asks me to log in\": a new tab has an\nempty client store, so authenticated() answers false without a request even\nthough the HttpOnly cookie is valid. The name promises a server-confirmed\nstate but it only confirms when a local identity already exists.\nFix: once auth.session() exists (#auth-20261029-003) call it here\n(null -\u003e false, throw -\u003e propagate), keeping the apiKeyMode shortcut. The\nheartbeat is a poor probe because it carries no claims.\n",
       "authors": [
         "claude"
       ],
@@ -361,24 +403,24 @@
       ],
       "location": {
         "file": "client/packages/core/container.ts",
-        "startLine": 222,
+        "startLine": 226,
         "startCol": 3,
-        "endLine": 234,
+        "endLine": 240,
         "endCol": 3
       },
-      "hash": "601846ada61b806d"
+      "hash": "6a7066c7c8c348c5"
     },
     "auth-20261029-007": {
       "id": "auth-20261029-007",
       "category": "todo",
       "status": "resolved",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "client",
         "ergonomics"
       ],
       "title": "onAuthStateChange has no unsubscribe and fires only on 401",
-      "body": "Resolved: onAuthStateChange(cb) now returns an unsubscribe and is backed by store.watch(\"identity\"), firing on login, logout, restore, refresh and 401 clears.\n\nIt now keeps a Set of callbacks, so several subscribers coexist, but it\nreturns nothing to unsubscribe and it fires only when a request gets 401,\nnot on login, logout or restore, despite the name. Consumers (the IAM\nwrapper) therefore have to call back into their own provider to find out\nwhat happened, and the client store and IAM store can drift.\nProposal: onAuthStateChange(cb: (identity: UserIdentity | null) => void):\n() => void, backed by store.watch(\"identity\"); keep 401 -> clear.\n",
+      "body": "Resolved: onAuthStateChange(cb) now returns an unsubscribe and is backed by store.watch(\"identity\"), firing on login, logout, restore, refresh and 401 clears.\nIt now keeps a Set of callbacks, so several subscribers coexist, but it\nreturns nothing to unsubscribe and it fires only when a request gets 401,\nnot on login, logout or restore, despite the name. Consumers (the IAM\nwrapper) therefore have to call back into their own provider to find out\nwhat happened, and the client store and IAM store can drift.\nProposal: onAuthStateChange(cb: (identity: UserIdentity | null) =\u003e void):\n() =\u003e void, backed by store.watch(\"identity\"); keep 401 -\u003e clear.\n",
       "authors": [
         "claude"
       ],
@@ -386,23 +428,23 @@
         "file": "client/packages/core/container.ts",
         "startLine": 188,
         "startCol": 3,
-        "endLine": 199,
+        "endLine": 201,
         "endCol": 3
       },
-      "hash": "d5239f3ab676a4f1"
+      "hash": "0810f315d0a2aecd"
     },
     "auth-20261029-008": {
       "id": "auth-20261029-008",
       "category": "todo",
       "status": "resolved",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "client",
         "auth",
         "ergonomics"
       ],
       "title": "Heartbeat lifecycle is hand-managed by every consumer, and it is what keeps the session alive",
-      "body": "Resolved: HestiaClient watches store.identity and starts/stops the heartbeat automatically; autoHeartbeat:false plus start/stopHeartbeat remain as the opt-out.\n\nServer session = 8h absolute (DefaultSessionTTL) with a 30min idle limit\n(DefaultIdleTTL); any authenticated request after 15min (DefaultRefreshTTL)\nre-issues the cookie, and NoRefreshCommands is never populated, so this\n5min heartbeat is what makes access uninterrupted while a tab is open.\nConsumers must start/stop it by hand (the IAM wrapper does so only inside\nonAuthenticate/onDeauthenticate), so a restored session, an expiry-driven\nlogout or a cross-tab logout never starts/stops it.\nProposal: HestiaClient owns it, starting when store.identity becomes\nnon-null and stopping on null; keep start/stopHeartbeat as an opt-out.\nEvery tab runs its own timer (N tabs, N heartbeats): harmless, but could be\nleader-elected. A suspended machine can exceed the idle limit; a re-login\nthere is expected behaviour, not a bug.\n",
+      "body": "Resolved: HestiaClient watches store.identity and starts/stops the heartbeat automatically; autoHeartbeat:false plus start/stopHeartbeat remain as the opt-out.\nServer session = 8h absolute (DefaultSessionTTL) with a 30min idle limit\n(DefaultIdleTTL); any authenticated request after 15min (DefaultRefreshTTL)\nre-issues the cookie, and NoRefreshCommands is never populated, so this\n5min heartbeat is what makes access uninterrupted while a tab is open.\nConsumers must start/stop it by hand (the IAM wrapper does so only inside\nonAuthenticate/onDeauthenticate), so a restored session, an expiry-driven\nlogout or a cross-tab logout never starts/stops it.\nProposal: HestiaClient owns it, starting when store.identity becomes\nnon-null and stopping on null; keep start/stopHeartbeat as an opt-out.\nEvery tab runs its own timer (N tabs, N heartbeats): harmless, but could be\nleader-elected. A suspended machine can exceed the idle limit; a re-login\nthere is expected behaviour, not a bug.\n",
       "authors": [
         "claude"
       ],
@@ -411,25 +453,25 @@
       ],
       "location": {
         "file": "client/packages/core/container.ts",
-        "startLine": 256,
+        "startLine": 262,
         "startCol": 3,
-        "endLine": 273,
+        "endLine": 281,
         "endCol": 3
       },
-      "hash": "bc5dfd3050c83f6b"
+      "hash": "550d86a31eab5832"
     },
     "auth-20261029-009": {
       "id": "auth-20261029-009",
       "category": "todo",
       "status": "resolved",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "client",
         "auth",
         "ergonomics"
       ],
       "title": "No cross-tab auth signalling",
-      "body": "Resolved: HestiaClient broadcasts only \"changed\" on hestia:auth:<baseUrl>; receivers re-run auth.session(). applyingRemoteAuth prevents ping-pong and claims are never broadcast.\n\nLogout in tab A revokes the session id (blocklist) but tab B only learns at\nits next heartbeat (up to 5 min) or 401. Login in tab A is never seen by\ntab B. Proposal: post \"changed\" on a BroadcastChannel (name scoped to\nbaseUrl) after login/logout and, on receipt, re-run auth.session(). The\nserver stays the source of truth: never broadcast claims. Do not post from\nthe handler of a received message (ping-pong).\n",
+      "body": "Resolved: HestiaClient broadcasts only \"changed\" on hestia:auth:\u003cbaseUrl\u003e; receivers re-run auth.session(). applyingRemoteAuth prevents ping-pong and claims are never broadcast.\nLogout in tab A revokes the session id (blocklist) but tab B only learns at\nits next heartbeat (up to 5 min) or 401. Login in tab A is never seen by\ntab B. Proposal: post \"changed\" on a BroadcastChannel (name scoped to\nbaseUrl) after login/logout and, on receipt, re-run auth.session(). The\nserver stays the source of truth: never broadcast claims. Do not post from\nthe handler of a received message (ping-pong).\n",
       "authors": [
         "claude"
       ],
@@ -438,12 +480,12 @@
       ],
       "location": {
         "file": "client/packages/core/container.ts",
-        "startLine": 201,
+        "startLine": 203,
         "startCol": 3,
-        "endLine": 212,
+        "endLine": 216,
         "endCol": 3
       },
-      "hash": "bf26826241aed33c"
+      "hash": "627d3897b1eaf08f"
     },
     "auth-20261029-010": {
       "id": "auth-20261029-010",
@@ -456,7 +498,7 @@
         "example"
       ],
       "title": "Reference integration of HestiaClient with @asaidimu/iam 9.x",
-      "body": "Resolved: reference integration updated to @asaidimu/iam 9.x (async factory, onRestore, refreshResult, onAuthChange mirroring HestiaClient).\nPrinciple: the server's HttpOnly session cookie is the single source of\ntruth. IAM holds a copy of the claims for the UI, and every path that could\nmake that copy stale re-asks the server instead of trusting memory:\n  - tab boot                 -> onRestore adopts an existing session\n  - tab regains focus        -> refresh() re-validates and re-fetches claims\n  - another tab logs in/out  -> HestiaClient BroadcastChannel -> auth.session()\n  - any request gets a 401   -> HestiaClient clears identity -> IAM mirrors it\n  - identity set or cleared  -> HestiaClient starts/stops the heartbeat\n\nRequires @asaidimu/iam >= 9 (onRestore, async createAuthenticator,\nrefreshResult, refreshLeadTime) and HestiaAuth.session() on the client.\nThis file is not part of any package build.\n",
+      "body": "Resolved: reference integration updated to @asaidimu/iam 9.x (async factory, onRestore, refreshResult, onAuthChange mirroring HestiaClient).\nPrinciple: the server's HttpOnly session cookie is the single source of\ntruth. IAM holds a copy of the claims for the UI, and every path that could\nmake that copy stale re-asks the server instead of trusting memory:\n  - tab boot                 -\u003e onRestore adopts an existing session\n  - tab regains focus        -\u003e refresh() re-validates and re-fetches claims\n  - another tab logs in/out  -\u003e HestiaClient BroadcastChannel -\u003e auth.session()\n  - any request gets a 401   -\u003e HestiaClient clears identity -\u003e IAM mirrors it\n  - identity set or cleared  -\u003e HestiaClient starts/stops the heartbeat\n\nRequires @asaidimu/iam \u003e= 9 (onRestore, async createAuthenticator,\nrefreshResult, refreshLeadTime) and HestiaAuth.session() on the client.\nThis file is not part of any package build.\n",
       "authors": [
         "claude"
       ],
@@ -470,17 +512,14 @@
         "#auth-20261029-008",
         "#auth-20261029-009"
       ],
-      "extensions": {
-        "asaidimu": "9.x (async factory, onRestore, refreshResult, onAuthChange mirroring HestiaClient)."
-      },
       "location": {
         "file": "examples/auth-restore/authenticator.ts",
         "startLine": 5,
         "startCol": 3,
-        "endLine": 29,
+        "endLine": 30,
         "endCol": 3
       },
-      "hash": "2f02c649be676293"
+      "hash": "c19967b116ccc0ab"
     },
     "b3muvk": {
       "id": "b3muvk",
@@ -490,9 +529,9 @@
       "body": "influence runtime\n@see #ra2yqz\n@see #8uuufn\n",
       "location": {
         "file": "core/internal/boot/app.go",
-        "startLine": 75,
+        "startLine": 86,
         "startCol": 3,
-        "endLine": 79,
+        "endLine": 90,
         "endCol": 3
       },
       "hash": "b70e6ee1755f239e"
@@ -501,45 +540,55 @@
       "id": "bench-20260821-001",
       "category": "todo",
       "status": "open",
+      "priority": "high",
+      "tags": [
+        "benchmark",
+        "performance"
+      ],
       "title": "Rate limiting needs benchmarks",
       "body": "Rate limiting is critical for HFT fair-use policies and IoT device\nmanagement. Current implementation lacks benchmarks for:\n\n1. CheckAndConsume under high concurrency (1000+ goroutines)\n2. Memory usage with millions of keys\n3. Eviction performance under load\n4. Comparison with Redis-backed rate limiting\n\nFor HFT: Rate limiting latency directly impacts trading performance.\nFor IoT: Rate limiting must handle thousands of devices simultaneously.\n\nResolution: Add benchmarks in ratestore/inmemory_bench_test.go:\n- BenchmarkCheckAndConsume_Serial\n- BenchmarkCheckAndConsume_Parallel\n- BenchmarkMemoryUsage_1MKeys\n- BenchmarkEviction_UnderLoad\n",
       "assignee": "opencode",
       "location": {
         "file": "core/runtime/ratestore/inmemory.go",
-        "startLine": 12,
+        "startLine": 15,
         "startCol": 3,
-        "endLine": 30,
+        "endLine": 36,
         "endCol": 3
       },
-      "hash": "845e6b1ab6d7e724"
+      "hash": "ef1818fb4419a428"
     },
     "bench-20260821-002": {
       "id": "bench-20260821-002",
       "category": "todo",
       "status": "open",
+      "priority": "high",
+      "tags": [
+        "benchmark",
+        "performance"
+      ],
       "title": "Audit buffer needs throughput benchmarks",
       "body": "Audit logging is critical for compliance and security monitoring.\nCurrent implementation lacks benchmarks for:\n\n1. Write throughput under high load (10000+ entries/second)\n2. Buffer full behavior and fail-open performance\n3. Memory usage with large entry sizes\n4. Comparison with async vs sync persistence\n\nFor IoT: Audit logs must not impact device performance.\nFor HFT: Audit logging must not add latency to trades.\n\nResolution: Add benchmarks in audit_buffer_bench_test.go:\n- BenchmarkWrite_Throughput\n- BenchmarkWrite_BufferFull\n- BenchmarkFlushLoop_Latency\n- BenchmarkMemoryUsage\n",
       "location": {
         "file": "core/runtime/audit_buffer.go",
-        "startLine": 18,
+        "startLine": 21,
         "startCol": 3,
-        "endLine": 35,
+        "endLine": 41,
         "endCol": 3
       },
-      "hash": "3218b4b0bd8fab30"
+      "hash": "d454eb4a8e989ec4"
     },
     "blob-20261029-001": {
       "id": "blob-20261029-001",
       "category": "issue",
       "status": "open",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "blobs",
         "security",
         "authz"
       ],
       "title": "Upload sessions are not bound to the authorised namespace or to the principal that began them",
-      "body": "Policy is resolved from arguments.ns (the NamespacedDispatcher rewrites system:blobs:blob:* to system:blobs:<ns>:*), but chunk, progress, abort and complete act on the session id alone. complete finalises into cu.NamespaceID/cu.Key, the others never compare the session's namespace with input.NS, and nothing records which principal ran begin. A caller allowed to complete (or abort, or write chunks) in namespace A can name a session id begun in namespace B, so the session id is the only capability. Not exercised by a test; verify before fixing.\nFix: store namespace (and principal) on the session at begin and reject any mismatch with NOT_FOUND, so a wrong id leaks nothing. See #blob-20261029-002 for the other complete-time hazard.\n",
+      "body": "Policy is resolved from arguments.ns (the NamespacedDispatcher rewrites system:blobs:blob:* to system:blobs:\u003cns\u003e:*), but chunk, progress, abort and complete act on the session id alone. complete finalises into cu.NamespaceID/cu.Key, the others never compare the session's namespace with input.NS, and nothing records which principal ran begin. A caller allowed to complete (or abort, or write chunks) in namespace A can name a session id begun in namespace B, so the session id is the only capability. Not exercised by a test; verify before fixing.\nFix: store namespace (and principal) on the session at begin and reject any mismatch with NOT_FOUND, so a wrong id leaks nothing. See #blob-20261029-002 for the other complete-time hazard.\n",
       "authors": [
         "claude"
       ],
@@ -548,18 +597,18 @@
       ],
       "location": {
         "file": "core/system/blobs/staging.go",
-        "startLine": 134,
+        "startLine": 136,
         "startCol": 3,
-        "endLine": 139,
+        "endLine": 143,
         "endCol": 3
       },
-      "hash": "7d38579787ff5ffc"
+      "hash": "fecae428134b6125"
     },
     "blob-20261029-002": {
       "id": "blob-20261029-002",
       "category": "issue",
       "status": "open",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "blobs",
         "data-loss"
@@ -575,18 +624,18 @@
       ],
       "location": {
         "file": "core/system/blobs/staging.go",
-        "startLine": 141,
+        "startLine": 145,
         "startCol": 3,
-        "endLine": 147,
+        "endLine": 153,
         "endCol": 3
       },
-      "hash": "da1dd311db2b2506"
+      "hash": "c41a2b4e9cc19403"
     },
     "blob-20261029-003": {
       "id": "blob-20261029-003",
       "category": "issue",
       "status": "open",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "blobs",
         "security",
@@ -602,18 +651,18 @@
       ],
       "location": {
         "file": "core/interface/http/register.go",
-        "startLine": 456,
+        "startLine": 549,
         "startCol": 3,
-        "endLine": 462,
+        "endLine": 557,
         "endCol": 3
       },
-      "hash": "be94375fc628ca61"
+      "hash": "a99e2f2dc8c1a1be"
     },
     "blob-20261029-004": {
       "id": "blob-20261029-004",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "performance",
@@ -629,24 +678,24 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 234,
+        "startLine": 245,
         "startCol": 3,
-        "endLine": 240,
+        "endLine": 253,
         "endCol": 3
       },
-      "hash": "9b598c153bff0322"
+      "hash": "778d64aa6982c90e"
     },
     "blob-20261029-005": {
       "id": "blob-20261029-005",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "ergonomics"
       ],
       "title": "Empty (zero-byte) blobs cannot be stored",
-      "body": "NewUploadBlobHandler rejects len(payload) == 0 (\"request body is required\") and NewBeginUploadHandler rejects size <= 0, so neither path accepts an empty file (placeholders, .gitkeep, empty exports). The TS client sends every file at or below its 16 MiB threshold, including 0 bytes, down the direct path, so the caller just receives VALIDATION_ERROR.\nFix: accept empty bodies on the direct path (a missing body and an empty one are different things), or document the limit and fail early in the client. Related client behaviour: #blob-20261029-018.\n",
+      "body": "NewUploadBlobHandler rejects len(payload) == 0 (\"request body is required\") and NewBeginUploadHandler rejects size \u003c= 0, so neither path accepts an empty file (placeholders, .gitkeep, empty exports). The TS client sends every file at or below its 16 MiB threshold, including 0 bytes, down the direct path, so the caller just receives VALIDATION_ERROR.\nFix: accept empty bodies on the direct path (a missing body and an empty one are different things), or document the limit and fail early in the client. Related client behaviour: #blob-20261029-018.\n",
       "authors": [
         "claude"
       ],
@@ -655,18 +704,18 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 196,
+        "startLine": 205,
         "startCol": 3,
-        "endLine": 201,
+        "endLine": 212,
         "endCol": 3
       },
-      "hash": "dd25733c1d4e2ba6"
+      "hash": "5befaf70c913f6a6"
     },
     "blob-20261029-006": {
       "id": "blob-20261029-006",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "correctness"
@@ -681,18 +730,18 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 397,
+        "startLine": 410,
         "startCol": 3,
-        "endLine": 402,
+        "endLine": 417,
         "endCol": 3
       },
-      "hash": "784c2dd88fc14b39"
+      "hash": "0fcb929d02f339f0"
     },
     "blob-20261029-007": {
       "id": "blob-20261029-007",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "api",
@@ -708,18 +757,18 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 145,
+        "startLine": 152,
         "startCol": 3,
-        "endLine": 150,
+        "endLine": 159,
         "endCol": 3
       },
-      "hash": "8609b9eb4e9e975b"
+      "hash": "fedab45e9ad99ad7"
     },
     "blob-20261029-008": {
       "id": "blob-20261029-008",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "api",
@@ -737,16 +786,16 @@
         "file": "core/system/blobs/model/inputs.go",
         "startLine": 38,
         "startCol": 3,
-        "endLine": 43,
+        "endLine": 45,
         "endCol": 3
       },
-      "hash": "28752de80551d60b"
+      "hash": "a149d230c115a435"
     },
     "blob-20261029-009": {
       "id": "blob-20261029-009",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "api"
@@ -762,18 +811,18 @@
       ],
       "location": {
         "file": "core/system/blobs/store/service.go",
-        "startLine": 69,
+        "startLine": 95,
         "startCol": 3,
-        "endLine": 76,
+        "endLine": 104,
         "endCol": 3
       },
-      "hash": "bbb508e347fe1463"
+      "hash": "dac3e7c34e852abe"
     },
     "blob-20261029-010": {
       "id": "blob-20261029-010",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "robustness"
@@ -788,18 +837,18 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 56,
+        "startLine": 59,
         "startCol": 3,
-        "endLine": 62,
+        "endLine": 67,
         "endCol": 3
       },
-      "hash": "d66bada3da9b90b6"
+      "hash": "393c4a6d0bb04994"
     },
     "blob-20261029-011": {
       "id": "blob-20261029-011",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "robustness"
@@ -814,18 +863,18 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 104,
+        "startLine": 109,
         "startCol": 3,
-        "endLine": 109,
+        "endLine": 116,
         "endCol": 3
       },
-      "hash": "cd9de2c637302b19"
+      "hash": "1b50e27447f2ceca"
     },
     "blob-20261029-012": {
       "id": "blob-20261029-012",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "errors",
@@ -841,41 +890,41 @@
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 442,
+        "startLine": 457,
         "startCol": 3,
-        "endLine": 448,
+        "endLine": 465,
         "endCol": 3
       },
-      "hash": "993761d75bae6fe3"
+      "hash": "6d6250f1fa68d72f"
     },
     "blob-20261029-013": {
       "id": "blob-20261029-013",
       "category": "issue",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "cruft"
       ],
       "title": "blobOps, the static registrations and the dispatcher rewrite disagree",
-      "body": "blobOps seeds a binding for \"admin\" but RegisterBlobHandlers registers no admin handler, so that binding is dead. \"compact\" has no per-namespace op at all. The NamespacedDispatcher rewrites only the system:blobs:blob: prefix, so system:blobs:namespace:stats|verify|compact (static, rule=root) appear never to consult the per-namespace stats/verify bindings that SeedNamespaceBindings creates; a non-root user granted <ns>:stats could not use the client's stats() (from reading, not exercised). compact is also registered with intent=create although it is a maintenance operation, and every binding is seeded as \"root\", so each grant is a manual policy edit.\nFix: make one op table the source of truth for registrations, bindings and rewrites.\n",
+      "body": "blobOps seeds a binding for \"admin\" but RegisterBlobHandlers registers no admin handler, so that binding is dead. \"compact\" has no per-namespace op at all. The NamespacedDispatcher rewrites only the system:blobs:blob: prefix, so system:blobs:namespace:stats|verify|compact (static, rule=root) appear never to consult the per-namespace stats/verify bindings that SeedNamespaceBindings creates; a non-root user granted \u003cns\u003e:stats could not use the client's stats() (from reading, not exercised). compact is also registered with intent=create although it is a maintenance operation, and every binding is seeded as \"root\", so each grant is a manual policy edit.\nFix: make one op table the source of truth for registrations, bindings and rewrites.\n",
       "authors": [
         "claude"
       ],
       "location": {
         "file": "core/system/blobs/handler.go",
-        "startLine": 466,
+        "startLine": 483,
         "startCol": 3,
-        "endLine": 470,
+        "endLine": 489,
         "endCol": 3
       },
-      "hash": "d095e4ea099997df"
+      "hash": "5594d48a48ede909"
     },
     "blob-20261029-014": {
       "id": "blob-20261029-014",
       "category": "issue",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "cruft"
@@ -892,16 +941,16 @@
         "file": "core/system/blobs/service.go",
         "startLine": 290,
         "startCol": 3,
-        "endLine": 295,
+        "endLine": 297,
         "endCol": 3
       },
-      "hash": "da013f2607425dbf"
+      "hash": "9d0f8bc1360e75f6"
     },
     "blob-20261029-015": {
       "id": "blob-20261029-015",
       "category": "todo",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "config",
@@ -919,16 +968,16 @@
         "file": "core/system/blobs/staging.go",
         "startLine": 19,
         "startCol": 3,
-        "endLine": 24,
+        "endLine": 26,
         "endCol": 3
       },
-      "hash": "a6d117b9ca86225a"
+      "hash": "0ed0cf78324607f0"
     },
     "blob-20261029-016": {
       "id": "blob-20261029-016",
       "category": "issue",
       "status": "open",
-      "priority": "P1",
+      "priority": "high",
       "tags": [
         "blobs",
         "client",
@@ -945,18 +994,18 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 836,
+        "startLine": 965,
         "startCol": 3,
-        "endLine": 842,
+        "endLine": 973,
         "endCol": 3
       },
-      "hash": "a3e1eed9a070ff93"
+      "hash": "a815611089e09f2f"
     },
     "blob-20261029-017": {
       "id": "blob-20261029-017",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client",
@@ -972,18 +1021,18 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 820,
+        "startLine": 947,
         "startCol": 3,
-        "endLine": 825,
+        "endLine": 954,
         "endCol": 3
       },
-      "hash": "fd4898e4babcbab5"
+      "hash": "507952534767d154"
     },
     "blob-20261029-018": {
       "id": "blob-20261029-018",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client",
@@ -1000,25 +1049,25 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1163,
+        "startLine": 1304,
         "startCol": 3,
-        "endLine": 1169,
+        "endLine": 1312,
         "endCol": 3
       },
-      "hash": "b36501dd39055ff4"
+      "hash": "0320f4e109d47148"
     },
     "blob-20261029-019": {
       "id": "blob-20261029-019",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client",
         "ergonomics"
       ],
       "title": "upload() requires options.key at runtime but types it as optional",
-      "body": "upload({ file, options }) throws \"options.key is required\" although UploadOptions.key is optional; the value is cast with `as string` in upload(), createUpload() and UploadQueue.enqueue(). Proposal: upload(key, file, options), or default the key to file.name, and make the type say so. The return type Promise<Document | undefined> is explained in #blob-20261029-020.\n",
+      "body": "upload({ file, options }) throws \"options.key is required\" although UploadOptions.key is optional; the value is cast with `as string` in upload(), createUpload() and UploadQueue.enqueue(). Proposal: upload(key, file, options), or default the key to file.name, and make the type say so. The return type Promise\u003cDocument | undefined\u003e is explained in #blob-20261029-020.\n",
       "authors": [
         "claude"
       ],
@@ -1027,25 +1076,25 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1130,
+        "startLine": 1269,
         "startCol": 3,
-        "endLine": 1134,
+        "endLine": 1275,
         "endCol": 3
       },
-      "hash": "f03b2de6885a8937"
+      "hash": "805e30e2d07853b9"
     },
     "blob-20261029-020": {
       "id": "blob-20261029-020",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client",
         "ergonomics"
       ],
       "title": "done resolves undefined on cancel, and failures can surface as unhandled rejections",
-      "body": "finishCancelled() resolves done with undefined, so Promise<Document | undefined> mixes \"cancelled\" with success, and callers must test for undefined with nothing telling them it means cancellation (an aborted AbortSignal would normally reject with AbortError). Conversely run() calls rejectDone on failure while UploadQueue.enqueue() never attaches a handler, so when nobody reads done a failed upload raises an unhandledrejection; after retry() the earlier rejected promise is replaced and stays unhandled.\nFix: reject with AbortError on cancel, and attach a no-op catch inside the class (callers that await done still see the rejection). Related signature issue: #blob-20261029-019.\n",
+      "body": "finishCancelled() resolves done with undefined, so Promise\u003cDocument | undefined\u003e mixes \"cancelled\" with success, and callers must test for undefined with nothing telling them it means cancellation (an aborted AbortSignal would normally reject with AbortError). Conversely run() calls rejectDone on failure while UploadQueue.enqueue() never attaches a handler, so when nobody reads done a failed upload raises an unhandledrejection; after retry() the earlier rejected promise is replaced and stays unhandled.\nFix: reject with AbortError on cancel, and attach a no-op catch inside the class (callers that await done still see the rejection). Related signature issue: #blob-20261029-019.\n",
       "authors": [
         "claude"
       ],
@@ -1054,25 +1103,25 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 479,
+        "startLine": 604,
         "startCol": 3,
-        "endLine": 484,
+        "endLine": 611,
         "endCol": 3
       },
-      "hash": "a9faadcf837459e9"
+      "hash": "c26b8533a0aa78d3"
     },
     "blob-20261029-021": {
       "id": "blob-20261029-021",
       "category": "todo",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client",
         "ergonomics"
       ],
       "title": "find()/list() fabricate paging metadata and mostly ignore the query",
-      "body": "pageMeta() reports number 1, pages 1 and total = items.length for any result, so with a limit set the pager cannot tell that more exist. QueryDSL<BlobMeta> filters and sorts are ignored: only (query as any).prefix and limit are read, so list({ prefix }) does not type-check without a cast and a filter silently returns everything. setPrefix() is mutable instance state that overrides a prefix passed in the call, and because HestiaBlobClient.namespace() returns a new BlobNamespace each time (#blob-20261029-023) that state is easily lost.\nFix: accept ListBlobsRequest ({ prefix, limit, cursor }) in list(), fill paging from the server's cursor (#blob-20261029-007), and build the pager lazily.\n",
+      "body": "pageMeta() reports number 1, pages 1 and total = items.length for any result, so with a limit set the pager cannot tell that more exist. QueryDSL\u003cBlobMeta\u003e filters and sorts are ignored: only (query as any).prefix and limit are read, so list({ prefix }) does not type-check without a cast and a filter silently returns everything. setPrefix() is mutable instance state that overrides a prefix passed in the call, and because HestiaBlobClient.namespace() returns a new BlobNamespace each time (#blob-20261029-023) that state is easily lost.\nFix: accept ListBlobsRequest ({ prefix, limit, cursor }) in list(), fill paging from the server's cursor (#blob-20261029-007), and build the pager lazily.\n",
       "authors": [
         "claude"
       ],
@@ -1082,24 +1131,24 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1019,
+        "startLine": 1152,
         "startCol": 3,
-        "endLine": 1025,
+        "endLine": 1160,
         "endCol": 3
       },
-      "hash": "d16ff18a4566bfbb"
+      "hash": "e79e84b712628c21"
     },
     "blob-20261029-022": {
       "id": "blob-20261029-022",
       "category": "issue",
       "status": "open",
-      "priority": "P2",
+      "priority": "medium",
       "tags": [
         "blobs",
         "client"
       ],
       "title": "update() cannot do what its type says",
-      "body": "update takes Partial<BlobMeta> but sends { custom: strippedData(data) }, and strippedData removes only _id_ and _metadata_. So update({ data: { content_type: \"text/plain\" } }) sends {\"custom\":{\"content_type\":\"text/plain\"}}, writing a custom key named content_type instead of changing the type, and a correctly typed update({ data: { custom: { owner: \"a\" } } }) sends {\"custom\":{\"custom\":{\"owner\":\"a\"}}}, which the server (Custom map[string]string; UpdateMetadata persists only custom) rejects or mangles. Payload shapes were reproduced in a script; not run against a server. The existing test (blobs.test.ts) asserts the first shape as if it worked.\nFix: update({ id, custom }) with string-only values; the type drift behind this is in #blob-20261029-026.\n",
+      "body": "update takes Partial\u003cBlobMeta\u003e but sends { custom: strippedData(data) }, and strippedData removes only _id_ and _metadata_. So update({ data: { content_type: \"text/plain\" } }) sends {\"custom\":{\"content_type\":\"text/plain\"}}, writing a custom key named content_type instead of changing the type, and a correctly typed update({ data: { custom: { owner: \"a\" } } }) sends {\"custom\":{\"custom\":{\"owner\":\"a\"}}}, which the server (Custom map[string]string; UpdateMetadata persists only custom) rejects or mangles. Payload shapes were reproduced in a script; not run against a server. The existing test (blobs.test.ts) asserts the first shape as if it worked.\nFix: update({ id, custom }) with string-only values; the type drift behind this is in #blob-20261029-026.\n",
       "authors": [
         "claude"
       ],
@@ -1108,18 +1157,18 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1065,
+        "startLine": 1200,
         "startCol": 3,
-        "endLine": 1070,
+        "endLine": 1207,
         "endCol": 3
       },
-      "hash": "ed987b973f88493f"
+      "hash": "23033f5cb52182de"
     },
     "blob-20261029-023": {
       "id": "blob-20261029-023",
       "category": "todo",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "client",
@@ -1135,18 +1184,18 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1288,
+        "startLine": 1431,
         "startCol": 3,
-        "endLine": 1293,
+        "endLine": 1438,
         "endCol": 3
       },
-      "hash": "5de58d89441cf140"
+      "hash": "a2e5b744c7bcfb49"
     },
     "blob-20261029-024": {
       "id": "blob-20261029-024",
       "category": "todo",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "client",
@@ -1159,18 +1208,18 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 986,
+        "startLine": 1117,
         "startCol": 3,
-        "endLine": 990,
+        "endLine": 1123,
         "endCol": 3
       },
-      "hash": "17e8f3e86a0cb26c"
+      "hash": "d441fa983266412b"
     },
     "blob-20261029-025": {
       "id": "blob-20261029-025",
       "category": "todo",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "client",
@@ -1187,25 +1236,25 @@
       ],
       "location": {
         "file": "client/packages/core/system/blobs/store.ts",
-        "startLine": 1083,
+        "startLine": 1220,
         "startCol": 3,
-        "endLine": 1089,
+        "endLine": 1228,
         "endCol": 3
       },
-      "hash": "2b9afefa5d1eb5fa"
+      "hash": "7f0fd1f0921386d6"
     },
     "blob-20261029-026": {
       "id": "blob-20261029-026",
       "category": "todo",
       "status": "open",
-      "priority": "P3",
+      "priority": "low",
       "tags": [
         "blobs",
         "client",
         "types"
       ],
       "title": "Naming and typing drift between client and server",
-      "body": "One concept, three spellings: ns (CreateNamespaceRequest, route arguments), id (NamespaceInfo), namespace_id (BlobMeta, NamespaceStats). NamespaceInfo.custom is Record<string, string> but BlobMeta.custom is Record<string, any>, while the server uses map[string]string for both (#blob-20261029-022 shows the consequence). NamespaceInfo and CreateNamespaceRequest lack the server's public field (#blob-20261029-009). BlobMeta timestamps are strings while Document metadata uses created/updated, and UploadJobSnapshot.name/type duplicate the File.\nFix: one spelling per concept, and generate these types from the server schemas, which are already derived with SchemaFromType.\n",
+      "body": "One concept, three spellings: ns (CreateNamespaceRequest, route arguments), id (NamespaceInfo), namespace_id (BlobMeta, NamespaceStats). NamespaceInfo.custom is Record\u003cstring, string\u003e but BlobMeta.custom is Record\u003cstring, any\u003e, while the server uses map[string]string for both (#blob-20261029-022 shows the consequence). NamespaceInfo and CreateNamespaceRequest lack the server's public field (#blob-20261029-009). BlobMeta timestamps are strings while Document metadata uses created/updated, and UploadJobSnapshot.name/type duplicate the File.\nFix: one spelling per concept, and generate these types from the server schemas, which are already derived with SchemaFromType.\n",
       "authors": [
         "claude"
       ],
@@ -1217,15 +1266,20 @@
         "file": "client/packages/core/system/blobs/types.ts",
         "startLine": 2,
         "startCol": 3,
-        "endLine": 8,
+        "endLine": 10,
         "endCol": 3
       },
-      "hash": "7725223043e9aa5e"
+      "hash": "5bec9e877e287809"
     },
     "cruft-20260821-013": {
       "id": "cruft-20260821-013",
       "category": "observation",
       "status": "resolved",
+      "priority": "low",
+      "tags": [
+        "cruft",
+        "note"
+      ],
       "title": "Canonical input types for auth",
       "body": "\nThis is the canonical location for auth input types. The duplicate\ndefinitions in auth/inputs.go should be deleted (see #cruft-20260821-001).\nThe generated registrations and service methods import from this package.\n",
       "references": [
@@ -1235,15 +1289,20 @@
         "file": "core/system/auth/model/inputs.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 6,
+        "endLine": 9,
         "endCol": 3
       },
-      "hash": "3f5ba3ed2b12dd51"
+      "hash": "8edcb7cabdeb9279"
     },
     "cruft-20260821-014": {
       "id": "cruft-20260821-014",
       "category": "observation",
-      "status": "open",
+      "status": "resolved",
+      "priority": "low",
+      "tags": [
+        "cruft",
+        "note"
+      ],
       "title": "Canonical output types for auth",
       "body": "\nThis is the canonical location for auth output types. The duplicate\ndefinitions in auth/outputs.go should be deleted (see #cruft-20260821-002).\nThe generated registrations and service methods import from this package.\n",
       "references": [
@@ -1253,15 +1312,20 @@
         "file": "core/system/auth/model/outputs.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 6,
+        "endLine": 9,
         "endCol": 3
       },
-      "hash": "9f1ce8fbb534a24b"
+      "hash": "1c2a05a34c740aeb"
     },
     "cruft-20260821-020": {
       "id": "cruft-20260821-020",
       "category": "observation",
       "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "cruft",
+        "note"
+      ],
       "title": "Old-style handler functions in blobs/handler.go",
       "body": "\nThis file contains NewListNamespacesHandler, NewCreateNamespaceHandler,\nNewDeleteNamespaceHandler, NewListBlobsHandler, NewHeadBlobHandler,\nNewUploadBlobHandler, NewDownloadBlobHandler, NewUpdateBlobHandler,\nNewDeleteBlobHandler, and other blob handlers — all using the old pattern\nof returning abstract.MessageHandler directly with manual input extraction.\n\nUnlike other packages, these handlers are NOT superseded by generated\nregistrations. They are registered dynamically via RegisterBlobHandlers\nwhen a new namespace is created, which is a runtime operation that cannot\nbe handled by static registrations. These are legitimate old-style handlers\nthat serve a different purpose.\n\nResolution: no action needed — these handlers are dynamically registered\nand cannot be replaced by generated registrations.\n",
       "references": [
@@ -1271,694 +1335,93 @@
         "file": "core/system/blobs/handler.go",
         "startLine": 0,
         "startCol": 3,
-        "endLine": 17,
-        "endCol": 3
-      },
-      "hash": "5fc694791b5a3e48"
-    },
-    "feat-ns-metadata": {
-      "id": "feat-ns-metadata",
-      "category": "feature_request",
-      "status": "open",
-      "priority": "P2",
-      "title": "Add arbitrary metadata to blob namespaces",
-      "body": "BlobNamespaceInfo currently only carries ID, DisplayName, and Public.\nUsers want to attach custom key-value metadata to namespaces (e.g. description,\nowner, environment tags, retention policy) similar to how BlobMeta.Custom works\non individual blobs.\n\nOptions: (1) add Custom map[string]string to BlobNamespaceInfo + persist in\nhestia's layer since the blobs library doesn't support it, (2) store namespace\nmetadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions\nwith a Custom field and persist alongside namespace creation.\n",
-      "location": {
-        "file": "core/system/blobs/store/types.go",
-        "startLine": 41,
-        "startCol": 3,
-        "endLine": 51,
-        "endCol": 3
-      },
-      "hash": "6288b3ce39db2256"
-    },
-    "l2z9mr": {
-      "id": "l2z9mr",
-      "category": "issue",
-      "status": "open",
-      "title": "Duplicated claims to identity code.",
-      "location": {
-        "file": "core/interface/http/middleware.go",
-        "startLine": 182,
-        "startCol": 3,
-        "endLine": 182,
-        "endCol": 3
-      },
-      "hash": "f06c0323ffdd0f8d"
-    },
-    "mdzmre": {
-      "id": "mdzmre",
-      "category": "issue",
-      "status": "open",
-      "title": "Performance issue.",
-      "body": "This method will likely run on every request,\ncreating a map churn. Figure out if this is\nentirely necessary\n",
-      "location": {
-        "file": "core/interface/http/identity_provider.go",
-        "startLine": 65,
-        "startCol": 3,
-        "endLine": 69,
-        "endCol": 3
-      },
-      "hash": "fea6596524ee6c84"
-    },
-    "mem-20260821-003": {
-      "id": "mem-20260821-003",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Stream channel buffer size causes goroutine leaks",
-      "body": "selects on the request context while draining the source channel and while\nforwarding to the response stream, so on client disconnect the producer\nreturns instead of blocking forever on a full buffer. S-19 additionally\nverified fasthttp's RequestCtx.Done() never fires on client disconnect\n(server-shutdown only) and moved SSE teardown to managedStream, whose\nwriter-owned done channel releases the producer on flush error or stream\nend — the transport, not the request context, owns stream shutdown.\n\nstreamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\nmanagedStream pairs the SSE body channel with a done channel that the\nfasthttp response writer owns. The producer cannot rely on the request\ncontext alone: fasthttp's RequestCtx.Done() returns the server-shutdown\nchannel (server.go: ctx.s.done) and never fires on client disconnect —\nwithout the writer-owned done channel, every aborted SSE request leaked\nthe producer goroutine and its upstream subscription until server\nshutdown (S-19).\n",
-      "location": {
-        "file": "core/interface/http/register.go",
-        "startLine": 362,
-        "startCol": 3,
-        "endLine": 392,
-        "endCol": 3
-      },
-      "hash": "2713e682798a4179"
-    },
-    "org-20260821-001": {
-      "id": "org-20260821-001",
-      "category": "todo",
-      "status": "open",
-      "title": "Split module.go into focused files",
-      "body": "module.go currently contains 4 unrelated concerns in 175 lines:\n- Input, ArgumentDefinition (message input schema)\n- Module interface (lifecycle)\n- Capability, MessageRegistration (message registration)\n\nA human looking for Input would guess input.go, not module.go.\nThis hurts discoverability and increases modification risk.\n\nResolution:\n1. Create input.go with Input, ArgumentDefinition, and their methods\n2. Keep module.go with Module interface only\n3. Create registration.go with Capability and MessageRegistration\n\nFiles affected:\n- core/abstract/module.go (split into 3 files)\n- All files importing these types (no code changes needed, just file moves)\n",
-      "location": {
-        "file": "core/abstract/module.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 17,
-        "endCol": 3
-      },
-      "hash": "f482cb6e46f4ef83"
-    },
-    "org-20260821-002": {
-      "id": "org-20260821-002",
-      "category": "todo",
-      "status": "open",
-      "title": "Split result.go into verb.go and result.go",
-      "body": "result.go contains 3 unrelated concerns in 136 lines:\n- Verb type and constants (message intent)\n- ResultKind type and constants (response type)\n- Result struct and Page (response envelope)\n\nA human looking for Verb would guess verb.go, not result.go.\nVerb is used by MessageRegistration and annotate package independently\nof Result.\n\nResolution:\n1. Create verb.go with Verb type, constants, String(), MarshalJSON, UnmarshalJSON\n2. Keep result.go with ResultKind, Result, Page, and releaseDocs\n\nFiles affected:\n- core/abstract/result.go (split into 2 files)\n- core/hestia/annotate/annotate.go (imports Verb)\n",
-      "location": {
-        "file": "core/abstract/result.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 17,
-        "endCol": 3
-      },
-      "hash": "8b1c8d93e716676e"
-    },
-    "org-20260821-003": {
-      "id": "org-20260821-003",
-      "category": "todo",
-      "status": "open",
-      "title": "Split config.go into types.go, defaults.go, and env.go",
-      "body": "config.go currently contains 3 unrelated concerns in 321 lines:\n- Config, SelfUpdateConfig, CookieConfig types (data structures)\n- Default constants and DefaultConfig() (defaults)\n- LoadConfig, env helpers, resolveDataDir (env loading)\n\nA human looking for Config struct would guess config.go (correct), but\na human looking for env helpers would guess env.go (which exists but\nonly has ApplyEnvOverrides). The file mixes type definitions with\nruntime behavior.\n\nResolution:\n 1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs\n 2. Create defaults.go with Default* constants and DefaultConfig()\n 3. Keep config.go with LoadConfig, env helpers, resolveDataDir\n    (or rename to load.go for clarity)\n\nThis also addresses #so98l5 and #r9i7ec by consolidating env resolution.\n\nFiles affected:\n- core/runtime/config.go (split into 3 files)\n- core/runtime/env.go (consider merging ApplyEnvOverrides into config.go)\n- core/hestia.go (imports Config)\n",
-      "location": {
-        "file": "core/runtime/config.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 23,
-        "endCol": 3
-      },
-      "hash": "722bba296e9f997f"
-    },
-    "org-20260821-004": {
-      "id": "org-20260821-004",
-      "category": "todo",
-      "status": "open",
-      "title": "Consolidate env.go into config.go",
-      "body": "env.go (243 lines) and config.go (321 lines) have near-identical env loading.\nBoth LoadConfig and ApplyEnvOverrides read the same env vars independently.\nThis is #arch-20260821-001's root cause.\n\nResolution:\n1. Merge ApplyEnvOverrides into LoadConfig as a single canonical function\n2. Move SelfUpdateConfig, CookieConfig to types.go\n3. Move providerFromEnv, parseRSAPublicKey to config.go (they're config loading)\n4. Delete env.go entirely\n\nThis eliminates the duplication and makes config.go the single source of\ntruth for all configuration loading.\n\nFiles affected:\n- core/runtime/env.go (delete)\n- core/runtime/config.go (absorb env.go contents)\n- core/hestia.go (calls ApplyEnvOverrides - update to use LoadConfig)\n",
-      "location": {
-        "file": "core/runtime/env.go",
-        "startLine": 0,
-        "startCol": 3,
-        "endLine": 18,
-        "endCol": 3
-      },
-      "hash": "c3f318f872156714"
-    },
-    "perf-20260821-001": {
-      "id": "perf-20260821-001",
-      "category": "issue",
-      "status": "open",
-      "title": "Request struct has poor field ordering",
-      "body": "Request struct (line 9) has suboptimal field ordering for memory alignment:\n\nCurrent layout (64-bit):\n- Operation: string (16 bytes)\n- Body: []byte (24 bytes)\n- PathParams: map (8 bytes)\n- Query: map (8 bytes)\n- Headers: map (8 bytes)\n- Cookies: map (8 bytes)\n- ClientIP: string (16 bytes)\n- UserAgent: string (16 bytes)\n- RequestID: string (16 bytes)\n\nTotal: ~120 bytes with possible padding\n\nBetter ordering (group by size):\n- Body: []byte (24 bytes)\n- Operation: string (16 bytes)\n- ClientIP: string (16 bytes)\n- UserAgent: string (16 bytes)\n- RequestID: string (16 bytes)\n- PathParams: map (8 bytes)\n- Query: map (8 bytes)\n- Headers: map (8 bytes)\n- Cookies: map (8 bytes)\n\nFor IoT/HFT: Every byte matters on memory-constrained devices.\nThis struct is created for every HTTP request.\n\nResolution: Reorder fields to minimize padding. Consider using a pool\nfor Request objects to reduce allocations.\n",
-      "location": {
-        "file": "core/abstract/transport.go",
-        "startLine": 9,
-        "startCol": 3,
-        "endLine": 41,
-        "endCol": 3
-      },
-      "hash": "a0827246af254bb5"
-    },
-    "perf-20260821-002": {
-      "id": "perf-20260821-002",
-      "category": "issue",
-      "status": "open",
-      "title": "Response struct has mixed pointer/value types",
-      "body": "Response struct (line 42) mixes pointer and value types inefficiently:\n\n- Status: int (8 bytes)\n- Headers: map (8 bytes)\n- Body: any (16 bytes - interface)\n- Cookies: []Cookie (24 bytes - slice)\n- Page: *query.PaginationInfo (8 bytes - pointer)\n- Metadata: map (8 bytes)\n\nThe Body field is an interface, which means it can hold any type.\nThis causes boxing/unboxing overhead and prevents compiler optimizations.\n\nFor IoT/HFT: Interface types cause GC pressure and prevent inlining.\n\nResolution:\n1. Consider using concrete types instead of interface{} for Body\n2. Group pointer types together to minimize padding\n3. Consider using a pool for Response objects\n",
-      "location": {
-        "file": "core/abstract/transport.go",
-        "startLine": 94,
-        "startCol": 3,
-        "endLine": 113,
-        "endCol": 3
-      },
-      "hash": "e35924565019fb88"
-    },
-    "perf-20260821-003": {
-      "id": "perf-20260821-003",
-      "category": "issue",
-      "status": "open",
-      "title": "trieNode uses slice for children",
-      "body": "trieNode struct (line 8) uses a slice for children:\n\n- segment: string (16 bytes)\n- children: []*trieNode (24 bytes - slice)\n- paramChild: *trieNode (8 bytes)\n- paramName: string (16 bytes)\n- handlers: map (8 bytes)\n\nMost trie nodes have 1-2 children. Using a slice causes:\n1. Heap allocation for the slice header\n2. Indirection for each child access\n3. GC pressure from small allocations\n\nFor IoT/HFT: Route lookup is on the hot path for every request.\n\nResolution:\n1. Use [2]*trieNode for small child counts with fallback to slice\n2. Or use a fixed-size array with linear search for 1-2 children\n3. Consider embedding the first child inline\n",
-      "location": {
-        "file": "core/interface/http/router.go",
-        "startLine": 7,
-        "startCol": 3,
-        "endLine": 27,
-        "endCol": 3
-      },
-      "hash": "da34e5d3ba2515fd"
-    },
-    "perf-20260821-004": {
-      "id": "perf-20260821-004",
-      "category": "issue",
-      "status": "open",
-      "title": "BuildInputDocument uses unnecessary JSON round-trip",
-      "body": "BuildInputDocument manually constructs a JSON string by marshaling each\nfield, concatenating into a JSON object, then parsing it back into a\ndocument via pool.FromJSON. This is:\n\n1. Wasteful: marshal Go values → JSON bytes → concatenate → parse JSON\n2. Incorrect for bytes: json.Marshal([]byte) base64-encodes, double-encoding\n3. Error-prone: manual JSON construction can produce invalid JSON\n\nThe anansi Document has direct Set* methods:\n\n     doc, _ := pool.New()\n     doc.SetString(\"arguments.name\", value)\n     doc.SetBytes(\"payload\", req.Body)\n\nThis should populate fields directly without JSON:\n 1. pool.New() to get an empty document\n 2. For context: iterate input.ContextFields(), set each from req.Headers\n    via contextHeaderCandidates\n 3. For arguments: iterate input.Arguments(), set each from req.PathParams\n 4. For modifiers: iterate input.Modifiers(), set each from req.Query\n 5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField\n\nNote: Do NOT duplicate JSON decode logic. The anansi decoder (go-anansi/\ncore/encoding/json) is already optimized. Use DecodeJSONField for JSON\npayloads — it decodes a single field directly into the document without\nbuilding an intermediate JSON object.\n\nImpact:\n- Eliminates marshal/parse round-trip (2x CPU savings)\n- Eliminates base64 encoding for byte payloads (33% memory savings)\n- Eliminates intermediate JSON buffer allocation\n- For IoT/HFT: Critical for reducing per-request latency\n\nResolution: Rewrite BuildInputDocument to use pool.New() and doc.Set*()\nmethods directly, using DecodeJSONField only for JSON payload types.\ncontextHeaderCandidates returns the deterministic candidate list for\nlifting a declared context field from request headers, most specific\nstandard form first: \"content_type\" → [\"Content-Type\", \"X-Content-Type\"].\nThe standard spelling wins when a client supplies both; the X-prefixed\nform covers custom transport headers like X-Session-ID. Matching is done\ncase-insensitively by requestHeaderValue.\n",
-      "location": {
-        "file": "core/interface/http/doc.go",
-        "startLine": 46,
-        "startCol": 3,
-        "endLine": 88,
-        "endCol": 3
-      },
-      "hash": "a39b86f73c09854c"
-    },
-    "qhx9r0": {
-      "id": "qhx9r0",
-      "category": "issue",
-      "status": "open",
-      "title": "Impotent Page options",
-      "body": "There is effectively no way to pass in custom pager options\n",
-      "location": {
-        "file": "client/packages/core/core/collection.ts",
-        "startLine": 25,
-        "startCol": 3,
-        "endLine": 27,
-        "endCol": 3
-      },
-      "hash": "9f6bd3ca6ed7c8e5"
-    },
-    "review-20260821-001": {
-      "id": "review-20260821-001",
-      "category": "todo",
-      "status": "resolved",
-      "title": "Use SystemError for handler dispatch errors",
-      "body": "but the review guide recommends using common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nConsider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation\nfor better error classification and client-facing error codes.\n\nSend accepts the message for asynchronous execution: the handler runs on a\ndedicated goroutine and onComplete is invoked exactly once with its outcome.\nHandler panics are recovered here and delivered as *PanicError, so no link\nin the chain needs its own recovery wrapper.\n",
-      "location": {
-        "file": "core/runtime/local-dispatcher.go",
-        "startLine": 78,
-        "startCol": 3,
-        "endLine": 89,
-        "endCol": 3
-      },
-      "hash": "cf2c2f4151a97959"
-    },
-    "review-20260821-002": {
-      "id": "review-20260821-002",
-      "category": "todo",
-      "status": "resolved",
-      "title": "Use SystemError for duplicate handler registration",
-      "body": "ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for\nconsistent error handling across the codebase.\n",
-      "location": {
-        "file": "core/runtime/local-dispatcher.go",
-        "startLine": 147,
-        "startCol": 3,
-        "endLine": 150,
-        "endCol": 3
-      },
-      "hash": "7ff263351eb6a2a8"
-    },
-    "review-20260821-005": {
-      "id": "review-20260821-005",
-      "category": "todo",
-      "status": "resolved",
-      "title": "Extract email templates to separate files",
-      "body": "This makes it difficult to maintain, test, and internationalize.\n\nConsider:\n1. Moving templates to a templates/ directory with .html files\n2. Using Go's html/template package for rendering\n3. Supporting i18n for different locales\n4. Making the template configurable per deployment\n",
-      "location": {
-        "file": "core/runtime/mailer.go",
-        "startLine": 103,
-        "startCol": 3,
-        "endLine": 111,
-        "endCol": 3
-      },
-      "hash": "4cd6444a5a869295"
-    },
-    "review-20260821-006": {
-      "id": "review-20260821-006",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Deeply nested identity property access",
-      "body": "(ident.Properties.(map[string]any) then props[\"operations\"]). This pattern is\nrepeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).\nFixed: replaced deeply nested identity access with GetIdentityProperty[T] helper calls.\n\nConsider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or\ndefining a typed IdentityProperties struct to reduce duplication and improve type safety.\n",
-      "location": {
-        "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 60,
-        "startCol": 3,
-        "endLine": 67,
-        "endCol": 3
-      },
-      "hash": "5ca8914223fba997"
-    },
-    "review-20260821-007": {
-      "id": "review-20260821-007",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Duplicate identity property extraction",
-      "body": "nested type assertion pattern found in extractUserID (rate-limit.go),\nextractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).\nFixed: consolidated duplicate identity extraction into GetUserID, GetTokenID helpers in runtime/identity.go.\n\nConsider consolidating these into a single helper function in a shared package\n(e.g., runtime/identity) to reduce duplication and ensure consistent behavior.\n",
-      "location": {
-        "file": "core/runtime/secure-dispatcher.go",
-        "startLine": 143,
-        "startCol": 3,
-        "endLine": 150,
-        "endCol": 3
-      },
-      "hash": "3fb022ad72bd2162"
-    },
-    "review-20260821-009": {
-      "id": "review-20260821-009",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Race condition in AuditBuffer circuit breaker",
-      "body": "to true in the default branch without holding the mutex consistently. While\nthe current code does acquire the mutex before setting b.failed, the check\nand the wg.Add(1) are not atomic — a concurrent Close() could interleave.\n\nAdditionally, the circuit breaker is only reset on successful persist in\nflushLoop, but if the buffer is full and the circuit opens, entries are\ndropped permanently until a successful persist occurs. Consider adding a\ntimeout-based circuit breaker reset or a maximum drop count before recovery.\n",
-      "location": {
-        "file": "core/runtime/audit_buffer.go",
-        "startLine": 88,
-        "startCol": 3,
-        "endLine": 97,
-        "endCol": 3
-      },
-      "hash": "f20e2a8c74ef5acd"
-    },
-    "review-20260821-018": {
-      "id": "review-20260821-018",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Potential deadlock in evictStale",
-      "body": "methods acquire bucket.mu first (e.g., CheckAndConsume, Increment). This\nlock ordering inconsistency could lead to deadlocks if concurrent operations\nare happening.\n\nConsider using a consistent lock ordering throughout, or using a different\neviction strategy that doesn't require holding both locks simultaneously.\n",
-      "location": {
-        "file": "core/runtime/ratestore/inmemory.go",
-        "startLine": 172,
-        "startCol": 3,
-        "endLine": 179,
-        "endCol": 3
-      },
-      "hash": "118c73fc87e57a8f"
-    },
-    "review-20260821-020": {
-      "id": "review-20260821-020",
-      "category": "issue",
-      "status": "resolved",
-      "title": "Abstraction leak in Input struct",
-      "body": "binding) flagged \"THIS IS AN ABSTRACTION LEAK\". It has been removed:\ntransport-context fields are now declared in the input schema itself under\na \"context\" root section (`input:\"context.session_id\"` tags); the HTTP\ninterface lifts matching headers into them deterministically. The\ndeprecated Arguments/Modifiers/Payload fields have been removed too —\nArguments(), Modifiers() and Payload() always derived from the schema.\nResolved in two steps. (1) HeaderFields — the flagged abstraction leak — was removed: transport-context bindings are declared by the input schema itself under a context root section (input:\"context.session_id\" tags); the HTTP interface derives header names deterministically (standard spelling first, then X-prefixed custom form, case-insensitive) and lifts them into the document's context section. The header_fields annotation attribute is removed and now fails codegen loudly. (2) The deprecated Arguments/Modifiers/Payload fields are deleted; Args(), Mods() and PayloadType() always derived from the schema, so the only production caller on the raw field (wails DeriveRoute) moved to Args(). Input is now just Schema + ResourceIDField. Streaming (2026-08-31) re-added one orthogonal flag: Streaming marks operations whose input arrives as a document stream (NDJSON body), independent of Verb — a bulk import is Create + Streaming.\n",
-      "location": {
-        "file": "core/abstract/module.go",
-        "startLine": 37,
-        "startCol": 3,
-        "endLine": 45,
-        "endCol": 3
-      },
-      "hash": "e4a9c777a0d5b315"
-    },
-    "review2-20260821-001": {
-      "id": "review2-20260821-001",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P1",
-      "tags": [
-        "security",
-        "auth",
-        "review"
-      ],
-      "title": "SessionService.Validate does not check ExpiresAt",
-      "body": "\nValidate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.\n",
-      "assignee": "opencode",
-      "location": {
-        "file": "core/system/auth/session_service.go",
-        "startLine": 66,
-        "startCol": 3,
-        "endLine": 70,
-        "endCol": 3
-      },
-      "hash": "43d3ed24c2033c71"
-    },
-    "review2-20260821-002": {
-      "id": "review2-20260821-002",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P2",
-      "tags": [
-        "security",
-        "auth",
-        "review"
-      ],
-      "title": "ValidateSession result used without checking ExpiresAt",
-      "body": "\nTwo call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt > time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.\n",
-      "references": [
-        "#review2-20260821-001"
-      ],
-      "location": {
-        "file": "utils/wails/dispatch.go",
-        "startLine": 245,
-        "startCol": 3,
-        "endLine": 249,
-        "endCol": 3
-      },
-      "hash": "b396eed3fcc5797f"
-    },
-    "review2-20260821-004": {
-      "id": "review2-20260821-004",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P1",
-      "tags": [
-        "review",
-        "api-design",
-        "p2p"
-      ],
-      "title": "system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)",
-      "body": "\nRESOLVED 2026-08-22: split into system:updates:check:get (read-only\navailability) and system:updates:stage:create (download+prepare+notify);\ncheck:create kept as the backward-compatible check-then-stage wrapper and\nRunScheduledCheck still drives both effects back to back via checkAndStage.\n\nDespite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -> calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -> calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\n\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success). Kept for backward\ncompatibility; prefer system:updates:check:get +\nsystem:updates:stage:create so each effect stays independently callable.\n\n@hestia.register(\n\n\tname=\"system:updates:check:create\",\n\tintent=\"create\",\n\trule=\"root\",\n\tdescription=\"Check for and stage an update (legacy check-then-stage)\",\n\toutput=\"CheckView\",\n\n)\n",
-      "assignee": "opencode",
-      "location": {
-        "file": "core/system/updates/service.go",
-        "startLine": 232,
-        "startCol": 3,
-        "endLine": 283,
-        "endCol": 3
-      },
-      "hash": "58ef22136b834a78"
-    },
-    "review2-20260821-005": {
-      "id": "review2-20260821-005",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P0",
-      "tags": [
-        "review",
-        "arch",
-        "p2p"
-      ],
-      "title": "Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant",
-      "body": "\nEvery implementation in the chain -- LocalDispatcher, SecureDispatcher,\nRateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,\nBootstrapDispatcher -- wraps the next Dispatcher and calls Send() as a\ndirect, blocking Go function call that returns (*Result, error) on the\nsame goroutine. LocalDispatcher.Send (core/runtime/local-dispatcher.go:52)\nis the base case: it does `return entry.fn(msg.Context(), msg)` with no\nqueue, no channel handoff, and no notion of \"this might take a network\nround-trip.\" Every transport (HTTP, CLI, Wails) calls Dispatcher.Send and\nblocks the calling goroutine until it returns.\n\nThis is fine for a single-process monolith (net/http already gives you\nper-request concurrency via goroutines, so throughput isn't the problem)\nbut it is the central architectural blocker for the P2P node deployment\ngoal: there is currently no seam where a message could be routed to a\n*different* node instead of a local handler. Adding that seam later\nwithout an async story means either (a) blocking a goroutine per in-flight\nremote call indefinitely, or (b) a breaking change to this interface.\n\nResolution -- concretely, in order of increasing scope:\n 1. Add a context.Context parameter to Send itself: Send(ctx, msg) instead\n    of relying on msg.Context(). This is a prerequisite for #2 and #3\n    because a remote dispatcher needs the caller's ctx for cancellation/\n    deadline propagation independent of what's embedded in the message.\n 2. Introduce a second interface alongside Dispatcher, not a replacement:\n    type AsyncDispatcher interface {\n    SendAsync(ctx context.Context, msg Message) (<-chan Result, error)\n    }\n    LocalDispatcher can implement this trivially by running entry.fn in a\n    goroutine and writing to a buffered chan of size 1. A future\n    RemoteDispatcher (or P2PDispatcher) implements the same interface by\n    serializing msg, publishing it over the network transport, and\n    resolving the channel when a correlated response arrives (or the ctx\n    deadline fires). Existing synchronous callers are unaffected; new\n    transports (or existing ones once ready) adopt SendAsync incrementally.\n 3. Every DispatcherLink.Wrap in the chain needs an Async-aware equivalent\n    so cross-cutting concerns (auth, rate-limit, audit, tenant scoping)\n    still apply uniformly whether the terminal handler is local or remote.\n    Concretely: change DispatcherLink.Wrap to operate on the AsyncDispatcher\n    interface, and provide a `SyncFromAsync` adapter (blocks and unwraps\n    the channel) so the existing Dispatcher call sites in HTTP/CLI/Wails\n    don't all need to change on day one.\n 4. Message routing needs an explicit locality concept before any of this\n    is useful: something has to decide \"is this message's target handler\n    local to this node, or does it need to go over the wire to node X\".\n    abstract.Message today has no notion of a target node/peer -- TenantID\n    is the closest thing, and tenant != node. This is a bigger design\n    question (service discovery / handler advertisement across the mesh)\n    that should be settled before committing to the exact shape of #2.\n",
-      "location": {
-        "file": "core/abstract/dispatcher.go",
-        "startLine": 4,
-        "startCol": 3,
-        "endLine": 54,
-        "endCol": 3
-      },
-      "hash": "9501fda7f03df18f"
-    },
-    "scheduled-dispatch-errors-are-sw-616004cd": {
-      "id": "scheduled-dispatch-errors-are-sw-616004cd",
-      "category": "lesson",
-      "status": "resolved",
-      "priority": "P3",
-      "tags": [
-        "schedules",
-        "dispatch"
-      ],
-      "title": "Scheduled dispatch errors are swallowed by the cron chain",
-      "body": "\nLiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {\"payload\": ...} to satisfy input:\"payload.*\" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.\n",
-      "location": {
-        "file": "core/system/schedules/liveschedule.go",
-        "startLine": 195,
-        "startCol": 3,
-        "endLine": 198,
-        "endCol": 3
-      },
-      "hash": "3d5fecd676b38bb5"
-    },
-    "sec-20260821-003": {
-      "id": "sec-20260821-003",
-      "category": "issue",
-      "status": "resolved",
-      "title": "No rate limiting on authentication attempts",
-      "body": "Resolved (S-3, security batch 1): authMiddleware throttles unauthenticated\nauthentication attempts per source IP through authRateLimiter (a shared\nratestore) via CheckAndConsume with authRateLimitBurst/authRateLimitPeriod\nbefore any credential validation runs; once the bucket is empty the\nrequest is rejected with 429. The gate covers the credential-carrying\nmessages listed in authRateLimitedMessages (login, elevate, confirm, ...).\nThe per-operation RateLimitPolicy on the dispatch path remains the second\nlayer (see the ratelimit dispatcher link).\n",
-      "location": {
-        "file": "core/interface/http/middleware.go",
-        "startLine": 26,
-        "startCol": 3,
-        "endLine": 35,
-        "endCol": 3
-      },
-      "hash": "ca8eb71f374afa4d"
-    },
-    "so98l5": {
-      "id": "so98l5",
-      "category": "todo",
-      "status": "resolved",
-      "title": "Define a proper config package.",
-      "body": "that are duplicated everywhere. It would be best to define\na single package that holds all configs, arbitary or otherwise,\nbacked by a schema generated from a struct. Anansi is not just a\ndata layer but a data contract.\n",
-      "location": {
-        "file": "core/runtime/config.go",
-        "startLine": 40,
-        "startCol": 3,
-        "endLine": 45,
-        "endCol": 3
-      },
-      "hash": "97e243eb7996a7cb"
-    },
-    "storage-leak-blobs-never-compact-ad27adbb": {
-      "id": "storage-leak-blobs-never-compact-ad27adbb",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P1",
-      "tags": [
-        "storage-leak",
-        "blobs"
-      ],
-      "title": "Storage leak: blobs never compacted after deletion",
-      "body": "\nWhen blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
-      "assignee": "opencode",
-      "location": {
-        "file": "core/system/blobs/service.go",
-        "startLine": 297,
-        "startCol": 3,
-        "endLine": 304,
-        "endCol": 3
-      },
-      "hash": "f7b5e31ab9dada3c"
-    },
-    "update-hash-verify": {
-      "id": "update-hash-verify",
-      "category": "issue",
-      "status": "resolved",
-      "priority": "P1",
-      "title": "Verify binary hash before applying staged update",
-      "body": "\nThe staged binary at DataDir/update is copied over the running executable\n(swapExecutable) or executed directly (ApplyUpdate) without verifying its\nSHA-256 checksum against UpdateInfo.Checksum. The Checksum field already\n\nS-9 residual (authenticity): a self-computed checksum is integrity-only.\nThe GitHub provider supplies no checksum, so the recorded value attests\nnothing about provenance — a MITM-substituted binary passes by\nconstruction. Full remediation requires provider-attested checksums or\nsigned releases verified against an out-of-band-pinned key (updater's\nserver provider already verifies RSA signatures when ServerPublicKey is\nconfigured).\nflows through the persistence layer, but the actual verification against\nthe on-disk binary is never performed. This means a corrupted download —\nor a file tampered with between staging and apply — would silently replace\nthe running binary. The check should re-hash the staged file and abort\nthe swap/exec if it does not match.\n\nReal-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with\n\"missing section headers\" — the update was applied but the binary was\ncorrupted. A pre-apply hash check would have caught this.\n\nWhy staging can succeed while application produces a corrupted binary:\n  1. GitHub provider passes empty checksum (github.go:133) so\n     DownloadBinary skips hash verification entirely.\n  2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)\n     re-hash the staged file before overwriting the executable.\n  3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full\n     condition can leave the destination truncated.\n  4. swapExecutable creates a temp file in filepath.Dir(exe) which may\n     differ from DataDir — if they share a filesystem the Rename is\n     atomic, but a failed copy to the temp file is not caught before the\n     rename.\n\n@see #updater-hash-verify\n",
-      "location": {
-        "file": "core/system/updates/service.go",
-        "startLine": 467,
-        "startCol": 3,
-        "endLine": 503,
-        "endCol": 3
-      },
-      "hash": "fa43ce10693eec89"
-    },
-    "worb9o": {
-      "id": "worb9o",
-      "category": "issue",
-      "status": "open",
-      "title": "Weak Authentication State persistence",
-      "body": "Opening two tabs on the same browser client causes the user to be\ndeauthenticated\n",
-      "location": {
-        "file": "client/packages/core/container.ts",
-        "startLine": 47,
-        "startCol": 3,
-        "endLine": 50,
-        "endCol": 3
-      },
-      "hash": "d8cc8ce9c8fdf25d"
-    },
-    "z3g2cp": {
-      "id": "z3g2cp",
-      "category": "todo",
-      "status": "resolved",
-      "title": "Implement this feature",
-      "body": "Resolved: the resume() stub was replaced by HestiaAuth.session().\n",
-      "location": {
-        "file": "client/packages/core/system/auth/store.ts",
-        "startLine": 55,
-        "startCol": 3,
-        "endLine": 58,
-        "endCol": 3
-      },
-      "hash": "c31077e4550d1d04"
-    },
-    "tool-20261029-006": {
-      "id": "tool-20261029-006",
-      "category": "todo",
-      "status": "open",
-      "priority": "P3",
-      "tags": [
-        "tooling",
-        "config"
-      ],
-      "title": "Two config files describe overlapping layout and nothing checks they agree",
-      "body": "hestia.json (module, core_dir, modules_dir, autogen, commands) and anansi.json (schema.glob, lockfile, migrations_dir, tsgen.out, gogen, metadata) both encode where things live, for example whether the schema glob covers core_dir and modules_dir, and where migrations go (#tool-20261029-005).\nOptions: keep both files but derive anansi defaults from hestia.json when keys are absent and report disagreement; or accept an \"anansi\" section in hestia.json while still honouring anansi.json for standalone use (precedence: explicit anansi.json, then the hestia.json section, then derived defaults). Avoid a third file or flag-only configuration. Depends on the embedding in #tool-20261029-001.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-001",
-        "#tool-20261029-005"
-      ],
-      "location": {
-        "file": "cmd/hestia/core/config.go",
-        "startLine": 9,
-        "startCol": 3,
-        "endLine": 15,
-        "endCol": 3
-      },
-      "hash": "3f2fe14e81db265e"
-    },
-    "tool-20261029-002": {
-      "id": "tool-20261029-002",
-      "category": "todo",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "tooling",
-        "ergonomics"
-      ],
-      "title": "No single command runs the whole schema-to-service pipeline",
-      "body": "After a schema change the documented sequence (README, skills/SKILL.md) is: anansi migrate generate --dry-run, anansi migrate generate, anansi codegen golang, then hestia generate modules and hestia service generate <module> <name> for each affected service. Order matters (models before service registrations) and each step is a different tool with its own config.\nProposal: `hestia sync` = migrate generate, then codegen golang (and typescript when configured), then service generate for every service, then generate modules. Flags: --dry-run, and --check that exits non-zero when anything would change (anansi already has --check for migrations) so CI can gate on it, plus one summary of changed files. The individual verbs stay available once embedded (#tool-20261029-001). Option drift between generators is #tool-20261029-003.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-001",
-        "#tool-20261029-003"
-      ],
-      "location": {
-        "file": "cmd/hestia/core/generate.go",
-        "startLine": 26,
-        "startCol": 3,
-        "endLine": 32,
-        "endCol": 3
-      },
-      "hash": "77babac6f255de48"
-    },
-    "tool-20261029-004": {
-      "id": "tool-20261029-004",
-      "category": "todo",
-      "status": "open",
-      "priority": "P2",
-      "tags": [
-        "tooling",
-        "scaffold"
-      ],
-      "title": "init does not make the project anansi-ready",
-      "body": "init writes main.go, the Makefile, .env, .gitignore and hestia.json, but no anansi.json, schemas directory or lockfile. A fresh project cannot run migrate or codegen until the user runs `anansi scaffold --existing` separately, and anansi's default glob would not match hestia's core_dir/modules_dir layout.\nFix: once scaffold is importable (#tool-20261029-001), have init create anansi.json non-destructively, with the glob derived from core_dir and modules_dir, and add sync/check targets to the generated Makefile. Config overlap is #tool-20261029-006.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-001",
-        "#tool-20261029-006"
-      ],
-      "location": {
-        "file": "cmd/hestia/core/init.go",
-        "startLine": 12,
-        "startCol": 3,
-        "endLine": 18,
-        "endCol": 3
-      },
-      "hash": "105c2a1f1413a6b6"
-    },
-    "tool-20261029-005": {
-      "id": "tool-20261029-005",
-      "category": "issue",
-      "status": "open",
-      "priority": "P2",
-      "tags": [
-        "tooling",
-        "migrations"
-      ],
-      "title": "Per-module model/migrations directories are scaffolded but nothing populates them",
-      "body": "This (and `service new --model` in service.go) creates <module>/model/migrations, but anansi's config has a single schema.migrations_dir and lockfile, and hestia's own repo keeps all 16 migrations in core/internal/migrations (there are no per-service model/migrations directories). The scaffolded directories stay empty and imply a per-module layout the tooling cannot produce, since one run emits into one directory.\nDecide: (a) a project-level migrations directory and drop this scaffolding, or (b) teach anansi per-schema output (for example a schema-relative migrations_dir) so each module owns its migrations and lockfile entries. (b) matters if modules are meant to ship independently. Related config question: #tool-20261029-006.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-006"
-      ],
-      "location": {
-        "file": "cmd/hestia/core/module.go",
-        "startLine": 56,
-        "startCol": 3,
-        "endLine": 61,
-        "endCol": 3
-      },
-      "hash": "e3cd2dfe17f9ef71"
-    },
-    "tool-20261029-003": {
-      "id": "tool-20261029-003",
-      "category": "issue",
-      "status": "open",
-      "priority": "P2",
-      "tags": [
-        "tooling",
-        "codegen"
-      ],
-      "title": "service new and anansi codegen write the same *.model.go with different options",
-      "body": "generateModel (used by `service new --model`) builds golang.GeneratorConfig from fixed values: PackageName \"model\", NameRules ^_(.+)_$ -> System (hestia's own convention for _user_-style system schemas), DefaultTagConfig, no Mode and no ScopedPackages. `anansi codegen golang` (RunGoGen) reads tags, scoped, name_rules and mode from anansi.json, derives the package name from the directory, and writes the same <schema>.model.go next to the schema.\nWith a non-default anansi.json the next codegen run rewrites what service new produced (churn, possibly different type names), and user projects inherit the System rule meant for hestia's own schemas. Fix: one entry point (the embedded codegen, #tool-20261029-001) driven by the project's config (#tool-20261029-006); service new should call it for just that schema.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-001",
-        "#tool-20261029-006"
-      ],
-      "location": {
-        "file": "cmd/hestia/core/service.go",
-        "startLine": 210,
-        "startCol": 3,
-        "endLine": 216,
-        "endCol": 3
-      },
-      "hash": "7c12ec72e72fd075"
-    },
-    "tool-20261029-001": {
-      "id": "tool-20261029-001",
-      "category": "todo",
-      "status": "open",
-      "priority": "P1",
-      "tags": [
-        "tooling",
-        "architecture",
-        "anansi"
-      ],
-      "title": "hestia cannot embed the anansi CLI because its logic is unimportable",
-      "body": "anansi's commands live in go-anansi cmd/anansi/main.go (package main) and cmd/anansi/internal (schema new/normalize, migrate generate/squash, codegen golang/typescript/faker, scaffold, agents). Go forbids importing either from another module, so hestia can only call the public libraries it already uses (codegen/golang). Every other step is a separate binary: README and skills/SKILL.md tell users to run `anansi migrate generate --dry-run`, `anansi migrate generate` and `anansi codegen golang` by hand, then hestia's own generators (#tool-20261029-002).\nVersion drift: go.mod pins go-anansi v8.10.1 (latest tag is v8.10.2) while the CLI is installed independently, and the migration and model output depends on the CLI version that happened to run.\nEnd state: in go-anansi, move command construction out of main/internal into an importable package (for example .../cli returning the schema, migrate, codegen and agents cobra commands, taking the config location and writers), keep cmd/anansi as a thin main, and mount them in hestia (hestia schema|migrate|codegen|agents) so the binary is version-locked to go.mod. The logic already depends only on public packages (core/schema/definition, core/data, codegen/*, skills/anansi).\nInterim, no upstream change (not exercised): add `tool github.com/asaidimu/go-anansi/v8/cmd/anansi` to go.mod (this module is on Go 1.27) and make a hestia passthrough run `go tool anansi`. Do not exec whatever `anansi` is on PATH.\nSkills: `hestia agents` should install both the hestia and anansi skills; skills/SKILL.md currently says \"see the anansi skill\". Follow-ups: #tool-20261029-003 and #tool-20261029-004.\n",
-      "authors": [
-        "claude"
-      ],
-      "references": [
-        "#tool-20261029-002",
-        "#tool-20261029-003",
-        "#tool-20261029-004"
-      ],
-      "location": {
-        "file": "cmd/hestia/main.go",
-        "startLine": 10,
-        "startCol": 3,
         "endLine": 20,
         "endCol": 3
       },
-      "hash": "22197a906db60aea"
+      "hash": "e645e8dd3392311c"
+    },
+    "err-20261103-1": {
+      "id": "err-20261103-1",
+      "category": "issue",
+      "status": "open",
+      "priority": "high",
+      "timestamp": "2026-11-03",
+      "tags": [
+        "errors",
+        "observability",
+        "http"
+      ],
+      "title": "Non-SystemError handler failures surface as an opaque 500",
+      "body": "The default branch replaces any error that is not a *common.SystemError\nwith INTERNAL_ERROR / \"internal server error\" (S-16: raw strings must not\nreach clients). Most feature handlers return plain wrapped errors (e.g.\nfmt.Errorf(\"create document in %q: %w\", ...)), so the common failure path\ngives clients nothing to act on and pushes all diagnosis onto the log\nfile. Fix direction: make handlers return SystemErrors with causes\n(WithCause) so 4xx details reach clients and 5xx causes are classifiable,\nrather than widening what leaks across the wire.\n",
+      "authors": [
+        "ai-code-reviewer"
+      ],
+      "references": [
+        "#err-20261103-7"
+      ],
+      "location": {
+        "file": "core/interface/http/transport_fasthttp.go",
+        "startLine": 544,
+        "startCol": 3,
+        "endLine": 559,
+        "endCol": 3
+      },
+      "hash": "b5ab063296f29b31"
+    },
+    "err-20261103-2": {
+      "id": "err-20261103-2",
+      "category": "issue",
+      "status": "open",
+      "priority": "medium",
+      "timestamp": "2026-11-03",
+      "tags": [
+        "errors",
+        "observability"
+      ],
+      "title": "A 5xx SystemError's cause may be logged nowhere",
+      "body": "The errors.As branch strips details for status \u003e= 500 (S-16, correct),\nbut this Warn records only issue.Message - the Error-level \"internal\nerror\" log fires only in the default branch. A SystemError carrying a\nWithCause chain whose code maps to 5xx therefore has its root cause in\nneither the response nor the transport log; only the audit record may\nstill hold the full error string.\n",
+      "authors": [
+        "ai-code-reviewer"
+      ],
+      "references": [
+        "#err-20261103-1"
+      ],
+      "location": {
+        "file": "core/interface/http/transport_fasthttp.go",
+        "startLine": 622,
+        "startCol": 3,
+        "endLine": 635,
+        "endCol": 3
+      },
+      "hash": "fef3a399e313feed"
+    },
+    "err-20261103-3": {
+      "id": "err-20261103-3",
+      "category": "issue",
+      "status": "open",
+      "priority": "high",
+      "timestamp": "2026-11-03",
+      "tags": [
+        "audit",
+        "security",
+        "observability"
+      ],
+      "title": "Authorization and limiter denials never reach the audit collection",
+      "body": "The audit link sits innermost, so secure/ratelimit/throttle rejections\nshort-circuit before it and are recorded only as Warn lines in the zap\nlog, not in the queryable audit store. SecureDispatcher has no logger of\nits own either. Moving audit above secure, or adding a dedicated denial\naudit path, would close the compliance gap the platform guide already\nflags (skills/references/platform-guide.md).\n",
+      "authors": [
+        "ai-code-reviewer"
+      ],
+      "references": [
+        "#err-20261103-7"
+      ],
+      "location": {
+        "file": "core/system/module.go",
+        "startLine": 541,
+        "startCol": 3,
+        "endLine": 554,
+        "endCol": 3
+      },
+      "hash": "dd61f41e8a3f236b"
     },
     "err-20261103-4": {
       "id": "err-20261103-4",
@@ -2007,97 +1470,12 @@
       ],
       "location": {
         "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 203,
+        "startLine": 223,
         "startCol": 3,
-        "endLine": 214,
+        "endLine": 234,
         "endCol": 3
       },
       "hash": "f281d29f2ba72f78"
-    },
-    "err-20261103-7": {
-      "id": "err-20261103-7",
-      "category": "context",
-      "status": "open",
-      "timestamp": "2026-11-03",
-      "tags": [
-        "errors",
-        "observability"
-      ],
-      "title": "Error-reporting topology for a failed API call",
-      "body": "A failed call is classified in writeError. A *common.SystemError maps to a\nstatus via codeToStatusFn and keeps issue.Cause as `details` for 4xx; any\nother error becomes an opaque 500 whose cause is logged server-side only.\nEvery path is correlated by X-Request-ID (generated in correlationID,\nechoed in the response header and metadata.request); the same ID lands in\nthe zap log lines and audit entries. Handler errors that reach the audit\nlink store the full error string in the audit collection (status=error,\nindexed by request_id); denials and limiter rejections never reach it.\n",
-      "authors": [
-        "ai-code-reviewer"
-      ],
-      "references": [
-        "#err-20261103-1",
-        "#err-20261103-2",
-        "#err-20261103-3",
-        "#err-20261103-4",
-        "#err-20261103-5"
-      ],
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 444,
-        "startCol": 3,
-        "endLine": 462,
-        "endCol": 3
-      },
-      "hash": "97e332547a2313e4"
-    },
-    "err-20261103-1": {
-      "id": "err-20261103-1",
-      "category": "issue",
-      "status": "open",
-      "priority": "high",
-      "timestamp": "2026-11-03",
-      "tags": [
-        "errors",
-        "observability",
-        "http"
-      ],
-      "title": "Non-SystemError handler failures surface as an opaque 500",
-      "body": "The default branch replaces any error that is not a *common.SystemError\nwith INTERNAL_ERROR / \"internal server error\" (S-16: raw strings must not\nreach clients). Most feature handlers return plain wrapped errors (e.g.\nfmt.Errorf(\"create document in %q: %w\", ...)), so the common failure path\ngives clients nothing to act on and pushes all diagnosis onto the log\nfile. Fix direction: make handlers return SystemErrors with causes\n(WithCause) so 4xx details reach clients and 5xx causes are classifiable,\nrather than widening what leaks across the wire.\n",
-      "authors": [
-        "ai-code-reviewer"
-      ],
-      "references": [
-        "#err-20261103-7"
-      ],
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 464,
-        "startCol": 3,
-        "endLine": 479,
-        "endCol": 3
-      },
-      "hash": "b5ab063296f29b31"
-    },
-    "err-20261103-2": {
-      "id": "err-20261103-2",
-      "category": "issue",
-      "status": "open",
-      "priority": "medium",
-      "timestamp": "2026-11-03",
-      "tags": [
-        "errors",
-        "observability"
-      ],
-      "title": "A 5xx SystemError's cause may be logged nowhere",
-      "body": "The errors.As branch strips details for status >= 500 (S-16, correct),\nbut this Warn records only issue.Message - the Error-level \"internal\nerror\" log fires only in the default branch. A SystemError carrying a\nWithCause chain whose code maps to 5xx therefore has its root cause in\nneither the response nor the transport log; only the audit record may\nstill hold the full error string.\n",
-      "authors": [
-        "ai-code-reviewer"
-      ],
-      "references": [
-        "#err-20261103-1"
-      ],
-      "location": {
-        "file": "core/interface/http/transport_fasthttp.go",
-        "startLine": 542,
-        "startCol": 3,
-        "endLine": 555,
-        "endCol": 3
-      },
-      "hash": "fef3a399e313feed"
     },
     "err-20261103-6": {
       "id": "err-20261103-6",
@@ -2123,33 +1501,809 @@
       },
       "hash": "206a235793bdfe3d"
     },
-    "err-20261103-3": {
-      "id": "err-20261103-3",
-      "category": "issue",
+    "err-20261103-7": {
+      "id": "err-20261103-7",
+      "category": "context",
       "status": "open",
-      "priority": "high",
       "timestamp": "2026-11-03",
       "tags": [
-        "audit",
-        "security",
+        "errors",
         "observability"
       ],
-      "title": "Authorization and limiter denials never reach the audit collection",
-      "body": "The audit link sits innermost, so secure/ratelimit/throttle rejections\nshort-circuit before it and are recorded only as Warn lines in the zap\nlog, not in the queryable audit store. SecureDispatcher has no logger of\nits own either. Moving audit above secure, or adding a dedicated denial\naudit path, would close the compliance gap the platform guide already\nflags (skills/references/platform-guide.md).\n",
+      "title": "Error-reporting topology for a failed API call",
+      "body": "A failed call is classified in writeError. A *common.SystemError maps to a\nstatus via codeToStatusFn and keeps issue.Cause as `details` for 4xx; any\nother error becomes an opaque 500 whose cause is logged server-side only.\nEvery path is correlated by X-Request-ID (generated in correlationID,\nechoed in the response header and metadata.request); the same ID lands in\nthe zap log lines and audit entries. Handler errors that reach the audit\nlink store the full error string in the audit collection (status=error,\nindexed by request_id); denials and limiter rejections never reach it.\n",
       "authors": [
         "ai-code-reviewer"
       ],
       "references": [
-        "#err-20261103-7"
+        "#err-20261103-1",
+        "#err-20261103-2",
+        "#err-20261103-3",
+        "#err-20261103-4",
+        "#err-20261103-5"
       ],
       "location": {
-        "file": "core/system/module.go",
-        "startLine": 541,
+        "file": "core/interface/http/transport_fasthttp.go",
+        "startLine": 524,
         "startCol": 3,
-        "endLine": 554,
+        "endLine": 542,
         "endCol": 3
       },
-      "hash": "dd61f41e8a3f236b"
+      "hash": "97e332547a2313e4"
+    },
+    "feat-ns-metadata": {
+      "id": "feat-ns-metadata",
+      "category": "feature_request",
+      "status": "open",
+      "priority": "medium",
+      "title": "Add arbitrary metadata to blob namespaces",
+      "body": "BlobNamespaceInfo currently only carries ID, DisplayName, and Public.\nUsers want to attach custom key-value metadata to namespaces (e.g. description,\nowner, environment tags, retention policy) similar to how BlobMeta.Custom works\non individual blobs.\n\nOptions: (1) add Custom map[string]string to BlobNamespaceInfo + persist in\nhestia's layer since the blobs library doesn't support it, (2) store namespace\nmetadata in a dedicated collection keyed by namespace ID, (3) extend NamespaceOptions\nwith a Custom field and persist alongside namespace creation.\n",
+      "location": {
+        "file": "core/system/blobs/store/types.go",
+        "startLine": 41,
+        "startCol": 3,
+        "endLine": 52,
+        "endCol": 3
+      },
+      "hash": "113dcbc034c61967"
+    },
+    "l2z9mr": {
+      "id": "l2z9mr",
+      "category": "issue",
+      "status": "open",
+      "title": "Duplicated claims to identity code.",
+      "location": {
+        "file": "core/interface/http/middleware.go",
+        "startLine": 185,
+        "startCol": 3,
+        "endLine": 185,
+        "endCol": 3
+      },
+      "hash": "f06c0323ffdd0f8d"
+    },
+    "mdzmre": {
+      "id": "mdzmre",
+      "category": "issue",
+      "status": "open",
+      "title": "Performance issue.",
+      "body": "This method will likely run on every request,\ncreating a map churn. Figure out if this is\nentirely necessary\n",
+      "location": {
+        "file": "core/interface/http/identity_provider.go",
+        "startLine": 65,
+        "startCol": 3,
+        "endLine": 69,
+        "endCol": 3
+      },
+      "hash": "fea6596524ee6c84"
+    },
+    "mem-20260821-003": {
+      "id": "mem-20260821-003",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "memory",
+        "goroutine"
+      ],
+      "title": "Stream channel buffer size causes goroutine leaks",
+      "body": "selects on the request context while draining the source channel and while\nforwarding to the response stream, so on client disconnect the producer\nreturns instead of blocking forever on a full buffer. S-19 additionally\nverified fasthttp's RequestCtx.Done() never fires on client disconnect\n(server-shutdown only) and moved SSE teardown to managedStream, whose\nwriter-owned done channel releases the producer on flush error or stream\nend — the transport, not the request context, owns stream shutdown.\n\nstreamChannel (line 171) creates a channel with buffer size 64. If the\nconsumer stops reading (e.g., client disconnects), the producer goroutine\nblocks indefinitely, causing a goroutine leak.\n\nFor IoT/HFT:\n- IoT devices may disconnect frequently\n- HFT systems need clean resource management\n- Goroutine leaks accumulate over time\n\nResolution:\n1. Use a select with context cancellation when sending\n2. Add a timeout or context to the producer goroutine\n3. Consider using a bounded buffer with overflow handling\n4. Monitor goroutine count for leak detection\nmanagedStream pairs the SSE body channel with a done channel that the\nfasthttp response writer owns. The producer cannot rely on the request\ncontext alone: fasthttp's RequestCtx.Done() returns the server-shutdown\nchannel (server.go: ctx.s.done) and never fires on client disconnect —\nwithout the writer-owned done channel, every aborted SSE request leaked\nthe producer goroutine and its upstream subscription until server\nshutdown (S-19).\n",
+      "location": {
+        "file": "core/interface/http/register.go",
+        "startLine": 440,
+        "startCol": 3,
+        "endLine": 473,
+        "endCol": 3
+      },
+      "hash": "29d450a946cebc2f"
+    },
+    "org-20260821-001": {
+      "id": "org-20260821-001",
+      "category": "todo",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "organization",
+        "refactor"
+      ],
+      "title": "Split module.go into focused files",
+      "body": "module.go currently contains 4 unrelated concerns in 175 lines:\n- Input, ArgumentDefinition (message input schema)\n- Module interface (lifecycle)\n- Capability, MessageRegistration (message registration)\n\nA human looking for Input would guess input.go, not module.go.\nThis hurts discoverability and increases modification risk.\n\nResolution:\n1. Create input.go with Input, ArgumentDefinition, and their methods\n2. Keep module.go with Module interface only\n3. Create registration.go with Capability and MessageRegistration\n\nFiles affected:\n- core/abstract/module.go (split into 3 files)\n- All files importing these types (no code changes needed, just file moves)\n",
+      "location": {
+        "file": "core/abstract/module.go",
+        "startLine": 0,
+        "startCol": 3,
+        "endLine": 20,
+        "endCol": 3
+      },
+      "hash": "a67ea43c36a4d75c"
+    },
+    "org-20260821-002": {
+      "id": "org-20260821-002",
+      "category": "todo",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "organization",
+        "refactor"
+      ],
+      "title": "Split result.go into verb.go and result.go",
+      "body": "result.go contains 3 unrelated concerns in 136 lines:\n- Verb type and constants (message intent)\n- ResultKind type and constants (response type)\n- Result struct and Page (response envelope)\n\nA human looking for Verb would guess verb.go, not result.go.\nVerb is used by MessageRegistration and annotate package independently\nof Result.\n\nResolution:\n1. Create verb.go with Verb type, constants, String(), MarshalJSON, UnmarshalJSON\n2. Keep result.go with ResultKind, Result, Page, and releaseDocs\n\nFiles affected:\n- core/abstract/result.go (split into 2 files)\n- core/hestia/annotate/annotate.go (imports Verb)\n",
+      "location": {
+        "file": "core/abstract/result.go",
+        "startLine": 0,
+        "startCol": 3,
+        "endLine": 20,
+        "endCol": 3
+      },
+      "hash": "0ddc08c9726c4fb3"
+    },
+    "org-20260821-003": {
+      "id": "org-20260821-003",
+      "category": "todo",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "organization",
+        "refactor"
+      ],
+      "title": "Split config.go into types.go, defaults.go, and env.go",
+      "body": "config.go currently contains 3 unrelated concerns in 321 lines:\n- Config, SelfUpdateConfig, CookieConfig types (data structures)\n- Default constants and DefaultConfig() (defaults)\n- LoadConfig, env helpers, resolveDataDir (env loading)\n\nA human looking for Config struct would guess config.go (correct), but\na human looking for env helpers would guess env.go (which exists but\nonly has ApplyEnvOverrides). The file mixes type definitions with\nruntime behavior.\n\nResolution:\n 1. Create types.go with Config, SelfUpdateConfig, CookieConfig structs\n 2. Create defaults.go with Default* constants and DefaultConfig()\n 3. Keep config.go with LoadConfig, env helpers, resolveDataDir\n    (or rename to load.go for clarity)\n\nThis also addresses #so98l5 and #r9i7ec by consolidating env resolution.\n\nFiles affected:\n- core/runtime/config.go (split into 3 files)\n- core/runtime/env.go (consider merging ApplyEnvOverrides into config.go)\n- core/hestia.go (imports Config)\n",
+      "location": {
+        "file": "core/runtime/config.go",
+        "startLine": 0,
+        "startCol": 3,
+        "endLine": 26,
+        "endCol": 3
+      },
+      "hash": "052034b6599a1cf9"
+    },
+    "org-20260821-004": {
+      "id": "org-20260821-004",
+      "category": "todo",
+      "status": "open",
+      "priority": "high",
+      "tags": [
+        "organization",
+        "refactor"
+      ],
+      "title": "Consolidate env.go into config.go",
+      "body": "env.go (243 lines) and config.go (321 lines) have near-identical env loading.\nBoth LoadConfig and ApplyEnvOverrides read the same env vars independently.\nThis is #arch-20260821-001's root cause.\n\nResolution:\n1. Merge ApplyEnvOverrides into LoadConfig as a single canonical function\n2. Move SelfUpdateConfig, CookieConfig to types.go\n3. Move providerFromEnv, parseRSAPublicKey to config.go (they're config loading)\n4. Delete env.go entirely\n\nThis eliminates the duplication and makes config.go the single source of\ntruth for all configuration loading.\n\nFiles affected:\n- core/runtime/env.go (delete)\n- core/runtime/config.go (absorb env.go contents)\n- core/hestia.go (calls ApplyEnvOverrides - update to use LoadConfig)\n",
+      "location": {
+        "file": "core/runtime/env.go",
+        "startLine": 0,
+        "startCol": 3,
+        "endLine": 21,
+        "endCol": 3
+      },
+      "hash": "3d1710d9e213e49a"
+    },
+    "perf-20260821-001": {
+      "id": "perf-20260821-001",
+      "category": "issue",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "performance",
+        "struct-packing"
+      ],
+      "title": "Request struct has poor field ordering",
+      "body": "Request struct (line 9) has suboptimal field ordering for memory alignment:\n\nCurrent layout (64-bit):\n- Operation: string (16 bytes)\n- Body: []byte (24 bytes)\n- PathParams: map (8 bytes)\n- Query: map (8 bytes)\n- Headers: map (8 bytes)\n- Cookies: map (8 bytes)\n- ClientIP: string (16 bytes)\n- UserAgent: string (16 bytes)\n- RequestID: string (16 bytes)\n\nTotal: ~120 bytes with possible padding\n\nBetter ordering (group by size):\n- Body: []byte (24 bytes)\n- Operation: string (16 bytes)\n- ClientIP: string (16 bytes)\n- UserAgent: string (16 bytes)\n- RequestID: string (16 bytes)\n- PathParams: map (8 bytes)\n- Query: map (8 bytes)\n- Headers: map (8 bytes)\n- Cookies: map (8 bytes)\n\nFor IoT/HFT: Every byte matters on memory-constrained devices.\nThis struct is created for every HTTP request.\n\nResolution: Reorder fields to minimize padding. Consider using a pool\nfor Request objects to reduce allocations.\n",
+      "location": {
+        "file": "core/abstract/transport.go",
+        "startLine": 9,
+        "startCol": 3,
+        "endLine": 44,
+        "endCol": 3
+      },
+      "hash": "aa65397ebe1408f5"
+    },
+    "perf-20260821-002": {
+      "id": "perf-20260821-002",
+      "category": "issue",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "performance",
+        "struct-packing"
+      ],
+      "title": "Response struct has mixed pointer/value types",
+      "body": "Response struct (line 42) mixes pointer and value types inefficiently:\n\n- Status: int (8 bytes)\n- Headers: map (8 bytes)\n- Body: any (16 bytes - interface)\n- Cookies: []Cookie (24 bytes - slice)\n- Page: *query.PaginationInfo (8 bytes - pointer)\n- Metadata: map (8 bytes)\n\nThe Body field is an interface, which means it can hold any type.\nThis causes boxing/unboxing overhead and prevents compiler optimizations.\n\nFor IoT/HFT: Interface types cause GC pressure and prevent inlining.\n\nResolution:\n1. Consider using concrete types instead of interface{} for Body\n2. Group pointer types together to minimize padding\n3. Consider using a pool for Response objects\n",
+      "location": {
+        "file": "core/abstract/transport.go",
+        "startLine": 97,
+        "startCol": 3,
+        "endLine": 119,
+        "endCol": 3
+      },
+      "hash": "3d07b605c080ea99"
+    },
+    "perf-20260821-003": {
+      "id": "perf-20260821-003",
+      "category": "issue",
+      "status": "open",
+      "priority": "low",
+      "tags": [
+        "performance",
+        "struct-packing"
+      ],
+      "title": "trieNode uses slice for children",
+      "body": "trieNode struct (line 8) uses a slice for children:\n\n- segment: string (16 bytes)\n- children: []*trieNode (24 bytes - slice)\n- paramChild: *trieNode (8 bytes)\n- paramName: string (16 bytes)\n- handlers: map (8 bytes)\n\nMost trie nodes have 1-2 children. Using a slice causes:\n1. Heap allocation for the slice header\n2. Indirection for each child access\n3. GC pressure from small allocations\n\nFor IoT/HFT: Route lookup is on the hot path for every request.\n\nResolution:\n1. Use [2]*trieNode for small child counts with fallback to slice\n2. Or use a fixed-size array with linear search for 1-2 children\n3. Consider embedding the first child inline\n",
+      "location": {
+        "file": "core/interface/http/router.go",
+        "startLine": 7,
+        "startCol": 3,
+        "endLine": 30,
+        "endCol": 3
+      },
+      "hash": "3682253a443419e6"
+    },
+    "perf-20260821-004": {
+      "id": "perf-20260821-004",
+      "category": "issue",
+      "status": "open",
+      "priority": "critical",
+      "tags": [
+        "performance",
+        "correctness"
+      ],
+      "title": "BuildInputDocument uses unnecessary JSON round-trip",
+      "body": "BuildInputDocument manually constructs a JSON string by marshaling each\nfield, concatenating into a JSON object, then parsing it back into a\ndocument via pool.FromJSON. This is:\n\n1. Wasteful: marshal Go values → JSON bytes → concatenate → parse JSON\n2. Incorrect for bytes: json.Marshal([]byte) base64-encodes, double-encoding\n3. Error-prone: manual JSON construction can produce invalid JSON\n\nThe anansi Document has direct Set* methods:\n\n     doc, _ := pool.New()\n     doc.SetString(\"arguments.name\", value)\n     doc.SetBytes(\"payload\", req.Body)\n\nThis should populate fields directly without JSON:\n 1. pool.New() to get an empty document\n 2. For context: iterate input.ContextFields(), set each from req.Headers\n    via contextHeaderCandidates\n 3. For arguments: iterate input.Arguments(), set each from req.PathParams\n 4. For modifiers: iterate input.Modifiers(), set each from req.Query\n 5. For payload: if bytes, doc.SetBytes(); if JSON, use DecodeJSONField\n\nNote: Do NOT duplicate JSON decode logic. The anansi decoder (go-anansi/\ncore/encoding/json) is already optimized. Use DecodeJSONField for JSON\npayloads — it decodes a single field directly into the document without\nbuilding an intermediate JSON object.\n\nImpact:\n- Eliminates marshal/parse round-trip (2x CPU savings)\n- Eliminates base64 encoding for byte payloads (33% memory savings)\n- Eliminates intermediate JSON buffer allocation\n- For IoT/HFT: Critical for reducing per-request latency\n\nResolution: Rewrite BuildInputDocument to use pool.New() and doc.Set*()\nmethods directly, using DecodeJSONField only for JSON payload types.\ncontextHeaderCandidates returns the deterministic candidate list for\nlifting a declared context field from request headers, most specific\nstandard form first: \"content_type\" → [\"Content-Type\", \"X-Content-Type\"].\nThe standard spelling wins when a client supplies both; the X-prefixed\nform covers custom transport headers like X-Session-ID. Matching is done\ncase-insensitively by requestHeaderValue.\n",
+      "location": {
+        "file": "core/interface/http/doc.go",
+        "startLine": 46,
+        "startCol": 3,
+        "endLine": 91,
+        "endCol": 3
+      },
+      "hash": "ebc65670d371eaa0"
+    },
+    "qhx9r0": {
+      "id": "qhx9r0",
+      "category": "issue",
+      "status": "open",
+      "title": "Impotent Page options",
+      "body": "There is effectively no way to pass in custom pager options\n",
+      "location": {
+        "file": "client/packages/core/core/collection.ts",
+        "startLine": 25,
+        "startCol": 3,
+        "endLine": 27,
+        "endCol": 3
+      },
+      "hash": "9f6bd3ca6ed7c8e5"
+    },
+    "review-20260821-001": {
+      "id": "review-20260821-001",
+      "category": "todo",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "errors"
+      ],
+      "title": "Use SystemError for handler dispatch errors",
+      "body": "but the review guide recommends using common.SystemError for consistency with\nthe rest of the codebase (see core/runtime/errors.go).\n\nConsider using ErrNotFound and ErrValidation/ErrAccessDenied with WithOperation\nfor better error classification and client-facing error codes.\n\nSend accepts the message for asynchronous execution: the handler runs on a\ndedicated goroutine and onComplete is invoked exactly once with its outcome.\nHandler panics are recovered here and delivered as *PanicError, so no link\nin the chain needs its own recovery wrapper.\n",
+      "location": {
+        "file": "core/runtime/local-dispatcher.go",
+        "startLine": 81,
+        "startCol": 3,
+        "endLine": 95,
+        "endCol": 3
+      },
+      "hash": "6438b065bc37909f"
+    },
+    "review-20260821-002": {
+      "id": "review-20260821-002",
+      "category": "todo",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "errors"
+      ],
+      "title": "Use SystemError for duplicate handler registration",
+      "body": "ErrAlreadyExists (or a similar SystemError) instead of fmt.Errorf for\nconsistent error handling across the codebase.\n",
+      "location": {
+        "file": "core/runtime/local-dispatcher.go",
+        "startLine": 153,
+        "startCol": 3,
+        "endLine": 159,
+        "endCol": 3
+      },
+      "hash": "6291f50679e5ab06"
+    },
+    "review-20260821-005": {
+      "id": "review-20260821-005",
+      "category": "todo",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "maintainability"
+      ],
+      "title": "Extract email templates to separate files",
+      "body": "This makes it difficult to maintain, test, and internationalize.\n\nConsider:\n1. Moving templates to a templates/ directory with .html files\n2. Using Go's html/template package for rendering\n3. Supporting i18n for different locales\n4. Making the template configurable per deployment\n",
+      "location": {
+        "file": "core/runtime/mailer.go",
+        "startLine": 106,
+        "startCol": 3,
+        "endLine": 117,
+        "endCol": 3
+      },
+      "hash": "56fd1096957dbeb7"
+    },
+    "review-20260821-006": {
+      "id": "review-20260821-006",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "review",
+        "security"
+      ],
+      "title": "Deeply nested identity property access",
+      "body": "(ident.Properties.(map[string]any) then props[\"operations\"]). This pattern is\nrepeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).\nFixed: replaced deeply nested identity access with GetIdentityProperty[T] helper calls.\n\nConsider extracting a helper function like `GetIdentityProperty[T](ctx, key)` or\ndefining a typed IdentityProperties struct to reduce duplication and improve type safety.\n",
+      "location": {
+        "file": "core/runtime/secure-dispatcher.go",
+        "startLine": 63,
+        "startCol": 3,
+        "endLine": 73,
+        "endCol": 3
+      },
+      "hash": "41d15442077974a1"
+    },
+    "review-20260821-007": {
+      "id": "review-20260821-007",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "review",
+        "consolidation"
+      ],
+      "title": "Duplicate identity property extraction",
+      "body": "nested type assertion pattern found in extractUserID (rate-limit.go),\nextractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).\nFixed: consolidated duplicate identity extraction into GetUserID, GetTokenID helpers in runtime/identity.go.\n\nConsider consolidating these into a single helper function in a shared package\n(e.g., runtime/identity) to reduce duplication and ensure consistent behavior.\n",
+      "location": {
+        "file": "core/runtime/secure-dispatcher.go",
+        "startLine": 149,
+        "startCol": 3,
+        "endLine": 159,
+        "endCol": 3
+      },
+      "hash": "ffa71cc13fa2cc7f"
+    },
+    "review-20260821-009": {
+      "id": "review-20260821-009",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "concurrency"
+      ],
+      "title": "Race condition in AuditBuffer circuit breaker",
+      "body": "to true in the default branch without holding the mutex consistently. While\nthe current code does acquire the mutex before setting b.failed, the check\nand the wg.Add(1) are not atomic — a concurrent Close() could interleave.\n\nAdditionally, the circuit breaker is only reset on successful persist in\nflushLoop, but if the buffer is full and the circuit opens, entries are\ndropped permanently until a successful persist occurs. Consider adding a\ntimeout-based circuit breaker reset or a maximum drop count before recovery.\n",
+      "location": {
+        "file": "core/runtime/audit_buffer.go",
+        "startLine": 94,
+        "startCol": 3,
+        "endLine": 106,
+        "endCol": 3
+      },
+      "hash": "2ebad7f25be0e2f6"
+    },
+    "review-20260821-018": {
+      "id": "review-20260821-018",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "review",
+        "concurrency"
+      ],
+      "title": "Potential deadlock in evictStale",
+      "body": "methods acquire bucket.mu first (e.g., CheckAndConsume, Increment). This\nlock ordering inconsistency could lead to deadlocks if concurrent operations\nare happening.\n\nConsider using a consistent lock ordering throughout, or using a different\neviction strategy that doesn't require holding both locks simultaneously.\n",
+      "location": {
+        "file": "core/runtime/ratestore/inmemory.go",
+        "startLine": 178,
+        "startCol": 3,
+        "endLine": 188,
+        "endCol": 3
+      },
+      "hash": "f0835d4b53bc33df"
+    },
+    "review-20260821-020": {
+      "id": "review-20260821-020",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "design"
+      ],
+      "title": "Abstraction leak in Input struct",
+      "body": "binding) flagged \"THIS IS AN ABSTRACTION LEAK\". It has been removed:\ntransport-context fields are now declared in the input schema itself under\na \"context\" root section (`input:\"context.session_id\"` tags); the HTTP\ninterface lifts matching headers into them deterministically. The\ndeprecated Arguments/Modifiers/Payload fields have been removed too —\nArguments(), Modifiers() and Payload() always derived from the schema.\nResolved in two steps. (1) HeaderFields — the flagged abstraction leak — was removed: transport-context bindings are declared by the input schema itself under a context root section (input:\"context.session_id\" tags); the HTTP interface derives header names deterministically (standard spelling first, then X-prefixed custom form, case-insensitive) and lifts them into the document's context section. The header_fields annotation attribute is removed and now fails codegen loudly. (2) The deprecated Arguments/Modifiers/Payload fields are deleted; Args(), Mods() and PayloadType() always derived from the schema, so the only production caller on the raw field (wails DeriveRoute) moved to Args(). Input is now just Schema + ResourceIDField. Streaming (2026-08-31) re-added one orthogonal flag: Streaming marks operations whose input arrives as a document stream (NDJSON body), independent of Verb — a bulk import is Create + Streaming.\n",
+      "location": {
+        "file": "core/abstract/module.go",
+        "startLine": 40,
+        "startCol": 3,
+        "endLine": 51,
+        "endCol": 3
+      },
+      "hash": "0c3a42a36123918e"
+    },
+    "review2-20260821-001": {
+      "id": "review2-20260821-001",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "security",
+        "auth",
+        "review"
+      ],
+      "title": "SessionService.Validate does not check ExpiresAt",
+      "body": "\nValidate() cryptographically verifies the HMAC and decodes the payload, but never compares ExpiresAt against time.Now(). Expiry is only enforced by callers that happen to re-check info.ExpiresAt after calling ValidateSession -- the HTTP middleware (core/interface/http/middleware.go) does this correctly, but utils/wails/dispatch.go has at least two call sites (around the post-login and dispatch-response handling paths) that call CredProvider.ValidateSession and consume the result without checking ExpiresAt at all. A method literally named Validate should be the single source of truth for token validity, including expiry; relying on every caller to remember a manual time check is fragile and has already produced inconsistent enforcement across call sites. Compare to ValidateResetToken in credential_provider.go, which does check its own expiry inline. Recommend moving the ExpiresAt (and ideally TokenVersion, though that IS consistently checked in middleware.go) comparison into SessionService.Validate itself.\n",
+      "assignee": "opencode",
+      "location": {
+        "file": "core/system/auth/session_service.go",
+        "startLine": 66,
+        "startCol": 3,
+        "endLine": 73,
+        "endCol": 3
+      },
+      "hash": "1f583e4ec0272770"
+    },
+    "review2-20260821-002": {
+      "id": "review2-20260821-002",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "medium",
+      "tags": [
+        "security",
+        "auth",
+        "review"
+      ],
+      "title": "ValidateSession result used without checking ExpiresAt",
+      "body": "\nTwo call sites in this file (around line 122, in the post-login flow, and here around line 245-251, in dispatch response handling) consume the ValidateSession result and set a.userID/a.claims without checking info.ExpiresAt. Contrast with the correctly-guarded call sites at lines 163-167, 179-182, and 382-395 in this same file, which all check info.ExpiresAt \u003e time.Now().Unix() before trusting the claims. The line-122 case is low risk in practice (it runs immediately after a fresh login, so the token cannot yet be expired), but the line-245 case handles an arbitrary dispatch response and has no such guarantee. This is a symptom of the root cause at #review2-20260821-001: SessionService.Validate does not enforce its own expiry, so every caller must remember to, and this file shows that as inconsistent in practice.\n",
+      "references": [
+        "#review2-20260821-001"
+      ],
+      "location": {
+        "file": "utils/wails/dispatch.go",
+        "startLine": 245,
+        "startCol": 3,
+        "endLine": 252,
+        "endCol": 3
+      },
+      "hash": "c10581110c88047e"
+    },
+    "review2-20260821-004": {
+      "id": "review2-20260821-004",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "review",
+        "api-design",
+        "p2p"
+      ],
+      "title": "system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)",
+      "body": "\nRESOLVED 2026-08-22: split into system:updates:check:get (read-only\navailability) and system:updates:stage:create (download+prepare+notify);\ncheck:create kept as the backward-compatible check-then-stage wrapper and\nRunScheduledCheck still drives both effects back to back via checkAndStage.\n\nDespite the doc comment calling this \"the read-only check\", Check() always\ncalls checkAndStage() (below), which both checks for a new version AND\ndownloads + prepares it via s.updater.PrepareUpdate whenever one is found.\nThere is no way to ask \"is a newer version available\" without triggering a\ndownload and disk write. The registered message name itself says\n\"check:create\" (Intent: abstract.Create) rather than a Read intent, which\nis the tell -- this was never actually a read operation.\n\nThis is a real problem for a P2P/fleet deployment, not just a naming\nnit: a coordinator that wants to poll version availability across N nodes\n(e.g. before deciding whether to trigger a staged rollout) cannot do so\nwithout every node downloading the update artifact, even nodes that won't\nend up applying it. At fleet scale that's N redundant downloads for a\nsingle availability check, and it removes the option of a lightweight\n\"any updates available?\" health-check message that's safe to poll on a\nshort interval.\n\nResolution: split into two messages/methods:\n  - system:updates:check:get (Read) -\u003e calls only s.updater.CheckForUpdate,\n    returns {Available bool, Version string} with no side effects.\n  - system:updates:stage:create (Create) -\u003e calls PrepareUpdate, keeping\n    today's staging + notify-admins behavior.\n\nCheck() (or a thin wrapper) can still exist for backward compatibility,\ncalling both in sequence, but the two effects should be independently\ncallable. RunScheduledCheck can keep calling both back to back since a\ncron job doing its own check-then-stage is the correct behavior there.\n\nCheck runs the read-only check, stages a newer version when available, and\nnotifies admins when a release was newly staged. With AutoApply it applies\nimmediately (the process exits on success). Kept for backward\ncompatibility; prefer system:updates:check:get +\nsystem:updates:stage:create so each effect stays independently callable.\n\n@hestia.register(\n\n\tname=\"system:updates:check:create\",\n\tintent=\"create\",\n\trule=\"root\",\n\tdescription=\"Check for and stage an update (legacy check-then-stage)\",\n\toutput=\"CheckView\",\n\n)\n",
+      "assignee": "opencode",
+      "location": {
+        "file": "core/system/updates/service.go",
+        "startLine": 232,
+        "startCol": 3,
+        "endLine": 286,
+        "endCol": 3
+      },
+      "hash": "5187cac0709c972a"
+    },
+    "review2-20260821-005": {
+      "id": "review2-20260821-005",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "critical",
+      "tags": [
+        "review",
+        "arch",
+        "p2p"
+      ],
+      "title": "Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant",
+      "body": "\nEvery implementation in the chain -- LocalDispatcher, SecureDispatcher,\nRateLimitDispatcher, AuditLog/TenantDispatcher, RecoveryDispatcher,\nBootstrapDispatcher -- wraps the next Dispatcher and calls Send() as a\ndirect, blocking Go function call that returns (*Result, error) on the\nsame goroutine. LocalDispatcher.Send (core/runtime/local-dispatcher.go:52)\nis the base case: it does `return entry.fn(msg.Context(), msg)` with no\nqueue, no channel handoff, and no notion of \"this might take a network\nround-trip.\" Every transport (HTTP, CLI, Wails) calls Dispatcher.Send and\nblocks the calling goroutine until it returns.\n\nThis is fine for a single-process monolith (net/http already gives you\nper-request concurrency via goroutines, so throughput isn't the problem)\nbut it is the central architectural blocker for the P2P node deployment\ngoal: there is currently no seam where a message could be routed to a\n*different* node instead of a local handler. Adding that seam later\nwithout an async story means either (a) blocking a goroutine per in-flight\nremote call indefinitely, or (b) a breaking change to this interface.\n\nResolution -- concretely, in order of increasing scope:\n 1. Add a context.Context parameter to Send itself: Send(ctx, msg) instead\n    of relying on msg.Context(). This is a prerequisite for #2 and #3\n    because a remote dispatcher needs the caller's ctx for cancellation/\n    deadline propagation independent of what's embedded in the message.\n 2. Introduce a second interface alongside Dispatcher, not a replacement:\n    type AsyncDispatcher interface {\n    SendAsync(ctx context.Context, msg Message) (\u003c-chan Result, error)\n    }\n    LocalDispatcher can implement this trivially by running entry.fn in a\n    goroutine and writing to a buffered chan of size 1. A future\n    RemoteDispatcher (or P2PDispatcher) implements the same interface by\n    serializing msg, publishing it over the network transport, and\n    resolving the channel when a correlated response arrives (or the ctx\n    deadline fires). Existing synchronous callers are unaffected; new\n    transports (or existing ones once ready) adopt SendAsync incrementally.\n 3. Every DispatcherLink.Wrap in the chain needs an Async-aware equivalent\n    so cross-cutting concerns (auth, rate-limit, audit, tenant scoping)\n    still apply uniformly whether the terminal handler is local or remote.\n    Concretely: change DispatcherLink.Wrap to operate on the AsyncDispatcher\n    interface, and provide a `SyncFromAsync` adapter (blocks and unwraps\n    the channel) so the existing Dispatcher call sites in HTTP/CLI/Wails\n    don't all need to change on day one.\n 4. Message routing needs an explicit locality concept before any of this\n    is useful: something has to decide \"is this message's target handler\n    local to this node, or does it need to go over the wire to node X\".\n    abstract.Message today has no notion of a target node/peer -- TenantID\n    is the closest thing, and tenant != node. This is a bigger design\n    question (service discovery / handler advertisement across the mesh)\n    that should be settled before committing to the exact shape of #2.\n",
+      "location": {
+        "file": "core/abstract/dispatcher.go",
+        "startLine": 4,
+        "startCol": 3,
+        "endLine": 57,
+        "endCol": 3
+      },
+      "hash": "6765fb5b6736af67"
+    },
+    "scheduled-dispatch-errors-are-sw-616004cd": {
+      "id": "scheduled-dispatch-errors-are-sw-616004cd",
+      "category": "lesson",
+      "status": "resolved",
+      "priority": "low",
+      "tags": [
+        "schedules",
+        "dispatch"
+      ],
+      "title": "Scheduled dispatch errors are swallowed by the cron chain",
+      "body": "\nLiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {\"payload\": ...} to satisfy input:\"payload.*\" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.\n",
+      "location": {
+        "file": "core/system/schedules/liveschedule.go",
+        "startLine": 195,
+        "startCol": 3,
+        "endLine": 201,
+        "endCol": 3
+      },
+      "hash": "1b37ecde17ae0c56"
+    },
+    "sec-20260821-003": {
+      "id": "sec-20260821-003",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "security",
+        "auth"
+      ],
+      "title": "No rate limiting on authentication attempts",
+      "body": "Resolved (S-3, security batch 1): authMiddleware throttles unauthenticated\nauthentication attempts per source IP through authRateLimiter (a shared\nratestore) via CheckAndConsume with authRateLimitBurst/authRateLimitPeriod\nbefore any credential validation runs; once the bucket is empty the\nrequest is rejected with 429. The gate covers the credential-carrying\nmessages listed in authRateLimitedMessages (login, elevate, confirm, ...).\nThe per-operation RateLimitPolicy on the dispatch path remains the second\nlayer (see the ratelimit dispatcher link).\n",
+      "location": {
+        "file": "core/interface/http/middleware.go",
+        "startLine": 26,
+        "startCol": 3,
+        "endLine": 38,
+        "endCol": 3
+      },
+      "hash": "dfa461c223a58955"
+    },
+    "so98l5": {
+      "id": "so98l5",
+      "category": "todo",
+      "status": "resolved",
+      "title": "Define a proper config package.",
+      "body": "that are duplicated everywhere. It would be best to define\na single package that holds all configs, arbitary or otherwise,\nbacked by a schema generated from a struct. Anansi is not just a\ndata layer but a data contract.\n",
+      "location": {
+        "file": "core/runtime/config.go",
+        "startLine": 43,
+        "startCol": 3,
+        "endLine": 49,
+        "endCol": 3
+      },
+      "hash": "97e243eb7996a7cb"
+    },
+    "storage-leak-blobs-never-compact-ad27adbb": {
+      "id": "storage-leak-blobs-never-compact-ad27adbb",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "tags": [
+        "storage-leak",
+        "blobs"
+      ],
+      "title": "Storage leak: blobs never compacted after deletion",
+      "body": "\nWhen blobs or namespaces are deleted via system:blobs:blob:delete or system:blobs:namespace:delete,\nthe physical segment files (.vol, .wal) remain on disk because Compact is never called.\nThe blob library (github.com/asaidimu/blobs) relies on Compact to reclaim space from deleted chunks.\nNeed to either: 1) call Compact after bulk deletions, 2) add a background compaction job, or 3) expose Compact via API for operators.\n",
+      "assignee": "opencode",
+      "location": {
+        "file": "core/system/blobs/service.go",
+        "startLine": 299,
+        "startCol": 3,
+        "endLine": 309,
+        "endCol": 3
+      },
+      "hash": "3faa87fa05e6042f"
+    },
+    "tool-20261029-001": {
+      "id": "tool-20261029-001",
+      "category": "todo",
+      "status": "open",
+      "priority": "high",
+      "tags": [
+        "tooling",
+        "architecture",
+        "anansi"
+      ],
+      "title": "hestia cannot embed the anansi CLI because its logic is unimportable",
+      "body": "anansi's commands live in go-anansi cmd/anansi/main.go (package main) and cmd/anansi/internal (schema new/normalize, migrate generate/squash, codegen golang/typescript/faker, scaffold, agents). Go forbids importing either from another module, so hestia can only call the public libraries it already uses (codegen/golang). Every other step is a separate binary: README and skills/SKILL.md tell users to run `anansi migrate generate --dry-run`, `anansi migrate generate` and `anansi codegen golang` by hand, then hestia's own generators (#tool-20261029-002).\nVersion drift: go.mod pins go-anansi v8.10.1 (latest tag is v8.10.2) while the CLI is installed independently, and the migration and model output depends on the CLI version that happened to run.\nEnd state: in go-anansi, move command construction out of main/internal into an importable package (for example .../cli returning the schema, migrate, codegen and agents cobra commands, taking the config location and writers), keep cmd/anansi as a thin main, and mount them in hestia (hestia schema|migrate|codegen|agents) so the binary is version-locked to go.mod. The logic already depends only on public packages (core/schema/definition, core/data, codegen/*, skills/anansi).\nInterim, no upstream change (not exercised): add `tool github.com/asaidimu/go-anansi/v8/cmd/anansi` to go.mod (this module is on Go 1.27) and make a hestia passthrough run `go tool anansi`. Do not exec whatever `anansi` is on PATH.\nSkills: `hestia agents` should install both the hestia and anansi skills; skills/SKILL.md currently says \"see the anansi skill\". Follow-ups: #tool-20261029-003 and #tool-20261029-004.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-002",
+        "#tool-20261029-003",
+        "#tool-20261029-004"
+      ],
+      "location": {
+        "file": "cmd/hestia/main.go",
+        "startLine": 10,
+        "startCol": 3,
+        "endLine": 22,
+        "endCol": 3
+      },
+      "hash": "37e940d431e29185"
+    },
+    "tool-20261029-002": {
+      "id": "tool-20261029-002",
+      "category": "todo",
+      "status": "open",
+      "priority": "high",
+      "tags": [
+        "tooling",
+        "ergonomics"
+      ],
+      "title": "No single command runs the whole schema-to-service pipeline",
+      "body": "After a schema change the documented sequence (README, skills/SKILL.md) is: anansi migrate generate --dry-run, anansi migrate generate, anansi codegen golang, then hestia generate modules and hestia service generate \u003cmodule\u003e \u003cname\u003e for each affected service. Order matters (models before service registrations) and each step is a different tool with its own config.\nProposal: `hestia sync` = migrate generate, then codegen golang (and typescript when configured), then service generate for every service, then generate modules. Flags: --dry-run, and --check that exits non-zero when anything would change (anansi already has --check for migrations) so CI can gate on it, plus one summary of changed files. The individual verbs stay available once embedded (#tool-20261029-001). Option drift between generators is #tool-20261029-003.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-001",
+        "#tool-20261029-003"
+      ],
+      "location": {
+        "file": "cmd/hestia/core/generate.go",
+        "startLine": 26,
+        "startCol": 3,
+        "endLine": 34,
+        "endCol": 3
+      },
+      "hash": "771fca058dbcbf66"
+    },
+    "tool-20261029-003": {
+      "id": "tool-20261029-003",
+      "category": "issue",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "tooling",
+        "codegen"
+      ],
+      "title": "service new and anansi codegen write the same *.model.go with different options",
+      "body": "generateModel (used by `service new --model`) builds golang.GeneratorConfig from fixed values: PackageName \"model\", NameRules ^_(.+)_$ -\u003e System (hestia's own convention for _user_-style system schemas), DefaultTagConfig, no Mode and no ScopedPackages. `anansi codegen golang` (RunGoGen) reads tags, scoped, name_rules and mode from anansi.json, derives the package name from the directory, and writes the same \u003cschema\u003e.model.go next to the schema.\nWith a non-default anansi.json the next codegen run rewrites what service new produced (churn, possibly different type names), and user projects inherit the System rule meant for hestia's own schemas. Fix: one entry point (the embedded codegen, #tool-20261029-001) driven by the project's config (#tool-20261029-006); service new should call it for just that schema.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-001",
+        "#tool-20261029-006"
+      ],
+      "location": {
+        "file": "cmd/hestia/core/service.go",
+        "startLine": 210,
+        "startCol": 3,
+        "endLine": 218,
+        "endCol": 3
+      },
+      "hash": "4ed2f37cf5d6a697"
+    },
+    "tool-20261029-004": {
+      "id": "tool-20261029-004",
+      "category": "todo",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "tooling",
+        "scaffold"
+      ],
+      "title": "init does not make the project anansi-ready",
+      "body": "init writes main.go, the Makefile, .env, .gitignore and hestia.json, but no anansi.json, schemas directory or lockfile. A fresh project cannot run migrate or codegen until the user runs `anansi scaffold --existing` separately, and anansi's default glob would not match hestia's core_dir/modules_dir layout.\nFix: once scaffold is importable (#tool-20261029-001), have init create anansi.json non-destructively, with the glob derived from core_dir and modules_dir, and add sync/check targets to the generated Makefile. Config overlap is #tool-20261029-006.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-001",
+        "#tool-20261029-006"
+      ],
+      "location": {
+        "file": "cmd/hestia/core/init.go",
+        "startLine": 12,
+        "startCol": 3,
+        "endLine": 20,
+        "endCol": 3
+      },
+      "hash": "38c46da5cb5a5297"
+    },
+    "tool-20261029-005": {
+      "id": "tool-20261029-005",
+      "category": "issue",
+      "status": "open",
+      "priority": "medium",
+      "tags": [
+        "tooling",
+        "migrations"
+      ],
+      "title": "Per-module model/migrations directories are scaffolded but nothing populates them",
+      "body": "This (and `service new --model` in service.go) creates \u003cmodule\u003e/model/migrations, but anansi's config has a single schema.migrations_dir and lockfile, and hestia's own repo keeps all 16 migrations in core/internal/migrations (there are no per-service model/migrations directories). The scaffolded directories stay empty and imply a per-module layout the tooling cannot produce, since one run emits into one directory.\nDecide: (a) a project-level migrations directory and drop this scaffolding, or (b) teach anansi per-schema output (for example a schema-relative migrations_dir) so each module owns its migrations and lockfile entries. (b) matters if modules are meant to ship independently. Related config question: #tool-20261029-006.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-006"
+      ],
+      "location": {
+        "file": "cmd/hestia/core/module.go",
+        "startLine": 56,
+        "startCol": 3,
+        "endLine": 63,
+        "endCol": 3
+      },
+      "hash": "f2cd2a6c67418704"
+    },
+    "tool-20261029-006": {
+      "id": "tool-20261029-006",
+      "category": "todo",
+      "status": "open",
+      "priority": "low",
+      "tags": [
+        "tooling",
+        "config"
+      ],
+      "title": "Two config files describe overlapping layout and nothing checks they agree",
+      "body": "hestia.json (module, core_dir, modules_dir, autogen, commands) and anansi.json (schema.glob, lockfile, migrations_dir, tsgen.out, gogen, metadata) both encode where things live, for example whether the schema glob covers core_dir and modules_dir, and where migrations go (#tool-20261029-005).\nOptions: keep both files but derive anansi defaults from hestia.json when keys are absent and report disagreement; or accept an \"anansi\" section in hestia.json while still honouring anansi.json for standalone use (precedence: explicit anansi.json, then the hestia.json section, then derived defaults). Avoid a third file or flag-only configuration. Depends on the embedding in #tool-20261029-001.\n",
+      "authors": [
+        "claude"
+      ],
+      "references": [
+        "#tool-20261029-001",
+        "#tool-20261029-005"
+      ],
+      "location": {
+        "file": "cmd/hestia/core/config.go",
+        "startLine": 9,
+        "startCol": 3,
+        "endLine": 17,
+        "endCol": 3
+      },
+      "hash": "1fd6758fc4ec972f"
+    },
+    "update-hash-verify": {
+      "id": "update-hash-verify",
+      "category": "issue",
+      "status": "resolved",
+      "priority": "high",
+      "title": "Verify binary hash before applying staged update",
+      "body": "\nThe staged binary at DataDir/update is copied over the running executable\n(swapExecutable) or executed directly (ApplyUpdate) without verifying its\nSHA-256 checksum against UpdateInfo.Checksum. The Checksum field already\n\nS-9 residual (authenticity): a self-computed checksum is integrity-only.\nThe GitHub provider supplies no checksum, so the recorded value attests\nnothing about provenance — a MITM-substituted binary passes by\nconstruction. Full remediation requires provider-attested checksums or\nsigned releases verified against an out-of-band-pinned key (updater's\nserver provider already verifies RSA signatures when ServerPublicKey is\nconfigured).\nflows through the persistence layer, but the actual verification against\nthe on-disk binary is never performed. This means a corrupted download —\nor a file tampered with between staging and apply — would silently replace\nthe running binary. The check should re-hash the staged file and abort\nthe swap/exec if it does not match.\n\nReal-world hit: /opt/hedwig-server/hedwig-server ended up as an ELF with\n\"missing section headers\" — the update was applied but the binary was\ncorrupted. A pre-apply hash check would have caught this.\n\nWhy staging can succeed while application produces a corrupted binary:\n  1. GitHub provider passes empty checksum (github.go:133) so\n     DownloadBinary skips hash verification entirely.\n  2. Neither copyFile (process.go:62) nor swapExecutable (service.go:301)\n     re-hash the staged file before overwriting the executable.\n  3. copyFile does io.Copy + Sync but a mid-copy I/O error or disk-full\n     condition can leave the destination truncated.\n  4. swapExecutable creates a temp file in filepath.Dir(exe) which may\n     differ from DataDir — if they share a filesystem the Rename is\n     atomic, but a failed copy to the temp file is not caught before the\n     rename.\n\n@see #updater-hash-verify\n",
+      "location": {
+        "file": "core/system/updates/service.go",
+        "startLine": 470,
+        "startCol": 3,
+        "endLine": 508,
+        "endCol": 3
+      },
+      "hash": "19e7fd324dcbbdce"
+    },
+    "worb9o": {
+      "id": "worb9o",
+      "category": "issue",
+      "status": "open",
+      "title": "Weak Authentication State persistence",
+      "body": "Opening two tabs on the same browser client causes the user to be\ndeauthenticated\n",
+      "location": {
+        "file": "client/packages/core/container.ts",
+        "startLine": 47,
+        "startCol": 3,
+        "endLine": 50,
+        "endCol": 3
+      },
+      "hash": "d8cc8ce9c8fdf25d"
+    },
+    "z3g2cp": {
+      "id": "z3g2cp",
+      "category": "todo",
+      "status": "resolved",
+      "title": "Implement this feature",
+      "body": "Resolved: the resume() stub was replaced by HestiaAuth.session().\n",
+      "location": {
+        "file": "client/packages/core/system/auth/store.ts",
+        "startLine": 59,
+        "startCol": 3,
+        "endLine": 62,
+        "endCol": 3
+      },
+      "hash": "c31077e4550d1d04"
     }
   },
   "files": {
@@ -2160,7 +2314,7 @@
       "hash": "46a0039f89e7b6e3"
     },
     "client/packages/core/container.ts": {
-      "hash": "7f917c9080a40fac",
+      "hash": "bd11471b3d90e471",
       "noteIds": [
         "auth-20261029-006",
         "auth-20261029-007",
@@ -2169,8 +2323,11 @@
         "worb9o"
       ]
     },
+    "client/packages/core/core/async-stream.ts": {
+      "hash": "08e68d157f760279"
+    },
     "client/packages/core/core/client.ts": {
-      "hash": "520037d4df1db06d"
+      "hash": "71c31536e66d677b"
     },
     "client/packages/core/core/collection.test.ts": {
       "hash": "7bba16ad71244ae7"
@@ -2215,13 +2372,13 @@
       "hash": "6527ced247596e56"
     },
     "client/packages/core/dist/index.cjs": {
-      "hash": "1ce398d1d92f80eb"
+      "hash": "c4f21206d1e77a62"
     },
     "client/packages/core/dist/index.mjs": {
-      "hash": "adfdd034ada20961"
+      "hash": "2ea04c08b8bb771f"
     },
     "client/packages/core/index.ts": {
-      "hash": "321f00938a86a3f3"
+      "hash": "7ffb1cfd45317d47"
     },
     "client/packages/core/system/apikeys/store.test.ts": {
       "hash": "836600c3a693bcda"
@@ -2236,7 +2393,7 @@
       "hash": "8ba904ddd46d9bae"
     },
     "client/packages/core/system/audit/store.ts": {
-      "hash": "3674090792f3f868"
+      "hash": "52d1b00602033c24"
     },
     "client/packages/core/system/audit/types.ts": {
       "hash": "614dcaaea6642476"
@@ -2250,8 +2407,11 @@
     "client/packages/core/system/auth/auth.test.ts": {
       "hash": "c87148ac4ac415fb"
     },
+    "client/packages/core/system/auth/session.test.ts": {
+      "hash": "6251c10db21be2b9"
+    },
     "client/packages/core/system/auth/store.ts": {
-      "hash": "1639a0b9228204bd",
+      "hash": "e7cd435707756d00",
       "noteIds": [
         "auth-20261029-003",
         "auth-20261029-004",
@@ -2266,13 +2426,13 @@
       "hash": "caeb4c48011e740e"
     },
     "client/packages/core/system/blobs/blobs.test.ts": {
-      "hash": "98b0a2222e5286af"
+      "hash": "1e0ac21160e28e28"
     },
     "client/packages/core/system/blobs/compaction.test.ts": {
       "hash": "08ab414f6c42f581"
     },
     "client/packages/core/system/blobs/store.ts": {
-      "hash": "a1bb586094242ff5",
+      "hash": "a7a3d4481d5c9dc4",
       "noteIds": [
         "blob-20261029-016",
         "blob-20261029-017",
@@ -2287,7 +2447,7 @@
       ]
     },
     "client/packages/core/system/blobs/types.ts": {
-      "hash": "0c623200059b02eb",
+      "hash": "5c9b7d53b58d850f",
       "noteIds": [
         "blob-20261029-026"
       ]
@@ -2311,10 +2471,13 @@
       "hash": "6141583aaad82281"
     },
     "client/packages/core/system/logs/store.ts": {
-      "hash": "f0aeda87a7ecba94"
+      "hash": "64c9c50920747966"
     },
     "client/packages/core/system/logs/types.ts": {
       "hash": "5b3092436ee12565"
+    },
+    "client/packages/core/system/notifications/notifications.infra.test.ts": {
+      "hash": "aec9b74a397e8c2f"
     },
     "client/packages/core/system/notifications/notifications.test.ts": {
       "hash": "0693b01ce2e52053"
@@ -2419,10 +2582,10 @@
       "hash": "46a0039f89e7b6e3"
     },
     "client/packages/mock/dist/index.cjs": {
-      "hash": "fbd90a703d2d826c"
+      "hash": "560de820c3a2ebc6"
     },
     "client/packages/mock/dist/index.mjs": {
-      "hash": "27bcc0fd3322cf49"
+      "hash": "9a72790aa79ea126"
     },
     "client/packages/mock/src/bus.ts": {
       "hash": "5d830efdefddf8bf"
@@ -2491,7 +2654,7 @@
       "hash": "bb499635d5060d90"
     },
     "client/packages/mock/src/server/handlers/users.ts": {
-      "hash": "9269e4c6a8ee398b"
+      "hash": "f4bc0941df715abe"
     },
     "client/packages/mock/src/server/handlers/workflows.ts": {
       "hash": "ea459e8ef3eda599"
@@ -2520,11 +2683,8 @@
     "client/vitest.config.ts": {
       "hash": "df8f4cbad51353d7"
     },
-    "cmd/auth-test/main.go": {
-      "hash": "13aef5b9319647c6"
-    },
     "cmd/docs-server/main.go": {
-      "hash": "d6bc89d597cdeed3"
+      "hash": "7fdc21da9c13527a"
     },
     "cmd/docs-server/static/assets/api_apikeys.md.BXL5A62I.js": {
       "hash": "435d240612a1127d"
@@ -2647,7 +2807,7 @@
       "hash": "15e34abab0201b6e"
     },
     "cmd/hestia/core/config.go": {
-      "hash": "f447cf55ed236523",
+      "hash": "7e131ff5e66349e9",
       "noteIds": [
         "tool-20261029-006"
       ]
@@ -2665,19 +2825,19 @@
       "hash": "8f456c43507df9bf"
     },
     "cmd/hestia/core/generate.go": {
-      "hash": "8e198b9202f6faac",
+      "hash": "96fc49110643491a",
       "noteIds": [
         "tool-20261029-002"
       ]
     },
     "cmd/hestia/core/init.go": {
-      "hash": "d9f7f8bf8e05b318",
+      "hash": "bde0691071483dc1",
       "noteIds": [
         "tool-20261029-004"
       ]
     },
     "cmd/hestia/core/module.go": {
-      "hash": "32a346440d8bae17",
+      "hash": "741352a7c1467075",
       "noteIds": [
         "tool-20261029-005"
       ]
@@ -2692,7 +2852,7 @@
       "hash": "1fb5bb51cd3ec45d"
     },
     "cmd/hestia/core/service.go": {
-      "hash": "87b00f13c5e06da8",
+      "hash": "39777b017c34d3f6",
       "noteIds": [
         "tool-20261029-003"
       ]
@@ -2704,7 +2864,7 @@
       "hash": "d59343ffdac0e198"
     },
     "cmd/hestia/main.go": {
-      "hash": "327dc1545bff6199",
+      "hash": "38697ff51e820eea",
       "noteIds": [
         "tool-20261029-001"
       ]
@@ -2725,7 +2885,7 @@
       "hash": "f3b4b17ca72306dc"
     },
     "core/abstract/dispatcher.go": {
-      "hash": "167dd1555cd18f69",
+      "hash": "100843af1b7098b0",
       "noteIds": [
         "review2-20260821-005"
       ]
@@ -2734,7 +2894,7 @@
       "hash": "cee394a7aee36cf5"
     },
     "core/abstract/module.go": {
-      "hash": "927125d370af4bf5",
+      "hash": "8339c2e0e7d0cee7",
       "noteIds": [
         "org-20260821-001",
         "review-20260821-020"
@@ -2750,7 +2910,7 @@
       "hash": "c3a6682d2d7ab2a7"
     },
     "core/abstract/result.go": {
-      "hash": "0ffe7c8e6d50e4c1",
+      "hash": "0aab2da9be870202",
       "noteIds": [
         "org-20260821-002"
       ]
@@ -2759,14 +2919,14 @@
       "hash": "367ab8304294a021"
     },
     "core/abstract/transport.go": {
-      "hash": "7d4b05597391033c",
+      "hash": "651d50e82e3a17b0",
       "noteIds": [
         "perf-20260821-001",
         "perf-20260821-002"
       ]
     },
     "core/hestia.go": {
-      "hash": "b1042fe1ab5b064f"
+      "hash": "d42b9b96ab4600bd"
     },
     "core/interface/cli/config.go": {
       "hash": "58a5b69dbdf65cf0"
@@ -2790,7 +2950,7 @@
       "hash": "c223742ae14470a9"
     },
     "core/interface/http/doc.go": {
-      "hash": "29bef850f4775552",
+      "hash": "9d2b6c8e70b79fa4",
       "noteIds": [
         "perf-20260821-004"
       ]
@@ -2809,14 +2969,14 @@
       "hash": "d99ac4c50978e4dd"
     },
     "core/interface/http/middleware.go": {
-      "hash": "68ae509fc237f6cf",
+      "hash": "cacb4c20a42e13f2",
       "noteIds": [
         "l2z9mr",
         "sec-20260821-003"
       ]
     },
     "core/interface/http/register.go": {
-      "hash": "fd2e78c0d7691004",
+      "hash": "18b6238f902e82c4",
       "noteIds": [
         "blob-20261029-003",
         "mem-20260821-003"
@@ -2826,7 +2986,7 @@
       "hash": "83d35549161ee7af"
     },
     "core/interface/http/router.go": {
-      "hash": "fe07b5bbedfdcdcd",
+      "hash": "99faea80880f8489",
       "noteIds": [
         "perf-20260821-003"
       ]
@@ -2838,13 +2998,13 @@
       "hash": "8d6a006ce4370679"
     },
     "core/interface/http/sse_disconnect_test.go": {
-      "hash": "19cf8e4990ca09b8"
+      "hash": "3e72195d90c4e579"
     },
     "core/interface/http/streaming_test.go": {
       "hash": "1ec0f70a01ba67a1"
     },
     "core/interface/http/transport_fasthttp.go": {
-      "hash": "8059f1c2aef4b966",
+      "hash": "05830453f44fac6a",
       "noteIds": [
         "err-20261103-1",
         "err-20261103-2",
@@ -2853,13 +3013,13 @@
       ]
     },
     "core/interface/http/transport_fasthttp_test.go": {
-      "hash": "d59369f2bb343088"
+      "hash": "d1796ea42288abd2"
     },
     "core/interface/http/types.go": {
       "hash": "dc38ce022dd27c9e"
     },
     "core/internal/boot/app.go": {
-      "hash": "a09c4006fda18118",
+      "hash": "b5b92e7542ec2a53",
       "noteIds": [
         "b3muvk"
       ]
@@ -2875,6 +3035,9 @@
     },
     "core/internal/boot/firstrun_test.go": {
       "hash": "57bd3c973fadd282"
+    },
+    "core/internal/boot/lifecycle_test.go": {
+      "hash": "0fff533b37fef869"
     },
     "core/internal/boot/logger.go": {
       "hash": "adabb07aa4da3c04"
@@ -2970,7 +3133,7 @@
       "hash": "be1d7d0cbff97c81"
     },
     "core/runtime/audit_buffer.go": {
-      "hash": "7b5cb8df910a67e5",
+      "hash": "fa0806db4626728c",
       "noteIds": [
         "arch-20260821-010",
         "bench-20260821-002",
@@ -3002,7 +3165,7 @@
       "hash": "67e46c35124d1f27"
     },
     "core/runtime/config.go": {
-      "hash": "9e598e20dda861d5",
+      "hash": "bbeb45e9a21a2a13",
       "noteIds": [
         "org-20260821-003",
         "so98l5"
@@ -3024,7 +3187,10 @@
       "hash": "a989e8116caa52a1"
     },
     "core/runtime/di/container.go": {
-      "hash": "2858f6bf9822707c"
+      "hash": "6d7c4614b1bc71d3"
+    },
+    "core/runtime/di/container_test.go": {
+      "hash": "6be7f2021e6b70ac"
     },
     "core/runtime/dispatch/bind.go": {
       "hash": "d1404bd1b12de085"
@@ -3063,7 +3229,7 @@
       "hash": "7d3c9cb464a8f0f6"
     },
     "core/runtime/env.go": {
-      "hash": "de9105d52ef16b9b",
+      "hash": "613e9bbfeaee1efa",
       "noteIds": [
         "org-20260821-004"
       ]
@@ -3081,7 +3247,7 @@
       "hash": "b5c3e9870328e2d4"
     },
     "core/runtime/local-dispatcher.go": {
-      "hash": "0191fad9d6386df5",
+      "hash": "4638da91e8ed635e",
       "noteIds": [
         "arch-20260821-005",
         "review-20260821-001",
@@ -3089,13 +3255,16 @@
       ]
     },
     "core/runtime/logsink/ring.go": {
-      "hash": "5e8ee38f700cc242"
+      "hash": "f776c3f5b357db06"
+    },
+    "core/runtime/logsink/ring_test.go": {
+      "hash": "32fa09aaf154836d"
     },
     "core/runtime/logsink/sink.go": {
       "hash": "fd7fe7a293e07e84"
     },
     "core/runtime/mailer.go": {
-      "hash": "614a159442c15221",
+      "hash": "76f9e652a809e259",
       "noteIds": [
         "arch-20260821-009",
         "review-20260821-005"
@@ -3117,7 +3286,7 @@
       "hash": "a2db6a088334093e"
     },
     "core/runtime/notification/channel_email.go": {
-      "hash": "737e1deead7c2624",
+      "hash": "0ff6575165313301",
       "noteIds": [
         "arch-20260821-008"
       ]
@@ -3147,7 +3316,7 @@
       "hash": "c6aa83e431f59eec"
     },
     "core/runtime/policytypes.go": {
-      "hash": "dec41e4b230ff75a",
+      "hash": "f2cd59be04a002b0",
       "noteIds": [
         "arch-20260821-013"
       ]
@@ -3156,7 +3325,7 @@
       "hash": "7ea6bc08185a1e23"
     },
     "core/runtime/rate-limit.go": {
-      "hash": "2c6862045b812dbe",
+      "hash": "8893d05313f9004c",
       "noteIds": [
         "arch-20260821-004"
       ]
@@ -3165,7 +3334,7 @@
       "hash": "4d9f639a3b2a7695"
     },
     "core/runtime/ratestore/inmemory.go": {
-      "hash": "e5f6e47602da0fb0",
+      "hash": "2e937988dd320ff4",
       "noteIds": [
         "arch-20260821-014",
         "bench-20260821-001",
@@ -3197,7 +3366,7 @@
       "hash": "da4284f6c42ebb11"
     },
     "core/runtime/scheduler/scheduler.go": {
-      "hash": "738e7dca62140714",
+      "hash": "614af98847e89544",
       "noteIds": [
         "arch-20260821-011"
       ]
@@ -3209,7 +3378,7 @@
       "hash": "e6b25cc6fa121a6a"
     },
     "core/runtime/secure-dispatcher.go": {
-      "hash": "64bef9c25b97c65c",
+      "hash": "0267c9e5ae59427c",
       "noteIds": [
         "83l69u",
         "arch-20260821-003",
@@ -3219,6 +3388,12 @@
     },
     "core/runtime/secure-dispatcher_hardening_test.go": {
       "hash": "b7af125eccd2681e"
+    },
+    "core/runtime/streamsink/sink.go": {
+      "hash": "6fafa34169a06de0"
+    },
+    "core/runtime/streamsink/sink_test.go": {
+      "hash": "ce79acac3b142977"
     },
     "core/runtime/templateutil/resolve.go": {
       "hash": "fa691516500df8e2"
@@ -3284,13 +3459,13 @@
       "hash": "bd893efca9759703"
     },
     "core/system/audit/service.go": {
-      "hash": "7f431cee3a938752"
+      "hash": "5b10b43ad9321578"
     },
     "core/system/auth/adapters.go": {
       "hash": "6a67d991578710ad"
     },
     "core/system/auth/auth_test.go": {
-      "hash": "6d7f4a5ce32af4d8"
+      "hash": "5811331eb01c85a3"
     },
     "core/system/auth/blocklist.go": {
       "hash": "37188d23d351a1e5"
@@ -3305,13 +3480,13 @@
       "hash": "a06a5d36d30a1c02"
     },
     "core/system/auth/model/inputs.go": {
-      "hash": "7f4883d93959e1f5",
+      "hash": "e71c88e114ce9aae",
       "noteIds": [
         "cruft-20260821-013"
       ]
     },
     "core/system/auth/model/outputs.go": {
-      "hash": "0bb0944936677e99",
+      "hash": "6a896251568bbefd",
       "noteIds": [
         "cruft-20260821-014"
       ]
@@ -3323,7 +3498,10 @@
       "hash": "407f3c12b6f712ec"
     },
     "core/system/auth/registrations.go": {
-      "hash": "05fd4c4b6439475d"
+      "hash": "3b75e387547bf0d3"
+    },
+    "core/system/auth/registrations_test.go": {
+      "hash": "a4dbbb86b832162f"
     },
     "core/system/auth/sanitization.go": {
       "hash": "cbe62568ceaf4d4a"
@@ -3332,7 +3510,7 @@
       "hash": "c2d6bfae84e5fd00"
     },
     "core/system/auth/service.go": {
-      "hash": "3ff27a31dd41e3e0",
+      "hash": "a82e3e7c67a12594",
       "noteIds": [
         "8uuufn",
         "auth-20261029-001",
@@ -3340,7 +3518,7 @@
       ]
     },
     "core/system/auth/session_service.go": {
-      "hash": "91c85a748acc8ee1",
+      "hash": "2dd2b6c4cc056da6",
       "noteIds": [
         "review2-20260821-001"
       ]
@@ -3358,7 +3536,7 @@
       "hash": "a26a581ead093b5a"
     },
     "core/system/blobs/handler.go": {
-      "hash": "7a2a72405bbb5112",
+      "hash": "20a252ddb2d2e25e",
       "noteIds": [
         "blob-20261029-004",
         "blob-20261029-005",
@@ -3375,7 +3553,7 @@
       "hash": "2a3c5bface4ae71d"
     },
     "core/system/blobs/model/inputs.go": {
-      "hash": "0d71bb48a40dd825",
+      "hash": "19835474fc799832",
       "noteIds": [
         "blob-20261029-008"
       ]
@@ -3396,14 +3574,14 @@
       "hash": "569497ce08f2cd73"
     },
     "core/system/blobs/service.go": {
-      "hash": "28b9fb7185bce570",
+      "hash": "5a136ad71bd67c16",
       "noteIds": [
         "blob-20261029-014",
         "storage-leak-blobs-never-compact-ad27adbb"
       ]
     },
     "core/system/blobs/staging.go": {
-      "hash": "5d86f6dca19b3913",
+      "hash": "c7c80ce4b7c5164a",
       "noteIds": [
         "blob-20261029-001",
         "blob-20261029-002",
@@ -3414,16 +3592,16 @@
       "hash": "84f96a5849768888"
     },
     "core/system/blobs/store/service.go": {
-      "hash": "2ec07dff445a4723",
+      "hash": "e3ca00c6a8d9c760",
       "noteIds": [
         "blob-20261029-009"
       ]
     },
     "core/system/blobs/store/service_test.go": {
-      "hash": "a942994cf25b247a"
+      "hash": "bbef7a7ba4258a7e"
     },
     "core/system/blobs/store/types.go": {
-      "hash": "de8752cc366c64e7",
+      "hash": "3cdd95401af30105",
       "noteIds": [
         "feat-ns-metadata"
       ]
@@ -3519,7 +3697,7 @@
       "hash": "86e949aed658f1ef"
     },
     "core/system/logs/service.go": {
-      "hash": "fc90f3c052b129d4"
+      "hash": "86f223c0ea7f8226"
     },
     "core/system/model_test.go": {
       "hash": "9bc1d3921e9224ac"
@@ -3567,10 +3745,10 @@
       "hash": "aa18d87445f140dc"
     },
     "core/system/notifications/service.go": {
-      "hash": "18bb77b231d1d544"
+      "hash": "fd56ca9e73c3f46d"
     },
-    "core/system/notifications/stream_repro_test.go": {
-      "hash": "94165ffa1c3f8e5a"
+    "core/system/notifications/stream_test.go": {
+      "hash": "5724b4537222cdda"
     },
     "core/system/operations/bootstrap.go": {
       "hash": "de1160f52d0c2181"
@@ -3672,7 +3850,7 @@
       "hash": "ec1b62b22a642527"
     },
     "core/system/schedules/liveschedule.go": {
-      "hash": "db83656b8938cfd8",
+      "hash": "dcf2ba673e25c298",
       "noteIds": [
         "scheduled-dispatch-errors-are-sw-616004cd"
       ]
@@ -3771,7 +3949,7 @@
       "hash": "cee91f43adff3771"
     },
     "core/system/updates/service.go": {
-      "hash": "b901620a16fe1829",
+      "hash": "3ab0ed16f41bad9b",
       "noteIds": [
         "74bt56",
         "review2-20260821-004",
@@ -3845,13 +4023,13 @@
       "hash": "1b64ae329f61b360"
     },
     "core/system/workflows/service.go": {
-      "hash": "d85dbe0ac4798a9a"
+      "hash": "315fbaed1d015ed2"
     },
     "core/system/workflows/workflows_test.go": {
       "hash": "8f86172813501ad4"
     },
     "examples/auth-restore/authenticator.ts": {
-      "hash": "1d06e7ae208bace5",
+      "hash": "9d6b3ff1dfa26f1b",
       "noteIds": [
         "auth-20261029-010"
       ]
@@ -3898,8 +4076,14 @@
     "tests/integration/recovery_test.go": {
       "hash": "0c8b3f47892f908f"
     },
+    "tmp/bootstrap-repro/main.go": {
+      "hash": "beb0619e3eb4137f"
+    },
+    "tmp/prebootstrap/main.go": {
+      "hash": "9c58d07a4340ac03"
+    },
     "utils/wails/dispatch.go": {
-      "hash": "5a0799a2dd9db1d1",
+      "hash": "25956f2e54e224b3",
       "noteIds": [
         "review2-20260821-002"
       ]

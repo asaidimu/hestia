@@ -1,4 +1,7 @@
-// @note #org-20260821-002 todo status=open priority=P2 tags=#organization,#refactor : Split result.go into verb.go and result.go
+// @note #org-20260821-002 todo : Split result.go into verb.go and result.go
+// @status=open
+// @priority=P2
+// @tags=#organization,#refactor
 //
 // result.go contains 3 unrelated concerns in 136 lines:
 // - Verb type and constants (message intent)

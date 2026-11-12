@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest"
+import { describe, expect, it, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest"
 import { makeClient, uniqueId } from "../../tests/helpers"
 import { HttpTransport } from "../../core/client"
 import {
@@ -11,6 +11,7 @@ import {
   UploadQueue,
   type UploadTransport,
 } from "./store"
+import { sha256Hex } from "../../utils/crypto";
 import type { Document } from "../../core/types"
 import type { SimplePersistence } from "@asaidimu/utils-persistence"
 import type {
@@ -133,7 +134,7 @@ class FakeTransport implements UploadTransport {
     return this.totalFor(props.sessionId)
   }
 
-  async completeUpload(props: { sessionId: string; overwrite?: boolean }): Promise<Document<BlobMeta> | undefined> {
+  async completeUpload(_props: { sessionId: string; overwrite?: boolean }): Promise<Document<BlobMeta> | undefined> {
     this.completeCalls++
     if (this.failCompleteOnce) {
       this.failCompleteOnce = false
@@ -930,5 +931,51 @@ describe("HttpTransport stream", () => {
     )
 
     mockFetch.mockRestore()
+  })
+})
+
+
+describe("sha256Hex (secure context + insecure fallback)", () => {
+  const enc = new TextEncoder()
+  const knownAbc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  const knownEmpty = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+  afterEach(() => {
+    delete (globalThis as any).__HESTIA_ALLOW_INSECURE_CRYPTO__
+  })
+
+  it("hashes with crypto.subtle when available", async () => {
+    // Normal path — subtle must exist in the test environment (Node/Bun/Vitest).
+    expect(typeof crypto?.subtle?.digest).toBe("function")
+    const h = await sha256Hex(enc.encode("abc"))
+    expect(h).toBe(knownAbc)
+    expect(await sha256Hex(enc.encode(""))).toBe(knownEmpty)
+  })
+
+  it("falls back to pure-JS when subtle is missing and the dev flag is set", async () => {
+    const realSubtle = crypto.subtle
+    try {
+      // Simulate non-secure context
+      Object.defineProperty(crypto, "subtle", { value: undefined, configurable: true })
+      ;(globalThis as any).__HESTIA_ALLOW_INSECURE_CRYPTO__ = true
+
+      const h = await sha256Hex(enc.encode("abc"))
+      expect(h).toBe(knownAbc)
+      expect(await sha256Hex(enc.encode(""))).toBe(knownEmpty)
+    } finally {
+      Object.defineProperty(crypto, "subtle", { value: realSubtle, configurable: true })
+    }
+  })
+
+  it("throws a clear error when subtle is missing and the dev flag is not set", async () => {
+    const realSubtle = crypto.subtle
+    try {
+      Object.defineProperty(crypto, "subtle", { value: undefined, configurable: true })
+      // flag intentionally unset
+
+      await expect(sha256Hex(enc.encode("abc"))).rejects.toThrow(/secure context|crypto\.subtle|__HESTIA_ALLOW_INSECURE_CRYPTO__/i)
+    } finally {
+      Object.defineProperty(crypto, "subtle", { value: realSubtle, configurable: true })
+    }
   })
 })

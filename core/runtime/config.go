@@ -1,4 +1,7 @@
-// @note #org-20260821-003 todo status=open priority=P2 tags=#organization,#refactor : Split config.go into types.go, defaults.go, and env.go
+// @note #org-20260821-003 todo : Split config.go into types.go, defaults.go, and env.go
+// @status=open
+// @priority=P2
+// @tags=#organization,#refactor
 //
 // config.go currently contains 3 unrelated concerns in 321 lines:
 // - Config, SelfUpdateConfig, CookieConfig types (data structures)
@@ -38,7 +41,8 @@ import (
 	"github.com/asaidimu/hestia/core/abstract"
 )
 
-// @note #so98l5 todo resolved : Define a proper config package.
+// @note #so98l5 todo : Define a proper config package.
+// @status resolved
 // Consider the state of this collection of adhoc helpers
 // that are duplicated everywhere. It would be best to define
 // a single package that holds all configs, arbitary or otherwise,

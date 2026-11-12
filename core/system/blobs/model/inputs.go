@@ -36,7 +36,9 @@ type BlobUploadInput struct {
 	Payload     []byte `input:"payload"`
 }
 
-// @note #blob-20261029-008 todo P2 #blobs,#api,#ergonomics : No custom metadata can be attached at upload time
+// @note #blob-20261029-008 todo : No custom metadata can be attached at upload time
+// @priority medium
+// @tags #blobs #api #ergonomics
 // @author claude
 // @see #feat-ns-metadata
 //

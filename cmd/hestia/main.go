@@ -8,7 +8,9 @@ import (
 	cmd "github.com/asaidimu/hestia/cmd/hestia/core"
 )
 
-// @note #tool-20261029-001 todo P1 #tooling,#architecture,#anansi : hestia cannot embed the anansi CLI because its logic is unimportable
+// @note #tool-20261029-001 todo : hestia cannot embed the anansi CLI because its logic is unimportable
+// @priority high
+// @tags #tooling #architecture #anansi
 // @author claude
 // @see #tool-20261029-002
 // @see #tool-20261029-003

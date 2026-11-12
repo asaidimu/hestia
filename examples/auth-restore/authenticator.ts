@@ -3,7 +3,8 @@ import { createAuthenticator, type Identity } from "@asaidimu/iam";
 import { ArtifactContainer } from "@asaidimu/utils-artifacts";
 import { ReactiveDataStore } from "@asaidimu/utils-store";
 
-// @note #auth-20261029-010 context #auth,#client,#integration,#example : Reference integration of HestiaClient with @asaidimu/iam 9.x
+// @note #auth-20261029-010 context : Reference integration of HestiaClient with @asaidimu/iam 9.x
+// @tags #auth #client #integration #example
 // @author claude
 // @see #auth-20261029-001
 // @see #auth-20261029-002

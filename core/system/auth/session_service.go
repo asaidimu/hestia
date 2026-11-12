@@ -64,7 +64,10 @@ func (s *SessionService) Refresh(st *SessionToken) (string, *SessionToken, error
 	return token, refreshed, nil
 }
 
-// @note #review2-20260821-001 issue resolved P1 #security,#auth,#review : SessionService.Validate does not check ExpiresAt
+// @note #review2-20260821-001 issue : SessionService.Validate does not check ExpiresAt
+// @status resolved
+// @priority high
+// @tags #security #auth #review
 // @assignee opencode
 // Moved ExpiresAt check into SessionService.Validate so expiry is enforced at the token level. Removed redundant expiry check from middleware.go. Callers in wails/dispatch.go that were missing the check now get it automatically.
 //

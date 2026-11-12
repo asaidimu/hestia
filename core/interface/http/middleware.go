@@ -24,7 +24,10 @@ const (
 	authRateLimitPeriod = time.Minute
 )
 
-// @note #sec-20260821-003 issue resolved priority=P1 tags=#security,#auth : No rate limiting on authentication attempts
+// @note #sec-20260821-003 issue : No rate limiting on authentication attempts
+// @status resolved
+// @priority=P1
+// @tags=#security,#auth
 //
 // Resolved (S-3, security batch 1): authMiddleware throttles unauthenticated
 // authentication attempts per source IP through authRateLimiter (a shared

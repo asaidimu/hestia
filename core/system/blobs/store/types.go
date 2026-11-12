@@ -39,7 +39,8 @@ type BlobStore interface {
 	Namespace(nsID string) BlobNamespace
 }
 
-// @note #feat-ns-metadata feature_request P2 : Add arbitrary metadata to blob namespaces
+// @note #feat-ns-metadata feature_request : Add arbitrary metadata to blob namespaces
+// @priority medium
 //
 // BlobNamespaceInfo currently only carries ID, DisplayName, and Public.
 // Users want to attach custom key-value metadata to namespaces (e.g. description,

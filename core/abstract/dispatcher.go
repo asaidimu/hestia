@@ -2,7 +2,10 @@ package abstract
 
 import "context"
 
-// @note #review2-20260821-005 issue resolved P0 #review,#arch,#p2p : Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant
+// @note #review2-20260821-005 issue : Dispatcher.Send is synchronous end-to-end with no async/remote-capable variant
+// @status resolved
+// @priority critical
+// @tags #review #arch #p2p
 // Resolved by the async-native dispatcher refactor. Dispatcher.Send is now Send(ctx, msg, onComplete CompletionFunc) error: acceptance returns synchronously (non-nil error = pre-check rejection, callback never fires); execution runs on a dispatcher-owned goroutine and the completion callback fires exactly once — seconds or days later — with (*Result, error). msg.Context() remains the request-metadata source of truth; explicit ctx governs lifecycle/cancellation before terminal start. Panic recovery was absorbed into LocalDispatcher (a link's recover() can never catch a panic in the terminal's goroutine), so RecoveryDispatcher was deleted from the chain and codebase. Blocking sugar lives in runtime/dispatch (Await/Dispatch). The remote/P2P seam is now this interface: a future RemoteDispatcher implements Send by publishing over the network and invoking the stored completion on correlated reply — no parked waiter goroutine per in-flight call. Durable execution via go-events v2 planned as follow-up (todo/async_dispatcher_refactor.md Epic 2).
 //
 // Every implementation in the chain -- LocalDispatcher, SecureDispatcher,

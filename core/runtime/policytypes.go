@@ -1,4 +1,7 @@
-// @note #arch-20260821-013 issue status=open priority=P2 tags=#arch,#placement : Domain types in leaf package
+// @note #arch-20260821-013 issue : Domain types in leaf package
+// @status=open
+// @priority=P2
+// @tags=#arch,#placement
 //
 // runtime is a leaf package but contains domain types that other packages depend on:
 //

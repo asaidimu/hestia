@@ -438,7 +438,10 @@ func serializeResponse(ctx context.Context, result *abstract.Result, output *def
         return emptyResponse(intent)
 }
 
-// @note #mem-20260821-003 issue resolved priority=P1 tags=#memory,#goroutine : Stream channel buffer size causes goroutine leaks
+// @note #mem-20260821-003 issue : Stream channel buffer size causes goroutine leaks
+// @status resolved
+// @priority=P1
+// @tags=#memory,#goroutine
 // Resolved (S-10, security batch 1; S-19, security batch 2): streamChannel
 // selects on the request context while draining the source channel and while
 // forwarding to the response stream, so on client disconnect the producer
@@ -544,7 +547,9 @@ func serializeStreamResult(ctx context.Context, result *abstract.Result) (Respon
         })
 }
 
-// @note #blob-20261029-003 issue P1 #blobs,#security,#http : Blob downloads are served with only Content-Type, and that type is whatever the uploader declared
+// @note #blob-20261029-003 issue : Blob downloads are served with only Content-Type, and that type is whatever the uploader declared
+// @priority high
+// @tags #blobs #security #http
 // @author claude
 // @see #blob-20261029-004
 //

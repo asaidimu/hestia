@@ -208,7 +208,9 @@ func writeStubSchema(path, entity string) error {
 	return os.WriteFile(path, []byte(content), 0644)
 }
 
-// @note #tool-20261029-003 issue P2 #tooling,#codegen : service new and anansi codegen write the same *.model.go with different options
+// @note #tool-20261029-003 issue : service new and anansi codegen write the same *.model.go with different options
+// @priority medium
+// @tags #tooling #codegen
 // @author claude
 // @see #tool-20261029-001
 // @see #tool-20261029-006

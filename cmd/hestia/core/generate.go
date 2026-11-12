@@ -24,7 +24,9 @@ type depField struct {
 
 var forceMode bool
 
-// @note #tool-20261029-002 todo P1 #tooling,#ergonomics : No single command runs the whole schema-to-service pipeline
+// @note #tool-20261029-002 todo : No single command runs the whole schema-to-service pipeline
+// @priority high
+// @tags #tooling #ergonomics
 // @author claude
 // @see #tool-20261029-001
 // @see #tool-20261029-003

@@ -1,4 +1,7 @@
-// @note #org-20260821-004 todo status=open priority=P1 tags=#organization,#refactor : Consolidate env.go into config.go
+// @note #org-20260821-004 todo : Consolidate env.go into config.go
+// @status=open
+// @priority=P1
+// @tags=#organization,#refactor
 //
 // env.go (243 lines) and config.go (321 lines) have near-identical env loading.
 // Both LoadConfig and ApplyEnvOverrides read the same env vars independently.

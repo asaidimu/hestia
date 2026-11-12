@@ -193,7 +193,10 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 	}
 	return err
 }
-// @note #scheduled-dispatch-errors-are-sw-616004cd lesson resolved P3 #schedules,#dispatch : Scheduled dispatch errors are swallowed by the cron chain
+// @note #scheduled-dispatch-errors-are-sw-616004cd lesson : Scheduled dispatch errors are swallowed by the cron chain
+// @status resolved
+// @priority low
+// @tags #schedules #dispatch
 // Fixed in liveschedule.go dispatch(): every failure path now logs via ls.log — missing message (Warn), input-document build failure (Error), and dispatched-operation failure with schedule_id + message + error (Error). Result document released. Failures are now visible without instrumenting code.
 //
 // LiveSchedule.dispatch returns errors from dispatch.Await, but robfig/cron only logs panics (Recover wrapper) — returned errors vanish silently. A broken schedule (e.g. unregistered message, DTO binding failure) ticks forever with no trace. While fixing the payload-envelope bug (input must be wrapped in {"payload": ...} to satisfy input:"payload.*" DTO bindings, same as core/interface/cli/orchestrator.go does) this cost significant debugging time on the live server. Consider logging dispatch failures via ls.log in dispatch(), or a cron.PrintfLogger chain.

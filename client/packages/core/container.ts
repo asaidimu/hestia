@@ -186,7 +186,9 @@ export class HestiaClient {
     }
   }
 
-  // @note #auth-20261029-007 todo P2 #client,#ergonomics : onAuthStateChange has no unsubscribe and fires only on 401
+  // @note #auth-20261029-007 todo : onAuthStateChange has no unsubscribe and fires only on 401
+  // @priority medium
+  // @tags #client #ergonomics
   // @author claude
   // @status resolved
   //
@@ -199,7 +201,9 @@ export class HestiaClient {
   // Proposal: onAuthStateChange(cb: (identity: UserIdentity | null) => void):
   // () => void, backed by store.watch("identity"); keep 401 -> clear.
 
-  // @note #auth-20261029-009 todo P3 #client,#auth,#ergonomics : No cross-tab auth signalling
+  // @note #auth-20261029-009 todo : No cross-tab auth signalling
+  // @priority low
+  // @tags #client #auth #ergonomics
   // @author claude
   // @see #auth-20261029-007
   // @status resolved
@@ -220,7 +224,9 @@ export class HestiaClient {
     });
   }
 
-  // @note #auth-20261029-006 issue P1 #client,#auth,#ergonomics : authenticated() returns false without asking the server when local identity is null
+  // @note #auth-20261029-006 issue : authenticated() returns false without asking the server when local identity is null
+  // @priority high
+  // @tags #client #auth #ergonomics
   // @author claude
   // @see #auth-20261029-003
   // @status resolved
@@ -254,7 +260,9 @@ export class HestiaClient {
   private heartbeatTimer?: ReturnType<typeof setTimeout>;
   private defaultHeartbeatInterval = 5 * 60 * 1000;
 
-  // @note #auth-20261029-008 todo P2 #client,#auth,#ergonomics : Heartbeat lifecycle is hand-managed by every consumer, and it is what keeps the session alive
+  // @note #auth-20261029-008 todo : Heartbeat lifecycle is hand-managed by every consumer, and it is what keeps the session alive
+  // @priority medium
+  // @tags #client #auth #ergonomics
   // @author claude
   // @see #auth-20261029-001
   // @status resolved

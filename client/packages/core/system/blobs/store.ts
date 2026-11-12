@@ -24,6 +24,9 @@ import type {
     UploadStatus,
 } from "./types";
 
+// Re-export sha256Hex so existing consumers of `./store` keep working.
+import { sha256Hex } from "../../utils/crypto";
+
 // ── Tunables (mirror examples/staging client) ────────────────────────────────
 const DEFAULT_BLOCK_SIZE = 8 << 20; // 8 MiB (GOOD_BLOCK_SIZE)
 const DEFAULT_DIRECT_THRESHOLD = 16 << 20; // 16 MiB
@@ -40,14 +43,6 @@ const RENDER_THROTTLE_MS = 80;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function sha256Hex(buffer: ArrayBuffer | ArrayBufferView): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", buffer as any);
-  const bytes = new Uint8Array(digest);
-  let hex = "";
-  for (const b of bytes) hex += b.toString(16).padStart(2, "0");
-  return hex;
 }
 
 // Bun's File/Blob type declarations omit `slice` (runtime has it), so cast.
@@ -268,7 +263,6 @@ export class ResumableUpload {
   private readonly transport: UploadTransport;
   private readonly persistence?: UploadPersistence;
   private readonly aimd: AimdController;
-  private readonly startedAt = Date.now();
 
   private blockHashes: string[] = [];
   private pauseRequested = false;
@@ -477,7 +471,9 @@ export class ResumableUpload {
     }
   }
 
-  // @note #blob-20261029-020 todo P2 #blobs,#client,#ergonomics : done resolves undefined on cancel, and failures can surface as unhandled rejections
+  // @note #blob-20261029-020 todo : done resolves undefined on cancel, and failures can surface as unhandled rejections
+  // @priority medium
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-019
   //
@@ -765,15 +761,15 @@ export class UploadQueue {
   private readonly maxConcurrent: number;
   private readonly persistence?: UploadPersistence;
   private readonly transport: UploadTransport;
-  private readonly ns: string;
+  // private readonly _ns: string;
 
   constructor(
     transport: UploadTransport,
-    ns: string,
+    _ns: string,
     options: UploadQueueOptions = {},
   ) {
     this.transport = transport;
-    this.ns = ns;
+    // this._ns = ns;
     this.maxConcurrent = Math.max(1, options.maxConcurrent ?? 3);
     this.persistence = options.persistence;
   }
@@ -818,7 +814,9 @@ export class UploadQueue {
     }
   }
 
-  // @note #blob-20261029-017 issue P2 #blobs,#client,#ergonomics : UploadQueue.restore() is a stub that always returns an empty array
+  // @note #blob-20261029-017 issue : UploadQueue.restore() is a stub that always returns an empty array
+  // @priority medium
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-016
   //
@@ -826,7 +824,7 @@ export class UploadQueue {
   // Fix: delete restore() (or make it throw), route restored jobs through the same wiring as enqueue(), and report or clean unrestorable snapshots. Lost options are in #blob-20261029-016.
 
   /** Reconstruct uploads from persisted snapshots, paused and ready to resume. */
-  restore(fileProvider?: (snapshot: UploadJobSnapshot) => File | undefined): ResumableUpload[] {
+  restore(_fileProvider?: (snapshot: UploadJobSnapshot) => File | undefined): ResumableUpload[] {
     const snapshots = this.persistence ? this.persistence.load() : Promise.resolve([]);
     const loaded = snapshots instanceof Promise ? null : snapshots;
     void loaded;
@@ -834,7 +832,9 @@ export class UploadQueue {
     return [];
   }
 
-  // @note #blob-20261029-016 issue P1 #blobs,#client,#data-loss : Restored uploads lose overwrite and other options, and can be discarded at completion
+  // @note #blob-20261029-016 issue : Restored uploads lose overwrite and other options, and can be discarded at completion
+  // @priority high
+  // @tags #blobs #client #data-loss
   // @author claude
   // @see #blob-20261029-002
   // @see #blob-20261029-017
@@ -984,7 +984,9 @@ function pageMeta<T extends Record<string, any>>(items: T[]): Page<T>["page"] {
   };
 }
 
-// @note #blob-20261029-024 todo P3 #blobs,#client,#ergonomics : BlobNamespace implements DocumentStore but several members throw
+// @note #blob-20261029-024 todo : BlobNamespace implements DocumentStore but several members throw
+// @priority low
+// @tags #blobs #client #ergonomics
 // @author claude
 //
 // create, subscribe, notify and stream throw "not supported" at runtime, and update rejects filter. Generic UI code typed against DocumentStore compiles and then fails on first call, and the capability gap is not visible in the types. asDoc() also invents document metadata: _id_ is the bare key (not namespace-qualified), _metadata_.checksum is "" and version is always 1.
@@ -1017,7 +1019,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     this.prefixFilter = prefix;
   }
 
-  // @note #blob-20261029-021 todo P2 #blobs,#client,#ergonomics : find()/list() fabricate paging metadata and mostly ignore the query
+  // @note #blob-20261029-021 todo : find()/list() fabricate paging metadata and mostly ignore the query
+  // @priority medium
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-007
   // @see #blob-20261029-023
@@ -1063,7 +1067,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     throw new Error("Use upload() to create blobs");
   }
 
-  // @note #blob-20261029-022 issue P2 #blobs,#client : update() cannot do what its type says
+  // @note #blob-20261029-022 issue : update() cannot do what its type says
+  // @priority medium
+  // @tags #blobs #client
   // @author claude
   // @see #blob-20261029-026
   //
@@ -1081,7 +1087,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     return asDoc(res.data!.data);
   }
 
-  // @note #blob-20261029-025 todo P3 #blobs,#client,#ergonomics : delete, rename, verify and namespace calls return nothing useful
+  // @note #blob-20261029-025 todo : delete, rename, verify and namespace calls return nothing useful
+  // @priority low
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-012
   // @see #blob-20261029-009
@@ -1128,7 +1136,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     return this.find(options ?? {});
   }
 
-  // @note #blob-20261029-019 todo P2 #blobs,#client,#ergonomics : upload() requires options.key at runtime but types it as optional
+  // @note #blob-20261029-019 todo : upload() requires options.key at runtime but types it as optional
+  // @priority medium
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-020
   //
@@ -1161,7 +1171,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
     return this._queue;
   }
 
-  // @note #blob-20261029-018 issue P2 #blobs,#client,#ergonomics : onProgress, signal and retries are silently ignored for files at or below the direct threshold
+  // @note #blob-20261029-018 issue : onProgress, signal and retries are silently ignored for files at or below the direct threshold
+  // @priority medium
+  // @tags #blobs #client #ergonomics
   // @author claude
   // @see #blob-20261029-005
   // @see #blob-20261029-015
@@ -1286,7 +1298,9 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
   }
 }
 
-// @note #blob-20261029-023 todo P3 #blobs,#client,#ergonomics : Instance and naming semantics of HestiaBlobClient
+// @note #blob-20261029-023 todo : Instance and naming semantics of HestiaBlobClient
+// @priority low
+// @tags #blobs #client #ergonomics
 // @author claude
 // @see #blob-20261029-021
 //
@@ -1294,14 +1308,14 @@ export class BlobNamespace implements DocumentStore<BlobMeta, QueryDSL<BlobMeta>
 // Fix: cache namespaces by name (or document that they are cheap handles), reject conflicting queue options, and build the pager lazily. Effect on prefix state: #blob-20261029-021.
 
 export class HestiaBlobClient {
-  private apiPrefix: string;
+  // private _apiPrefix: string;
 
   constructor(
     private client: Transport,
-    apiPrefix: string = "/api",
+    _apiPrefix: string = "/api",
     private uploadPersistence?: UploadPersistence,
   ) {
-    this.apiPrefix = apiPrefix;
+    // this._apiPrefix = apiPrefix;
   }
 
   async namespaces(): Promise<NamespaceInfo[]> {

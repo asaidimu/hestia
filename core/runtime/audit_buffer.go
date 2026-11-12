@@ -1,4 +1,7 @@
-// @note #arch-20260821-010 issue resolved priority=P1 tags=#arch,#concurrency : Race condition in AuditBuffer circuit breaker
+// @note #arch-20260821-010 issue : Race condition in AuditBuffer circuit breaker
+// @status resolved
+// @priority=P1
+// @tags=#arch,#concurrency
 //
 // The Write method (line 63) reads b.failed under mutex, then calls wg.Add(1)
 // outside the lock. A concurrent Close() could interleave between the check
@@ -16,7 +19,10 @@
 // Resolution: Hold the mutex across the entire check-and-add sequence,
 // or use an atomic flag. Ensure wg.Done() is only called when wg.Add(1)
 // was successfully called for the same entry.
-// @note #bench-20260821-002 todo status=open priority=P1 tags=#benchmark,#performance : Audit buffer needs throughput benchmarks
+// @note #bench-20260821-002 todo : Audit buffer needs throughput benchmarks
+// @status=open
+// @priority=P1
+// @tags=#benchmark,#performance
 //
 // Audit logging is critical for compliance and security monitoring.
 // Current implementation lacks benchmarks for:
@@ -86,7 +92,10 @@ func NewAuditBufferSize(persister audit.AuditPersister, logger *zap.Logger, size
 	return b
 }
 
-// @note #review-20260821-009 issue resolved priority=P1 tags=#review,#concurrency : Race condition in AuditBuffer circuit breaker
+// @note #review-20260821-009 issue : Race condition in AuditBuffer circuit breaker
+// @status resolved
+// @priority=P1
+// @tags=#review,#concurrency
 // The Write method reads b.failed under mutex, but the circuit breaker is set
 // to true in the default branch without holding the mutex consistently. While
 // the current code does acquire the mutex before setting b.failed, the check

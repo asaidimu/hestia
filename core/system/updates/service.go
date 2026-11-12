@@ -230,7 +230,10 @@ func (s *UpdatesService) Changelog(ctx context.Context, _ abstract.Message, _ *N
 	}), nil
 }
 
-// @note #review2-20260821-004 issue resolved P1 #review,#api-design,#p2p : system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)
+// @note #review2-20260821-004 issue : system:updates:check:create conflates checking with staging (and a fleet cannot poll safely)
+// @status resolved
+// @priority high
+// @tags #review #api-design #p2p
 // @assignee opencode
 // Split shipped: system:updates:check:get (read-only availability, no download/staging/last-check writes) and system:updates:stage:create (PrepareUpdate + last-check record + notify-admins). check:create kept as the legacy check-then-stage wrapper; RunScheduledCheck still uses checkAndStage. Hand-wired registrations kept for now — migration to codegen tracked as #migrate-20260822-001.
 //
@@ -465,7 +468,9 @@ func (s *UpdatesService) RunScheduledCheck(ctx context.Context) error {
 	return nil
 }
 
-// @note #update-hash-verify issue resolved P1 : Verify binary hash before applying staged update
+// @note #update-hash-verify issue : Verify binary hash before applying staged update
+// @status resolved
+// @priority high
 // Fixed: stageLatest now backfills a computed SHA-256 into the pending record when the provider omits a checksum (the GitHub-provider hole), so every freshly staged update is verifiable. applySwap re-verifies immediately before ApplyUpdate/swapExecutable, closing the verify-to-swap TOCTOU window; mismatch logs 'staged binary failed verification' and aborts. stagedBinaryPath() handles the Windows .exe suffix. S-9: rows without a checksum now FAIL verification instead of passing vacuously — re-stage by re-checking for updates.
 //
 // The staged binary at DataDir/update is copied over the running executable

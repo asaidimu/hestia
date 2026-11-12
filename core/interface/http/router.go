@@ -5,7 +5,10 @@ import (
         "strings"
 )
 
-// @note #perf-20260821-003 issue status=open priority=P3 tags=#performance,#struct-packing : trieNode uses slice for children
+// @note #perf-20260821-003 issue : trieNode uses slice for children
+// @status=open
+// @priority=P3
+// @tags=#performance,#struct-packing
 //
 // trieNode struct (line 8) uses a slice for children:
 //

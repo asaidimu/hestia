@@ -1,6 +1,8 @@
 import type { Document } from "../../core/types"
 
-// @note #blob-20261029-026 todo P3 #blobs,#client,#types : Naming and typing drift between client and server
+// @note #blob-20261029-026 todo : Naming and typing drift between client and server
+// @priority low
+// @tags #blobs #client #types
 // @author claude
 // @see #blob-20261029-009
 // @see #blob-20261029-022

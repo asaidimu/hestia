@@ -93,7 +93,9 @@ func (svc *Service) Close() error {
 	return svc.s.Close()
 }
 
-// @note #blob-20261029-009 issue P2 #blobs,#api : Namespace public flag lives in-band in custom, can be overridden by callers, and nothing enforces it
+// @note #blob-20261029-009 issue : Namespace public flag lives in-band in custom, can be overridden by callers, and nothing enforces it
+// @priority medium
+// @tags #blobs #api
 // @author claude
 // @see #feat-ns-metadata
 // @see #blob-20261029-026

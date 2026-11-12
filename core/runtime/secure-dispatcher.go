@@ -1,4 +1,7 @@
-// @note #arch-20260821-003 issue resolved priority=P1 tags=#arch,#duplication : Duplicated identity property extraction pattern
+// @note #arch-20260821-003 issue : Duplicated identity property extraction pattern
+// @status resolved
+// @priority=P1
+// @tags=#arch,#duplication
 // Fixed: created runtime/identity.go with GetIdentityProperty[T], GetUserID, GetTokenID, IsAnonymous, GetIdentityProperties. Updated all 5 call sites.
 //
 // The pattern `ident.Properties.(map[string]any)` followed by key extraction
@@ -58,7 +61,10 @@ func (d *SecureDispatcher) Wrap(next abstract.Dispatcher) abstract.Dispatcher {
 	return &SecureDispatcher{next: next, permMgr: d.permMgr, ac: d.ac}
 }
 
-// @note #review-20260821-006 issue resolved priority=P2 tags=#review,#security : Deeply nested identity property access
+// @note #review-20260821-006 issue : Deeply nested identity property access
+// @status resolved
+// @priority=P2
+// @tags=#review,#security
 // The code accesses iam.Identity.Properties through multiple nested type assertions
 // (ident.Properties.(map[string]any) then props["operations"]). This pattern is
 // repeated in several places (rate-limit.go, throttle.go, access-log-dispatcher.go).
@@ -141,7 +147,10 @@ func (d *SecureDispatcher) Send(ctx context.Context, msg abstract.Message, onCom
 	return d.next.Send(ctx, msg, onComplete)
 }
 
-// @note #review-20260821-007 issue resolved priority=P2 tags=#review,#consolidation : Duplicate identity property extraction
+// @note #review-20260821-007 issue : Duplicate identity property extraction
+// @status resolved
+// @priority=P2
+// @tags=#review,#consolidation
 // isAnonymous extracts user_id from iam.Identity.Properties using the same
 // nested type assertion pattern found in extractUserID (rate-limit.go),
 // extractAPIKeyID (rate-limit.go), and deriveActorType (access-log-dispatcher.go).
