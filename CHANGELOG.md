@@ -1,3 +1,11 @@
+## [1.16.3](https://github.com/asaidimu/hestia/compare/v1.16.2...v1.16.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **blobs:** add secure context SHA-256 fallback for blob uploads ([b3d9dda](https://github.com/asaidimu/hestia/commit/b3d9dda2d21299634dbc2f07689ce8485dfc6890))
+* update dependencies ([ffac2a2](https://github.com/asaidimu/hestia/commit/ffac2a251dc7a31ca3e0a0ce1e371d02e52372aa))
+
 ## [1.16.2](https://github.com/asaidimu/hestia/compare/v1.16.1...v1.16.2) (2026-11-09)
 
 
