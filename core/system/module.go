@@ -105,9 +105,6 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 			func() collection.LiveCollection[*users.UserClaims] { return m.providers.LiveUsers },
 		)).
 		WithDispatcherProvider(m.ChainedDispatcher())
-	if err := m.providers.LiveSchedule.Init(ctx); err != nil {
-		return fmt.Errorf("init live schedule: %w", err)
-	}
 
 	// Derive independent per-purpose signing keys from the master secret via
 	// HKDF (see runtime.DerivePurposeKey). This fails boot when no session
@@ -144,6 +141,14 @@ func (m *SystemModule) Setup(ctx context.Context, rt abstract.Container) error {
 
 	if err := m.seedData(ctx); err != nil {
 		return err
+	}
+	// Load schedules only after seeding: SeedSchedules inserts the protected
+	// system schedules (notification cleanup, blocklist prune) on a fresh
+	// install, and Init is what registers persisted schedules with the cron
+	// engine. Initializing before the seed left them dormant until the next
+	// process restart.
+	if err := m.providers.LiveSchedule.Init(ctx); err != nil {
+		return fmt.Errorf("init live schedule: %w", err)
 	}
 	if err := m.initUserClaimsCache(ctx); err != nil {
 		return fmt.Errorf("init user claims cache: %w", err)

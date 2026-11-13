@@ -21,7 +21,10 @@
     "01a04762-d5d3-7606-967c-a214d71fedd7": {
       "name": "nodes",
       "required": true,
-      "type": "record"
+      "schema": {
+        "type": "unknown"
+      },
+      "type": "array"
     },
     "01a04762-d5d3-7607-af6a-f5f38343acb3": {
       "name": "tenant_id",
@@ -39,7 +42,10 @@
     "01a04762-d5d3-760a-a583-0b2787c29668": {
       "name": "edges",
       "required": true,
-      "type": "record"
+      "schema": {
+        "type": "unknown"
+      },
+      "type": "array"
     },
     "01a04762-d5d3-760b-8f4c-043581277d10": {
       "name": "updated_at",

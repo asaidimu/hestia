@@ -139,6 +139,42 @@ func (ls *LiveSchedule) register(ctx context.Context, doc data.Documenter) {
 	})
 }
 
+// fireContext resolves the identity a schedule fire runs under.
+//
+// User-created schedules run as the creator's CURRENT identity (S-1): the
+// previous path (SystemContext + raw terminal dispatcher) bypassed the entire
+// policy chain, so any authenticated user could schedule any operation and it
+// executed with system privileges, zero authorization and zero audit.
+//
+// System-owned schedules — the protected seeds (notification cleanup, token
+// blocklist prune) — have no creator by design. They run under the SYSTEM
+// identity, exactly like Hestia's other built-in jobs (e.g. updates:check),
+// and still traverse the full middleware chain. A creator-less schedule that
+// is NOT marked protected is corrupt or was inserted out of band and is
+// skipped: an unattributed row must never escalate to SYSTEM.
+func (ls *LiveSchedule) fireContext(ctx context.Context, doc data.Documenter, message, creatorID, tenantID string) (context.Context, bool) {
+	if creatorID == "" {
+		protected := false
+		if v, err := doc.Get("protected"); err == nil {
+			protected, _ = v.(bool)
+		}
+		if !protected {
+			ls.log.Warn("schedule: dispatch skipped — schedule has no creator and is not system-owned",
+				zap.String("schedule_id", doc.ID()), zap.String("message", message))
+			return nil, false
+		}
+		return runtimecontext.SystemContext(ctx), true
+	}
+
+	claims := ls.fireClaims(creatorID, tenantID)
+	if claims == nil {
+		ls.log.Warn("schedule: dispatch skipped — creator is missing or no longer active",
+			zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.String("creator", creatorID))
+		return nil, false
+	}
+	return runtimecontext.ContextWithClaims(ctx, claims), true
+}
+
 func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error {
 	message, err := doc.GetString("message")
 	if err != nil || message == "" {
@@ -164,21 +200,13 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 		return err
 	}
 
-	// S-1: fires run as the creator's CURRENT identity — never as SYSTEM.
-	// The previous path (SystemContext + raw terminal dispatcher) bypassed
-	// the entire policy chain: any authenticated user could schedule any
-	// operation (user creation, policy edits, settings writes) and it
-	// executed with system privileges, zero authorization and zero audit.
 	creatorID, _ := doc.GetString("user_id")
 	tenantID, _ := doc.GetString("tenant_id")
-	claims := ls.fireClaims(creatorID, tenantID)
-	if claims == nil {
-		ls.log.Warn("schedule: dispatch skipped — creator is missing or no longer active",
-			zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.String("creator", creatorID))
+	fireCtx, ok := ls.fireContext(ctx, doc, message, creatorID, tenantID)
+	if !ok {
 		return nil
 	}
 
-	fireCtx := runtimecontext.ContextWithClaims(ctx, claims)
 	ls.log.Info("schedule: dispatching", zap.String("schedule_id", doc.ID()), zap.String("message", message), zap.String("creator", creatorID))
 	msg := dispatch.NewMessage(message, fireCtx, docInput)
 	result, err := dispatch.Await(fireCtx, ls.dispatcher(), msg)
@@ -193,6 +221,7 @@ func (ls *LiveSchedule) dispatch(ctx context.Context, doc data.Documenter) error
 	}
 	return err
 }
+
 // @note #scheduled-dispatch-errors-are-sw-616004cd lesson : Scheduled dispatch errors are swallowed by the cron chain
 // @status resolved
 // @priority low

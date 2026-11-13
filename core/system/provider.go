@@ -32,11 +32,9 @@ import (
 	"github.com/asaidimu/hestia/core/system/users"
 	"github.com/asaidimu/hestia/core/system/users/model"
 
-	hermescore "github.com/asaidimu/hermes/pkg/core"
+	"github.com/asaidimu/hermes/pkg/actionlog"
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
-	hermesscheduler "github.com/asaidimu/hermes/pkg/scheduler"
 	hermesstore "github.com/asaidimu/hermes/pkg/store"
-	"github.com/asaidimu/hermes/pkg/timeline"
 )
 
 // ProviderSet groups all feature models and runtime state that were
@@ -163,79 +161,61 @@ func (ps *ProviderSet) InitModels(ctx context.Context) error {
 		return err
 	}
 
-	// Initialize hermes workflow runtime
-	schedAdapter := hermesscheduler.NewHestiaSchedulerFunc(
-		func(name, cron string, fn func(ctx context.Context)) error {
-			ps.Scheduler.Register(name, cron, func(ctx context.Context) error {
-				fn(ctx)
-				return nil
-			})
-			return nil
-		},
-		func(name string) bool {
-			return ps.Scheduler.Remove(name)
-		},
-		func(ctx context.Context) error {
-			ps.Scheduler.Stop()
-			return nil
-		},
-	)
+	// Initialize hermes workflow runtime.
+	//
+	// v1.3.0 removed the bundled Hestia scheduler adapter: Hermes now takes a
+	// plain scheduler.Scheduler, so the shim lives here. Hermes calls
+	// Shutdown on the scheduler when the runtime stops; Hestia's scheduler is
+	// owned by SystemModule.Stop, so the shim deliberately does not stop it.
+	schedAdapter := &hestiaScheduler{sched: ps.Scheduler}
 
-	// Create persistent store factory backed by hestia's persistence
-	storeFactory, err := hermesstore.NewAnansiStoreFactory(ctx, ps.Persist, "_pipeline_state_")
+	// The action log is the durable source of truth for run history and
+	// restart recovery. Without it, ListRuns/GetEvents only reflect the
+	// current process and paused runs cannot be recovered.
+	actionLog, err := actionlog.NewAnansiStore(ctx, ps.Persist, "_pipeline_actionlog_")
 	if err != nil {
-		return fmt.Errorf("init hermes store factory: %w", err)
+		return fmt.Errorf("init hermes action log: %w", err)
 	}
 
-	// Adapter from *zap.Logger to hermes core.Logger
-	hermesLogger := &zapToHermesLogger{logger: ps.Logger}
+	stateModels, err := hermesstore.NewAnansiStateCollection(ctx, ps.Persist, "_pipeline_state_")
+	if err != nil {
+		return fmt.Errorf("init hermes state collection: %w", err)
+	}
 
 	ps.WorkflowRuntime = hermesruntime.NewWorkflowRuntime(hermesruntime.Options{
-		Scheduler:    schedAdapter,
-		StoreFactory: storeFactory.Mint(),
-		StoreLoader:  storeFactory.Loader(),
-		Timeline:     timeline.NewMemoryTimelineStore(),
-		Logger:       hermesLogger,
+		Scheduler: schedAdapter,
+		StoreFactory: func() (hermesstore.Store, error) {
+			return hermesstore.NewPersistentStore(stateModels, nil), nil
+		},
+		ActionLog: actionLog,
+		Logger:    ps.Logger.Sugar(),
 	})
 
 	return nil
 }
 
-// zapToHermesLogger adapts *zap.Logger to hermes core.Logger interface.
-type zapToHermesLogger struct {
-	logger *zap.Logger
+// hestiaScheduler adapts Hestia's scheduler to hermes' scheduler.Scheduler.
+type hestiaScheduler struct {
+	sched *scheduler.Scheduler
 }
 
-func (l *zapToHermesLogger) Debug(msg string, keysAndValues ...any) {
-	l.logger.Debug(msg, toZapFields(keysAndValues...)...)
+func (h *hestiaScheduler) Schedule(id, cron string, callback func(ctx context.Context)) error {
+	h.sched.Register(id, cron, func(ctx context.Context) error {
+		callback(ctx)
+		return nil
+	})
+	return nil
 }
 
-func (l *zapToHermesLogger) Info(msg string, keysAndValues ...any) {
-	l.logger.Info(msg, toZapFields(keysAndValues...)...)
+func (h *hestiaScheduler) Cancel(id string) error {
+	h.sched.Remove(id)
+	return nil
 }
 
-func (l *zapToHermesLogger) Warn(msg string, keysAndValues ...any) {
-	l.logger.Warn(msg, toZapFields(keysAndValues...)...)
-}
-
-func (l *zapToHermesLogger) Error(msg string, keysAndValues ...any) {
-	l.logger.Error(msg, toZapFields(keysAndValues...)...)
-}
-
-func (l *zapToHermesLogger) With(keysAndValues ...any) hermescore.Logger {
-	return &zapToHermesLogger{logger: l.logger.With(toZapFields(keysAndValues...)...)}
-}
-
-func toZapFields(keysAndValues ...any) []zap.Field {
-	fields := make([]zap.Field, 0, len(keysAndValues)/2)
-	for i := 0; i < len(keysAndValues)-1; i += 2 {
-		key, ok := keysAndValues[i].(string)
-		if !ok {
-			continue
-		}
-		fields = append(fields, zap.Any(key, keysAndValues[i+1]))
-	}
-	return fields
+// Shutdown is intentionally a no-op: Hestia owns the scheduler lifetime and
+// stops it in SystemModule.Stop, after the workflow runtime has shut down.
+func (h *hestiaScheduler) Shutdown(_ context.Context) error {
+	return nil
 }
 
 // initUpdates wires the self-update service when SelfUpdate is configured:

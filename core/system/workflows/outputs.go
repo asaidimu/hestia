@@ -76,14 +76,14 @@ type WorkflowRunStoreView struct {
 // WorkflowDefinitionView is a stored workflow definition.
 type WorkflowDefinitionView struct {
 	document.DocumentModel `json:"-" anansi:"-"`
-	ID                     string         `anansi:"_id"`
-	Name                   string         `anansi:"name"`
-	Description            *string        `anansi:"description,omitempty"`
-	Nodes                  map[string]any `anansi:"nodes"`
-	Edges                  map[string]any `anansi:"edges"`
-	TenantID               *string        `anansi:"tenant_id,omitempty"`
-	CreatedAt              *int64         `anansi:"created_at,omitempty"`
-	UpdatedAt              *int64         `anansi:"updated_at,omitempty"`
+	ID                     string  `anansi:"_id"`
+	Name                   string  `anansi:"name"`
+	Description            *string `anansi:"description,omitempty"`
+	Nodes                  []any   `anansi:"nodes"`
+	Edges                  []any   `anansi:"edges"`
+	TenantID               *string `anansi:"tenant_id,omitempty"`
+	CreatedAt              *int64  `anansi:"created_at,omitempty"`
+	UpdatedAt              *int64  `anansi:"updated_at,omitempty"`
 }
 
 // WorkflowMessageOutput is a generic message response.

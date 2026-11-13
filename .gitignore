@@ -152,3 +152,4 @@ x.json
 .env
 hestia-batch1-fixes.bundle
 hestia-batch1-patches.md
+.env.local

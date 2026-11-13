@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/asaidimu/go-anansi/v8/core/data"
@@ -19,8 +20,8 @@ func (m *SystemWorkflowDefinitions) CreateDefinition(ctx context.Context, doc da
 	def := document.New(&SystemWorkflowDefinition{
 		Name:        mustGetString(doc, "name"),
 		Description: ptrStr(mustGetString(doc, "description")),
-		Nodes:       mustGetMap(doc, "nodes"),
-		Edges:       mustGetMap(doc, "edges"),
+		Nodes:       mustGetSlice(doc, "nodes"),
+		Edges:       mustGetSlice(doc, "edges"),
 		TenantID:    ptrStr(mustGetString(doc, "tenant_id")),
 		CreatedAt:   &now,
 		UpdatedAt:   &now,
@@ -110,14 +111,10 @@ func (m *SystemWorkflowDefinitions) UpdateDefinition(ctx context.Context, id str
 		}
 	}
 	if v, ok := fields["nodes"]; ok {
-		if m, ok := v.(map[string]any); ok {
-			existing.Nodes = m
-		}
+		existing.Nodes = toAnySlice(v)
 	}
 	if v, ok := fields["edges"]; ok {
-		if m, ok := v.(map[string]any); ok {
-			existing.Edges = m
-		}
+		existing.Edges = toAnySlice(v)
 	}
 
 	_, err = m.Update(ctx, id, existing)
@@ -134,12 +131,29 @@ func mustGetString(d data.Documenter, key string) string {
 	return v
 }
 
-func mustGetMap(d data.Documenter, key string) map[string]any {
+func mustGetSlice(d data.Documenter, key string) []any {
 	v, _ := d.Get(key)
-	if m, ok := v.(map[string]any); ok {
-		return m
+	return toAnySlice(v)
+}
+
+// toAnySlice normalises a document value into []any. Anansi bindings may hand
+// back a concrete slice type (e.g. []map[string]any) depending on the codec.
+func toAnySlice(v any) []any {
+	if v == nil {
+		return nil
 	}
-	return nil
+	if s, ok := v.([]any); ok {
+		return s
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Slice {
+		return nil
+	}
+	out := make([]any, rv.Len())
+	for i := range out {
+		out[i] = rv.Index(i).Interface()
+	}
+	return out
 }
 
 func ptrStr(s string) *string {

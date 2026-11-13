@@ -20,12 +20,23 @@ The nearest in-flight workstream is **HandlerGenerics §2** — see
 standardization) has shipped; section 2 (struct-first output and registration)
 is next.
 
+The **secure workflow runtime** refactor spec was validated against the codebase
+and Hermes v1.3.0 on 2026-11-13 and adopted as
+[`active/secure-workflow-runtime.md`](active/secure-workflow-runtime.md). The
+draft root `refactor-spec.md` was retired; the todo is now authoritative and
+contains the corrected API map, the validated compile fixes, and the phased task
+list. **Phase 0 landed** (Hermes v1.3.0 pinned, provider rewired, durable action
+log wired, `go test -race ./core/...` green); Phase 1 (runtime ownership and
+startup recovery) is next.
+
 ## Active
 
 | File | Summary |
 |---|---|
 | [`active/HandlerGenerics.md`](active/HandlerGenerics.md) | Handler framework spec. §1 (document standardization) shipped; §2 (struct-first output + registration) is next. |
 | [`active/async_dispatcher_refactor.md`](active/async_dispatcher_refactor.md) | Async-native dispatcher. Epic 1, 1.5, 1.6 landed; Epic 2 (durable lane via `go-events/v2`) remains. |
+| [`active/secure-workflow-runtime.md`](active/secure-workflow-runtime.md) | Secure workflow runtime: Hermes v1.3.0 + durable log (Phase 0 done), workflow principals/manifests/approval, runtime snapshots, `hestia.*` nodes, budgets/tiers. |
+| [`active/scheduler-system-schedules.md`](active/scheduler-system-schedules.md) | Creator-less protected system schedules now dispatch as SYSTEM; first-boot seeds register immediately. Fix tested; prod deploy pending. |
 | [`active/streaming-codegen.md`](active/streaming-codegen.md) | Streaming + codegen coverage. B1–B10, B12, B13 landed; B11 deferred (needs a persistent-connection transport); B14 (client SDK streaming ergonomics) open. |
 
 ## Pending
@@ -44,6 +55,7 @@ is next.
 | [`pending/hedwig_cleanup.md`](pending/hedwig_cleanup.md) | Remove the deprecated Hedwig flows editor `api.ts` and migrate consumers to the Hestia client. |
 | [`pending/hestia-audit-report.md`](pending/hestia-audit-report.md) | Deep-dive audit (4 critical, 6 high, 9 medium, ~8 low findings) — reference and fix backlog. |
 | [`pending/login_credential_boundary.md`](pending/login_credential_boundary.md) | Unify the auth/users credential boundary: no raw `SystemUser` (password hash) across it; add a login-response regression test. |
+| [`pending/mcp-server.md`](pending/mcp-server.md) | Embedded opt-in MCP server (Streamable HTTP) so agents can observe/diagnose/fix a live instance **and** assist business operations: surface profiles, meta-tools + curated tools, API-key or delegated auth, policy/audit/workflow reuse. Plan only; open questions unanswered. |
 | [`pending/persistence-events-stream.md`](pending/persistence-events-stream.md) | Expose go-anansi persistence events over SSE. Guide written in `docs/guide/streaming.md`; design questions and implementation tasks are open. |
 | [`pending/sanitize_type_blindness_followups.md`](pending/sanitize_type_blindness_followups.md) | Surface document sanitization failures instead of dropping rows; make the upstream sanitizer type-aware. |
 | [`pending/user_query_filter.md`](pending/user_query_filter.md) | QDSL `filter`/`filters` fix landed; follow-ups: reject unknown top-level query keys upstream, restart the `:8090` dev server. |

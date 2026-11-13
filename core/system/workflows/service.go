@@ -877,6 +877,32 @@ func toCompilerEdges(raw []map[string]any) ([]compiler.Edge, error) {
 	return edges, nil
 }
 
+// toMapSlice normalises a stored workflow field (nodes/edges) into a slice of
+// maps. Stored definitions come back from Anansi as `[]any` (or any other
+// concrete slice type depending on the codec), and older records may hold an
+// empty object. A JSON round-trip keeps this tolerant of both.
+func toMapSlice(raw any) ([]map[string]any, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	if v, ok := raw.([]map[string]any); ok {
+		return v, nil
+	}
+	if v, ok := raw.(map[string]any); ok && len(v) == 0 {
+		return nil, nil
+	}
+
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	var out []map[string]any
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("expected an array of objects: %w", err)
+	}
+	return out, nil
+}
+
 func getString(m map[string]any, key string) string {
 	if v, ok := m[key]; ok {
 		if s, ok := v.(string); ok {

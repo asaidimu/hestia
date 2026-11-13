@@ -33,13 +33,13 @@ type SystemWorkflowDefinitionMetadata struct {
 
 type SystemWorkflowDefinition struct {
 	document.DocumentModel
+	Edges       []any                             `anansi:"edges,required=true" json:"edges"`
+	Nodes       []any                             `anansi:"nodes,required=true" json:"nodes"`
 	ID          string                            `anansi:"_id_,required=true" json:"_id_"`
 	Name        string                            `anansi:"name,required=true" json:"name"`
 	Metadata    *SystemWorkflowDefinitionMetadata `anansi:"_metadata_,required=false,omitempty" json:"_metadata_,omitempty"`
 	CreatedAt   *int64                            `anansi:"created_at,required=false,omitempty" json:"created_at,omitempty"`
 	Description *string                           `anansi:"description,required=false,omitempty" json:"description,omitempty"`
-	Edges       map[string]any                    `anansi:"edges,required=true" json:"edges"`
-	Nodes       map[string]any                    `anansi:"nodes,required=true" json:"nodes"`
 	TenantID    *string                           `anansi:"tenant_id,required=false,omitempty" json:"tenant_id,omitempty"`
 	UpdatedAt   *int64                            `anansi:"updated_at,required=false,omitempty" json:"updated_at,omitempty"`
 }

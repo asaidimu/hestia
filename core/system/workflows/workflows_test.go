@@ -11,19 +11,11 @@ import (
 	"github.com/asaidimu/hestia/core/system/workflows"
 	"github.com/asaidimu/hestia/core/system/workflows/model"
 
-	hermescore "github.com/asaidimu/hermes/pkg/core"
+	_ "github.com/asaidimu/hermes/pkg/nodes" // register built-in node types
 	hermesruntime "github.com/asaidimu/hermes/pkg/runtime"
 	hermesstore "github.com/asaidimu/hermes/pkg/store"
-	_ "github.com/asaidimu/hermes/pkg/nodes" // register built-in node types
+	"go.uber.org/zap"
 )
-
-type nopLogger struct{}
-
-func (l *nopLogger) Debug(msg string, keysAndValues ...any) {}
-func (l *nopLogger) Info(msg string, keysAndValues ...any)  {}
-func (l *nopLogger) Warn(msg string, keysAndValues ...any)  {}
-func (l *nopLogger) Error(msg string, keysAndValues ...any) {}
-func (l *nopLogger) With(keysAndValues ...any) hermescore.Logger { return l }
 
 func testMsg(name string, input *data.Document) abstract.Message {
 	return &testMessage{name: name, ctx: context.Background(), input: input}
@@ -35,19 +27,19 @@ type testMessage struct {
 	input *data.Document
 }
 
-func (m *testMessage) ID() string                            { return "" }
-func (m *testMessage) Name() string                          { return m.name }
-func (m *testMessage) Context() context.Context               { return m.ctx }
-func (m *testMessage) Input() data.Documenter                  { return m.input }
-func (m *testMessage) InputChannel() <-chan abstract.StreamItem     { return nil }
-func (m *testMessage) BlobInputChannel() <-chan abstract.Blob  { return nil }
-func (m *testMessage) TenantID() string                       { return "" }
-func (m *testMessage) TraceID() string                        { return "" }
-func (m *testMessage) RequestID() string                      { return "" }
-func (m *testMessage) SourceIP() string                       { return "" }
-func (m *testMessage) UserAgent() string                      { return "" }
-func (m *testMessage) ResourceID() string                     { return "" }
-func (m *testMessage) SessionID() string                      { return "" }
+func (m *testMessage) ID() string                               { return "" }
+func (m *testMessage) Name() string                             { return m.name }
+func (m *testMessage) Context() context.Context                 { return m.ctx }
+func (m *testMessage) Input() data.Documenter                   { return m.input }
+func (m *testMessage) InputChannel() <-chan abstract.StreamItem { return nil }
+func (m *testMessage) BlobInputChannel() <-chan abstract.Blob   { return nil }
+func (m *testMessage) TenantID() string                         { return "" }
+func (m *testMessage) TraceID() string                          { return "" }
+func (m *testMessage) RequestID() string                        { return "" }
+func (m *testMessage) SourceIP() string                         { return "" }
+func (m *testMessage) UserAgent() string                        { return "" }
+func (m *testMessage) ResourceID() string                       { return "" }
+func (m *testMessage) SessionID() string                        { return "" }
 
 func newTestModel(t *testing.T) *model.SystemWorkflowDefinitions {
 	t.Helper()
@@ -66,7 +58,7 @@ func newTestRuntime(t *testing.T) *hermesruntime.WorkflowRuntime {
 	}
 	return hermesruntime.NewWorkflowRuntime(hermesruntime.Options{
 		StoreFactory: storeFactory,
-		Logger:       &nopLogger{},
+		Logger:       zap.NewNop().Sugar(),
 	})
 }
 
@@ -106,6 +98,36 @@ func TestWorkflowModelCreateAndGet(t *testing.T) {
 	name, _ := got.GetString("name")
 	if name != "test-workflow" {
 		t.Errorf("name = %q, want %q", name, "test-workflow")
+	}
+
+	// Regression: nodes/edges were declared as `record`, so arrays were
+	// silently persisted as `{}`. They must round-trip as arrays of objects.
+	nodesAny, err := got.Get("nodes")
+	if err != nil {
+		t.Fatalf("get nodes: %v", err)
+	}
+	nodes, ok := nodesAny.([]any)
+	if !ok {
+		t.Fatalf("nodes has type %T, want []any", nodesAny)
+	}
+	if len(nodes) != 1 {
+		t.Fatalf("nodes length = %d, want 1", len(nodes))
+	}
+	node, ok := nodes[0].(map[string]any)
+	if !ok {
+		t.Fatalf("node has type %T, want map[string]any", nodes[0])
+	}
+	if node["id"] != "n1" {
+		t.Errorf("node id = %v, want n1", node["id"])
+	}
+	edgesAny, err := got.Get("edges")
+	if err != nil {
+		t.Fatalf("get edges: %v", err)
+	}
+	if edges, ok := edgesAny.([]any); !ok {
+		t.Fatalf("edges has type %T, want []any", edgesAny)
+	} else if len(edges) != 0 {
+		t.Errorf("edges length = %d, want 0", len(edges))
 	}
 }
 
